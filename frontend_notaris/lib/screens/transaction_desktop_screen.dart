@@ -1,0 +1,2857 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../core/theme/app_colors.dart';
+import '../core/widgets/searchable_dropdown.dart';
+
+enum TransactionType { notaris, ppat }
+
+class DummyCategory {
+  final String id;
+  final String name;
+
+  const DummyCategory({
+    required this.id,
+    required this.name,
+  });
+}
+
+class DummyProcess {
+  final String id;
+  final String name;
+  final String status;
+
+  const DummyProcess({
+    required this.id,
+    required this.name,
+    this.status = 'Belum Valid',
+  });
+}
+
+class DummyApplicant {
+  final String id, nik, name, phone, address, gender;
+
+  const DummyApplicant({
+    required this.id,
+    required this.nik,
+    required this.name,
+    required this.phone,
+    required this.address,
+    required this.gender,
+  });
+}
+
+class DummyOfficer {
+  final String id, nik, name, email, phone, gender;
+
+  const DummyOfficer({
+    required this.id,
+    required this.nik,
+    required this.name,
+    required this.email,
+    required this.phone,
+    required this.gender,
+  });
+}
+
+/// Pekerjaan yang dipasang ke sebuah transaksi.
+/// Satu pekerjaan dapat memiliki banyak kategori dan proses.
+class DummyTransactionJob {
+  final String id;
+  final String jobCode;
+  final String name;
+  final List<DummyCategory> categories;
+  final String estimatedTime;
+  final double serviceCost;
+  final double otherCost;
+  final List<DummyProcess> processes;
+
+  const DummyTransactionJob({
+    required this.id,
+    required this.jobCode,
+    required this.name,
+    required this.categories,
+    required this.estimatedTime,
+    required this.serviceCost,
+    required this.otherCost,
+    required this.processes,
+  });
+
+  double get totalCost => serviceCost + otherCost;
+}
+
+class DummyTransaction {
+  final String id;
+  final String number;
+  final TransactionType type;
+  final DummyApplicant applicant;
+  final DummyOfficer officer;
+  final List<DummyTransactionJob> jobs;
+  final String registrationDate;
+  final String deadline;
+  final String status;
+  final int materai;
+  final String paymentType;
+  final double discount;
+  final double currentPayment;
+  final String note;
+
+  const DummyTransaction({
+    required this.id,
+    required this.number,
+    required this.type,
+    required this.applicant,
+    required this.officer,
+    required this.jobs,
+    required this.registrationDate,
+    required this.deadline,
+    required this.status,
+    required this.materai,
+    required this.paymentType,
+    required this.discount,
+    required this.currentPayment,
+    required this.note,
+  });
+
+  double get totalCost =>
+      jobs.fold(0, (sum, job) => sum + job.totalCost);
+
+  double get netTotal => totalCost - discount;
+}
+
+class TransactionDesktopScreen extends StatefulWidget {
+  const TransactionDesktopScreen({super.key});
+
+  @override
+  State<TransactionDesktopScreen> createState() =>
+      _TransactionDesktopScreenState();
+}
+
+class _TransactionDesktopScreenState
+    extends State<TransactionDesktopScreen> {
+  TransactionType selectedType = TransactionType.notaris;
+
+  DummyApplicant? selectedApplicant;
+  DummyOfficer? selectedOfficer;
+
+  List<DummyTransactionJob> selectedJobs = [];
+
+  String transactionNumber = '10122092641342';
+  String registrationDate = '22/09/2026';
+  String deadline = '22/09/2026';
+  String transactionStatus = 'Baru';
+  String paymentType = 'Cash';
+  int materai = 0;
+  double discount = 0;
+  double currentPayment = 0;
+  String note = '';
+  bool _isSaving = false;
+
+  final discountController = TextEditingController();
+  final currentPaymentController = TextEditingController();
+  final noteController = TextEditingController();
+  final materaiController = TextEditingController();
+
+  final applicants = const [
+    DummyApplicant(
+      id: 'A001',
+      nik: '3505225803800002',
+      name: 'Rita Tri Widayah',
+      phone: '081222333444',
+      address:
+          'Dusun Mronjo RT 002/RW 001 Desa Mronjo Kecamatan Selopuro Kabupaten Blitar',
+      gender: 'Perempuan',
+    ),
+    DummyApplicant(
+      id: 'A002',
+      nik: '3505010101000002',
+      name: 'Siti Aminah',
+      phone: '081234567890',
+      address: 'Jl. Diponegoro No. 20, Blitar',
+      gender: 'Perempuan',
+    ),
+    DummyApplicant(
+      id: 'A003',
+      nik: '3505010101000003',
+      name: 'Andi Pratama',
+      phone: '082233445566',
+      address: 'Jl. Sudirman No. 15, Blitar',
+      gender: 'Laki-laki',
+    ),
+  ];
+
+  final officers = const [
+    DummyOfficer(
+      id: 'P001',
+      nik: '3505010101000011',
+      name: 'Rina Wulandari',
+      email: 'rina@notaris.test',
+      phone: '081111222333',
+      gender: 'Perempuan',
+    ),
+    DummyOfficer(
+      id: 'P002',
+      nik: '3505010101000012',
+      name: 'Dimas Saputra',
+      email: 'dimas@notaris.test',
+      phone: '082222333444',
+      gender: 'Laki-laki',
+    ),
+    DummyOfficer(
+      id: 'P003',
+      nik: '3505010101000013',
+      name: 'Sari Anggraini',
+      email: 'sari@notaris.test',
+      phone: '083333444555',
+      gender: 'Perempuan',
+    ),
+  ];
+
+  final notarisCategories = const [
+    DummyCategory(id: 'K001', name: 'Akta Jual Beli'),
+    DummyCategory(id: 'K002', name: 'Akta Hibah'),
+    DummyCategory(id: 'K003', name: 'UMK'),
+    DummyCategory(id: 'K004', name: 'Akta Kuasa'),
+    DummyCategory(id: 'K005', name: 'Waris'),
+    DummyCategory(id: 'K006', name: 'Perusahaan'),
+  ];
+
+  final ppatCategories = const [
+    DummyCategory(id: 'K101', name: 'Jual Beli'),
+    DummyCategory(id: 'K102', name: 'Hibah'),
+    DummyCategory(id: 'K103', name: 'Pembagian Hak Bersama'),
+    DummyCategory(id: 'K104', name: 'Hak Tanggungan'),
+    DummyCategory(id: 'K105', name: 'Warisan'),
+    DummyCategory(id: 'K106', name: 'Roya'),
+  ];
+
+  final notarisProcesses = const [
+    DummyProcess(id: 'PR001', name: 'Pendalaman berkas dan kelengkapan berkas'),
+    DummyProcess(id: 'PR002', name: 'Pendaftaran dan pemesanan nama perseroan'),
+    DummyProcess(id: 'PR003', name: 'Pembuatan draft akta dan penandatanganan akta'),
+    DummyProcess(id: 'PR004', name: 'Pembuatan salinan akta dan pendaftaran AHU'),
+    DummyProcess(id: 'PR005', name: 'Pencetakan salinan dan pengesahan AHU'),
+    DummyProcess(id: 'PR006', name: 'Pengambilan dan pelunasan'),
+  ];
+
+  final ppatProcesses = const [
+    DummyProcess(id: 'PR101', name: 'Pengecekan dokumen'),
+    DummyProcess(id: 'PR102', name: 'Pengecekan sertifikat'),
+    DummyProcess(id: 'PR103', name: 'Pembuatan akta'),
+    DummyProcess(id: 'PR104', name: 'Penandatanganan'),
+    DummyProcess(id: 'PR105', name: 'Pendaftaran'),
+  ];
+
+  late final transactions = <DummyTransaction>[
+    DummyTransaction(
+      id: 'TRX001',
+      number: 'NTRX-2026-0001',
+      type: TransactionType.notaris,
+      applicant: applicants[0],
+      officer: officers[0],
+      jobs: [
+        DummyTransactionJob(
+          id: 'TJ001',
+          jobCode: 'N001',
+          name: 'Pendirian Perusahaan Terbatas (PT)',
+          categories: const [
+            DummyCategory(id: 'K003', name: 'UMK'),
+            DummyCategory(id: 'K006', name: 'Perusahaan'),
+          ],
+          estimatedTime: '4-7 Hari setelah berkas dinyatakan lengkap',
+          serviceCost: 5000000,
+          otherCost: 0,
+          processes: notarisProcesses,
+        ),
+      ],
+      registrationDate: '22/09/2026',
+      deadline: '22/09/2026',
+      status: 'Dalam Proses',
+      materai: 0,
+      paymentType: 'Cash',
+      discount: 0,
+      currentPayment: 5000000,
+      note: '',
+    ),
+    DummyTransaction(
+      id: 'TRX002',
+      number: 'NTRX-2026-0002',
+      type: TransactionType.notaris,
+      applicant: applicants[1],
+      officer: officers[1],
+      jobs: [
+        DummyTransactionJob(
+          id: 'TJ002',
+          jobCode: 'N002',
+          name: 'Akta Kuasa',
+          categories: const [
+            DummyCategory(id: 'K004', name: 'Akta Kuasa'),
+          ],
+          estimatedTime: '3 Hari',
+          serviceCost: 750000,
+          otherCost: 0,
+          processes: [
+            notarisProcesses[0],
+            notarisProcesses[2],
+            notarisProcesses[5],
+          ],
+        ),
+      ],
+      registrationDate: '20/09/2026',
+      deadline: '25/09/2026',
+      status: 'Baru',
+      materai: 0,
+      paymentType: 'Cash',
+      discount: 0,
+      currentPayment: 0,
+      note: '',
+    ),
+    DummyTransaction(
+      id: 'TRX003',
+      number: 'PTRX-2026-0001',
+      type: TransactionType.ppat,
+      applicant: applicants[2],
+      officer: officers[2],
+      jobs: [
+        DummyTransactionJob(
+          id: 'TJ003',
+          jobCode: 'P001',
+          name: 'Akta Jual Beli Tanah',
+          categories: const [
+            DummyCategory(id: 'K101', name: 'Jual Beli'),
+            DummyCategory(id: 'K105', name: 'Warisan'),
+          ],
+          estimatedTime: '7 Hari',
+          serviceCost: 2500000,
+          otherCost: 250000,
+          processes: ppatProcesses,
+        ),
+      ],
+      registrationDate: '21/09/2026',
+      deadline: '28/09/2026',
+      status: 'Belum Selesai',
+      materai: 1,
+      paymentType: 'Cash',
+      discount: 0,
+      currentPayment: 1000000,
+      note: '',
+    ),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _syncEditableControllers();
+  }
+
+  void _syncEditableControllers() {
+    discountController.text =
+        discount == 0 ? '' : discount.toStringAsFixed(0);
+    currentPaymentController.text =
+        currentPayment == 0 ? '' : currentPayment.toStringAsFixed(0);
+    noteController.text = note;
+    materaiController.text = '$materai';
+  }
+
+  List<DummyCategory> get availableCategories =>
+      selectedType == TransactionType.notaris
+          ? notarisCategories
+          : ppatCategories;
+
+  List<DummyProcess> get availableProcesses =>
+      selectedType == TransactionType.notaris
+          ? notarisProcesses
+          : ppatProcesses;
+
+  String typeLabel(TransactionType type) =>
+      type == TransactionType.notaris ? 'NOTARIS' : 'PPAT';
+
+  double get totalCost =>
+      selectedJobs.fold(0, (sum, job) => sum + job.totalCost);
+
+  double get netTotal => totalCost - discount;
+
+  double get remainingPayment =>
+      (netTotal - currentPayment).clamp(0, double.infinity);
+
+  String formatPrice(double value) {
+    return 'Rp ${value.toStringAsFixed(0).replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+      (m) => '${m.group(1)}.',
+    )}';
+  }
+
+  void changeType(TransactionType type) {
+    if (type == selectedType) return;
+
+    setState(() {
+      selectedType = type;
+      selectedApplicant = null;
+      selectedOfficer = null;
+      selectedJobs.clear();
+      transactionNumber = type == TransactionType.notaris
+          ? '10122092641342'
+          : '20122092641345';
+      transactionStatus = 'Baru';
+      materai = 0;
+      discount = 0;
+      currentPayment = 0;
+      note = '';
+    });
+
+    _syncEditableControllers();
+  }
+
+  void resetForm() {
+    setState(() {
+      selectedApplicant = null;
+      selectedOfficer = null;
+      selectedJobs.clear();
+      transactionNumber = selectedType == TransactionType.notaris
+          ? '10122092641342'
+          : '20122092641345';
+      registrationDate = '22/09/2026';
+      deadline = '22/09/2026';
+      transactionStatus = 'Baru';
+      paymentType = 'Cash';
+      materai = 0;
+      discount = 0;
+      currentPayment = 0;
+      note = '';
+    });
+
+    _syncEditableControllers();
+  }
+
+  void loadTransaction(DummyTransaction transaction) {
+    setState(() {
+      selectedType = transaction.type;
+      transactionNumber = transaction.number;
+      selectedApplicant = transaction.applicant;
+      selectedOfficer = transaction.officer;
+      selectedJobs = List.from(transaction.jobs);
+      registrationDate = transaction.registrationDate;
+      deadline = transaction.deadline;
+      transactionStatus = transaction.status;
+      materai = transaction.materai;
+      paymentType = transaction.paymentType;
+      discount = transaction.discount;
+      currentPayment = transaction.currentPayment;
+      note = transaction.note;
+    });
+
+    _syncEditableControllers();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Transaksi ${transaction.number} berhasil dimuat.'),
+      ),
+    );
+  }
+
+  Future<void> showTransactionSearchDialog() async {
+    final filtered =
+        transactions.where((item) => item.type == selectedType).toList();
+
+    final result = await showDialog<DummyTransaction>(
+      context: context,
+      builder: (dialogContext) => _TransactionSearchDialog(
+        title: 'Cari Transaksi ${typeLabel(selectedType)}',
+        transactions: filtered,
+        formatPrice: formatPrice,
+      ),
+    );
+
+    if (result != null) {
+      loadTransaction(result);
+    }
+  }
+
+  Future<void> showApplicantDialog() async {
+    final result = await showDialog<DummyApplicant>(
+      context: context,
+      builder: (dialogContext) => _ApplicantDialog(
+        applicants: applicants,
+      ),
+    );
+
+    if (result != null) {
+      setState(() => selectedApplicant = result);
+    }
+  }
+
+  Future<void> showOfficerDialog() async {
+    final result = await showDialog<DummyOfficer>(
+      context: context,
+      builder: (dialogContext) => _OfficerDialog(
+        officers: officers,
+      ),
+    );
+
+    if (result != null) {
+      setState(() => selectedOfficer = result);
+    }
+  }
+
+  Future<void> addTransactionJob() async {
+    final result = await showDialog<DummyTransactionJob>(
+      context: context,
+      builder: (dialogContext) => _TransactionJobDialog(
+        type: selectedType,
+        categories: availableCategories,
+        processes: availableProcesses,
+      ),
+    );
+
+    if (result != null) {
+      setState(() => selectedJobs.add(result));
+    }
+  }
+
+  Future<void> editTransactionJob(int index) async {
+    final existing = selectedJobs[index];
+
+    final result = await showDialog<DummyTransactionJob>(
+      context: context,
+      builder: (dialogContext) => _TransactionJobDialog(
+        type: selectedType,
+        categories: availableCategories,
+        processes: availableProcesses,
+        initialJob: existing,
+      ),
+    );
+
+    if (result != null) {
+      setState(() => selectedJobs[index] = result);
+    }
+  }
+
+  void removeTransactionJob(int index) {
+    setState(() => selectedJobs.removeAt(index));
+  }
+
+  InputDecoration inputDecoration({
+    String? labelText,
+    String? hintText,
+    Widget? prefixIcon,
+  }) {
+    return InputDecoration(
+      labelText: labelText,
+      hintText: hintText,
+      prefixIcon: prefixIcon,
+      filled: true,
+      fillColor: AppColors.card,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 14,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(
+          color: AppColors.primary,
+          width: 1.4,
+        ),
+      ),
+    );
+  }
+
+  ButtonStyle outlinedButtonStyle() {
+    return OutlinedButton.styleFrom(
+      foregroundColor: AppColors.primary,
+      side: const BorderSide(color: AppColors.primary),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 13,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+    );
+  }
+
+  ButtonStyle primaryButtonStyle() {
+    return ElevatedButton.styleFrom(
+      backgroundColor: AppColors.primary,
+      foregroundColor: AppColors.card,
+      elevation: 0,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 18,
+        vertical: 13,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+    );
+  }
+
+  Widget card({
+    required Widget child,
+    EdgeInsets padding = const EdgeInsets.all(20),
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: child,
+    );
+  }
+
+  Widget sectionHeader({
+    required IconData icon,
+    required String title,
+    Widget? trailing,
+  }) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 21,
+          color: AppColors.primary,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        ?trailing,
+      ],
+    );
+  }
+
+  Widget emptyState({
+    required IconData icon,
+    required String text,
+    double height = 120,
+  }) {
+    return Container(
+      width: double.infinity,
+      height: height,
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            size: 28,
+            color: AppColors.textMuted,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            text,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget infoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 7),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 92,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          const Text(
+            ':',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              softWrap: true,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget applicantCard({required bool mobile}) {
+    final applicant = selectedApplicant;
+
+    return card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          sectionHeader(
+            icon: Icons.person_outline,
+            title: 'Data Pemohon',
+          ),
+          const SizedBox(height: 18),
+          if (applicant == null)
+            emptyState(
+              icon: Icons.person_outline,
+              text: 'Belum ada pemohon dipilih.',
+              height: 145,
+            )
+          else
+            SizedBox(
+              height: 145,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  infoRow('Nama', applicant.name),
+                  infoRow('NIK', applicant.nik),
+                  infoRow('Jenis Kelamin', applicant.gender),
+                  infoRow('No. HP', applicant.phone),
+                  Expanded(
+                    child: infoRow('Alamat', applicant.address),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: showApplicantDialog,
+              style: outlinedButtonStyle(),
+              icon: const Icon(Icons.search, size: 18),
+              label: Text(
+                applicant == null ? 'Pilih Pemohon' : 'Ganti Pemohon',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget officerCard() {
+    final officer = selectedOfficer;
+
+    return card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          sectionHeader(
+            icon: Icons.badge_outlined,
+            title: 'Data Petugas',
+          ),
+          const SizedBox(height: 18),
+          if (officer == null)
+            emptyState(
+              icon: Icons.badge_outlined,
+              text: 'Belum ada petugas dipilih.',
+              height: 145,
+            )
+          else
+            SizedBox(
+              height: 145,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  infoRow('Nama', officer.name),
+                  infoRow('NIK', officer.nik),
+                  infoRow('Jenis Kelamin', officer.gender),
+                  infoRow('No. HP', officer.phone),
+                  Expanded(
+                    child: infoRow('Email', officer.email),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: showOfficerDialog,
+              style: outlinedButtonStyle(),
+              icon: const Icon(Icons.search, size: 18),
+              label: Text(
+                officer == null ? 'Pilih Petugas' : 'Ganti Petugas',
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget transactionJobCard({
+    required DummyTransactionJob job,
+    required int index,
+    required bool mobile,
+  }) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.selectedMenuBg,
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Text(
+                  '${index + 1}',
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      job.name,
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      job.jobCode,
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Edit pekerjaan',
+                onPressed: () => editTransactionJob(index),
+                icon: const Icon(
+                  Icons.edit_outlined,
+                  color: AppColors.textSecondary,
+                  size: 19,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Hapus pekerjaan',
+                onPressed: () => removeTransactionJob(index),
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: AppColors.error,
+                  size: 19,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ...job.categories.map(
+                (category) => _Tag(
+                  text: category.name,
+                ),
+              ),
+              _Tag(
+                text: '${job.processes.length} proses',
+                muted: true,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Divider(
+            height: 1,
+            color: AppColors.divider,
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 24,
+            runSpacing: 10,
+            children: [
+              _SummaryItem(
+                label: 'Estimasi',
+                value: job.estimatedTime,
+              ),
+              _SummaryItem(
+                label: 'Biaya Layanan',
+                value: formatPrice(job.serviceCost),
+              ),
+              _SummaryItem(
+                label: 'Biaya Lainnya',
+                value: formatPrice(job.otherCost),
+              ),
+              _SummaryItem(
+                label: 'Total',
+                value: formatPrice(job.totalCost),
+                emphasized: true,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (selectedType == TransactionType.ppat)
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _showSimpleInfoDialog(
+                    'Kalkulator Pajak',
+                    'Prototype kalkulator pajak PPAT untuk ${job.name}.',
+                  ),
+                  style: outlinedButtonStyle(),
+                  icon: const Icon(Icons.calculate_outlined, size: 17),
+                  label: const Text('Kalkulator Pajak'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _showProcessDialog(job),
+                  style: outlinedButtonStyle(),
+                  icon: const Icon(Icons.format_list_bulleted, size: 17),
+                  label: const Text('Daftar Proses'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _showSimpleInfoDialog(
+                    'Status PPAT',
+                    'Prototype status PPAT untuk ${job.name}.',
+                  ),
+                  style: outlinedButtonStyle(),
+                  icon: const Icon(Icons.assignment_turned_in_outlined, size: 17),
+                  label: const Text('Status PPAT'),
+                ),
+              ],
+            )
+          else
+            OutlinedButton.icon(
+              onPressed: () => _showProcessDialog(job),
+              style: outlinedButtonStyle(),
+              icon: const Icon(Icons.format_list_bulleted, size: 17),
+              label: const Text('Lihat Proses'),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget jobsSection({required bool mobile}) {
+    return card(
+      child: Column(
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final narrow = constraints.maxWidth < 600;
+
+              final header = sectionHeader(
+                icon: Icons.assignment_outlined,
+                title: 'Pekerjaan ${typeLabel(selectedType)}',
+              );
+
+              final addButton = ElevatedButton.icon(
+                onPressed: addTransactionJob,
+                style: primaryButtonStyle(),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Tambah Pekerjaan'),
+              );
+
+              if (narrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    header,
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: addButton,
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: header),
+                  addButton,
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 18),
+          if (selectedJobs.isEmpty)
+            emptyState(
+              icon: Icons.assignment_outlined,
+              text: 'Belum ada pekerjaan ditambahkan.',
+              height: 150,
+            )
+          else
+            Column(
+              children: List.generate(
+                selectedJobs.length,
+                (index) => transactionJobCard(
+                  job: selectedJobs[index],
+                  index: index,
+                  mobile: mobile,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget transactionInformation({required bool mobile}) {
+    final numberField = TextFormField(
+      key: ValueKey('transaction-number-$transactionNumber'),
+      initialValue: transactionNumber,
+      readOnly: true,
+      decoration: inputDecoration(
+        labelText: 'No. Transaksi',
+      ),
+    );
+
+    final registrationField = TextFormField(
+      key: ValueKey('registration-date-$registrationDate'),
+      initialValue: registrationDate,
+      readOnly: true,
+      decoration: inputDecoration(
+        labelText: 'Tanggal Registrasi',
+        prefixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
+      ),
+    );
+
+    final deadlineField = TextFormField(
+      key: ValueKey('transaction-deadline-$deadline'),
+      initialValue: deadline,
+      readOnly: true,
+      decoration: inputDecoration(
+        labelText: 'Tanggal Deadline',
+        prefixIcon: const Icon(Icons.event_outlined, size: 18),
+      ),
+    );
+
+    final statusField = SearchableDropdown<String>(
+      value: transactionStatus,
+      items: const [
+        'Baru',
+        'Dalam Proses',
+        'Selesai',
+      ],
+      label: 'Status Transaksi',
+      onChanged: (value) {
+        if (value != null) {
+          setState(() => transactionStatus = value);
+        }
+      },
+    );
+
+    final materaiField = TextFormField(
+      controller: materaiController,
+      keyboardType: TextInputType.number,
+      onChanged: (value) {
+        setState(() => materai = int.tryParse(value) ?? 0);
+      },
+      decoration: inputDecoration(
+        labelText: 'Jumlah Materai',
+      ),
+    );
+
+    final fields = [
+      numberField,
+      registrationField,
+      deadlineField,
+      statusField,
+      materaiField,
+    ];
+
+    return card(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = mobile
+              ? 1
+              : constraints.maxWidth >= 1000
+                  ? 3
+                  : 2;
+
+          return Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: fields.map((field) {
+              final width = columns == 1
+                  ? constraints.maxWidth
+                  : (constraints.maxWidth - (columns - 1) * 16) / columns;
+
+              return SizedBox(
+                width: width,
+                child: field,
+              );
+            }).toList(),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget paymentSummary({required bool mobile}) {
+    final summary = card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          sectionHeader(
+            icon: Icons.payments_outlined,
+            title: 'Ringkasan Pembayaran',
+          ),
+          const SizedBox(height: 18),
+          _MoneyRow(
+            label: 'Total Biaya',
+            value: formatPrice(totalCost),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: discountController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+            ],
+            decoration: inputDecoration(
+              labelText: 'Potongan',
+              prefixIcon: const Icon(
+                Icons.remove_circle_outline,
+                size: 18,
+              ),
+            ),
+            onChanged: (value) {
+              // Jangan setState di setiap ketikan.
+              // Rebuild hanya bagian angka melalui ValueListenableBuilder
+              // agar keyboard/focus/cursor tidak terpental.
+              discount = double.tryParse(value) ?? 0;
+            },
+          ),
+          const SizedBox(height: 14),
+          const Divider(
+            height: 1,
+            color: AppColors.divider,
+          ),
+          const SizedBox(height: 14),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: discountController,
+            builder: (context, value, child) {
+              final currentDiscount =
+                  double.tryParse(value.text) ?? 0;
+              final currentNetTotal =
+                  totalCost - currentDiscount;
+
+              return _MoneyRow(
+                label: 'Total Netto',
+                value: formatPrice(currentNetTotal),
+                emphasized: true,
+              );
+            },
+          ),
+          const SizedBox(height: 16),
+          SearchableDropdown<String>(
+            value: paymentType,
+            items: const [
+              'Cash',
+              'Transfer',
+              'Debit',
+              'Kredit',
+              'QRIS',
+              'Lainnya',
+            ],
+            label: 'Jenis Pembayaran',
+            onChanged: (value) {
+              if (value != null) {
+                setState(() => paymentType = value);
+              }
+            },
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            key: ValueKey('payment-deadline-$deadline'),
+            initialValue: deadline,
+            readOnly: true,
+            decoration: inputDecoration(
+              labelText: 'Jatuh Tempo',
+              prefixIcon: const Icon(
+                Icons.event_outlined,
+                size: 18,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _showSimpleInfoDialog(
+                'Riwayat Pembayaran',
+                'Prototype riwayat pembayaran untuk transaksi $transactionNumber.',
+              ),
+              style: outlinedButtonStyle(),
+              icon: const Icon(Icons.history, size: 18),
+              label: const Text('Lihat Riwayat Pembayaran'),
+            ),
+          ),
+          const SizedBox(height: 14),
+          AnimatedBuilder(
+            animation: Listenable.merge([
+              discountController,
+              currentPaymentController,
+            ]),
+            builder: (context, _) {
+              return _MoneyRow(
+                label: 'Sisa Pembayaran',
+                value: formatPrice(remainingPayment),
+              );
+            },
+          ),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: currentPaymentController,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+            ],
+            decoration: inputDecoration(
+              labelText: 'Pembayaran Sekarang',
+            ),
+            onChanged: (value) {
+              // Hindari rebuild parent saat user sedang mengetik.
+              currentPayment = double.tryParse(value) ?? 0;
+            },
+          ),
+          const SizedBox(height: 14),
+          TextFormField(
+            controller: noteController,
+            maxLines: 3,
+            decoration: inputDecoration(
+              labelText: 'Keterangan',
+              hintText: 'Tambahkan keterangan...',
+            ),
+            onChanged: (value) => note = value,
+          ),
+        ],
+      ),
+    );
+
+    if (mobile) {
+      return summary;
+    }
+
+    return SizedBox(
+      width: 360,
+      child: summary,
+    );
+  }
+
+  Future<void> _saveTransaction() async {
+    if (_isSaving) return;
+
+    if (selectedApplicant == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pemohon harus dipilih terlebih dahulu.'),
+        ),
+      );
+      return;
+    }
+
+    if (selectedOfficer == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Petugas harus dipilih terlebih dahulu.'),
+        ),
+      );
+      return;
+    }
+
+    if (selectedJobs.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Minimal satu pekerjaan harus ditambahkan.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    // Simulasi request API untuk prototype.
+    // Nanti blok ini diganti repository/service Go tanpa mengubah UI.
+    await Future<void>.delayed(const Duration(milliseconds: 1200));
+
+    if (!mounted) return;
+
+    setState(() => _isSaving = false);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Transaksi berhasil disimpan (dummy).'),
+      ),
+    );
+  }
+
+  Widget bottomActions({required bool mobile}) {
+    final actions = [
+      OutlinedButton(
+        onPressed: resetForm,
+        style: outlinedButtonStyle(),
+        child: const Text('Reset'),
+      ),
+      ElevatedButton.icon(
+        onPressed: _isSaving ? null : _saveTransaction,
+        style: primaryButtonStyle(),
+        icon: const Icon(Icons.save_outlined, size: 18),
+        label: const Text('Simpan Transaksi'),
+      ),
+    ];
+
+    return Flex(
+      direction: mobile ? Axis.vertical : Axis.horizontal,
+      mainAxisAlignment: MainAxisAlignment.end,
+      crossAxisAlignment:
+          mobile ? CrossAxisAlignment.stretch : CrossAxisAlignment.center,
+      children: [
+        actions[0],
+        SizedBox(
+          width: mobile ? 0 : 12,
+          height: mobile ? 10 : 0,
+        ),
+        actions[1],
+      ],
+    );
+  }
+
+  Widget pageHeader({required bool mobile}) {
+    return Flex(
+      direction: mobile ? Axis.vertical : Axis.horizontal,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Transaksi',
+              style: TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 23,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            SizedBox(height: 5),
+            Text(
+              'Transaksi  |  Page',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+        if (mobile) const SizedBox(height: 14),
+        SizedBox(
+          width: mobile ? double.infinity : null,
+          child: OutlinedButton.icon(
+            onPressed: showTransactionSearchDialog,
+            style: outlinedButtonStyle(),
+            icon: const Icon(Icons.search, size: 18),
+            label: const Text('Cari No. Transaksi'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget typeSwitcher({required bool mobile}) {
+    Widget button(String label, TransactionType type) {
+      final selected = selectedType == type;
+
+      return SizedBox(
+        width: mobile ? double.infinity : 155,
+        height: 44,
+        child: ElevatedButton(
+          onPressed: () => changeType(type),
+          style: ElevatedButton.styleFrom(
+            backgroundColor:
+                selected ? AppColors.selectedMenuText : AppColors.card,
+            foregroundColor:
+                selected ? AppColors.card : AppColors.selectedMenuText,
+            elevation: 0,
+            side: const BorderSide(
+              color: AppColors.selectedMenuText,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Jenis Transaksi',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (mobile)
+          Row(
+            children: [
+              Expanded(child: button('NOTARIS', TransactionType.notaris)),
+              const SizedBox(width: 10),
+              Expanded(child: button('PPAT', TransactionType.ppat)),
+            ],
+          )
+        else
+          Row(
+            children: [
+              button('NOTARIS', TransactionType.notaris),
+              const SizedBox(width: 10),
+              button('PPAT', TransactionType.ppat),
+            ],
+          ),
+      ],
+    );
+  }
+
+  void _showSimpleInfoDialog(String title, String message) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.card,
+        title: Text(title),
+        content: Text(
+          message,
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+            ),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showProcessDialog(DummyTransactionJob job) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.card,
+        title: Text('Proses ${job.name}'),
+        content: SizedBox(
+          width: 700,
+          child: ListView.separated(
+            shrinkWrap: true,
+            itemCount: job.processes.length,
+            separatorBuilder: (_, _) => const Divider(
+              height: 1,
+              color: AppColors.divider,
+            ),
+            itemBuilder: (context, index) {
+              final process = job.processes[index];
+
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  radius: 15,
+                  backgroundColor: AppColors.selectedMenuBg,
+                  child: Text(
+                    '${index + 1}',
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  process.name,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 13,
+                  ),
+                ),
+                trailing: _StatusTag(text: process.status),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+            ),
+            child: const Text('Tutup'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final mobile = constraints.maxWidth < 760;
+        final horizontalPadding = mobile ? 16.0 : 28.0;
+
+        return Stack(
+          children: [
+            SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                24,
+                horizontalPadding,
+                36,
+              ),
+              child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              pageHeader(mobile: mobile),
+              const SizedBox(height: 20),
+              const Divider(
+                height: 1,
+                color: AppColors.divider,
+              ),
+              const SizedBox(height: 24),
+              typeSwitcher(mobile: mobile),
+              const SizedBox(height: 20),
+              if (mobile)
+                Column(
+                  children: [
+                    applicantCard(mobile: true),
+                    const SizedBox(height: 16),
+                    officerCard(),
+                  ],
+                )
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: applicantCard(mobile: false)),
+                    const SizedBox(width: 20),
+                    Expanded(child: officerCard()),
+                  ],
+                ),
+              const SizedBox(height: 20),
+              jobsSection(mobile: mobile),
+              const SizedBox(height: 20),
+              const Text(
+                'Informasi Transaksi',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              transactionInformation(mobile: mobile),
+              const SizedBox(height: 20),
+              if (mobile)
+                paymentSummary(mobile: true)
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: const Text(
+                              'Aksi Transaksi',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          card(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                sectionHeader(
+                                  icon: Icons.print_outlined,
+                                  title: 'Dokumen',
+                                ),
+                                const SizedBox(height: 16),
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: [
+                                    OutlinedButton.icon(
+                                      onPressed: () =>
+                                          _showSimpleInfoDialog(
+                                        'Cetak Invoice',
+                                        'Prototype cetak invoice.',
+                                      ),
+                                      style: outlinedButtonStyle(),
+                                      icon: const Icon(
+                                        Icons.receipt_long_outlined,
+                                        size: 18,
+                                      ),
+                                      label: const Text('Cetak Invoice'),
+                                    ),
+                                    OutlinedButton.icon(
+                                      onPressed: () =>
+                                          _showSimpleInfoDialog(
+                                        'Cetak Serah Terima',
+                                        'Prototype cetak serah terima.',
+                                      ),
+                                      style: outlinedButtonStyle(),
+                                      icon: const Icon(
+                                        Icons.description_outlined,
+                                        size: 18,
+                                      ),
+                                      label: const Text(
+                                        'Cetak Serah Terima',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          bottomActions(mobile: false),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    paymentSummary(mobile: false),
+                  ],
+                ),
+              if (mobile) ...[
+                const SizedBox(height: 20),
+                card(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      sectionHeader(
+                        icon: Icons.print_outlined,
+                        title: 'Dokumen',
+                      ),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () => _showSimpleInfoDialog(
+                              'Cetak Invoice',
+                              'Prototype cetak invoice.',
+                            ),
+                            style: outlinedButtonStyle(),
+                            icon: const Icon(
+                              Icons.receipt_long_outlined,
+                              size: 18,
+                            ),
+                            label: const Text('Cetak Invoice'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: () => _showSimpleInfoDialog(
+                              'Cetak Serah Terima',
+                              'Prototype cetak serah terima.',
+                            ),
+                            style: outlinedButtonStyle(),
+                            icon: const Icon(
+                              Icons.description_outlined,
+                              size: 18,
+                            ),
+                            label: const Text('Cetak Serah Terima'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                bottomActions(mobile: true),
+              ],
+            ],
+          ),
+            ),
+            if (_isSaving)
+              const Positioned.fill(
+                child: _TransactionLoadingOverlay(),
+              ),
+          ],
+        );
+      },
+    );
+  }
+  @override
+  void dispose() {
+    discountController.dispose();
+    currentPaymentController.dispose();
+    noteController.dispose();
+    materaiController.dispose();
+    super.dispose();
+  }
+}
+
+class _TransactionLoadingOverlay extends StatelessWidget {
+  const _TransactionLoadingOverlay();
+
+  @override
+  Widget build(BuildContext context) {
+    return AbsorbPointer(
+      absorbing: true,
+      child: Container(
+        color: AppColors.textPrimary.withValues(alpha: 0.18),
+        alignment: Alignment.center,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 20,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: AppColors.primary,
+                ),
+              ),
+              SizedBox(width: 14),
+              Text(
+                'Menyimpan transaksi...',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TransactionJobDialog extends StatefulWidget {
+  final TransactionType type;
+  final List<DummyCategory> categories;
+  final List<DummyProcess> processes;
+  final DummyTransactionJob? initialJob;
+
+  const _TransactionJobDialog({
+    required this.type,
+    required this.categories,
+    required this.processes,
+    this.initialJob,
+  });
+
+  @override
+  State<_TransactionJobDialog> createState() => _TransactionJobDialogState();
+}
+
+class _TransactionJobDialogState extends State<_TransactionJobDialog> {
+  late final TextEditingController nameController;
+  late final TextEditingController codeController;
+  late final TextEditingController estimatedController;
+  late final TextEditingController serviceCostController;
+  late final TextEditingController otherCostController;
+
+  late List<DummyCategory> selectedCategories;
+  late List<DummyProcess> selectedProcesses;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final job = widget.initialJob;
+
+    nameController = TextEditingController(
+      text: job?.name ?? '',
+    );
+    codeController = TextEditingController(
+      text: job?.jobCode ?? '',
+    );
+    estimatedController = TextEditingController(
+      text: job?.estimatedTime ?? '',
+    );
+    serviceCostController = TextEditingController(
+      text: job == null ? '' : job.serviceCost.toStringAsFixed(0),
+    );
+    otherCostController = TextEditingController(
+      text: job == null ? '' : job.otherCost.toStringAsFixed(0),
+    );
+
+    selectedCategories = List.from(job?.categories ?? const []);
+    selectedProcesses = List.from(job?.processes ?? const []);
+  }
+
+  InputDecoration decoration({
+    String? label,
+    String? hint,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      filled: true,
+      fillColor: AppColors.card,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 14,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(
+          color: AppColors.primary,
+          width: 1.4,
+        ),
+      ),
+    );
+  }
+
+  void addCategory() {
+    showDialog<DummyCategory>(
+      context: context,
+      builder: (dialogContext) => _CategoryPickerDialog(
+        categories: widget.categories
+            .where((item) => !selectedCategories.contains(item))
+            .toList(),
+      ),
+    ).then((result) {
+      if (result != null) {
+        setState(() => selectedCategories.add(result));
+      }
+    });
+  }
+
+  void addProcess() {
+    showDialog<DummyProcess>(
+      context: context,
+      builder: (dialogContext) => _ProcessPickerDialog(
+        processes: widget.processes
+            .where(
+              (item) => !selectedProcesses.any(
+                (selected) => selected.id == item.id,
+              ),
+            )
+            .toList(),
+      ),
+    ).then((result) {
+      if (result != null) {
+        setState(() => selectedProcesses.add(result));
+      }
+    });
+  }
+
+  void save() {
+    if (nameController.text.trim().isEmpty) {
+      _showValidation('Nama pekerjaan wajib diisi.');
+      return;
+    }
+
+    if (selectedCategories.isEmpty) {
+      _showValidation('Minimal satu kategori pekerjaan harus dipilih.');
+      return;
+    }
+
+    if (selectedProcesses.isEmpty) {
+      _showValidation('Minimal satu proses pekerjaan harus dipilih.');
+      return;
+    }
+
+    final result = DummyTransactionJob(
+      id: widget.initialJob?.id ??
+          'TJ-${DateTime.now().millisecondsSinceEpoch}',
+      jobCode: codeController.text.trim().isEmpty
+          ? '${widget.type == TransactionType.notaris ? 'N' : 'P'}-DUMMY'
+          : codeController.text.trim(),
+      name: nameController.text.trim(),
+      categories: List.from(selectedCategories),
+      estimatedTime: estimatedController.text.trim().isEmpty
+          ? 'Belum ditentukan'
+          : estimatedController.text.trim(),
+      serviceCost: double.tryParse(serviceCostController.text) ?? 0,
+      otherCost: double.tryParse(otherCostController.text) ?? 0,
+      processes: List.from(selectedProcesses),
+    );
+
+    Navigator.pop(context, result);
+  }
+
+  void _showValidation(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mobile = MediaQuery.sizeOf(context).width < 700;
+
+    return Dialog(
+      backgroundColor: AppColors.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 900,
+          maxHeight: MediaQuery.sizeOf(context).height * .88,
+        ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 22, 24, 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.initialJob == null
+                          ? 'Tambah Pekerjaan ${widget.type == TransactionType.notaris ? 'Notaris' : 'PPAT'}'
+                          : 'Edit Pekerjaan',
+                      style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 21,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(
+              height: 1,
+              color: AppColors.divider,
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const _DialogSectionTitle(
+                      title: 'Informasi Pekerjaan',
+                    ),
+                    const SizedBox(height: 12),
+                    if (mobile)
+                      Column(
+                        children: [
+                          TextField(
+                            controller: nameController,
+                            decoration: decoration(
+                              label: 'Nama Pekerjaan',
+                              hint: 'Contoh: Pendirian PT',
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          TextField(
+                            controller: codeController,
+                            decoration: decoration(
+                              label: 'Kode Pekerjaan',
+                              hint: 'Kode internal',
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: TextField(
+                              controller: nameController,
+                              decoration: decoration(
+                                label: 'Nama Pekerjaan',
+                                hint: 'Contoh: Pendirian PT',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: TextField(
+                              controller: codeController,
+                              decoration: decoration(
+                                label: 'Kode Pekerjaan',
+                                hint: 'Kode internal',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 24),
+                    const _DialogSectionTitle(
+                      title: 'Kategori Pekerjaan',
+                    ),
+                    const SizedBox(height: 12),
+                    if (selectedCategories.isEmpty)
+                      _DialogEmptyState(
+                        text: 'Belum ada kategori.',
+                      )
+                    else
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: selectedCategories
+                            .map(
+                              (category) => InputChip(
+                                label: Text(category.name),
+                                onDeleted: () {
+                                  setState(
+                                    () => selectedCategories.remove(category),
+                                  );
+                                },
+                                deleteIconColor: AppColors.textSecondary,
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: addCategory,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Tambah Kategori'),
+                    ),
+                    const SizedBox(height: 24),
+                    const _DialogSectionTitle(
+                      title: 'Biaya dan Estimasi',
+                    ),
+                    const SizedBox(height: 12),
+                    if (mobile)
+                      Column(
+                        children: [
+                          TextField(
+                            controller: estimatedController,
+                            decoration: decoration(
+                              label: 'Estimasi Waktu',
+                              hint: 'Contoh: 4-7 Hari',
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          TextField(
+                            controller: serviceCostController,
+                            keyboardType: TextInputType.number,
+                            decoration: decoration(
+                              label: 'Biaya Layanan',
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          TextField(
+                            controller: otherCostController,
+                            keyboardType: TextInputType.number,
+                            decoration: decoration(
+                              label: 'Biaya Lainnya',
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: estimatedController,
+                              decoration: decoration(
+                                label: 'Estimasi Waktu',
+                                hint: 'Contoh: 4-7 Hari',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: TextField(
+                              controller: serviceCostController,
+                              keyboardType: TextInputType.number,
+                              decoration: decoration(
+                                label: 'Biaya Layanan',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: TextField(
+                              controller: otherCostController,
+                              keyboardType: TextInputType.number,
+                              decoration: decoration(
+                                label: 'Biaya Lainnya',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 24),
+                    const _DialogSectionTitle(
+                      title: 'Proses Pekerjaan',
+                    ),
+                    const SizedBox(height: 12),
+                    if (selectedProcesses.isEmpty)
+                      _DialogEmptyState(
+                        text: 'Belum ada proses.',
+                      )
+                    else
+                      Column(
+                        children: List.generate(
+                          selectedProcesses.length,
+                          (index) {
+                            final process = selectedProcesses[index];
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.background,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 14,
+                                    backgroundColor:
+                                        AppColors.selectedMenuBg,
+                                    child: Text(
+                                      '${index + 1}',
+                                      style: const TextStyle(
+                                        color: AppColors.primary,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      process.name,
+                                      style: const TextStyle(
+                                        color: AppColors.textPrimary,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                  _StatusTag(text: process.status),
+                                  IconButton(
+                                    tooltip: 'Hapus proses',
+                                    onPressed: () {
+                                      setState(
+                                        () => selectedProcesses.removeAt(
+                                          index,
+                                        ),
+                                      );
+                                    },
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      size: 18,
+                                      color: AppColors.error,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    OutlinedButton.icon(
+                      onPressed: addProcess,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Tambah Proses'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const Divider(
+              height: 1,
+              color: AppColors.divider,
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                    ),
+                    child: const Text('Batal'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: save,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.card,
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.save_outlined, size: 18),
+                    label: const Text('Simpan'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    codeController.dispose();
+    estimatedController.dispose();
+    serviceCostController.dispose();
+    otherCostController.dispose();
+    super.dispose();
+  }
+}
+
+class _TransactionSearchDialog extends StatefulWidget {
+  final String title;
+  final List<DummyTransaction> transactions;
+  final String Function(double) formatPrice;
+
+  const _TransactionSearchDialog({
+    required this.title,
+    required this.transactions,
+    required this.formatPrice,
+  });
+
+  @override
+  State<_TransactionSearchDialog> createState() =>
+      _TransactionSearchDialogState();
+}
+
+class _TransactionSearchDialogState
+    extends State<_TransactionSearchDialog> {
+  final controller = TextEditingController();
+
+  List<DummyTransaction> get filtered {
+    final query = controller.text.trim().toLowerCase();
+
+    if (query.isEmpty) {
+      return widget.transactions;
+    }
+
+    return widget.transactions.where((item) {
+      return [
+        item.number,
+        item.applicant.name,
+        item.officer.name,
+        item.status,
+      ].join(' ').toLowerCase().contains(query);
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.card,
+      title: Text(widget.title),
+      content: SizedBox(
+        width: 950,
+        height: 500,
+        child: Column(
+          children: [
+            TextField(
+              controller: controller,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                hintText: 'Cari nomor, pemohon, petugas, atau status...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: AppColors.background,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: filtered.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Tidak ada transaksi yang sesuai.',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, _) => const Divider(
+                        height: 1,
+                        color: AppColors.divider,
+                      ),
+                      itemBuilder: (context, index) {
+                        final item = filtered[index];
+
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 5,
+                          ),
+                          title: Text(
+                            item.number,
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            '${item.applicant.name} • ${item.officer.name} • ${item.registrationDate}',
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                          trailing: _StatusTag(text: item.status),
+                          onTap: () => Navigator.pop(context, item),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.primary,
+          ),
+          child: const Text('Tutup'),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+}
+
+class _ApplicantDialog extends StatelessWidget {
+  final List<DummyApplicant> applicants;
+
+  const _ApplicantDialog({
+    required this.applicants,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _SimpleSelectionDialog<DummyApplicant>(
+      title: 'Pilih Pemohon',
+      items: applicants,
+      searchText: (item) => [
+        item.nik,
+        item.name,
+        item.phone,
+        item.address,
+      ].join(' '),
+      titleText: (item) => item.name,
+      subtitleText: (item) =>
+          '${item.nik} • ${item.gender} • ${item.phone}',
+      onSelected: (item) => Navigator.pop(context, item),
+    );
+  }
+}
+
+class _OfficerDialog extends StatelessWidget {
+  final List<DummyOfficer> officers;
+
+  const _OfficerDialog({
+    required this.officers,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _SimpleSelectionDialog<DummyOfficer>(
+      title: 'Pilih Petugas',
+      items: officers,
+      searchText: (item) => [
+        item.nik,
+        item.name,
+        item.email,
+        item.phone,
+      ].join(' '),
+      titleText: (item) => item.name,
+      subtitleText: (item) =>
+          '${item.nik} • ${item.email} • ${item.phone}',
+      onSelected: (item) => Navigator.pop(context, item),
+    );
+  }
+}
+
+class _SimpleSelectionDialog<T> extends StatefulWidget {
+  final String title;
+  final List<T> items;
+  final String Function(T) searchText;
+  final String Function(T) titleText;
+  final String Function(T) subtitleText;
+  final ValueChanged<T> onSelected;
+
+  const _SimpleSelectionDialog({
+    required this.title,
+    required this.items,
+    required this.searchText,
+    required this.titleText,
+    required this.subtitleText,
+    required this.onSelected,
+  });
+
+  @override
+  State<_SimpleSelectionDialog<T>> createState() =>
+      _SimpleSelectionDialogState<T>();
+}
+
+class _SimpleSelectionDialogState<T>
+    extends State<_SimpleSelectionDialog<T>> {
+  final controller = TextEditingController();
+
+  List<T> get filtered {
+    final query = controller.text.trim().toLowerCase();
+
+    if (query.isEmpty) {
+      return widget.items;
+    }
+
+    return widget.items
+        .where(
+          (item) => widget.searchText(item).toLowerCase().contains(query),
+        )
+        .toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.card,
+      title: Text(widget.title),
+      content: SizedBox(
+        width: 800,
+        height: 450,
+        child: Column(
+          children: [
+            TextField(
+              controller: controller,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                hintText: 'Cari...',
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: AppColors.background,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Expanded(
+              child: filtered.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Tidak ada data.',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, _) => const Divider(
+                        height: 1,
+                        color: AppColors.divider,
+                      ),
+                      itemBuilder: (context, index) {
+                        final item = filtered[index];
+
+                        return ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          title: Text(
+                            widget.titleText(item),
+                            style: const TextStyle(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          subtitle: Text(
+                            widget.subtitleText(item),
+                            style: const TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                          onTap: () => widget.onSelected(item),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.primary,
+          ),
+          child: const Text('Tutup'),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+}
+
+class _CategoryPickerDialog extends StatelessWidget {
+  final List<DummyCategory> categories;
+
+  const _CategoryPickerDialog({
+    required this.categories,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _SimpleSelectionDialog<DummyCategory>(
+      title: 'Pilih Kategori',
+      items: categories,
+      searchText: (item) => item.name,
+      titleText: (item) => item.name,
+      subtitleText: (item) => item.id,
+      onSelected: (item) => Navigator.pop(context, item),
+    );
+  }
+}
+
+class _ProcessPickerDialog extends StatelessWidget {
+  final List<DummyProcess> processes;
+
+  const _ProcessPickerDialog({
+    required this.processes,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _SimpleSelectionDialog<DummyProcess>(
+      title: 'Pilih Proses',
+      items: processes,
+      searchText: (item) => item.name,
+      titleText: (item) => item.name,
+      subtitleText: (item) => item.status,
+      onSelected: (item) => Navigator.pop(context, item),
+    );
+  }
+}
+
+class _Tag extends StatelessWidget {
+  final String text;
+  final bool muted;
+
+  const _Tag({
+    required this.text,
+    this.muted = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 9,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: muted
+            ? AppColors.background
+            : AppColors.selectedMenuBg,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: muted
+              ? AppColors.textSecondary
+              : AppColors.selectedMenuText,
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusTag extends StatelessWidget {
+  final String text;
+
+  const _StatusTag({
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 5,
+      ),
+      decoration: BoxDecoration(
+        color: text == 'Selesai'
+            ? AppColors.success.withValues(alpha: .10)
+            : AppColors.warning.withValues(alpha: .10),
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: text == 'Selesai'
+              ? AppColors.success
+              : AppColors.warning,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _MoneyRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool emphasized;
+
+  const _MoneyRow({
+    required this.label,
+    required this.value,
+    this.emphasized = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: emphasized
+                  ? AppColors.textPrimary
+                  : AppColors.textSecondary,
+              fontSize: 13,
+              fontWeight: emphasized
+                  ? FontWeight.w600
+                  : FontWeight.w400,
+            ),
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            color: emphasized
+                ? AppColors.primary
+                : AppColors.textPrimary,
+            fontSize: 13,
+            fontWeight: emphasized
+                ? FontWeight.w600
+                : FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SummaryItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool emphasized;
+
+  const _SummaryItem({
+    required this.label,
+    required this.value,
+    this.emphasized = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 120),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            value,
+            style: TextStyle(
+              color: emphasized
+                  ? AppColors.primary
+                  : AppColors.textPrimary,
+              fontSize: 13,
+              fontWeight: emphasized
+                  ? FontWeight.w600
+                  : FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DialogSectionTitle extends StatelessWidget {
+  final String title;
+
+  const _DialogSectionTitle({
+    required this.title,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+        color: AppColors.textPrimary,
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+}
+
+class _DialogEmptyState extends StatelessWidget {
+  final String text;
+
+  const _DialogEmptyState({
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 13,
+        ),
+      ),
+    );
+  }
+}
