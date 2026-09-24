@@ -109,9 +109,14 @@ class _DashboardDesktopScreenState extends State<DashboardDesktopScreen>
 
   Widget _buildHeader({bool mobile = false}) {
     return Container(
-      height: mobile ? 58 : 60,
+      height: mobile ? 58 : 64,
       padding: EdgeInsets.symmetric(horizontal: mobile ? 12 : 24),
-      color: AppColors.card,
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        border: Border(
+          bottom: BorderSide(color: AppColors.border),
+        ),
+      ),
       child: Row(
         children: [
           if (mobile) ...[
@@ -120,39 +125,48 @@ class _DashboardDesktopScreenState extends State<DashboardDesktopScreen>
               icon: const Icon(Icons.menu),
               onPressed: () => _scaffoldKey.currentState?.openDrawer(),
             ),
-            const SizedBox(width: 2),
+            const SizedBox(width: 4),
             const Text(
-              'Mikro Notaris',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+              'Blitaris',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
             ),
             const Spacer(),
-          ] else
+          ] else ...[
             const Spacer(),
+          ],
+          IconButton(
+            tooltip: 'Notifikasi',
+            icon: const Icon(
+              Icons.notifications_none_outlined,
+              color: AppColors.textSecondary,
+            ),
+            onPressed: () {},
+          ),
+          const SizedBox(width: 4),
           const Text(
             'SUPER ADMIN',
             style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              letterSpacing: .5,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: .4,
+              color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(width: 8),
-          if (!mobile)
-            IconButton(
-              tooltip: 'Fullscreen',
-              icon: const Icon(
-                Icons.open_in_full,
-                size: 18,
-                color: Colors.black54,
-              ),
-              onPressed: () {},
-            ),
+          const SizedBox(width: 10),
           PopupMenuButton<String>(
             offset: const Offset(0, 50),
+            tooltip: 'Akun',
             child: const CircleAvatar(
               radius: 18,
-              backgroundColor: Color(0xFFE0E0E0),
-              child: Icon(Icons.person, color: AppColors.textSecondary),
+              backgroundColor: AppColors.primarySoft,
+              child: Icon(
+                Icons.person_outline,
+                color: AppColors.primary,
+              ),
             ),
             onSelected: (value) {
               if (value == 'logout') {
@@ -165,13 +179,16 @@ class _DashboardDesktopScreenState extends State<DashboardDesktopScreen>
               }
             },
             itemBuilder: (_) => const [
-              PopupMenuItem(value: 'profile', child: Text('Profile')),
+              PopupMenuItem(
+                value: 'profile',
+                child: Text('Profile'),
+              ),
               PopupMenuDivider(),
               PopupMenuItem(
                 value: 'logout',
                 child: Text(
                   'Keluar',
-                  style: TextStyle(color: Colors.redAccent),
+                  style: TextStyle(color: AppColors.error),
                 ),
               ),
             ],
@@ -181,138 +198,253 @@ class _DashboardDesktopScreenState extends State<DashboardDesktopScreen>
     );
   }
 
-  Widget _desktopItem(
+  Widget _sidebarItem(
     String title,
     IconData icon, {
     VoidCallback? onTap,
+    bool dense = false,
   }) {
     final selected = selectedMenu == title;
 
-    return TextButton.icon(
-      onPressed: onTap,
-      style: TextButton.styleFrom(
-        foregroundColor:
-            selected ? AppColors.primary : Colors.black87,
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(5),
-        ),
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: dense ? 2 : 3,
       ),
-      icon: Icon(icon, size: 16),
-      label: Text(
-        title,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+      child: Material(
+        color: selected ? AppColors.selectedMenuBg : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: dense ? 12 : 13,
+              vertical: dense ? 9 : 11,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: dense ? 18 : 20,
+                  color: selected
+                      ? AppColors.selectedMenuText
+                      : AppColors.textSecondary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    title,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: dense ? 13 : 14,
+                      fontWeight:
+                          selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected
+                          ? AppColors.selectedMenuText
+                          : AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _desktopDropdown(
+  Widget _sidebarExpansion(
     String title,
     IconData icon,
     List<String> items,
   ) {
     final selected = items.contains(selectedMenu);
 
-    return PopupMenuButton<String>(
-      offset: const Offset(0, 42),
-      onSelected: _selectMenu,
-      itemBuilder: (_) => items
-          .map(
-            (item) => PopupMenuItem<String>(
-              value: item,
-              child: Text(item),
-            ),
-          )
-          .toList(),
-      child: TextButton.icon(
-        onPressed: null,
-        style: TextButton.styleFrom(
-          foregroundColor:
-              selected ? AppColors.primary : Colors.black87,
-          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      child: Theme(
+        data: Theme.of(context).copyWith(
+          dividerColor: Colors.transparent,
+          splashColor: AppColors.primarySoft,
+          highlightColor: AppColors.primarySoft,
         ),
-        icon: Icon(icon, size: 16),
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-              ),
+        child: ExpansionTile(
+          key: ValueKey('$title-$selected'),
+          initiallyExpanded: selected,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 13),
+          childrenPadding: EdgeInsets.zero,
+          leading: Icon(
+            icon,
+            size: 20,
+            color: selected
+                ? AppColors.selectedMenuText
+                : AppColors.textSecondary,
+          ),
+          iconColor: AppColors.primary,
+          collapsedIconColor: AppColors.textSecondary,
+          textColor: AppColors.textPrimary,
+          collapsedTextColor: AppColors.textPrimary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          collapsedShape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          title: Text(
+            title,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
-            const SizedBox(width: 2),
-            const Icon(Icons.keyboard_arrow_down, size: 14),
-          ],
+          ),
+          children: items
+              .map(
+                (item) => _sidebarItem(
+                  item,
+                  Icons.chevron_right,
+                  onTap: () => _selectMenu(item),
+                  dense: true,
+                ),
+              )
+              .toList(),
         ),
       ),
     );
   }
 
-  Widget _buildDesktopNavigation() {
+  Widget _buildDesktopSidebar() {
     return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        border: Border(
-          top: BorderSide(color: AppColors.border),
-          bottom: BorderSide(color: AppColors.border),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: .03),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
+      width: 248,
+      color: AppColors.sidebarBg,
+      child: Column(
+        children: [
+          Container(
+            height: 88,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            decoration: BoxDecoration(
+              border: Border(
+                right: BorderSide(color: AppColors.border),
+                bottom: BorderSide(color: AppColors.border),
+              ),
+            ),
+            child: Row(
+              children: [
+                Image.asset(
+                  'assets/images/logoblitaris.png',
+                  width: 42,
+                  height: 42,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(width: 10),
+                const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'BLITARIS',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: .7,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    Text(
+                      'Notaris & PPAT',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              physics: const ClampingScrollPhysics(),
+              children: [
+                _sidebarItem(
+                  'Dashboard',
+                  Icons.dashboard_outlined,
+                  onTap: () => _selectMenu('Dashboard'),
+                ),
+                _sidebarItem(
+                  'Transaksi',
+                  Icons.receipt_long_outlined,
+                  onTap: () => _selectMenu('Transaksi'),
+                ),
+                _sidebarItem(
+                  'Monitoring',
+                  Icons.monitor_outlined,
+                  onTap: () => _selectMenu('Monitoring'),
+                ),
+                _sidebarItem(
+                  'Pengeluaran',
+                  Icons.payments_outlined,
+                  onTap: () => _selectMenu('Pengeluaran'),
+                ),
+                _sidebarItem(
+                  'Piutang',
+                  Icons.account_balance_wallet_outlined,
+                  onTap: () => _selectMenu('Piutang'),
+                ),
+                _sidebarItem(
+                  'Penghasilan',
+                  Icons.trending_up_outlined,
+                  onTap: () => _selectMenu('Penghasilan'),
+                ),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(22, 14, 22, 8),
+                  child: Text(
+                    'MENU UTAMA',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                ),
+                _sidebarExpansion('Master', Icons.folder_outlined, masterMenus),
+                _sidebarExpansion('Laporan', Icons.assessment_outlined, laporanMenus),
+                _sidebarExpansion('System', Icons.settings_outlined, systemMenus),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 16),
+            decoration: BoxDecoration(
+              border: Border(
+                top: BorderSide(color: AppColors.border),
+                right: BorderSide(color: AppColors.border),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.verified_user_outlined,
+                  size: 18,
+                  color: AppColors.primary,
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    'Sistem Administrasi\nNotaris & PPAT',
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.35,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
-      ),
-      child: Center(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const ClampingScrollPhysics(),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _desktopItem(
-                'Dashboard',
-                Icons.home,
-                onTap: () => _selectMenu('Dashboard'),
-              ),
-              _desktopItem(
-                'Transaksi',
-                Icons.point_of_sale,
-                onTap: () => _selectMenu('Transaksi'),
-              ),
-              _desktopItem(
-                'Monitoring',
-                Icons.desktop_windows,
-                onTap: () => _selectMenu('Monitoring'),
-              ),
-              _desktopItem(
-                'Pengeluaran',
-                Icons.request_quote,
-                onTap: () => _selectMenu('Pengeluaran'),
-              ),
-              _desktopItem(
-                'Piutang',
-                Icons.description,
-                onTap: () => _selectMenu('Piutang'),
-              ),
-              _desktopItem(
-                'Penghasilan',
-                Icons.attach_money,
-                onTap: () => _selectMenu('Penghasilan'),
-              ),
-              _desktopDropdown('Master', Icons.view_list, masterMenus),
-              _desktopDropdown('Laporan', Icons.flag, laporanMenus),
-              _desktopDropdown('System', Icons.settings, systemMenus),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -407,7 +539,7 @@ class _DashboardDesktopScreenState extends State<DashboardDesktopScreen>
               alignment: Alignment.centerLeft,
               color: AppColors.primary,
               child: const Text(
-                'Mikro Notaris',
+                'Blitaris',
                 style: TextStyle(
                   color: AppColors.card,
                   fontSize: 19,
@@ -446,7 +578,7 @@ class _DashboardDesktopScreenState extends State<DashboardDesktopScreen>
       margin: const EdgeInsets.fromLTRB(28, 0, 28, 20),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F1F1),
+        color: AppColors.card,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -623,14 +755,14 @@ class _DashboardDesktopScreenState extends State<DashboardDesktopScreen>
                       ),
                       SizedBox(height: 5),
                       Text(
-                        'Dashboard  |  Page',
+                        'Ringkasan aktivitas kantor Notaris & PPAT',
                         style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                       ),
                     ],
                   ),
                   if (mobile) const SizedBox(height: 14),
                   SizedBox(
-                    width: mobile ? double.infinity : 120,
+                    width: mobile ? double.infinity : 132,
                     height: 36,
                     child: SearchableDropdown<String>(
                       value: _selectedYear,
@@ -872,11 +1004,17 @@ class _DashboardDesktopScreenState extends State<DashboardDesktopScreen>
 
   Widget _buildDesktopLayout() {
     return Scaffold(
-      body: Column(
+      body: Row(
         children: [
-          _buildHeader(),
-          _buildDesktopNavigation(),
-          Expanded(child: _buildScrollableContent()),
+          _buildDesktopSidebar(),
+          Expanded(
+            child: Column(
+              children: [
+                _buildHeader(),
+                Expanded(child: _buildScrollableContent()),
+              ],
+            ),
+          ),
         ],
       ),
     );
