@@ -19,6 +19,9 @@ func (r *UserRepository) FindAll() ([]models.User, error) {
 	var users []models.User
 
 	err := r.db.
+		Table("users").
+		Select("users.*, groups.group_nama AS group_nama").
+		Joins("LEFT JOIN groups ON groups.id = users.group_id").
 		Where("users.status = ?", 1).
 		Order("users.id ASC").
 		Find(&users).Error
@@ -29,7 +32,11 @@ func (r *UserRepository) FindAll() ([]models.User, error) {
 func (r *UserRepository) FindByID(id uint) (*models.User, error) {
 	var user models.User
 
-	err := r.db.First(&user, id).Error
+	err := r.db.
+		Table("users").
+		Select("users.*, groups.group_nama AS group_nama").
+		Joins("LEFT JOIN groups ON groups.id = users.group_id").
+		First(&user, id).Error
 	if err != nil {
 		return nil, err
 	}
