@@ -6,7 +6,7 @@ type CreateGroupRequest struct {
 }
 
 type UpdateGroupRequest struct {
-	GroupNama  string  `json:"group_nama" binding:"required"`
-	GroupJenis string  `json:"group_jenis" binding:"required,oneof=superadmin user"`
-	Status     *int16  `json:"status" binding:"omitempty,oneof=0 1"`
+	GroupNama  string `json:"group_nama" binding:"required"`
+	GroupJenis string `json:"group_jenis" binding:"required,oneof=superadmin user"`
+	Status     *int16 `json:"status" binding:"omitempty,oneof=0 1"`
 }
