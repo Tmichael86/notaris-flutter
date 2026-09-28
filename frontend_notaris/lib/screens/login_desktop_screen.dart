@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
-import 'dashboard_desktop_screen.dart';
+import '../core/widgets/app_shell.dart';
 
 class LoginDesktopScreen extends StatelessWidget {
   const LoginDesktopScreen({super.key});
@@ -331,7 +331,7 @@ Widget _buildCompactLayout(BuildContext context) {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const DashboardDesktopScreen(),
+                    builder: (_) => const AppShell(),
                   ),
                 );
               },
