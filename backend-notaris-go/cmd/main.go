@@ -23,9 +23,10 @@ func main() {
 	syncController := controllers.NewSyncController(syncService)
 	healthController := controllers.NewHealthController()
 	groupController := controllers.NewGroupController()
+	userController := controllers.NewUserController()
 
 	// 4. Setup Router Gin
-	r := routes.SetupRouter(healthController, syncController, groupController)
+	r := routes.SetupRouter(healthController, syncController, groupController, userController)
 
 	// 5. Jalankan Server
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
