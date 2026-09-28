@@ -30,3 +30,7 @@ func (s *GroupService) Create(group *models.Group) error {
 func (s *GroupService) Update(group *models.Group) error {
 	return s.repository.Update(group)
 }
+
+func (s *GroupService) Deactivate(group *models.Group) error {
+	return s.repository.Deactivate(group)
+}
