@@ -46,3 +46,7 @@ func (r *GroupRepository) Create(group *models.Group) error {
 func (r *GroupRepository) Update(group *models.Group) error {
 	return r.db.Save(group).Error
 }
+
+func (r *GroupRepository) Deactivate(group *models.Group) error {
+	return r.db.Model(group).Update("status", 0).Error
+}
