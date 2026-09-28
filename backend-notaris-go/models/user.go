@@ -5,6 +5,7 @@ import "time"
 type User struct {
 	ID        uint       `gorm:"primaryKey;column:id" json:"id"`
 	GroupID   uint       `gorm:"column:group_id" json:"group_id"`
+	GroupNama string     `gorm:"column:group_nama;->" json:"group_nama"`
 	Username  string     `gorm:"column:username" json:"username"`
 	Password  string     `gorm:"column:password" json:"-"`
 	Email     string     `gorm:"column:email" json:"email"`
