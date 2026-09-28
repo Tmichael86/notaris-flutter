@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
+import '../core/widgets/searchable_dropdown.dart';
 
 class DashboardDesktopScreen extends StatefulWidget {
   const DashboardDesktopScreen({super.key});
@@ -35,6 +36,11 @@ class _DashboardDesktopScreenState
   void dispose() {
     _dashboardController.dispose();
     super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _buildDashboard();
   }
 
   Widget _buildDashboard() {
@@ -420,7 +426,7 @@ class _DashboardDesktopScreenState
             child: ListView.separated(
               physics: const ClampingScrollPhysics(),
               itemCount: tasks.length,
-              separatorBuilder: (_, __) => const Divider(
+              separatorBuilder: (_, _) => const Divider(
                 height: 1,
                 color: AppColors.divider,
               ),
@@ -493,7 +499,7 @@ class _DashboardDesktopScreenState
             child: ListView.separated(
               physics: const ClampingScrollPhysics(),
               itemCount: rows.length,
-              separatorBuilder: (_, __) => const Divider(
+              separatorBuilder: (_, _) => const Divider(
                 height: 1,
                 color: AppColors.divider,
               ),

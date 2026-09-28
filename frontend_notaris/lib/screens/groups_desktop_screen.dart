@@ -368,7 +368,7 @@ class _GroupsDesktopScreenState extends State<GroupsDesktopScreen> {
                     Expanded(
                       child: ListView.separated(
                         itemCount: _sidebars.length,
-                        separatorBuilder: (_, __) =>
+                        separatorBuilder: (_, _) =>
                             const SizedBox(height: 10),
                         itemBuilder: (context, index) {
                           final sidebar = _sidebars[index];
