@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   // Primary
-  static const primary = Color(0xFFBC7D7D);
-  static const primaryDark = Color(0xFFA96868);
-  static const primaryConfirm = Color(0xFFBC7D7D);
+  static const primary = Color.fromARGB(255, 244, 1, 1);
+  static const primaryDark = Color.fromARGB(255, 163, 4, 4);
+  static const primaryConfirm = Color.fromARGB(255, 216, 0, 0);
 
   // Background
   static const background = Color(0xFFF5F6F7);
@@ -21,7 +21,7 @@ class AppColors {
   // Sidebar
   static const sidebarBg = Colors.white;
   static const selectedMenuBg = Color(0xFFF7EDED);
-  static const selectedMenuText = Color(0xFFBC7D7D);
+  static const selectedMenuText = Color.fromARGB(255, 201, 0, 0);
 
   // Status
   static const success = Color(0xFF4CAF50);
@@ -31,6 +31,6 @@ class AppColors {
   // Misc
   static const divider = Color(0xFFE5E5E5);
 
-  // bg atas
+  // Background content
   static const bgLight = Color(0xFFF5F6F7);
 }

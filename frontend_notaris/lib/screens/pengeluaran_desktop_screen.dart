@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/widgets/searchable_dropdown.dart';
 import '../core/widgets/loading_overlay.dart';
+import '../core/theme/app_colors.dart';
 
 
 class PengeluaranDesktopScreen extends StatefulWidget {
@@ -76,7 +77,7 @@ class _PengeluaranDesktopScreenState extends State<PengeluaranDesktopScreen> {
       icon: const Icon(Icons.add, size: 18),
       label: const Text('Tambah Pengeluaran'),
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFBC7D7D),
+        backgroundColor: AppColors.primaryConfirm,
         foregroundColor: Colors.white,
       ),
     );
@@ -89,7 +90,7 @@ class _PengeluaranDesktopScreenState extends State<PengeluaranDesktopScreen> {
     return Row(children: [
       const Text('Pengeluaran', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w500)),
       const SizedBox(width: 14),
-      Text('Pengeluaran  |  Page', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+      Text('Pengeluaran  |  Page', style: TextStyle(color: AppColors.primaryConfirm, fontSize: 13)),
       const Spacer(),
       button,
     ]);
