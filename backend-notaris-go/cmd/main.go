@@ -12,25 +12,23 @@ import (
 )
 
 func main() {
-	// 1. Load Konfigurasi .env
 	cfg := config.LoadConfig()
-
-	// 2. Koneksi ke Database PostgreSQL
 	database.ConnectDB(cfg)
 
-	// 3. Inisialisasi Service & Controller
 	syncService := services.NewSyncService()
 	syncController := controllers.NewSyncController(syncService)
 	healthController := controllers.NewHealthController()
 	groupController := controllers.NewGroupController()
 	userController := controllers.NewUserController()
+	authService := services.NewAuthService(cfg)
+	authController := controllers.NewAuthController(authService)
+	meController := controllers.NewMeController()
 
-	// 4. Setup Router Gin
-	r := routes.SetupRouter(healthController, syncController, groupController, userController)
+	r := routes.SetupRouter(cfg, healthController, syncController, groupController, userController, authController, meController)
 
-	// 5. Jalankan Server
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
-	fmt.Printf(" Server running on port %s\n", cfg.Port)
+	fmt.Printf(" Server running on port %s
+", cfg.Port)
 	if err := r.Run(serverAddr); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
