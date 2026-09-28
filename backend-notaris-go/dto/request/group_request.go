@@ -2,11 +2,11 @@ package request
 
 type CreateGroupRequest struct {
 	GroupNama  string `json:"group_nama" binding:"required"`
-	GroupJenis string `json:"group_jenis" binding:"required"`
+	GroupJenis string `json:"group_jenis" binding:"required,oneof=superadmin user"`
 }
 
 type UpdateGroupRequest struct {
-	GroupNama  string `json:"group_nama" binding:"required"`
-	GroupJenis string `json:"group_jenis" binding:"required"`
-	Status     int16  `json:"status"`
+	GroupNama  string  `json:"group_nama" binding:"required"`
+	GroupJenis string  `json:"group_jenis" binding:"required,oneof=superadmin user"`
+	Status     *int16  `json:"status" binding:"omitempty,oneof=0 1"`
 }
