@@ -3,6 +3,7 @@ module backend-notaris-go
 go 1.27.1
 
 require (
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.3 // indirect
 	github.com/bytedance/sonic/loader v0.5.2 // indirect
