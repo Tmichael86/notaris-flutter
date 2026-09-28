@@ -31,7 +31,9 @@ func (r *UserRepository) FindByID(id uint) (*models.User, error) {
 		Select("users.*, groups.group_nama AS group_nama").
 		Joins("LEFT JOIN groups ON groups.id = users.group_id").
 		First(&user, id).Error
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return &user, nil
 }
 
@@ -43,7 +45,9 @@ func (r *UserRepository) FindActiveByLogin(login string) (*models.User, error) {
 		Where("users.status = ?", 1).
 		Where("users.username = ? OR users.email = ?", login, login).
 		First(&user).Error
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return &user, nil
 }
 
