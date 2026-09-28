@@ -23,6 +23,7 @@ func SetupRouter(
 			groups.GET("/:id", groupController.GetByID)
 			groups.POST("", groupController.Create)
 			groups.PUT("/:id", groupController.Update)
+			groups.DELETE("/:id", groupController.Delete)
 		}
 
 		sync := v1.Group("/sync")
