@@ -16,7 +16,11 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         fontFamily: 'Roboto',
-        scaffoldBackgroundColor: const Color(0xFFF5F5F5),
+        scaffoldBackgroundColor: const Color(0xFFF7F7F7),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFB71C1C),
+          brightness: Brightness.light,
+        ),
         useMaterial3: true,
       ),
       home: const LoginDesktopScreen(),
