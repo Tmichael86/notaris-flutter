@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type SidebarRepository struct { db *gorm.DB }
+type SidebarRepository struct{ db *gorm.DB }
 
 func NewSidebarRepository() *SidebarRepository {
 	return &SidebarRepository{db: database.DB}
@@ -26,6 +26,8 @@ func (r *SidebarRepository) FindAllActive() ([]models.Sidebar, error) {
 func (r *SidebarRepository) FindByID(id uint) (*models.Sidebar, error) {
 	var sidebar models.Sidebar
 	err := r.db.First(&sidebar, id).Error
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	return &sidebar, nil
 }
