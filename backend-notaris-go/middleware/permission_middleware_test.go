@@ -9,7 +9,7 @@ import (
 	"backend-notaris-go/models"
 
 	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 type fakePermissionChecker struct {
@@ -55,7 +55,9 @@ func TestRequirePermissionAllowsConfiguredAction(t *testing.T) {
 		uint(1),
 	)
 
-	require.Equal(t, http.StatusOK, recorder.Code)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, recorder.Code)
+	}
 }
 
 func TestRequirePermissionRejectsMissingAction(t *testing.T) {
@@ -67,17 +69,21 @@ func TestRequirePermissionRejectsMissingAction(t *testing.T) {
 		uint(1),
 	)
 
-	require.Equal(t, http.StatusForbidden, recorder.Code)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, recorder.Code)
+	}
 }
 
 func TestRequirePermissionRejectsUnknownSidebar(t *testing.T) {
 	recorder := runPermissionMiddleware(
-		fakePermissionChecker{err: errors.New("record not found")},
+		fakePermissionChecker{err: gorm.ErrRecordNotFound},
 		PermissionRead,
 		uint(1),
 	)
 
-	require.Equal(t, http.StatusForbidden, recorder.Code)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, recorder.Code)
+	}
 }
 
 func TestRequirePermissionRejectsMissingGroupContext(t *testing.T) {
@@ -89,7 +95,9 @@ func TestRequirePermissionRejectsMissingGroupContext(t *testing.T) {
 		nil,
 	)
 
-	require.Equal(t, http.StatusUnauthorized, recorder.Code)
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, recorder.Code)
+	}
 }
 
 func TestRequirePermissionRejectsInvalidGroupContext(t *testing.T) {
@@ -101,7 +109,9 @@ func TestRequirePermissionRejectsInvalidGroupContext(t *testing.T) {
 		"1",
 	)
 
-	require.Equal(t, http.StatusUnauthorized, recorder.Code)
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, recorder.Code)
+	}
 }
 
 func TestRequirePermissionReturnsServerErrorOnRepositoryFailure(t *testing.T) {
@@ -111,5 +121,7 @@ func TestRequirePermissionReturnsServerErrorOnRepositoryFailure(t *testing.T) {
 		uint(1),
 	)
 
-	require.Equal(t, http.StatusInternalServerError, recorder.Code)
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, recorder.Code)
+	}
 }
