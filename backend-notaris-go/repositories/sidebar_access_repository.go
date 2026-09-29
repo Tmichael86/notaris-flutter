@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-type SidebarAccessRepository struct { db *gorm.DB }
+type SidebarAccessRepository struct{ db *gorm.DB }
 
 func NewSidebarAccessRepository() *SidebarAccessRepository {
 	return &SidebarAccessRepository{db: database.DB}
@@ -24,11 +24,31 @@ func (r *SidebarAccessRepository) FindByGroupID(groupID uint) ([]models.SidebarA
 	return access, err
 }
 
+func (r *SidebarAccessRepository) FindByGroupAndSidebarCode(groupID uint, sidebarCode string) (*models.SidebarAccess, error) {
+	var access models.SidebarAccess
+
+	err := r.db.
+		Joins("JOIN sidebar ON sidebar.id = sidebar_akses.sidebar_id").
+		Where("sidebar_akses.group_id = ?", groupID).
+		Where("sidebar.sidebar_kode = ?", sidebarCode).
+		Where("sidebar.status = ?", 1).
+		Where("sidebar.sidebar_route != ?", "#").
+		First(&access).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &access, nil
+}
+
 func (r *SidebarAccessRepository) ReplaceForGroup(tx *gorm.DB, groupID, userID uint, items []request.SidebarAccessItem) error {
 	if err := tx.Where("group_id = ?", groupID).Delete(&models.SidebarAccess{}).Error; err != nil {
 		return err
 	}
-	if len(items) == 0 { return nil }
+	if len(items) == 0 {
+		return nil
+	}
 
 	now := time.Now()
 	access := make([]models.SidebarAccess, 0, len(items))
@@ -36,11 +56,11 @@ func (r *SidebarAccessRepository) ReplaceForGroup(tx *gorm.DB, groupID, userID u
 		uid := userID
 		access = append(access, models.SidebarAccess{
 			SidebarID: item.SidebarID,
-			GroupID: groupID,
-			Read: item.Read,
-			Create: item.Create,
-			Update: item.Update,
-			Delete: item.Delete,
+			GroupID:   groupID,
+			Read:      item.Read,
+			Create:    item.Create,
+			Update:    item.Update,
+			Delete:    item.Delete,
 			CreatedBy: &uid,
 			UpdatedBy: &uid,
 			CreatedAt: &now,
