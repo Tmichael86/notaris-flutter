@@ -33,29 +33,29 @@ func SetupRouter(
 
 		users := v1.Group("/users")
 		{
-			users.GET("", userController.GetAll)
-			users.GET("/:id", userController.GetByID)
-			users.POST("", userController.Create)
-			users.PUT("/:id", userController.Update)
-			users.DELETE("/:id", userController.Delete)
+			users.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(middleware.NewSidebarAccessRepository(), "users", middleware.PermissionRead), userController.GetAll)
+			users.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(middleware.NewSidebarAccessRepository(), "users", middleware.PermissionRead), userController.GetByID)
+			users.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(middleware.NewSidebarAccessRepository(), "users", middleware.PermissionCreate), userController.Create)
+			users.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(middleware.NewSidebarAccessRepository(), "users", middleware.PermissionUpdate), userController.Update)
+			users.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(middleware.NewSidebarAccessRepository(), "users", middleware.PermissionDelete), userController.Delete)
 		}
 
 		groups := v1.Group("/groups")
 		{
-			groups.GET("", groupController.GetAll)
-			groups.GET("/:id", groupController.GetByID)
-			groups.POST("", groupController.Create)
-			groups.PUT("/:id", groupController.Update)
-			groups.DELETE("/:id", groupController.Delete)
-			groups.GET("/:id/sidebar-access", sidebarAccessController.GetByGroup)
-			groups.PUT("/:id/sidebar-access", middleware.JWTAuth(cfg), sidebarAccessController.Replace)
+			groups.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(middleware.NewSidebarAccessRepository(), "groups", middleware.PermissionRead), groupController.GetAll)
+			groups.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(middleware.NewSidebarAccessRepository(), "groups", middleware.PermissionRead), groupController.GetByID)
+			groups.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(middleware.NewSidebarAccessRepository(), "groups", middleware.PermissionCreate), groupController.Create)
+			groups.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(middleware.NewSidebarAccessRepository(), "groups", middleware.PermissionUpdate), groupController.Update)
+			groups.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(middleware.NewSidebarAccessRepository(), "groups", middleware.PermissionDelete), groupController.Delete)
+			groups.GET("/:id/sidebar-access", middleware.JWTAuth(cfg), middleware.RequirePermission(middleware.NewSidebarAccessRepository(), "groups", middleware.PermissionRead), sidebarAccessController.GetByGroup)
+			groups.PUT("/:id/sidebar-access", middleware.JWTAuth(cfg), middleware.RequirePermission(middleware.NewSidebarAccessRepository(), "groups", middleware.PermissionUpdate), sidebarAccessController.Replace)
 		}
 
 		sidebars := v1.Group("/sidebars")
 		{
-			sidebars.GET("", sidebarController.GetAll)
-			sidebars.GET("tree", sidebarController.GetTree)
-			sidebars.GET("/:id", sidebarController.GetByID)
+			sidebars.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(middleware.NewSidebarAccessRepository(), "sidebars", middleware.PermissionRead), sidebarController.GetAll)
+			sidebars.GET("tree", middleware.JWTAuth(cfg), middleware.RequirePermission(middleware.NewSidebarAccessRepository(), "sidebars", middleware.PermissionRead), sidebarController.GetTree)
+			sidebars.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(middleware.NewSidebarAccessRepository(), "sidebars", middleware.PermissionRead), sidebarController.GetByID)
 		}
 
 		sync := v1.Group("/sync")
