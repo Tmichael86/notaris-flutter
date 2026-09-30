@@ -132,10 +132,12 @@ func (c *PetugasController) Delete(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.service.Deactivate(id, userID); errors.Is(err, gorm.ErrRecordNotFound) {
+	err = c.service.Deactivate(id, userID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
 		response.Error(ctx, http.StatusNotFound, "Petugas tidak ditemukan", nil)
 		return
-	} else if err != nil {
+	}
+	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "Gagal menonaktifkan petugas", err.Error())
 		return
 	}
@@ -151,8 +153,8 @@ func (c *PetugasController) GetJenisKelamin(ctx *gin.Context) {
 	}
 
 	type option struct {
-		ID   uint   \`json:"id"\`
-		Text string \`json:"text"\`
+		ID   uint   `json:"id"`
+		Text string `json:"text"`
 	}
 
 	data := make([]option, 0, len(items))
@@ -171,8 +173,8 @@ func (c *PetugasController) GetUsers(ctx *gin.Context) {
 	}
 
 	type option struct {
-		ID   uint   \`json:"id"\`
-		Text string \`json:"text"\`
+		ID   uint   `json:"id"`
+		Text string `json:"text"`
 	}
 
 	data := make([]option, 0, len(items))
