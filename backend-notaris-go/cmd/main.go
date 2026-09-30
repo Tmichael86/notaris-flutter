@@ -20,6 +20,7 @@ func main() {
 	healthController := controllers.NewHealthController()
 	groupController := controllers.NewGroupController()
 	userController := controllers.NewUserController()
+	petugasController := controllers.NewPetugasController()
 	authService := services.NewAuthService(cfg)
 	authController := controllers.NewAuthController(authService)
 	meController := controllers.NewMeController()
@@ -27,10 +28,21 @@ func main() {
 	sidebarController := controllers.NewSidebarController()
 	sidebarAccessController := controllers.NewSidebarAccessController(sidebarService)
 
-	r := routes.SetupRouter(cfg, healthController, syncController, groupController, userController, authController, meController, sidebarController, sidebarAccessController)
+	r := routes.SetupRouter(
+		cfg,
+		healthController,
+		syncController,
+		groupController,
+		userController,
+		authController,
+		meController,
+		sidebarController,
+		sidebarAccessController,
+		petugasController,
+	)
 
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
-	fmt.Printf(" Server running on port %s\\n", cfg.Port)
+	fmt.Printf(" Server running on port %s\n", cfg.Port)
 	if err := r.Run(serverAddr); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
