@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"backend-notaris-go/dto/request"
@@ -32,7 +33,7 @@ func (s *PetugasService) GetByID(id uint) (*models.Petugas, error) {
 func (s *PetugasService) Create(req request.CreatePetugasRequest, userID uint) (*models.Petugas, error) {
 	tanggalLahir, err := parseTanggalLahir(req.TanggalLahir)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", ErrInvalidPetugasDate, err)
 	}
 
 	createdBy := userID
