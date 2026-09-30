@@ -19,6 +19,7 @@ func SetupRouter(
 	meController *controllers.MeController,
 	sidebarController *controllers.SidebarController,
 	sidebarAccessController *controllers.SidebarAccessController,
+	petugasController *controllers.PetugasController,
 ) *gin.Engine {
 	r := gin.Default()
 	sidebarAccessRepository := repositories.NewSidebarAccessRepository()
@@ -58,6 +59,17 @@ func SetupRouter(
 			sidebars.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "sidebars", middleware.PermissionRead), sidebarController.GetAll)
 			sidebars.GET("tree", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "sidebars", middleware.PermissionRead), sidebarController.GetTree)
 			sidebars.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "sidebars", middleware.PermissionRead), sidebarController.GetByID)
+		}
+
+		petugas := v1.Group("/petugas")
+		{
+			petugas.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), petugasController.GetAll)
+			petugas.GET("/jenis-kelamin", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), petugasController.GetJenisKelamin)
+			petugas.GET("/users", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), petugasController.GetUsers)
+			petugas.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), petugasController.GetByID)
+			petugas.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionCreate), petugasController.Create)
+			petugas.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionUpdate), petugasController.Update)
+			petugas.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionDelete), petugasController.Delete)
 		}
 
 		sync := v1.Group("/sync")
