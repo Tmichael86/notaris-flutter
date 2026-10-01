@@ -21,6 +21,7 @@ func main() {
 	groupController := controllers.NewGroupController()
 	userController := controllers.NewUserController()
 	petugasController := controllers.NewPetugasController()
+	kategoriPekerjaanController := controllers.NewKategoriPekerjaanController()
 	authService := services.NewAuthService(cfg)
 	authController := controllers.NewAuthController(authService)
 	meController := controllers.NewMeController()
@@ -39,6 +40,7 @@ func main() {
 		sidebarController,
 		sidebarAccessController,
 		petugasController,
+		kategoriPekerjaanController,
 	)
 
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
