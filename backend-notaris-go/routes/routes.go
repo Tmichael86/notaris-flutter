@@ -20,6 +20,7 @@ func SetupRouter(
 	sidebarController *controllers.SidebarController,
 	sidebarAccessController *controllers.SidebarAccessController,
 	petugasController *controllers.PetugasController,
+	kategoriPekerjaanController *controllers.KategoriPekerjaanController,
 ) *gin.Engine {
 	r := gin.Default()
 	sidebarAccessRepository := repositories.NewSidebarAccessRepository()
@@ -70,6 +71,14 @@ func SetupRouter(
 			petugas.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionCreate), petugasController.Create)
 			petugas.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionUpdate), petugasController.Update)
 			petugas.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionDelete), petugasController.Delete)
+		}
+
+		kategoriPekerjaan := v1.Group("/kategori-pekerjaan")
+		{
+			kategoriPekerjaan.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "kategori_pekerjaan", middleware.PermissionRead), kategoriPekerjaanController.GetAll)
+			kategoriPekerjaan.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "kategori_pekerjaan", middleware.PermissionCreate), kategoriPekerjaanController.Create)
+			kategoriPekerjaan.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "kategori_pekerjaan", middleware.PermissionUpdate), kategoriPekerjaanController.Update)
+			kategoriPekerjaan.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "kategori_pekerjaan", middleware.PermissionDelete), kategoriPekerjaanController.Delete)
 		}
 
 		sync := v1.Group("/sync")
