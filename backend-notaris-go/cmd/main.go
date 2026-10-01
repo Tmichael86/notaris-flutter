@@ -46,8 +46,7 @@ func main() {
 	)
 
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
-	fmt.Printf(" Server running on port %s
-", cfg.Port)
+	fmt.Printf(" Server running on port %s\n", cfg.Port)
 	if err := r.Run(serverAddr); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
