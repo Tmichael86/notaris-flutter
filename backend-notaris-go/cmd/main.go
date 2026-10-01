@@ -22,6 +22,7 @@ func main() {
 	userController := controllers.NewUserController()
 	petugasController := controllers.NewPetugasController()
 	kategoriPekerjaanController := controllers.NewKategoriPekerjaanController()
+	jenisPengeluaranController := controllers.NewJenisPengeluaranController()
 	authService := services.NewAuthService(cfg)
 	authController := controllers.NewAuthController(authService)
 	meController := controllers.NewMeController()
@@ -41,10 +42,12 @@ func main() {
 		sidebarAccessController,
 		petugasController,
 		kategoriPekerjaanController,
+		jenisPengeluaranController,
 	)
 
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
-	fmt.Printf(" Server running on port %s\n", cfg.Port)
+	fmt.Printf(" Server running on port %s
+", cfg.Port)
 	if err := r.Run(serverAddr); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
