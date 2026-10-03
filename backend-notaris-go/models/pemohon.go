@@ -19,8 +19,8 @@ type Pemohon struct {
 	CreatedAt        *time.Time `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt        *time.Time `gorm:"column:updated_at" json:"updated_at"`
 	Status           int16      `gorm:"column:status" json:"status"`
-	UUID             *uuid.UUID `gorm:"type:uuid;column:uuid" json:"uuid,omitempty"`
-	IsDirty          *bool      `gorm:"column:is_dirty" json:"is_dirty,omitempty"`
+	UUID             *uuid.UUID `gorm:"type:uuid;column:uuid;default:gen_random_uuid()" json:"uuid,omitempty"`
+	IsDirty          *bool      `gorm:"column:is_dirty;default:false" json:"is_dirty,omitempty"`
 	LastSyncedAt     *time.Time `gorm:"column:last_synced_at" json:"last_synced_at,omitempty"`
 	DeletedAt        *time.Time `gorm:"column:deleted_at" json:"deleted_at,omitempty"`
 }
