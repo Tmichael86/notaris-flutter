@@ -52,7 +52,7 @@ func (h *syncController) Push(c *gin.Context) {
 }
 
 func (h *syncController) Pull(c *gin.Context) {
-	pemohons, transaksis, err := h.syncService.PullSync()
+	transaksis, err := h.syncService.PullSync()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"status":  "error",
@@ -64,7 +64,6 @@ func (h *syncController) Pull(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"status":     "success",
-		"pemohons":   pemohons,
 		"transaksis": transaksis,
 	})
 }
