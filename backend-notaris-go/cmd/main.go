@@ -23,6 +23,7 @@ func main() {
 	petugasController := controllers.NewPetugasController()
 	kategoriPekerjaanController := controllers.NewKategoriPekerjaanController()
 	jenisPengeluaranController := controllers.NewJenisPengeluaranController()
+	pemohonController := controllers.NewPemohonController()
 	authService := services.NewAuthService(cfg)
 	authController := controllers.NewAuthController(authService)
 	meController := controllers.NewMeController()
@@ -43,6 +44,7 @@ func main() {
 		petugasController,
 		kategoriPekerjaanController,
 		jenisPengeluaranController,
+		pemohonController,
 	)
 
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
