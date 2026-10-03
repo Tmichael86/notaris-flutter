@@ -22,6 +22,7 @@ func SetupRouter(
 	petugasController *controllers.PetugasController,
 	kategoriPekerjaanController *controllers.KategoriPekerjaanController,
 	jenisPengeluaranController *controllers.JenisPengeluaranController,
+	pemohonController *controllers.PemohonController,
 ) *gin.Engine {
 	r := gin.Default()
 	sidebarAccessRepository := repositories.NewSidebarAccessRepository()
@@ -80,6 +81,16 @@ func SetupRouter(
 			kategoriPekerjaan.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "kategori_pekerjaan", middleware.PermissionCreate), kategoriPekerjaanController.Create)
 			kategoriPekerjaan.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "kategori_pekerjaan", middleware.PermissionUpdate), kategoriPekerjaanController.Update)
 			kategoriPekerjaan.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "kategori_pekerjaan", middleware.PermissionDelete), kategoriPekerjaanController.Delete)
+		}
+
+		pemohon := v1.Group("/pemohon")
+		{
+			pemohon.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionRead), pemohonController.GetAll)
+			pemohon.GET("/jenis-kelamin", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionRead), pemohonController.GetJenisKelamin)
+			pemohon.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionRead), pemohonController.GetByID)
+			pemohon.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionCreate), pemohonController.Create)
+			pemohon.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionUpdate), pemohonController.Update)
+			pemohon.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionDelete), pemohonController.Delete)
 		}
 
 		jenisPengeluaran := v1.Group("/jenis-pengeluaran")
