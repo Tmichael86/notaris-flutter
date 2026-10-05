@@ -24,6 +24,16 @@ func NewGroupController() *GroupController {
 	}
 }
 
+func getAuthenticatedGroupUserID(ctx *gin.Context) (uint, bool) {
+	userID, exists := ctx.Get("user_id")
+	if !exists {
+		return 0, false
+	}
+
+	id, ok := userID.(uint)
+	return id, ok && id > 0
+}
+
 func (c *GroupController) GetAll(ctx *gin.Context) {
 	groups, err := c.service.GetAll()
 	if err != nil {
@@ -62,13 +72,19 @@ func (c *GroupController) Create(ctx *gin.Context) {
 		return
 	}
 
+	userID, ok := getAuthenticatedGroupUserID(ctx)
+	if !ok {
+		response.Error(ctx, http.StatusUnauthorized, "User tidak terautentikasi", nil)
+		return
+	}
+
 	group := &models.Group{
 		GroupNama:  req.GroupNama,
 		GroupJenis: req.GroupJenis,
 		Status:     1,
 	}
 
-	if err := c.service.Create(group); err != nil {
+	if err := c.service.Create(group, userID); err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "Gagal membuat group", err.Error())
 		return
 	}
@@ -100,14 +116,16 @@ func (c *GroupController) Update(ctx *gin.Context) {
 		return
 	}
 
+	userID, ok := getAuthenticatedGroupUserID(ctx)
+	if !ok {
+		response.Error(ctx, http.StatusUnauthorized, "User tidak terautentikasi", nil)
+		return
+	}
+
 	group.GroupNama = req.GroupNama
 	group.GroupJenis = req.GroupJenis
 
-	if req.Status != nil {
-		group.Status = *req.Status
-	}
-
-	if err := c.service.Update(group); err != nil {
+	if err := c.service.Update(group, userID); err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "Gagal memperbarui group", err.Error())
 		return
 	}
@@ -132,7 +150,13 @@ func (c *GroupController) Delete(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.service.Deactivate(group); err != nil {
+	userID, ok := getAuthenticatedGroupUserID(ctx)
+	if !ok {
+		response.Error(ctx, http.StatusUnauthorized, "User tidak terautentikasi", nil)
+		return
+	}
+
+	if err := c.service.Deactivate(group, userID); err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "Gagal menonaktifkan group", err.Error())
 		return
 	}
