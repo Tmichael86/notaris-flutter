@@ -121,7 +121,9 @@ func (c *UserController) Update(ctx *gin.Context) {
 	user.Nama = req.Nama
 	user.NoTelp = req.NoTelp
 	user.Alamat = req.Alamat
-	user.Image = req.Image
+	if req.Image != nil {
+		user.Image = req.Image
+	}
 
 	if req.Password != "" {
 		passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
