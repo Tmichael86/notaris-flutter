@@ -22,5 +22,4 @@ type UpdateUserRequest struct {
 	PasswordConfirm string  `json:"password_confirm" binding:"omitempty,eqfield=Password"`
 	Alamat          *string `json:"alamat"`
 	Image           *string `json:"image"`
-	Status          *int16  `json:"status" binding:"omitempty,oneof=0 1"`
 }
