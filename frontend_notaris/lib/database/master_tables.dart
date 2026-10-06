@@ -5,6 +5,9 @@ import 'package:drift/drift.dart';
 /// These tables intentionally mirror the current Laravel/Go database
 /// terminology while adding UUID + sync metadata for future synchronization.
 class JenisKelamins extends Table {
+  @override
+  String get tableName => 'jenis_kelamin';
+
   IntColumn get id => integer().autoIncrement()();
   TextColumn get uuid => text().unique()();
   TextColumn get nama => text()();
@@ -22,6 +25,9 @@ class JenisKelamins extends Table {
 }
 
 class PekerjaanKategoris extends Table {
+  @override
+  String get tableName => 'pekerjaan_kategori';
+
   IntColumn get id => integer().autoIncrement()();
   TextColumn get uuid => text().unique()();
   TextColumn get nama => text()();
@@ -39,6 +45,9 @@ class PekerjaanKategoris extends Table {
 }
 
 class PengeluaranJenis extends Table {
+  @override
+  String get tableName => 'pengeluaran_jenis';
+
   IntColumn get id => integer().autoIncrement()();
   TextColumn get uuid => text().unique()();
   TextColumn get nama => text()();
@@ -56,6 +65,9 @@ class PengeluaranJenis extends Table {
 }
 
 class PetugasLocals extends Table {
+  @override
+  String get tableName => 'petugas';
+
   IntColumn get id => integer().autoIncrement()();
   TextColumn get uuid => text().unique()();
 
