@@ -64,7 +64,7 @@ class PekerjaanNotarisController extends AsyncNotifier<void> {
     }
   }
 
-  Future<bool> update({
+  Future<bool> updateAggregate({
     required int id,
     required PekerjaanAggregateInput input,
     int? updatedBy,
@@ -125,7 +125,7 @@ class PekerjaanPpatController extends AsyncNotifier<void> {
     }
   }
 
-  Future<bool> update({
+  Future<bool> updateAggregate({
     required int id,
     required PekerjaanAggregateInput input,
     int? updatedBy,
