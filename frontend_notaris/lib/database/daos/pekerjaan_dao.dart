@@ -203,7 +203,7 @@ class PekerjaanDao extends DatabaseAccessor<AppDatabase>
     int id,
     PekerjaanPpatLocalsCompanion entry,
   ) =>
-      (update(pekerjaanPpatLocals)..where((t) => t.id.equals(id)))
+      (update(pekerjaanPpatProsesLocals)..where((t) => t.id.equals(id)))
           .write(entry)
           .then((count) => count > 0);
 
