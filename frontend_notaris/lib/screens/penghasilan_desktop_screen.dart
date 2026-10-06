@@ -203,7 +203,9 @@ class _PenghasilanDesktopScreenState extends State<PenghasilanDesktopScreen> {
 
   String _total(List<_Row> list) {
     var total = 0;
-    for (final e in list) total += int.tryParse(e.dibayar.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    for (final e in list) {
+      total += int.tryParse(e.dibayar.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    }
     final s = total.toString();
     final b = StringBuffer();
     for (var i=0; i<s.length; i++) {

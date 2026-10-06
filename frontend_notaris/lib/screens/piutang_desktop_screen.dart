@@ -112,7 +112,7 @@ class _PiutangDesktopScreenState extends State<PiutangDesktopScreen> {
             SizedBox(
               width: w,
               child: DropdownButtonFormField<String>(
-                value: selectedJenis,
+                initialValue: selectedJenis,
                 isExpanded: true,
                 decoration: _dec('Jenis Pekerjaan'),
                 items: const [
