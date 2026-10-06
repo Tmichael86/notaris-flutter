@@ -22,13 +22,13 @@ class PekerjaanDao extends DatabaseAccessor<AppDatabase>
   PekerjaanDao(super.db);
 
   Future<List<PekerjaanKategori>> getActivePekerjaanKategori() =>
-      (select(db.pekerjaanKategoris)
+      (select(attachedDatabase.pekerjaanKategoris)
             ..where((t) => t.status.equals(1) & t.deletedAt.isNull())
             ..orderBy([(t) => OrderingTerm.asc(t.nama)]))
           .get();
 
   Stream<List<PekerjaanKategori>> watchActivePekerjaanKategori() =>
-      (select(db.pekerjaanKategoris)
+      (select(attachedDatabase.pekerjaanKategoris)
             ..where((t) => t.status.equals(1) & t.deletedAt.isNull())
             ..orderBy([(t) => OrderingTerm.asc(t.nama)]))
           .watch();
