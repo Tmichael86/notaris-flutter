@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 
 import 'master_tables.dart';
 import 'pekerjaan_tables.dart';
+import 'daos/pekerjaan_dao.dart';
 
 part 'app_database.g.dart';
 
@@ -50,6 +51,7 @@ class Transaksis extends Table {
 }
 
 @DriftDatabase(
+  daos: [PekerjaanDao],
   tables: [
     Pemohons,
     Transaksis,
