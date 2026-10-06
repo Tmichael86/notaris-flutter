@@ -1,8 +1,11 @@
 import 'dart:io';
+
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+
+import 'master_tables.dart';
 
 part 'app_database.g.dart';
 
@@ -12,12 +15,20 @@ class Pemohons extends Table {
   TextColumn get uuid => text()();
   TextColumn get nama => text()();
   TextColumn get alamat => text().nullable()();
+  IntColumn get jenisKelamin => integer().nullable().references(JenisKelamins, #id)();
+  TextColumn get noTelp => text().nullable()();
   TextColumn get nik => text().nullable()();
-  
+
+  // Audit lokal
+  IntColumn get createdBy => integer().nullable()();
+  IntColumn get updatedBy => integer().nullable()();
+  DateTimeColumn get createdAt => dateTime().nullable()();
+  DateTimeColumn get updatedAt => dateTime().nullable()();
+  IntColumn get status => integer().withDefault(const Constant(1))();
+
   // Kolom Sync & Delta
   BoolColumn get isSyncDirty => boolean().withDefault(const Constant(true))();
   DateTimeColumn get lastSyncedAt => dateTime().nullable()();
-  DateTimeColumn get updatedAt => dateTime().nullable()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
 }
 
@@ -30,7 +41,6 @@ class Transaksis extends Table {
   IntColumn get pemohonId => integer().nullable()();
   TextColumn get pemohonUuid => text().nullable()();
 
-  
   // Kolom Sync & Delta
   BoolColumn get isSyncDirty => boolean().withDefault(const Constant(true))();
   DateTimeColumn get lastSyncedAt => dateTime().nullable()();
@@ -38,21 +48,54 @@ class Transaksis extends Table {
   DateTimeColumn get deletedAt => dateTime().nullable()();
 }
 
-@DriftDatabase(tables: [Pemohons, Transaksis])
+@DriftDatabase(
+  tables: [
+    Pemohons,
+    Transaksis,
+    JenisKelamins,
+    PekerjaanKategoris,
+    PengeluaranJenis,
+    PetugasLocals,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (Migrator m) async {
+          await m.createAll();
+        },
+        onUpgrade: (Migrator m, int from, int to) async {
+          if (from < 2) {
+            // Extend the existing local Pemohon table.
+            await m.addColumn(pemohons, pemohons.jenisKelamin);
+            await m.addColumn(pemohons, pemohons.noTelp);
+            await m.addColumn(pemohons, pemohons.createdBy);
+            await m.addColumn(pemohons, pemohons.updatedBy);
+            await m.addColumn(pemohons, pemohons.createdAt);
+            await m.addColumn(pemohons, pemohons.status);
+
+            // Create the new reference/master tables.
+            await m.createTable(jenisKelamins);
+            await m.createTable(pekerjaanKategoris);
+            await m.createTable(pengeluaranJenis);
+            await m.createTable(petugasLocals);
+          }
+        },
+      );
 
   // --- QUERY METODE KUSTOM UNTUK SYNC ENGINE ---
 
-  // 1. Ambil semua data pemohon lokal yang belum disinkronkan (isSyncDirty == true)
+  // 1. Ambil semua data pemohon lokal yang belum disinkronkan.
   Future<List<Pemohon>> getDirtyPemohons() {
     return (select(pemohons)..where((t) => t.isSyncDirty.equals(true))).get();
   }
 
-  // 2. Perbarui status sync lokal setelah sukses dikirim ke AdonisJS
+  // 2. Perbarui status sync lokal setelah sukses dikirim.
   Future<int> markAsSynced(String uuid, DateTime syncedAt) {
     return (update(pemohons)..where((t) => t.uuid.equals(uuid))).write(
       PemohonsCompanion(
@@ -64,12 +107,12 @@ class AppDatabase extends _$AppDatabase {
 
   // --- QUERY METODE KUSTOM UNTUK TRANSAKSI ---
 
-  // 1. Ambil semua data transaksi lokal yang belum disinkronkan (isSyncDirty == true)
+  // 1. Ambil semua data transaksi lokal yang belum disinkronkan.
   Future<List<Transaksi>> getDirtyTransaksis() {
     return (select(transaksis)..where((t) => t.isSyncDirty.equals(true))).get();
   }
 
-  // 2. Perbarui status sync transaksi lokal setelah sukses dikirim ke AdonisJS
+  // 2. Perbarui status sync lokal setelah sukses dikirim.
   Future<int> markTransaksiAsSynced(String uuid, DateTime syncedAt) {
     return (update(transaksis)..where((t) => t.uuid.equals(uuid))).write(
       TransaksisCompanion(
@@ -80,7 +123,6 @@ class AppDatabase extends _$AppDatabase {
   }
 }
 
-
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
@@ -88,5 +130,3 @@ LazyDatabase _openConnection() {
     return NativeDatabase(file);
   });
 }
-
-
