@@ -449,7 +449,7 @@ class _PekerjaanNotarisDesktopScreenState extends ConsumerState<PekerjaanNotaris
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Gagal: $e'), backgroundColor: Colors.red.shade700));
       }
-    } finally {
+    finally {
       if (mounted) setState(() => _busy = false);
     }
   }
