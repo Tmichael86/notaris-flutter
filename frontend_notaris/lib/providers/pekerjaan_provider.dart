@@ -28,6 +28,12 @@ final pekerjaanPpatProvider =
   return repository.watchAll();
 });
 
+final pekerjaanKategoriProvider =
+    StreamProvider.autoDispose<List<PekerjaanKategori>>((ref) {
+  final database = ref.watch(appDatabaseProvider);
+  return database.pekerjaanDao.watchActivePekerjaanKategori();
+});
+
 final pekerjaanNotarisControllerProvider =
     AsyncNotifierProvider<PekerjaanNotarisController, void>(
   PekerjaanNotarisController.new,
