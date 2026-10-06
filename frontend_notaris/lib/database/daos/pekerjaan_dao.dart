@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../app_database.dart';
+import '../pekerjaan_tables.dart';
 
 part 'pekerjaan_dao.g.dart';
 
