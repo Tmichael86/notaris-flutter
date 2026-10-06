@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'master_tables.dart';
 
 /// Offline-first tables for Notaris and PPAT work definitions.
 ///

@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../database/app_database.dart';
+import '../database/daos/pekerjaan_dao.dart';
 
 class PekerjaanNotarisRepository {
   final PekerjaanDao dao;

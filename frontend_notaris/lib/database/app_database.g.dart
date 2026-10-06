@@ -5212,6 +5212,9 @@ class $PekerjaanNotarisHargaLocalsTable extends PekerjaanNotarisHargaLocals
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES pekerjaan_kategori (id)',
+    ),
   );
   static const VerificationMeta _estimasiWaktuMeta = const VerificationMeta(
     'estimasiWaktu',
@@ -8259,6 +8262,9 @@ class $PekerjaanPpatHargaLocalsTable extends PekerjaanPpatHargaLocals
     false,
     type: DriftSqlType.int,
     requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES pekerjaan_kategori (id)',
+    ),
   );
   static const VerificationMeta _estimasiWaktuMeta = const VerificationMeta(
     'estimasiWaktu',
@@ -10602,6 +10608,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $PekerjaanPpatProsesLocalsTable(this);
   late final $PekerjaanPpatAtributLocalsTable pekerjaanPpatAtributLocals =
       $PekerjaanPpatAtributLocalsTable(this);
+  late final PekerjaanDao pekerjaanDao = PekerjaanDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -11967,6 +11974,78 @@ typedef $$PekerjaanKategorisTableUpdateCompanionBuilder =
       Value<DateTime?> deletedAt,
     });
 
+final class $$PekerjaanKategorisTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $PekerjaanKategorisTable,
+          PekerjaanKategori
+        > {
+  $$PekerjaanKategorisTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<
+    $PekerjaanNotarisHargaLocalsTable,
+    List<PekerjaanNotarisHargaLocal>
+  >
+  _pekerjaanNotarisHargaLocalsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.pekerjaanNotarisHargaLocals,
+        aliasName: 'pekerjaan_kategori__id__pekerjaan_notaris_harga__kategori_pekerjaan_id',
+      );
+
+  $$PekerjaanNotarisHargaLocalsTableProcessedTableManager
+  get pekerjaanNotarisHargaLocalsRefs {
+    final manager =
+        $$PekerjaanNotarisHargaLocalsTableTableManager(
+          $_db,
+          $_db.pekerjaanNotarisHargaLocals,
+        ).filter(
+          (f) => f.kategoriPekerjaanId.id.sqlEquals($_itemColumn<int>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _pekerjaanNotarisHargaLocalsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $PekerjaanPpatHargaLocalsTable,
+    List<PekerjaanPpatHargaLocal>
+  >
+  _pekerjaanPpatHargaLocalsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.pekerjaanPpatHargaLocals,
+    aliasName:
+        'pekerjaan_kategori__id__pekerjaan_ppat_harga__kategori_pekerjaan_id',
+  );
+
+  $$PekerjaanPpatHargaLocalsTableProcessedTableManager
+  get pekerjaanPpatHargaLocalsRefs {
+    final manager =
+        $$PekerjaanPpatHargaLocalsTableTableManager(
+          $_db,
+          $_db.pekerjaanPpatHargaLocals,
+        ).filter(
+          (f) => f.kategoriPekerjaanId.id.sqlEquals($_itemColumn<int>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _pekerjaanPpatHargaLocalsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
 class $$PekerjaanKategorisTableFilterComposer
     extends Composer<_$AppDatabase, $PekerjaanKategorisTable> {
   $$PekerjaanKategorisTableFilterComposer({
@@ -12030,6 +12109,62 @@ class $$PekerjaanKategorisTableFilterComposer
     column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> pekerjaanNotarisHargaLocalsRefs(
+    Expression<bool> Function(
+      $$PekerjaanNotarisHargaLocalsTableFilterComposer f,
+    )
+    f,
+  ) {
+    final $$PekerjaanNotarisHargaLocalsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pekerjaanNotarisHargaLocals,
+          getReferencedColumn: (t) => t.kategoriPekerjaanId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanNotarisHargaLocalsTableFilterComposer(
+                $db: $db,
+                $table: $db.pekerjaanNotarisHargaLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> pekerjaanPpatHargaLocalsRefs(
+    Expression<bool> Function($$PekerjaanPpatHargaLocalsTableFilterComposer f)
+    f,
+  ) {
+    final $$PekerjaanPpatHargaLocalsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pekerjaanPpatHargaLocals,
+          getReferencedColumn: (t) => t.kategoriPekerjaanId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanPpatHargaLocalsTableFilterComposer(
+                $db: $db,
+                $table: $db.pekerjaanPpatHargaLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$PekerjaanKategorisTableOrderingComposer
@@ -12142,6 +12277,62 @@ class $$PekerjaanKategorisTableAnnotationComposer
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  Expression<T> pekerjaanNotarisHargaLocalsRefs<T extends Object>(
+    Expression<T> Function(
+      $$PekerjaanNotarisHargaLocalsTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$PekerjaanNotarisHargaLocalsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pekerjaanNotarisHargaLocals,
+          getReferencedColumn: (t) => t.kategoriPekerjaanId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanNotarisHargaLocalsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.pekerjaanNotarisHargaLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> pekerjaanPpatHargaLocalsRefs<T extends Object>(
+    Expression<T> Function($$PekerjaanPpatHargaLocalsTableAnnotationComposer a)
+    f,
+  ) {
+    final $$PekerjaanPpatHargaLocalsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pekerjaanPpatHargaLocals,
+          getReferencedColumn: (t) => t.kategoriPekerjaanId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanPpatHargaLocalsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.pekerjaanPpatHargaLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$PekerjaanKategorisTableTableManager
@@ -12155,16 +12346,12 @@ class $$PekerjaanKategorisTableTableManager
           $$PekerjaanKategorisTableAnnotationComposer,
           $$PekerjaanKategorisTableCreateCompanionBuilder,
           $$PekerjaanKategorisTableUpdateCompanionBuilder,
-          (
-            PekerjaanKategori,
-            BaseReferences<
-              _$AppDatabase,
-              $PekerjaanKategorisTable,
-              PekerjaanKategori
-            >,
-          ),
+          (PekerjaanKategori, $$PekerjaanKategorisTableReferences),
           PekerjaanKategori,
-          PrefetchHooks Function()
+          PrefetchHooks Function({
+            bool pekerjaanNotarisHargaLocalsRefs,
+            bool pekerjaanPpatHargaLocalsRefs,
+          })
         > {
   $$PekerjaanKategorisTableTableManager(
     _$AppDatabase db,
@@ -12240,15 +12427,72 @@ class $$PekerjaanKategorisTableTableManager
                   e.readTable<$PekerjaanKategorisTable, PekerjaanKategori>(
                     table,
                   ),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $PekerjaanKategorisTable,
-                    PekerjaanKategori
-                  >(db, table, e),
+                  $$PekerjaanKategorisTableReferences(db, table, e),
                 ),
               )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback:
+              ({
+                pekerjaanNotarisHargaLocalsRefs = false,
+                pekerjaanPpatHargaLocalsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (pekerjaanNotarisHargaLocalsRefs)
+                      db.pekerjaanNotarisHargaLocals,
+                    if (pekerjaanPpatHargaLocalsRefs)
+                      db.pekerjaanPpatHargaLocals,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (pekerjaanNotarisHargaLocalsRefs)
+                        await $_getPrefetchedData<
+                          PekerjaanKategori,
+                          $PekerjaanKategorisTable,
+                          PekerjaanNotarisHargaLocal
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PekerjaanKategorisTableReferences
+                              ._pekerjaanNotarisHargaLocalsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PekerjaanKategorisTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).pekerjaanNotarisHargaLocalsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.kategoriPekerjaanId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (pekerjaanPpatHargaLocalsRefs)
+                        await $_getPrefetchedData<
+                          PekerjaanKategori,
+                          $PekerjaanKategorisTable,
+                          PekerjaanPpatHargaLocal
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PekerjaanKategorisTableReferences
+                              ._pekerjaanPpatHargaLocalsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PekerjaanKategorisTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).pekerjaanPpatHargaLocalsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.kategoriPekerjaanId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
         ),
       );
 }
@@ -12263,16 +12507,12 @@ typedef $$PekerjaanKategorisTableProcessedTableManager =
       $$PekerjaanKategorisTableAnnotationComposer,
       $$PekerjaanKategorisTableCreateCompanionBuilder,
       $$PekerjaanKategorisTableUpdateCompanionBuilder,
-      (
-        PekerjaanKategori,
-        BaseReferences<
-          _$AppDatabase,
-          $PekerjaanKategorisTable,
-          PekerjaanKategori
-        >,
-      ),
+      (PekerjaanKategori, $$PekerjaanKategorisTableReferences),
       PekerjaanKategori,
-      PrefetchHooks Function()
+      PrefetchHooks Function({
+        bool pekerjaanNotarisHargaLocalsRefs,
+        bool pekerjaanPpatHargaLocalsRefs,
+      })
     >;
 typedef $$PengeluaranJenisTableCreateCompanionBuilder =
     PengeluaranJenisCompanion Function({
@@ -13952,6 +14192,26 @@ final class $$PekerjaanNotarisHargaLocalsTableReferences
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
+
+  static $PekerjaanKategorisTable _kategoriPekerjaanIdTable(
+    _$AppDatabase db,
+  ) => db.pekerjaanKategoris.createAlias(
+    'pekerjaan_notaris_harga__kategori_pekerjaan_id__pekerjaan_kategori__id',
+  );
+
+  $$PekerjaanKategorisTableProcessedTableManager get kategoriPekerjaanId {
+    final $_column = $_itemColumn<int>('kategori_pekerjaan_id')!;
+
+    final manager = $$PekerjaanKategorisTableTableManager(
+      $_db,
+      $_db.pekerjaanKategoris,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_kategoriPekerjaanIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
 }
 
 class $$PekerjaanNotarisHargaLocalsTableFilterComposer
@@ -13975,11 +14235,6 @@ class $$PekerjaanNotarisHargaLocalsTableFilterComposer
 
   ColumnFilters<String> get harga => $composableBuilder(
     column: $table.harga,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get kategoriPekerjaanId => $composableBuilder(
-    column: $table.kategoriPekerjaanId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -14051,6 +14306,29 @@ class $$PekerjaanNotarisHargaLocalsTableFilterComposer
         );
     return composer;
   }
+
+  $$PekerjaanKategorisTableFilterComposer get kategoriPekerjaanId {
+    final $$PekerjaanKategorisTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.kategoriPekerjaanId,
+      referencedTable: $db.pekerjaanKategoris,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PekerjaanKategorisTableFilterComposer(
+            $db: $db,
+            $table: $db.pekerjaanKategoris,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$PekerjaanNotarisHargaLocalsTableOrderingComposer
@@ -14074,11 +14352,6 @@ class $$PekerjaanNotarisHargaLocalsTableOrderingComposer
 
   ColumnOrderings<String> get harga => $composableBuilder(
     column: $table.harga,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get kategoriPekerjaanId => $composableBuilder(
-    column: $table.kategoriPekerjaanId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -14150,6 +14423,29 @@ class $$PekerjaanNotarisHargaLocalsTableOrderingComposer
         );
     return composer;
   }
+
+  $$PekerjaanKategorisTableOrderingComposer get kategoriPekerjaanId {
+    final $$PekerjaanKategorisTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.kategoriPekerjaanId,
+      referencedTable: $db.pekerjaanKategoris,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PekerjaanKategorisTableOrderingComposer(
+            $db: $db,
+            $table: $db.pekerjaanKategoris,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$PekerjaanNotarisHargaLocalsTableAnnotationComposer
@@ -14169,11 +14465,6 @@ class $$PekerjaanNotarisHargaLocalsTableAnnotationComposer
 
   GeneratedColumn<String> get harga =>
       $composableBuilder(column: $table.harga, builder: (column) => column);
-
-  GeneratedColumn<int> get kategoriPekerjaanId => $composableBuilder(
-    column: $table.kategoriPekerjaanId,
-    builder: (column) => column,
-  );
 
   GeneratedColumn<String> get estimasiWaktu => $composableBuilder(
     column: $table.estimasiWaktu,
@@ -14231,6 +14522,30 @@ class $$PekerjaanNotarisHargaLocalsTableAnnotationComposer
         );
     return composer;
   }
+
+  $$PekerjaanKategorisTableAnnotationComposer get kategoriPekerjaanId {
+    final $$PekerjaanKategorisTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.kategoriPekerjaanId,
+          referencedTable: $db.pekerjaanKategoris,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanKategorisTableAnnotationComposer(
+                $db: $db,
+                $table: $db.pekerjaanKategoris,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
 }
 
 class $$PekerjaanNotarisHargaLocalsTableTableManager
@@ -14249,7 +14564,10 @@ class $$PekerjaanNotarisHargaLocalsTableTableManager
             $$PekerjaanNotarisHargaLocalsTableReferences,
           ),
           PekerjaanNotarisHargaLocal,
-          PrefetchHooks Function({bool pekerjaanNotarisId})
+          PrefetchHooks Function({
+            bool pekerjaanNotarisId,
+            bool kategoriPekerjaanId,
+          })
         > {
   $$PekerjaanNotarisHargaLocalsTableTableManager(
     _$AppDatabase db,
@@ -14348,47 +14666,61 @@ class $$PekerjaanNotarisHargaLocalsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({pekerjaanNotarisId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (pekerjaanNotarisId) {
-                      state = state.withJoin(
-                        currentTable: table,
-                        currentColumn: table.pekerjaanNotarisId,
-                        referencedTable:
-                            $$PekerjaanNotarisHargaLocalsTableReferences
-                                ._pekerjaanNotarisIdTable(db),
-                        referencedColumn:
-                            $$PekerjaanNotarisHargaLocalsTableReferences
-                                ._pekerjaanNotarisIdTable(db)
-                                .id,
-                      ) as T;
-                    }
+          prefetchHooksCallback:
+              ({pekerjaanNotarisId = false, kategoriPekerjaanId = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (pekerjaanNotarisId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.pekerjaanNotarisId,
+                            referencedTable:
+                                $$PekerjaanNotarisHargaLocalsTableReferences
+                                    ._pekerjaanNotarisIdTable(db),
+                            referencedColumn:
+                                $$PekerjaanNotarisHargaLocalsTableReferences
+                                    ._pekerjaanNotarisIdTable(db)
+                                    .id,
+                          ) as T;
+                        }
+                        if (kategoriPekerjaanId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.kategoriPekerjaanId,
+                            referencedTable:
+                                $$PekerjaanNotarisHargaLocalsTableReferences
+                                    ._kategoriPekerjaanIdTable(db),
+                            referencedColumn:
+                                $$PekerjaanNotarisHargaLocalsTableReferences
+                                    ._kategoriPekerjaanIdTable(db)
+                                    .id,
+                          ) as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -14408,7 +14740,10 @@ typedef $$PekerjaanNotarisHargaLocalsTableProcessedTableManager =
         $$PekerjaanNotarisHargaLocalsTableReferences,
       ),
       PekerjaanNotarisHargaLocal,
-      PrefetchHooks Function({bool pekerjaanNotarisId})
+      PrefetchHooks Function({
+        bool pekerjaanNotarisId,
+        bool kategoriPekerjaanId,
+      })
     >;
 typedef $$PekerjaanNotarisProsesLocalsTableCreateCompanionBuilder =
     PekerjaanNotarisProsesLocalsCompanion Function({
@@ -16378,6 +16713,25 @@ final class $$PekerjaanPpatHargaLocalsTableReferences
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
+
+  static $PekerjaanKategorisTable _kategoriPekerjaanIdTable(_$AppDatabase db) =>
+      db.pekerjaanKategoris.createAlias(
+        'pekerjaan_ppat_harga__kategori_pekerjaan_id__pekerjaan_kategori__id',
+      );
+
+  $$PekerjaanKategorisTableProcessedTableManager get kategoriPekerjaanId {
+    final $_column = $_itemColumn<int>('kategori_pekerjaan_id')!;
+
+    final manager = $$PekerjaanKategorisTableTableManager(
+      $_db,
+      $_db.pekerjaanKategoris,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_kategoriPekerjaanIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
 }
 
 class $$PekerjaanPpatHargaLocalsTableFilterComposer
@@ -16401,11 +16755,6 @@ class $$PekerjaanPpatHargaLocalsTableFilterComposer
 
   ColumnFilters<String> get harga => $composableBuilder(
     column: $table.harga,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get kategoriPekerjaanId => $composableBuilder(
-    column: $table.kategoriPekerjaanId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16476,6 +16825,29 @@ class $$PekerjaanPpatHargaLocalsTableFilterComposer
     );
     return composer;
   }
+
+  $$PekerjaanKategorisTableFilterComposer get kategoriPekerjaanId {
+    final $$PekerjaanKategorisTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.kategoriPekerjaanId,
+      referencedTable: $db.pekerjaanKategoris,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PekerjaanKategorisTableFilterComposer(
+            $db: $db,
+            $table: $db.pekerjaanKategoris,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$PekerjaanPpatHargaLocalsTableOrderingComposer
@@ -16499,11 +16871,6 @@ class $$PekerjaanPpatHargaLocalsTableOrderingComposer
 
   ColumnOrderings<String> get harga => $composableBuilder(
     column: $table.harga,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get kategoriPekerjaanId => $composableBuilder(
-    column: $table.kategoriPekerjaanId,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -16575,6 +16942,29 @@ class $$PekerjaanPpatHargaLocalsTableOrderingComposer
         );
     return composer;
   }
+
+  $$PekerjaanKategorisTableOrderingComposer get kategoriPekerjaanId {
+    final $$PekerjaanKategorisTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.kategoriPekerjaanId,
+      referencedTable: $db.pekerjaanKategoris,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PekerjaanKategorisTableOrderingComposer(
+            $db: $db,
+            $table: $db.pekerjaanKategoris,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
 }
 
 class $$PekerjaanPpatHargaLocalsTableAnnotationComposer
@@ -16594,11 +16984,6 @@ class $$PekerjaanPpatHargaLocalsTableAnnotationComposer
 
   GeneratedColumn<String> get harga =>
       $composableBuilder(column: $table.harga, builder: (column) => column);
-
-  GeneratedColumn<int> get kategoriPekerjaanId => $composableBuilder(
-    column: $table.kategoriPekerjaanId,
-    builder: (column) => column,
-  );
 
   GeneratedColumn<String> get estimasiWaktu => $composableBuilder(
     column: $table.estimasiWaktu,
@@ -16656,6 +17041,30 @@ class $$PekerjaanPpatHargaLocalsTableAnnotationComposer
         );
     return composer;
   }
+
+  $$PekerjaanKategorisTableAnnotationComposer get kategoriPekerjaanId {
+    final $$PekerjaanKategorisTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.kategoriPekerjaanId,
+          referencedTable: $db.pekerjaanKategoris,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanKategorisTableAnnotationComposer(
+                $db: $db,
+                $table: $db.pekerjaanKategoris,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
 }
 
 class $$PekerjaanPpatHargaLocalsTableTableManager
@@ -16671,7 +17080,10 @@ class $$PekerjaanPpatHargaLocalsTableTableManager
           $$PekerjaanPpatHargaLocalsTableUpdateCompanionBuilder,
           (PekerjaanPpatHargaLocal, $$PekerjaanPpatHargaLocalsTableReferences),
           PekerjaanPpatHargaLocal,
-          PrefetchHooks Function({bool pekerjaanPpatId})
+          PrefetchHooks Function({
+            bool pekerjaanPpatId,
+            bool kategoriPekerjaanId,
+          })
         > {
   $$PekerjaanPpatHargaLocalsTableTableManager(
     _$AppDatabase db,
@@ -16770,47 +17182,61 @@ class $$PekerjaanPpatHargaLocalsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({pekerjaanPpatId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (pekerjaanPpatId) {
-                      state = state.withJoin(
-                        currentTable: table,
-                        currentColumn: table.pekerjaanPpatId,
-                        referencedTable:
-                            $$PekerjaanPpatHargaLocalsTableReferences
-                                ._pekerjaanPpatIdTable(db),
-                        referencedColumn:
-                            $$PekerjaanPpatHargaLocalsTableReferences
-                                ._pekerjaanPpatIdTable(db)
-                                .id,
-                      ) as T;
-                    }
+          prefetchHooksCallback:
+              ({pekerjaanPpatId = false, kategoriPekerjaanId = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (pekerjaanPpatId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.pekerjaanPpatId,
+                            referencedTable:
+                                $$PekerjaanPpatHargaLocalsTableReferences
+                                    ._pekerjaanPpatIdTable(db),
+                            referencedColumn:
+                                $$PekerjaanPpatHargaLocalsTableReferences
+                                    ._pekerjaanPpatIdTable(db)
+                                    .id,
+                          ) as T;
+                        }
+                        if (kategoriPekerjaanId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.kategoriPekerjaanId,
+                            referencedTable:
+                                $$PekerjaanPpatHargaLocalsTableReferences
+                                    ._kategoriPekerjaanIdTable(db),
+                            referencedColumn:
+                                $$PekerjaanPpatHargaLocalsTableReferences
+                                    ._kategoriPekerjaanIdTable(db)
+                                    .id,
+                          ) as T;
+                        }
 
-                    return state;
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
                   },
-              getPrefetchedDataCallback: (items) async {
-                return [];
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -16827,7 +17253,7 @@ typedef $$PekerjaanPpatHargaLocalsTableProcessedTableManager =
       $$PekerjaanPpatHargaLocalsTableUpdateCompanionBuilder,
       (PekerjaanPpatHargaLocal, $$PekerjaanPpatHargaLocalsTableReferences),
       PekerjaanPpatHargaLocal,
-      PrefetchHooks Function({bool pekerjaanPpatId})
+      PrefetchHooks Function({bool pekerjaanPpatId, bool kategoriPekerjaanId})
     >;
 typedef $$PekerjaanPpatProsesLocalsTableCreateCompanionBuilder =
     PekerjaanPpatProsesLocalsCompanion Function({
