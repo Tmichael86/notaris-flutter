@@ -375,7 +375,7 @@ class _PekerjaanNotarisDesktopScreenState extends ConsumerState<PekerjaanNotaris
           child: Row(children: [
             Expanded(child: TextFormField(
               initialValue: attribute.value,
-              decoration: _decoration('Atribut ' + (a + 1).toString()),
+              decoration: _decoration('Atribut ${a + 1}'),
               onChanged: (v) => attribute.value = v,
             )),
             IconButton(onPressed: row.attributes.length == 1 ? null : () => refresh(() => row.attributes.removeAt(a)), icon: const Icon(Icons.delete_outline)),
@@ -425,7 +425,7 @@ class _PekerjaanNotarisDesktopScreenState extends ConsumerState<PekerjaanNotaris
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Peringatan!'),
-        content: Text('Apakah Anda yakin ingin menghapus pekerjaan "' + item.nama + '"?'),
+        content: Text('Apakah Anda yakin ingin menghapus pekerjaan "${item.nama}"?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Tidak')),
           ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Hapus')),
@@ -446,10 +446,10 @@ class _PekerjaanNotarisDesktopScreenState extends ConsumerState<PekerjaanNotaris
       await action();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message.replaceFirst('...', ' berhasil.'))));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      if (mounted) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Gagal: $e'), backgroundColor: Colors.red.shade700));
       }
-    finally {
+    } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
