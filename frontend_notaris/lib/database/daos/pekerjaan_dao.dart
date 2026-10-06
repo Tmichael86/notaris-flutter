@@ -21,6 +21,18 @@ class PekerjaanDao extends DatabaseAccessor<AppDatabase>
     with _$PekerjaanDaoMixin {
   PekerjaanDao(super.db);
 
+  Future<List<PekerjaanKategori>> getActivePekerjaanKategori() =>
+      (select(db.pekerjaanKategoris)
+            ..where((t) => t.status.equals(1) & t.deletedAt.isNull())
+            ..orderBy([(t) => OrderingTerm.asc(t.nama)]))
+          .get();
+
+  Stream<List<PekerjaanKategori>> watchActivePekerjaanKategori() =>
+      (select(db.pekerjaanKategoris)
+            ..where((t) => t.status.equals(1) & t.deletedAt.isNull())
+            ..orderBy([(t) => OrderingTerm.asc(t.nama)]))
+          .watch();
+
   Stream<List<PekerjaanNotarisLocal>> watchPekerjaanNotaris() =>
       (select(pekerjaanNotarisLocals)
             ..where((t) => t.status.equals(1) & t.deletedAt.isNull())
@@ -251,7 +263,7 @@ class PekerjaanDao extends DatabaseAccessor<AppDatabase>
     int id,
     PekerjaanPpatProsesLocalsCompanion entry,
   ) =>
-      (update(pekerjaanPpatProsesLocals)..where((t) => t.id.equals(id)))
+      (update(pekerjaanPpatLocals)..where((t) => t.id.equals(id)))
           .write(entry)
           .then((count) => count > 0);
 
