@@ -2,19 +2,112 @@ package models
 
 import "time"
 
-type PekerjaanNotaris struct { ID uint `gorm:"primaryKey;column:id" json:"id"`; Nama string `gorm:"column:nama" json:"nama"`; CreatedBy *uint `gorm:"column:created_by" json:"created_by"`; UpdatedBy *uint `gorm:"column:updated_by" json:"updated_by"`; CreatedAt *time.Time `gorm:"column:created_at" json:"created_at"`; UpdatedAt *time.Time `gorm:"column:updated_at" json:"updated_at"`; Status int16 `gorm:"column:status" json:"status"` }
-func (PekerjaanNotaris) TableName() string{return "pekerjaan_notaris"}
-type PekerjaanPPAT struct { ID uint `gorm:"primaryKey;column:id" json:"id"`; Nama string `gorm:"column:nama" json:"nama"`; CreatedBy *uint `gorm:"column:created_by" json:"created_by"`; UpdatedBy *uint `gorm:"column:updated_by" json:"updated_by"`; CreatedAt *time.Time `gorm:"column:created_at" json:"created_at"`; UpdatedAt *time.Time `gorm:"column:updated_at" json:"updated_at"`; Status int16 `gorm:"column:status" json:"status"` }
-func (PekerjaanPPAT) TableName() string{return "pekerjaan_ppat"}
-type HargaPekerjaanNotaris struct { ID uint `gorm:"primaryKey;column:id" json:"id"`; PekerjaanNotarisID uint `gorm:"column:pekerjaan_notaris_id" json:"pekerjaan_notaris_id"`; Harga string `gorm:"column:harga" json:"harga"`; KategoriPekerjaanID uint `gorm:"column:kategori_pekerjaan_id" json:"kategori_pekerjaan_id"`; EstimasiWaktu string `gorm:"column:estimasi_waktu" json:"estimasi_waktu"`; CreatedBy *uint `gorm:"column:created_by" json:"created_by"`; UpdatedBy *uint `gorm:"column:updated_by" json:"updated_by"`; CreatedAt *time.Time `gorm:"column:created_at" json:"created_at"`; UpdatedAt *time.Time `gorm:"column:updated_at" json:"updated_at"`; Status int16 `gorm:"column:status" json:"status"` }
-func (HargaPekerjaanNotaris) TableName() string{return "pekerjaan_notaris_harga"}
-type HargaPekerjaanPPAT struct { ID uint `gorm:"primaryKey;column:id" json:"id"`; PekerjaanPPATID uint `gorm:"column:pekerjaan_ppat_id" json:"pekerjaan_ppat_id"`; Harga string `gorm:"column:harga" json:"harga"`; KategoriPekerjaanID uint `gorm:"column:kategori_pekerjaan_id" json:"kategori_pekerjaan_id"`; EstimasiWaktu string `gorm:"column:estimasi_waktu" json:"estimasi_waktu"`; CreatedBy *uint `gorm:"column:created_by" json:"created_by"`; UpdatedBy *uint `gorm:"column:updated_by" json:"updated_by"`; CreatedAt *time.Time `gorm:"column:created_at" json:"created_at"`; UpdatedAt *time.Time `gorm:"column:updated_at" json:"updated_at"`; Status int16 `gorm:"column:status" json:"status"` }
-func (HargaPekerjaanPPAT) TableName() string{return "pekerjaan_ppat_harga"}
-type ProsesPekerjaanNotaris struct { ID uint `gorm:"primaryKey;column:id" json:"id"`; PekerjaanNotarisID uint `gorm:"column:pekerjaan_notaris_id" json:"pekerjaan_notaris_id"`; Nama string `gorm:"column:nama" json:"nama"`; Detail string `gorm:"column:detail" json:"detail"`; CreatedBy *uint `gorm:"column:created_by" json:"created_by"`; UpdatedBy *uint `gorm:"column:updated_by" json:"updated_by"`; CreatedAt *time.Time `gorm:"column:created_at" json:"created_at"`; UpdatedAt *time.Time `gorm:"column:updated_at" json:"updated_at"`; Status int16 `gorm:"column:status" json:"status"` }
-func (ProsesPekerjaanNotaris) TableName() string{return "pekerjaan_notaris_proses"}
-type ProsesPekerjaanPPAT struct { ID uint `gorm:"primaryKey;column:id" json:"id"`; PekerjaanPPATID uint `gorm:"column:pekerjaan_ppat_id" json:"pekerjaan_ppat_id"`; Nama string `gorm:"column:nama" json:"nama"`; Detail string `gorm:"column:detail" json:"detail"`; CreatedBy *uint `gorm:"column:created_by" json:"created_by"`; UpdatedBy *uint `gorm:"column:updated_by" json:"updated_by"`; CreatedAt *time.Time `gorm:"column:created_at" json:"created_at"`; UpdatedAt *time.Time `gorm:"column:updated_at" json:"updated_at"`; Status int16 `gorm:"column:status" json:"status"` }
-func (ProsesPekerjaanPPAT) TableName() string{return "pekerjaan_ppat_proses"}
-type AtributPekerjaanNotaris struct { ID uint `gorm:"primaryKey;column:id" json:"id"`; PekerjaanNotarisID uint `gorm:"column:pekerjaan_notaris_id" json:"pekerjaan_notaris_id"`; ProsesPekerjaanNotarisID uint `gorm:"column:proses_pekerjaan_notaris_id" json:"proses_pekerjaan_notaris_id"`; Atribut string `gorm:"column:atribut" json:"atribut"`; CreatedBy *uint `gorm:"column:created_by" json:"created_by"`; UpdatedBy *uint `gorm:"column:updated_by" json:"updated_by"`; CreatedAt *time.Time `gorm:"column:created_at" json:"created_at"`; UpdatedAt *time.Time `gorm:"column:updated_at" json:"updated_at"`; Status int16 `gorm:"column:status" json:"status"` }
-func (AtributPekerjaanNotaris) TableName() string{return "pekerjaan_notaris_atributs"}
-type AtributPekerjaanPPAT struct { ID uint `gorm:"primaryKey;column:id" json:"id"`; PekerjaanPPATID uint `gorm:"column:pekerjaan_ppat_id" json:"pekerjaan_ppat_id"`; ProsesPekerjaanPPATID uint `gorm:"column:proses_pekerjaan_ppat_id" json:"proses_pekerjaan_ppat_id"`; Atribut string `gorm:"column:atribut" json:"atribut"`; CreatedBy *uint `gorm:"column:created_by" json:"created_by"`; UpdatedBy *uint `gorm:"column:updated_by" json:"updated_by"`; CreatedAt *time.Time `gorm:"column:created_at" json:"created_at"`; UpdatedAt *time.Time `gorm:"column:updated_at" json:"updated_at"`; Status int16 `gorm:"column:status" json:"status"` }
-func (AtributPekerjaanPPAT) TableName() string{return "pekerjaan_ppat_atributs"}
+type PekerjaanNotaris struct {
+	ID        uint       `gorm:"primaryKey;column:id" json:"id"`
+	Nama      string     `gorm:"column:nama" json:"nama"`
+	CreatedBy *uint      `gorm:"column:created_by" json:"created_by"`
+	UpdatedBy *uint      `gorm:"column:updated_by" json:"updated_by"`
+	CreatedAt *time.Time `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt *time.Time `gorm:"column:updated_at" json:"updated_at"`
+	Status    int16      `gorm:"column:status" json:"status"`
+}
+
+func (PekerjaanNotaris) TableName() string { return "pekerjaan_notaris" }
+
+type PekerjaanPPAT struct {
+	ID        uint       `gorm:"primaryKey;column:id" json:"id"`
+	Nama      string     `gorm:"column:nama" json:"nama"`
+	CreatedBy *uint      `gorm:"column:created_by" json:"created_by"`
+	UpdatedBy *uint      `gorm:"column:updated_by" json:"updated_by"`
+	CreatedAt *time.Time `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt *time.Time `gorm:"column:updated_at" json:"updated_at"`
+	Status    int16      `gorm:"column:status" json:"status"`
+}
+
+func (PekerjaanPPAT) TableName() string { return "pekerjaan_ppat" }
+
+type HargaPekerjaanNotaris struct {
+	ID                  uint       `gorm:"primaryKey;column:id" json:"id"`
+	PekerjaanNotarisID  uint       `gorm:"column:pekerjaan_notaris_id" json:"pekerjaan_notaris_id"`
+	Harga               string     `gorm:"column:harga" json:"harga"`
+	KategoriPekerjaanID uint       `gorm:"column:kategori_pekerjaan_id" json:"kategori_pekerjaan_id"`
+	EstimasiWaktu       string     `gorm:"column:estimasi_waktu" json:"estimasi_waktu"`
+	CreatedBy           *uint      `gorm:"column:created_by" json:"created_by"`
+	UpdatedBy           *uint      `gorm:"column:updated_by" json:"updated_by"`
+	CreatedAt           *time.Time `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt           *time.Time `gorm:"column:updated_at" json:"updated_at"`
+	Status              int16      `gorm:"column:status" json:"status"`
+}
+
+func (HargaPekerjaanNotaris) TableName() string { return "pekerjaan_notaris_harga" }
+
+type HargaPekerjaanPPAT struct {
+	ID                  uint       `gorm:"primaryKey;column:id" json:"id"`
+	PekerjaanPPATID     uint       `gorm:"column:pekerjaan_ppat_id" json:"pekerjaan_ppat_id"`
+	Harga               string     `gorm:"column:harga" json:"harga"`
+	KategoriPekerjaanID uint       `gorm:"column:kategori_pekerjaan_id" json:"kategori_pekerjaan_id"`
+	EstimasiWaktu       string     `gorm:"column:estimasi_waktu" json:"estimasi_waktu"`
+	CreatedBy           *uint      `gorm:"column:created_by" json:"created_by"`
+	UpdatedBy           *uint      `gorm:"column:updated_by" json:"updated_by"`
+	CreatedAt           *time.Time `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt           *time.Time `gorm:"column:updated_at" json:"updated_at"`
+	Status              int16      `gorm:"column:status" json:"status"`
+}
+
+func (HargaPekerjaanPPAT) TableName() string { return "pekerjaan_ppat_harga" }
+
+type ProsesPekerjaanNotaris struct {
+	ID                 uint       `gorm:"primaryKey;column:id" json:"id"`
+	PekerjaanNotarisID uint       `gorm:"column:pekerjaan_notaris_id" json:"pekerjaan_notaris_id"`
+	Nama               string     `gorm:"column:nama" json:"nama"`
+	Detail             string     `gorm:"column:detail" json:"detail"`
+	CreatedBy          *uint      `gorm:"column:created_by" json:"created_by"`
+	UpdatedBy          *uint      `gorm:"column:updated_by" json:"updated_by"`
+	CreatedAt          *time.Time `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt          *time.Time `gorm:"column:updated_at" json:"updated_at"`
+	Status             int16      `gorm:"column:status" json:"status"`
+}
+
+func (ProsesPekerjaanNotaris) TableName() string { return "pekerjaan_notaris_proses" }
+
+type ProsesPekerjaanPPAT struct {
+	ID              uint       `gorm:"primaryKey;column:id" json:"id"`
+	PekerjaanPPATID uint       `gorm:"column:pekerjaan_ppat_id" json:"pekerjaan_ppat_id"`
+	Nama            string     `gorm:"column:nama" json:"nama"`
+	Detail          string     `gorm:"column:detail" json:"detail"`
+	CreatedBy       *uint      `gorm:"column:created_by" json:"created_by"`
+	UpdatedBy       *uint      `gorm:"column:updated_by" json:"updated_by"`
+	CreatedAt       *time.Time `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt       *time.Time `gorm:"column:updated_at" json:"updated_at"`
+	Status          int16      `gorm:"column:status" json:"status"`
+}
+
+func (ProsesPekerjaanPPAT) TableName() string { return "pekerjaan_ppat_proses" }
+
+type AtributPekerjaanNotaris struct {
+	ID                       uint       `gorm:"primaryKey;column:id" json:"id"`
+	PekerjaanNotarisID       uint       `gorm:"column:pekerjaan_notaris_id" json:"pekerjaan_notaris_id"`
+	ProsesPekerjaanNotarisID uint       `gorm:"column:proses_pekerjaan_notaris_id" json:"proses_pekerjaan_notaris_id"`
+	Atribut                  string     `gorm:"column:atribut" json:"atribut"`
+	CreatedBy                *uint      `gorm:"column:created_by" json:"created_by"`
+	UpdatedBy                *uint      `gorm:"column:updated_by" json:"updated_by"`
+	CreatedAt                *time.Time `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt                *time.Time `gorm:"column:updated_at" json:"updated_at"`
+	Status                   int16      `gorm:"column:status" json:"status"`
+}
+
+func (AtributPekerjaanNotaris) TableName() string { return "pekerjaan_notaris_atributs" }
+
+type AtributPekerjaanPPAT struct {
+	ID                    uint       `gorm:"primaryKey;column:id" json:"id"`
+	PekerjaanPPATID       uint       `gorm:"column:pekerjaan_ppat_id" json:"pekerjaan_ppat_id"`
+	ProsesPekerjaanPPATID uint       `gorm:"column:proses_pekerjaan_ppat_id" json:"proses_pekerjaan_ppat_id"`
+	Atribut               string     `gorm:"column:atribut" json:"atribut"`
+	CreatedBy             *uint      `gorm:"column:created_by" json:"created_by"`
+	UpdatedBy             *uint      `gorm:"column:updated_by" json:"updated_by"`
+	CreatedAt             *time.Time `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt             *time.Time `gorm:"column:updated_at" json:"updated_at"`
+	Status                int16      `gorm:"column:status" json:"status"`
+}
+
+func (AtributPekerjaanPPAT) TableName() string { return "pekerjaan_ppat_atributs" }

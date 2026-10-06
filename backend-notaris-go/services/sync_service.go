@@ -40,7 +40,7 @@ func (s *syncService) PushSync(req request.SyncPushRequest) (time.Time, error) {
 		}
 
 		err := database.DB.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "uuid"}},
+			Columns: []clause.Column{{Name: "uuid"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"no_akta",
 				"total",
