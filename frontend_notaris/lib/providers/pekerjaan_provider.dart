@@ -34,6 +34,12 @@ final pekerjaanKategoriProvider =
   return database.pekerjaanDao.watchActivePekerjaanKategori();
 });
 
+final pekerjaanNotarisAggregateProvider = FutureProvider.autoDispose
+    .family<PekerjaanAggregateData?, int>((ref, id) {
+  final repository = ref.watch(pekerjaanNotarisRepositoryProvider);
+  return repository.getAggregate(id);
+});
+
 final pekerjaanNotarisControllerProvider =
     AsyncNotifierProvider<PekerjaanNotarisController, void>(
   PekerjaanNotarisController.new,
