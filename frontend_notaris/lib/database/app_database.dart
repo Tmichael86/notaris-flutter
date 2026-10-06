@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
 import 'master_tables.dart';
+import 'pekerjaan_tables.dart';
 
 part 'app_database.g.dart';
 
@@ -56,13 +57,21 @@ class Transaksis extends Table {
     PekerjaanKategoris,
     PengeluaranJenis,
     PetugasLocals,
+    PekerjaanNotarisLocals,
+    PekerjaanNotarisHargaLocals,
+    PekerjaanNotarisProsesLocals,
+    PekerjaanNotarisAtributLocals,
+    PekerjaanPpatLocals,
+    PekerjaanPpatHargaLocals,
+    PekerjaanPpatProsesLocals,
+    PekerjaanPpatAtributLocals,
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -84,6 +93,17 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(pekerjaanKategoris);
             await m.createTable(pengeluaranJenis);
             await m.createTable(petugasLocals);
+          }
+
+          if (from < 3) {
+            await m.createTable(pekerjaanNotarisLocals);
+            await m.createTable(pekerjaanNotarisHargaLocals);
+            await m.createTable(pekerjaanNotarisProsesLocals);
+            await m.createTable(pekerjaanNotarisAtributLocals);
+            await m.createTable(pekerjaanPpatLocals);
+            await m.createTable(pekerjaanPpatHargaLocals);
+            await m.createTable(pekerjaanPpatProsesLocals);
+            await m.createTable(pekerjaanPpatAtributLocals);
           }
         },
       );
