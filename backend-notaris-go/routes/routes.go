@@ -81,6 +81,24 @@ func SetupRouter(
 			kategoriPekerjaan.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "kategori_pekerjaan", middleware.PermissionDelete), kategoriPekerjaanController.Delete)
 		}
 
+		pekerjaanNotaris := v1.Group("/pekerjaan-notaris")
+		{
+			pekerjaanNotaris.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionRead), pekerjaanController.GetAllNotaris)
+			pekerjaanNotaris.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionRead), pekerjaanController.GetAllNotaris)
+			pekerjaanNotaris.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionCreate), pekerjaanController.CreateNotaris)
+			pekerjaanNotaris.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionUpdate), pekerjaanController.UpdateNotaris)
+			pekerjaanNotaris.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionDelete), pekerjaanController.DeleteNotaris)
+		}
+
+		pekerjaanPPAT := v1.Group("/pekerjaan-ppat")
+		{
+			pekerjaanPPAT.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionRead), pekerjaanController.GetAllPPAT)
+			pekerjaanPPAT.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionRead), pekerjaanController.GetAllPPAT)
+			pekerjaanPPAT.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionCreate), pekerjaanController.CreatePPAT)
+			pekerjaanPPAT.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionUpdate), pekerjaanController.UpdatePPAT)
+			pekerjaanPPAT.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionDelete), pekerjaanController.DeletePPAT)
+		}
+
 		pemohon := v1.Group("/pemohon")
 		{
 			pemohon.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionRead), pemohonController.GetAll)

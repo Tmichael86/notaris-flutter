@@ -22,6 +22,7 @@ func main() {
 	userController := controllers.NewUserController()
 	petugasController := controllers.NewPetugasController()
 	kategoriPekerjaanController := controllers.NewKategoriPekerjaanController()
+	pekerjaanController := controllers.NewPekerjaanController()
 	jenisPengeluaranController := controllers.NewJenisPengeluaranController()
 	pemohonController := controllers.NewPemohonController()
 	authService := services.NewAuthService(cfg)
@@ -43,6 +44,7 @@ func main() {
 		sidebarAccessController,
 		petugasController,
 		kategoriPekerjaanController,
+		pekerjaanController,
 		jenisPengeluaranController,
 		pemohonController,
 	)
