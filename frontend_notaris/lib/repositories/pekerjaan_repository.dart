@@ -54,6 +54,58 @@ class PekerjaanAggregateInput {
   });
 }
 
+class PekerjaanAggregateData {
+  final int id;
+  final String nama;
+  final List<PekerjaanHargaData> harga;
+  final List<PekerjaanProsesData> proses;
+
+  const PekerjaanAggregateData({
+    required this.id,
+    required this.nama,
+    required this.harga,
+    required this.proses,
+  });
+}
+
+class PekerjaanHargaData {
+  final int id;
+  final int kategoriPekerjaanId;
+  final String harga;
+  final String estimasiWaktu;
+
+  const PekerjaanHargaData({
+    required this.id,
+    required this.kategoriPekerjaanId,
+    required this.harga,
+    required this.estimasiWaktu,
+  });
+}
+
+class PekerjaanProsesData {
+  final int id;
+  final String nama;
+  final String detail;
+  final List<PekerjaanAtributData> atribut;
+
+  const PekerjaanProsesData({
+    required this.id,
+    required this.nama,
+    required this.detail,
+    required this.atribut,
+  });
+}
+
+class PekerjaanAtributData {
+  final int id;
+  final String? atribut;
+
+  const PekerjaanAtributData({
+    required this.id,
+    required this.atribut,
+  });
+}
+
 class PekerjaanNotarisRepository {
   static const _uuid = Uuid();
 
@@ -70,6 +122,44 @@ class PekerjaanNotarisRepository {
 
   Future<PekerjaanNotarisLocal?> getByUuid(String uuid) =>
       dao.getPekerjaanNotarisByUuid(uuid);
+
+  Future<PekerjaanAggregateData?> getAggregate(int id) async {
+    final parent = await dao.getPekerjaanNotarisById(id);
+    if (parent == null || parent.status != 1) return null;
+
+    final harga = await dao.getHargaNotaris(id);
+    final proses = await dao.getProsesNotaris(id);
+
+    return PekerjaanAggregateData(
+      id: parent.id,
+      nama: parent.nama,
+      harga: [
+        for (final item in harga)
+          PekerjaanHargaData(
+            id: item.id,
+            kategoriPekerjaanId: item.kategoriPekerjaanId,
+            harga: item.harga,
+            estimasiWaktu: item.estimasiWaktu,
+          ),
+      ],
+      proses: [
+        for (final item in proses)
+          PekerjaanProsesData(
+            id: item.id,
+            nama: item.nama,
+            detail: item.detail,
+            atribut: [
+              for (final attribute in await dao.getAtributNotaris(item.id))
+                PekerjaanAtributData(
+                  id: attribute.id,
+                  atribut: attribute.atribut,
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+
 
   Future<int> create({
     required String uuid,
