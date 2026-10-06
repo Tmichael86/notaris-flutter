@@ -82,26 +82,3 @@ class PetugasLocals extends Table {
   DateTimeColumn get deletedAt => dateTime().nullable()();
 }
 
-
-class PemohonLocals extends Table {
-  IntColumn get id => integer().autoIncrement()();
-  TextColumn get uuid => text().unique()();
-
-  TextColumn get nama => text()();
-  TextColumn get alamat => text().nullable()();
-  IntColumn get jenisKelamin =>
-      integer().nullable().references(JenisKelamins, #id)();
-  TextColumn get noTelp => text().nullable()();
-  TextColumn get nik => text().nullable()();
-
-  IntColumn get createdBy => integer().nullable()();
-  IntColumn get updatedBy => integer().nullable()();
-  DateTimeColumn get createdAt => dateTime().nullable()();
-  DateTimeColumn get updatedAt => dateTime().nullable()();
-  IntColumn get status => integer().withDefault(const Constant(1))();
-
-  BoolColumn get isSyncDirty =>
-      boolean().withDefault(const Constant(true))();
-  DateTimeColumn get lastSyncedAt => dateTime().nullable()();
-  DateTimeColumn get deletedAt => dateTime().nullable()();
-}
