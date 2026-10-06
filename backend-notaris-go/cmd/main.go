@@ -44,8 +44,8 @@ func main() {
 		sidebarAccessController,
 		petugasController,
 		kategoriPekerjaanController,
-		pekerjaanController,
 		jenisPengeluaranController,
+		pekerjaanController,
 		pemohonController,
 	)
 
