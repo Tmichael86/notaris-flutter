@@ -112,13 +112,13 @@ class _PekerjaanNotarisDesktopScreenState extends ConsumerState<PekerjaanNotaris
             ),
           ),
           if (!mobile) const Spacer(),
-          if (!mobile) Text(filtered.length.toString() + ' data'),
+          if (!mobile) Text('${filtered.length} data'),
         ]),
         if (mobile) Align(
           alignment: Alignment.centerLeft,
           child: Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: Text(filtered.length.toString() + ' data'),
+            child: Text('${filtered.length} data'),
           ),
         ),
         const SizedBox(height: 16),
@@ -181,7 +181,7 @@ class _PekerjaanNotarisDesktopScreenState extends ConsumerState<PekerjaanNotaris
     final state = ref.watch(pekerjaanNotarisAggregateProvider(id));
     return state.when(
       loading: () => const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
-      error: (_, __) => const Text('Gagal'),
+      error: (_, _) => const Text('Gagal'),
       data: (data) {
         if (data == null || data.harga.isEmpty) return const Text('-');
         final values = data.harga.map((e) => eta ? e.estimasiWaktu : _rupiah(int.tryParse(e.harga) ?? 0)).toList();
@@ -206,7 +206,7 @@ class _PekerjaanNotarisDesktopScreenState extends ConsumerState<PekerjaanNotaris
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
         decoration: BoxDecoration(color: AppColors.primaryConfirm, borderRadius: BorderRadius.circular(6)),
-        child: Text(_page.toString(), style: const TextStyle(color: Colors.white)),
+        child: Text('$_page', style: const TextStyle(color: Colors.white)),
       ),
       OutlinedButton(onPressed: _page < pages ? () => setState(() => _page++) : null, child: const Text('Next')),
     ]);
@@ -359,7 +359,7 @@ class _PekerjaanNotarisDesktopScreenState extends ConsumerState<PekerjaanNotaris
     decoration: BoxDecoration(color: const Color(0xFFFAFAFA), borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFE5E5E5))),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
-        Expanded(child: Text('Proses ' + (index + 1).toString(), style: const TextStyle(fontWeight: FontWeight.w600))),
+        Expanded(child: Text('Proses ${index + 1}', style: const TextStyle(fontWeight: FontWeight.w600))),
         IconButton(onPressed: all.length == 1 ? null : () => refresh(() => all.removeAt(index)), icon: const Icon(Icons.delete_outline)),
       ]),
       TextFormField(initialValue: row.nama, decoration: _decoration('Nama Proses'), onChanged: (v) => row.nama = v),
@@ -395,7 +395,7 @@ class _PekerjaanNotarisDesktopScreenState extends ConsumerState<PekerjaanNotaris
   }
 
   String _categoryName(List<PekerjaanKategori> cats, int id) =>
-      cats.where((c) => c.id == id).map((c) => c.nama).firstOrNull ?? 'Kategori #' + id.toString();
+      cats.where((c) => c.id == id).map((c) => c.nama).firstOrNull ?? 'Kategori #$id';
 
   bool _validatePrices(BuildContext ctx, List<_HargaRow> rows) {
     if (rows.isEmpty) { _validation(ctx, 'Minimal satu harga harus diisi.'); return false; }
@@ -464,7 +464,7 @@ class _PekerjaanNotarisDesktopScreenState extends ConsumerState<PekerjaanNotaris
       final left = s.length - i - 1;
       if (left > 0 && left % 3 == 0) b.write('.');
     }
-    return 'Rp ' + b.toString();
+    return 'Rp $b';
   }
 
   InputDecoration _decoration(String label) => InputDecoration(
