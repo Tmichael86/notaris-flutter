@@ -1,6 +1,4 @@
 import 'package:drift/drift.dart';
-import 'package:uuid/uuid.dart';
-
 import 'app_database.dart';
 
 /// Development-only baseline data for the offline-first SQLite database.
@@ -17,8 +15,6 @@ import 'app_database.dart';
 /// marked dirty by the repositories.
 class DevelopmentSeeder {
   DevelopmentSeeder._();
-
-  static const _uuid = Uuid();
 
   /// Seeds the database only when the required master data is empty.
   ///
