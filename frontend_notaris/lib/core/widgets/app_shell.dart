@@ -606,13 +606,22 @@ class _AppShellState extends State<AppShell> {
   }
 
   Widget _buildScrollableContent() {
+    final content = _buildContent();
+
+    // Dashboard is a vertically scrollable summary page. Other desktop
+    // screens manage their own bounded internal layout/scrolling.
+    final contentArea = selectedMenu == 'Dashboard'
+        ? SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            child: content,
+          )
+        : content;
+
     return Container(
       color: AppColors.bgLight,
       child: Column(
         children: [
-          Expanded(
-            child: _buildContent(),
-          ),
+          Expanded(child: contentArea),
           const SizedBox(height: 20),
           _buildFooter(),
         ],
