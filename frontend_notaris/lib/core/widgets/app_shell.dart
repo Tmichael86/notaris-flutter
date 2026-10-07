@@ -608,17 +608,14 @@ class _AppShellState extends State<AppShell> {
   Widget _buildScrollableContent() {
     return Container(
       color: AppColors.bgLight,
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(
-          parent: AlwaysScrollableScrollPhysics(),
-        ),
-        child: Column(
-          children: [
-            _buildContent(),
-            const SizedBox(height: 20),
-            _buildFooter(),
-          ],
-        ),
+      child: Column(
+        children: [
+          Expanded(
+            child: _buildContent(),
+          ),
+          const SizedBox(height: 20),
+          _buildFooter(),
+        ],
       ),
     );
   }
