@@ -41,7 +41,9 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
 
   @override
   void dispose() {
-    _removeOverlay();
+    // The widget is already being unmounted, so _removeOverlay() must not
+    // call setState() during dispose.
+    _removeOverlay(rebuild: false);
     _searchController.dispose();
     super.dispose();
   }
@@ -105,11 +107,14 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
     setState(() {});
   }
 
-  void _removeOverlay() {
+  void _removeOverlay({bool rebuild = true}) {
     _overlayEntry?.remove();
     _overlayEntry = null;
     _searchController.clear();
-    if (mounted) setState(() {});
+
+    if (rebuild && mounted) {
+      setState(() {});
+    }
   }
 
   @override
