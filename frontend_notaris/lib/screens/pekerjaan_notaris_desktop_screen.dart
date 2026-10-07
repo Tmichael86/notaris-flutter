@@ -17,7 +17,8 @@ class PekerjaanNotarisDesktopScreen extends ConsumerStatefulWidget {
 
 class _PekerjaanNotarisDesktopScreenState extends ConsumerState<PekerjaanNotarisDesktopScreen> {
   final _search = TextEditingController();
-  final _scroll = ScrollController();
+  final _horizontalScroll = ScrollController();
+  final _verticalScroll = ScrollController();
   bool _busy = false;
   String _query = '';
   int _page = 1;
@@ -135,12 +136,21 @@ class _PekerjaanNotarisDesktopScreenState extends ConsumerState<PekerjaanNotaris
 
   Widget _table(List<PekerjaanNotarisLocal> rows, List<PekerjaanKategori> cats) =>
       Scrollbar(
-        controller: _scroll,
+        controller: _verticalScroll,
         thumbVisibility: true,
+        notificationPredicate: (notification) =>
+            notification.metrics.axis == Axis.vertical,
         child: SingleChildScrollView(
-          controller: _scroll,
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
+          controller: _verticalScroll,
+          child: Scrollbar(
+            controller: _horizontalScroll,
+            thumbVisibility: true,
+            notificationPredicate: (notification) =>
+                notification.metrics.axis == Axis.horizontal,
+            child: SingleChildScrollView(
+              controller: _horizontalScroll,
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
             columnSpacing: 28,
             headingRowHeight: 48,
             dataRowMinHeight: 58,
@@ -173,6 +183,8 @@ class _PekerjaanNotarisDesktopScreenState extends ConsumerState<PekerjaanNotaris
                 ])),
               ]);
             }),
+              ),
+            ),
           ),
         ),
       );
@@ -476,7 +488,8 @@ class _PekerjaanNotarisDesktopScreenState extends ConsumerState<PekerjaanNotaris
   @override
   void dispose() {
     _search.dispose();
-    _scroll.dispose();
+    _horizontalScroll.dispose();
+    _verticalScroll.dispose();
     super.dispose();
   }
 }
