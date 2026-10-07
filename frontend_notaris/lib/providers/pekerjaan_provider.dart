@@ -89,6 +89,15 @@ class PekerjaanNotarisController extends AsyncNotifier<void> {
         input: input,
         updatedBy: updatedBy,
       );
+
+      // The table stream updates the parent row, but the aggregate shown
+      // in each table cell is cached by its FutureProvider.family.
+      // Invalidate the edited aggregate so its child harga/proses data is
+      // read again immediately after the transaction commits.
+      if (updated) {
+        ref.invalidate(pekerjaanNotarisAggregateProvider(id));
+      }
+
       state = const AsyncData(null);
       return updated;
     } catch (error, stackTrace) {
@@ -150,6 +159,11 @@ class PekerjaanPpatController extends AsyncNotifier<void> {
         input: input,
         updatedBy: updatedBy,
       );
+
+      if (updated) {
+        ref.invalidate(pekerjaanPpatAggregateProvider(id));
+      }
+
       state = const AsyncData(null);
       return updated;
     } catch (error, stackTrace) {
