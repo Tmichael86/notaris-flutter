@@ -22,7 +22,7 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen>{
       data:(items)=>genders.when(
         loading:()=>const Center(child:CircularProgressIndicator()),
         error:(e,_)=>Center(child:Text('Gagal memuat jenis kelamin: '+e.toString())),
-        data:(gs)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_header(),const SizedBox(height:20),Expanded(child:_table(items,gs))])
+        data:(gs)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_header(),const SizedBox(height:20),_table(items,gs)])
       )
     )));
   }
@@ -38,7 +38,7 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen>{
     return Card(color:AppColors.card,elevation:0,shape:RoundedRectangleBorder(borderRadius:BorderRadius.circular(12),side:const BorderSide(color:AppColors.border)),child:Padding(padding:const EdgeInsets.all(18),child:Column(children:[
       Row(children:[Expanded(child:TextField(controller:_search,onChanged:(_)=>setState(()=>_page=1),decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'Cari NIK, nama, atau no telp...',border:OutlineInputBorder()))),const SizedBox(width:14),Text(filtered.length.toString()+' data')]),
       const SizedBox(height:16),
-      Expanded(child:Scrollbar(controller:_hScroll,thumbVisibility:true,child:SingleChildScrollView(controller:_hScroll,scrollDirection:Axis.horizontal,child:DataTable(
+      Scrollbar(controller:_hScroll,thumbVisibility:true,child:SingleChildScrollView(controller:_hScroll,scrollDirection:Axis.horizontal,child:DataTable(
         columnSpacing:28,columns:const[DataColumn(label:Text('No')),DataColumn(label:Text('NIK')),DataColumn(label:Text('Nama')),DataColumn(label:Text('Jenis Kelamin')),DataColumn(label:Text('No Telp')),DataColumn(label:Text('Alamat')),DataColumn(label:Text('Created At')),DataColumn(label:Text('Aksi'))],
         rows:[for(var i=0;i<rows.length;i++)DataRow(cells:[
           DataCell(Text((start+i+1).toString())),DataCell(Text(rows[i].nik??'-')),DataCell(Text(rows[i].nama)),DataCell(Text(_gender(rows[i].jenisKelamin,gs))),DataCell(Text(rows[i].noTelp??'-')),DataCell(Text(rows[i].alamat??'-')),DataCell(Text(_dateTime(rows[i].createdAt))),
