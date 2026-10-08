@@ -1326,7 +1326,7 @@ class _TransactionDesktopScreenState
     await Future<void>.delayed(const Duration(milliseconds: 700));
 
     final transaction = DummyTransaction(
-      id: _editingTransactionId ?? 'TRX-\${DateTime.now().millisecondsSinceEpoch}',
+      id: _editingTransactionId ?? 'TRX-${DateTime.now().millisecondsSinceEpoch}',
       number: transactionNumber,
       type: selectedType,
       applicant: selectedApplicant!,
@@ -1367,8 +1367,8 @@ class _TransactionDesktopScreenState
       SnackBar(
         content: Text(
           isEditing
-              ? 'Transaksi \${transaction.number} berhasil diperbarui.'
-              : 'Transaksi \${transaction.number} berhasil dibuat.',
+              ? 'Transaksi ${transaction.number} berhasil diperbarui.'
+              : 'Transaksi ${transaction.number} berhasil dibuat.',
         ),
       ),
     );
@@ -1411,12 +1411,14 @@ class _TransactionDesktopScreenState
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Column(
+        Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Transaksi',
-              style: TextStyle(
+              _editingTransactionId == null
+                  ? 'Transaksi Baru'
+                  : 'Edit Transaksi',
+              style: const TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 23,
                 fontWeight: FontWeight.w500,
@@ -1424,8 +1426,10 @@ class _TransactionDesktopScreenState
             ),
             SizedBox(height: 5),
             Text(
-              'Transaksi  |  Page',
-              style: TextStyle(
+              _editingTransactionId == null
+                  ? 'Transaksi  |  Form Baru'
+                  : 'Transaksi  |  Edit $transactionNumber',
+              style: const TextStyle(
                 color: AppColors.textSecondary,
                 fontSize: 12,
               ),
