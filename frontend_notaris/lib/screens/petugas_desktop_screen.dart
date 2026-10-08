@@ -13,6 +13,7 @@ class PetugasDesktopScreen extends StatefulWidget {
 
 class _PetugasDesktopScreenState extends State<PetugasDesktopScreen> {
   final _searchController = TextEditingController();
+  final _horizontalScrollController = ScrollController();
 
   final List<PetugasData> _items = [
     PetugasData('3507010101900001', 'Budi Santoso', 'Laki-laki', 'Blitar',
@@ -282,8 +283,10 @@ class _PetugasDesktopScreenState extends State<PetugasDesktopScreen> {
           ]),
           const SizedBox(height: 16),
           Scrollbar(
+            controller: _horizontalScrollController,
             thumbVisibility: true,
             child: SingleChildScrollView(
+              controller: _horizontalScrollController,
               scrollDirection: Axis.horizontal,
               child: DataTable(
                 columnSpacing: 28,
@@ -367,6 +370,7 @@ class _PetugasDesktopScreenState extends State<PetugasDesktopScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _horizontalScrollController.dispose();
     super.dispose();
   }
 }

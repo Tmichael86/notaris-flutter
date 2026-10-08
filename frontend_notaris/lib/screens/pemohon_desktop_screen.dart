@@ -13,6 +13,7 @@ class PemohonDesktopScreen extends StatefulWidget {
 
 class _PemohonDesktopScreenState extends State<PemohonDesktopScreen> {
   final _searchController = TextEditingController();
+  final _horizontalScrollController = ScrollController();
 
   final List<PemohonData> _items = [
     PemohonData('3507010101900001', 'Budi Santoso', 'Laki-laki', '081234567890',
@@ -244,8 +245,10 @@ class _PemohonDesktopScreenState extends State<PemohonDesktopScreen> {
           ]),
           const SizedBox(height: 16),
           Scrollbar(
+            controller: _horizontalScrollController,
             thumbVisibility: true,
             child: SingleChildScrollView(
+              controller: _horizontalScrollController,
               scrollDirection: Axis.horizontal,
               child: DataTable(
                 columnSpacing: 30,
@@ -314,6 +317,7 @@ class _PemohonDesktopScreenState extends State<PemohonDesktopScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _horizontalScrollController.dispose();
     super.dispose();
   }
 }

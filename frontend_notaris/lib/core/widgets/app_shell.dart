@@ -40,6 +40,7 @@ class _AppShellState extends State<AppShell> {
     'Pekerjaan Notaris',
     'Pekerjaan PPAT',
     'Kategori Pekerjaan',
+    'Jenis Pengeluaran',
     'Petugas',
     'Pemohon',
   ];
@@ -615,7 +616,8 @@ class _AppShellState extends State<AppShell> {
     'Monitoring',
     'Pengeluaran',
     'Piutang',
-    'Jenis Pengeluaran',
+    'Petugas',
+    'Pemohon',
     'Materai',
     'Pendapatan',
     'Penghasilan',
