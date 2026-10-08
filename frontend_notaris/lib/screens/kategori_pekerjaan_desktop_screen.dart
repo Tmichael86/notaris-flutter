@@ -166,8 +166,14 @@ class _KategoriPekerjaanDesktopScreenState
                 if (item == null) {
                   await c.create(nama: nama);
                 } else {
-                  final ok = await c.update(id: item.id, nama: nama);
-                  if (!ok) throw StateError('Kategori pekerjaan tidak ditemukan.');
+                  final ok = await c.updateCategory(
+                    id: item.id,
+                    nama: nama,
+                  );
+
+                  if (!ok) {
+                    throw StateError('Kategori pekerjaan tidak ditemukan.');
+                  }
                 }
               });
             },
