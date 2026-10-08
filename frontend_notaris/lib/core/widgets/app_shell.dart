@@ -611,18 +611,16 @@ class _AppShellState extends State<AppShell> {
     // These pages are naturally taller than the viewport because their
     // tables are content-sized. Keep the shell footer bounded while the
     // page content scrolls inside its available area.
-    const scrollableMenus = {
-      'Dashboard',
-      'Monitoring',
-      'Pengeluaran',
-      'Piutang',
-      'Pekerjaan PPAT',
-      'Kategori Pekerjaan',
-      'Jenis Pengeluaran',
-      'Materai',
-      'Pendapatan',
-      'Penghasilan',
-    };
+  const scrollableMenus = {
+    'Dashboard',
+    'Monitoring',
+    'Pengeluaran',
+    'Piutang',
+    'Jenis Pengeluaran',
+    'Materai',
+    'Pendapatan',
+    'Penghasilan',
+  };
 
     final contentArea = scrollableMenus.contains(selectedMenu)
         ? SingleChildScrollView(
