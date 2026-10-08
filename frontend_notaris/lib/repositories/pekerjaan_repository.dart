@@ -468,6 +468,43 @@ class PekerjaanPpatRepository {
   Future<PekerjaanPpatLocal?> getByUuid(String uuid) =>
       dao.getPekerjaanPpatByUuid(uuid);
 
+  Future<PekerjaanAggregateData?> getAggregate(int id) async {
+    final parent = await dao.getPekerjaanPpatById(id);
+    if (parent == null || parent.status != 1) return null;
+
+    final harga = await dao.getHargaPpat(id);
+    final proses = await dao.getProsesPpat(id);
+
+    return PekerjaanAggregateData(
+      id: parent.id,
+      nama: parent.nama,
+      harga: [
+        for (final item in harga)
+          PekerjaanHargaData(
+            id: item.id,
+            kategoriPekerjaanId: item.kategoriPekerjaanId,
+            harga: item.harga,
+            estimasiWaktu: item.estimasiWaktu,
+          ),
+      ],
+      proses: [
+        for (final item in proses)
+          PekerjaanProsesData(
+            id: item.id,
+            nama: item.nama,
+            detail: item.detail,
+            atribut: [
+              for (final attribute in await dao.getAtributPpat(item.id))
+                PekerjaanAtributData(
+                  id: attribute.id,
+                  atribut: attribute.atribut,
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+
   Future<int> create({
     required String uuid,
     required String nama,
