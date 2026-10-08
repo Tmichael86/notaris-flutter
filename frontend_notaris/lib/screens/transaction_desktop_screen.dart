@@ -1289,7 +1289,8 @@ class _TransactionDesktopScreenState
               final currentPaymentValue = _parseCurrency(currentPaymentController.text);
               final currentNetTotal = totalCost - currentDiscount;
               final remaining = (currentNetTotal - currentPaymentValue)
-                  .clamp(0, double.infinity);
+                  .clamp(0.0, double.infinity)
+                  .toDouble();
 
               return _MoneyRow(
                 label: 'Sisa Pembayaran',
