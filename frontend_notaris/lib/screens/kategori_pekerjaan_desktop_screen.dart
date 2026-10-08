@@ -1,464 +1,232 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/widgets/loading_overlay.dart';
 import '../core/theme/app_colors.dart';
+import '../core/widgets/loading_overlay.dart';
+import '../database/app_database.dart';
+import '../providers/pekerjaan_provider.dart';
 
-class KategoriPekerjaanDesktopScreen extends StatefulWidget {
+class KategoriPekerjaanDesktopScreen extends ConsumerStatefulWidget {
   const KategoriPekerjaanDesktopScreen({super.key});
 
   @override
-  State<KategoriPekerjaanDesktopScreen> createState() =>
+  ConsumerState<KategoriPekerjaanDesktopScreen> createState() =>
       _KategoriPekerjaanDesktopScreenState();
 }
 
 class _KategoriPekerjaanDesktopScreenState
-    extends State<KategoriPekerjaanDesktopScreen> {
-  final _searchController = TextEditingController();
-  final _tableController = ScrollController();
-
-  bool _isLoading = false;
-  String _searchQuery = '';
-  int _currentPage = 1;
-  static const int _rowsPerPage = 10;
-
-  final List<_KategoriPekerjaan> _data = [
-    _KategoriPekerjaan('1', 'Perorangan', '18/09/2026 08:30'),
-    _KategoriPekerjaan('2', 'Badan Hukum', '18/09/2026 08:25'),
-    _KategoriPekerjaan('3', 'Instansi', '17/09/2026 15:10'),
-    _KategoriPekerjaan('4', 'Bank', '17/09/2026 13:45'),
-    _KategoriPekerjaan('5', 'Developer', '16/09/2026 10:20'),
-    _KategoriPekerjaan('6', 'Lainnya', '15/09/2026 09:15'),
-  ];
-
-  List<_KategoriPekerjaan> get _filteredData {
-    final q = _searchQuery.trim().toLowerCase();
-    if (q.isEmpty) return List.of(_data);
-
-    return _data
-        .where((e) =>
-            e.nama.toLowerCase().contains(q) ||
-            e.createdAt.toLowerCase().contains(q))
-        .toList();
-  }
-
-  List<_KategoriPekerjaan> get _pageData {
-    final data = _filteredData;
-    final start = (_currentPage - 1) * _rowsPerPage;
-    if (start >= data.length) return const [];
-
-    final end = (start + _rowsPerPage).clamp(0, data.length);
-    return data.sublist(start, end);
-  }
-
-  int get _totalPages =>
-      _filteredData.isEmpty ? 1 : (_filteredData.length / _rowsPerPage).ceil();
+    extends ConsumerState<KategoriPekerjaanDesktopScreen> {
+  final _search = TextEditingController();
+  final _horizontalScroll = ScrollController();
+  final _verticalScroll = ScrollController();
+  bool _busy = false;
+  String _query = '';
+  int _page = 1;
+  static const _limit = 10;
 
   @override
   Widget build(BuildContext context) {
+    final data = ref.watch(pekerjaanKategoriProvider);
     return LoadingOverlay(
-      isLoading: _isLoading,
+      isLoading: _busy,
       message: 'Memproses data...',
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final mobile = constraints.maxWidth < 700;
-
-          return Padding(
-            padding: EdgeInsets.fromLTRB(
-              mobile ? 16 : 28,
-              20,
-              mobile ? 16 : 28,
-              30,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: LayoutBuilder(builder: (context, c) {
+        final mobile = c.maxWidth < 700;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(mobile ? 16 : 28, 20, mobile ? 16 : 28, 30),
+          child: data.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(child: Text('Gagal memuat data: ' + e.toString())),
+            data: (items) => Column(
               children: [
-                _buildHeader(mobile),
+                _header(mobile),
                 const SizedBox(height: 18),
-                _buildTablePanel(mobile),
+                Expanded(child: _tablePanel(mobile, items)),
               ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      }),
     );
   }
 
-  Widget _buildHeader(bool mobile) {
-    final button = ElevatedButton.icon(
-      onPressed: _isLoading ? null : () => _showForm(),
-      icon: const Icon(Icons.add, size: 18),
-      label: Text(mobile ? 'Tambah' : 'Tambah'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primaryConfirm,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      ),
-    );
-
-    if (mobile) {
-      return Row(
+  Widget _header(bool mobile) => Row(
         children: [
-          const Expanded(
-            child: Text(
-              'Kategori Pekerjaan',
-              style: TextStyle(fontSize: 23, fontWeight: FontWeight.w500),
+          Expanded(
+            child: Row(
+              children: [
+                Text('Kategori Pekerjaan', style: TextStyle(fontSize: mobile ? 23 : 26, fontWeight: FontWeight.w500)),
+                if (!mobile) ...[
+                  const SizedBox(width: 14),
+                  Text('Master  |  Kategori Pekerjaan', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+                ],
+              ],
             ),
           ),
-          button,
+          ElevatedButton.icon(
+            onPressed: _busy ? null : () => _form(),
+            icon: const Icon(Icons.add, size: 18),
+            label: Text(mobile ? 'Tambah' : 'Tambah Kategori'),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryConfirm, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+          ),
         ],
       );
-    }
 
-    return Row(
-      children: [
-        const Text(
-          'Kategori Pekerjaan',
-          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w500),
-        ),
-        const SizedBox(width: 14),
-        Text(
-          'Master  |  Kategori Pekerjaan',
-          style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
-        ),
-        const Spacer(),
-        button,
-      ],
-    );
-  }
+  Widget _tablePanel(bool mobile, List<PekerjaanKategori> items) {
+    final q = _query.trim().toLowerCase();
+    final filtered = q.isEmpty ? items : items.where((e) => e.nama.toLowerCase().contains(q)).toList();
+    final pages = filtered.isEmpty ? 1 : (filtered.length / _limit).ceil();
+    if (_page > pages) _page = pages;
+    final start = (_page - 1) * _limit;
+    final rows = start >= filtered.length ? <PekerjaanKategori>[] : filtered.sublist(start, (start + _limit).clamp(0, filtered.length));
 
-  Widget _buildTablePanel(bool mobile) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE5E5E5)),
-        boxShadow: const [
-          BoxShadow(
-            blurRadius: 8,
-            offset: Offset(0, 2),
-            color: Color(0x10000000),
-          ),
-        ],
-      ),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFFE5E5E5)), boxShadow: const [BoxShadow(blurRadius: 8, offset: Offset(0, 2), color: Color(0x10000000))]),
       child: Column(
         children: [
-          if (mobile)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildSearchField(),
-                const SizedBox(height: 12),
-                _dataCount(),
-              ],
-            )
-          else
-            Row(
-              children: [
-                _buildSearchField(),
-                const Spacer(),
-                _dataCount(),
-              ],
-            ),
+          Row(children: [
+            SizedBox(width: mobile ? double.infinity : 280, child: TextField(controller: _search, onChanged: (v) => setState(() { _query = v; _page = 1; }), decoration: InputDecoration(hintText: 'Cari data...', prefixIcon: const Icon(Icons.search, size: 20), border: OutlineInputBorder(borderRadius: BorderRadius.circular(7))))),
+            if (!mobile) const Spacer(),
+            if (!mobile) Text(filtered.length.toString() + ' data'),
+          ]),
+          if (mobile) Align(alignment: Alignment.centerLeft, child: Padding(padding: const EdgeInsets.only(top: 8), child: Text(filtered.length.toString() + ' data'))),
           const SizedBox(height: 16),
-          _buildTable(),
+          Expanded(child: rows.isEmpty ? const Center(child: Text('Belum ada kategori pekerjaan.')) : _table(rows)),
           const SizedBox(height: 14),
-          _buildFooter(mobile),
+          _footer(mobile, filtered.length, pages),
         ],
       ),
     );
   }
 
-  Widget _dataCount() => Text(
-        '${_filteredData.length} data',
-        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-      );
-
-  Widget _buildSearchField() {
-    return SizedBox(
-      width: 280,
-      child: TextField(
-        controller: _searchController,
-        onChanged: (value) {
-          setState(() {
-            _searchQuery = value;
-            _currentPage = 1;
-          });
-        },
-        decoration: InputDecoration(
-          hintText: 'Cari data...',
-          prefixIcon: const Icon(Icons.search, size: 20),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(7)),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTable() {
-    final rows = _pageData;
-
-    return Scrollbar(
-      controller: _tableController,
-      thumbVisibility: true,
-      child: SingleChildScrollView(
-        controller: _tableController,
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          columnSpacing: 28,
-          headingRowHeight: 48,
-          dataRowMinHeight: 58,
-          dataRowMaxHeight: 76,
-          columns: const [
-            DataColumn(label: Text('No')),
-            DataColumn(label: Text('Nama')),
-            DataColumn(label: Text('Created At')),
-            DataColumn(label: Text('Aksi')),
-          ],
-          rows: List.generate(rows.length, (index) {
-            final item = rows[index];
-
-            return DataRow(
-              cells: [
-                DataCell(Text(
-                  '${((_currentPage - 1) * _rowsPerPage) + index + 1}',
-                )),
-                DataCell(SizedBox(
-                  width: 300,
-                  child: Text(
-                    item.nama,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                )),
-                DataCell(SizedBox(
-                  width: 220,
-                  child: Text(item.createdAt),
-                )),
-                DataCell(Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      tooltip: 'Edit',
-                      onPressed:
-                          _isLoading ? null : () => _showForm(item: item),
-                      icon: const Icon(Icons.edit_outlined),
-                    ),
-                    IconButton(
-                      tooltip: 'Hapus',
-                      onPressed: _isLoading ? null : () => _delete(item),
-                      icon: const Icon(Icons.delete_outline),
-                    ),
-                  ],
-                )),
-              ],
-            );
-          }),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFooter(bool mobile) {
-    final total = _filteredData.length;
-    final start = total == 0 ? 0 : ((_currentPage - 1) * _rowsPerPage) + 1;
-    final end = total == 0
-        ? 0
-        : (_currentPage * _rowsPerPage > total
-            ? total
-            : _currentPage * _rowsPerPage);
-
-    final text = total == 0
-        ? 'Tidak ada data'
-        : 'Menampilkan $start-$end dari $total data';
-
-    final pagination = Wrap(
-      spacing: 6,
-      children: [
-        OutlinedButton(
-          onPressed:
-              _currentPage > 1 ? () => setState(() => _currentPage--) : null,
-          child: const Text('Previous'),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-          decoration: BoxDecoration(
-            color: AppColors.primaryConfirm,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            '$_currentPage',
-            style: const TextStyle(color: Colors.white),
+  Widget _table(List<PekerjaanKategori> rows) => Scrollbar(
+        controller: _verticalScroll,
+        thumbVisibility: true,
+        notificationPredicate: (n) => n.metrics.axis == Axis.vertical,
+        child: SingleChildScrollView(
+          controller: _verticalScroll,
+          child: Scrollbar(
+            controller: _horizontalScroll,
+            thumbVisibility: true,
+            notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
+            child: SingleChildScrollView(
+              controller: _horizontalScroll,
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columnSpacing: 28,
+                columns: const [DataColumn(label: Text('No')), DataColumn(label: Text('Nama')), DataColumn(label: Text('Created At')), DataColumn(label: Text('Aksi'))],
+                rows: List.generate(rows.length, (i) {
+                  final item = rows[i];
+                  return DataRow(cells: [
+                    DataCell(Text(((_page - 1) * _limit + i + 1).toString())),
+                    DataCell(SizedBox(width: 300, child: Text(item.nama, maxLines: 2, overflow: TextOverflow.ellipsis))),
+                    DataCell(SizedBox(width: 220, child: Text(_formatDate(item.createdAt)))),
+                    DataCell(Row(mainAxisSize: MainAxisSize.min, children: [
+                      IconButton(tooltip: 'Edit', onPressed: _busy ? null : () => _form(item: item), icon: const Icon(Icons.edit_outlined)),
+                      IconButton(tooltip: 'Hapus', onPressed: _busy ? null : () => _delete(item), icon: const Icon(Icons.delete_outline)),
+                    ])),
+                  ]);
+                }),
+              ),
+            ),
           ),
         ),
-        OutlinedButton(
-          onPressed: _currentPage < _totalPages
-              ? () => setState(() => _currentPage++)
-              : null,
-          child: const Text('Next'),
-        ),
-      ],
-    );
-
-    if (mobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(text,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-          const SizedBox(height: 10),
-          pagination,
-        ],
       );
-    }
 
-    return Row(
-      children: [
-        Text(text,
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
-        const Spacer(),
-        pagination,
-      ],
-    );
+  Widget _footer(bool mobile, int total, int pages) {
+    final start = total == 0 ? 0 : ((_page - 1) * _limit) + 1;
+    final end = total == 0 ? 0 : (_page * _limit > total ? total : _page * _limit);
+    final text = total == 0 ? 'Tidak ada data' : 'Menampilkan ' + start.toString() + '-' + end.toString() + ' dari ' + total.toString() + ' data';
+    final buttons = Wrap(spacing: 6, children: [
+      OutlinedButton(onPressed: _page > 1 ? () => setState(() => _page--) : null, child: const Text('Previous')),
+      Container(padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9), decoration: BoxDecoration(color: AppColors.primaryConfirm, borderRadius: BorderRadius.circular(6)), child: Text(_page.toString(), style: const TextStyle(color: Colors.white))),
+      OutlinedButton(onPressed: _page < pages ? () => setState(() => _page++) : null, child: const Text('Next')),
+    ]);
+    return mobile ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(text), const SizedBox(height: 10), buttons]) : Row(children: [Text(text), const Spacer(), buttons]);
   }
 
-  Future<void> _showForm({_KategoriPekerjaan? item}) async {
-    final isEdit = item != null;
-    final nama = TextEditingController(text: item?.nama ?? '');
-
+  Future<void> _form({PekerjaanKategori? item}) async {
+    final controller = TextEditingController(text: item?.nama ?? '');
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(isEdit ? 'Edit Kategori Pekerjaan' : 'Tambah Kategori'),
-        content: SizedBox(
-          width: 480,
-          child: TextField(
-            controller: nama,
-            autofocus: true,
-            decoration: _decoration('Nama'),
-          ),
-        ),
+        title: Text(item == null ? 'Tambah Kategori Pekerjaan' : 'Edit Kategori Pekerjaan'),
+        content: SizedBox(width: 480, child: TextField(controller: controller, autofocus: true, decoration: _decoration('Nama Kategori'))),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Tutup'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Batal')),
           ElevatedButton.icon(
             onPressed: () async {
-              if (nama.text.trim().isEmpty) {
-                _validation(dialogContext, 'Nama wajib diisi.');
-                return;
-              }
-
+              final nama = controller.text.trim();
+              if (nama.isEmpty) { _validation(dialogContext, 'Nama kategori wajib diisi.'); return; }
               Navigator.pop(dialogContext);
-
-              await _processAction(() async {
-                await Future.delayed(const Duration(milliseconds: 900));
-
-                if (isEdit) {
-                  item.nama = nama.text.trim();
+              await _process(item == null ? 'Menyimpan data...' : 'Mengubah data...', () async {
+                final c = ref.read(pekerjaanKategoriControllerProvider.notifier);
+                if (item == null) {
+                  await c.create(nama: nama);
                 } else {
-                  _data.insert(
-                    0,
-                    _KategoriPekerjaan(
-                      DateTime.now().millisecondsSinceEpoch.toString(),
-                      nama.text.trim(),
-                      _formatNow(),
-                    ),
-                  );
+                  final ok = await c.update(id: item.id, nama: nama);
+                  if (!ok) throw StateError('Kategori pekerjaan tidak ditemukan.');
                 }
               });
             },
             icon: const Icon(Icons.save_outlined, size: 18),
-            label: Text(isEdit ? 'Simpan Perubahan' : 'Simpan'),
+            label: Text(item == null ? 'Simpan' : 'Simpan Perubahan'),
           ),
         ],
       ),
     );
-
-    nama.dispose();
+    controller.dispose();
   }
 
-  Future<void> _delete(_KategoriPekerjaan item) async {
-    final confirmed = await showDialog<bool>(
+  Future<void> _delete(PekerjaanKategori item) async {
+    final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Peringatan!'),
-        content: Text(
-          'Apakah Anda yakin ingin menghapus kategori "${item.nama}"?',
-        ),
+        content: Text('Apakah Anda yakin ingin menghapus kategori "' + item.nama + '"?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Tidak'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Hapus'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Tidak')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Hapus')),
         ],
       ),
     );
-
-    if (confirmed != true || !mounted) return;
-
-    await _processAction(() async {
-      await Future.delayed(const Duration(milliseconds: 900));
-      _data.remove(item);
-
-      if (_currentPage > _totalPages) {
-        _currentPage = _totalPages;
-      }
+    if (ok != true || !mounted) return;
+    await _process('Menghapus data...', () async {
+      final deleted = await ref.read(pekerjaanKategoriControllerProvider.notifier).delete(item.id);
+      if (!deleted) throw StateError('Kategori pekerjaan tidak ditemukan.');
     });
   }
 
-  Future<void> _processAction(Future<void> Function() action) async {
-    if (_isLoading || !mounted) return;
-
-    setState(() => _isLoading = true);
+  Future<void> _process(String message, Future<void> Function() action) async {
+    if (_busy || !mounted) return;
+    setState(() => _busy = true);
     try {
       await action();
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message.replaceFirst('...', ' berhasil.'))));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal: ' + e.toString()), backgroundColor: Colors.red.shade700));
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _busy = false);
     }
   }
 
-  bool _validation(BuildContext ctx, String message) {
-    ScaffoldMessenger.of(ctx).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-    return false;
-  }
+  void _validation(BuildContext ctx, String message) => ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(message)));
 
-  String _formatNow() {
-    final now = DateTime.now();
+  String _formatDate(DateTime? value) {
+    if (value == null) return '-';
     String two(int v) => v.toString().padLeft(2, '0');
-
-    return '${two(now.day)}/${two(now.month)}/${now.year} '
-        '${two(now.hour)}:${two(now.minute)}';
+    return two(value.day) + '/' + two(value.month) + '/' + value.year.toString() + ' ' + two(value.hour) + ':' + two(value.minute);
   }
 
-  InputDecoration _decoration(String label) => InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(7)),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      );
+  InputDecoration _decoration(String label) => InputDecoration(labelText: label, border: OutlineInputBorder(borderRadius: BorderRadius.circular(7)), contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11));
 
   @override
   void dispose() {
-    _searchController.dispose();
-    _tableController.dispose();
+    _search.dispose();
+    _horizontalScroll.dispose();
+    _verticalScroll.dispose();
     super.dispose();
   }
-}
-
-class _KategoriPekerjaan {
-  String id;
-  String nama;
-  String createdAt;
-
-  _KategoriPekerjaan(this.id, this.nama, this.createdAt);
 }
