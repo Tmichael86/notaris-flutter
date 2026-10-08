@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/app_database.dart';
 import '../repositories/pekerjaan_repository.dart';
 import '../repositories/pekerjaan_kategori_repository.dart';
+import '../repositories/pengeluaran_jenis_repository.dart';
 import 'database_provider.dart';
 
 final pekerjaanNotarisRepositoryProvider =
@@ -98,6 +99,74 @@ class PekerjaanKategoriController extends AsyncNotifier<void> {
   }
 }
 
+final pengeluaranJenisRepositoryProvider =
+    Provider<PengeluaranJenisRepository>((ref) {
+  final database = ref.watch(appDatabaseProvider);
+  return PengeluaranJenisRepository(database);
+});
+
+final pengeluaranJenisProvider =
+    StreamProvider.autoDispose<List<PengeluaranJenisData>>((ref) {
+  final repository = ref.watch(pengeluaranJenisRepositoryProvider);
+  return repository.watchAll();
+});
+
+final pengeluaranJenisControllerProvider =
+    AsyncNotifierProvider<PengeluaranJenisController, void>(
+  PengeluaranJenisController.new,
+);
+
+class PengeluaranJenisController extends AsyncNotifier<void> {
+  PengeluaranJenisRepository get _repository =>
+      ref.read(pengeluaranJenisRepositoryProvider);
+
+  @override
+  Future<void> build() async {}
+
+  Future<int> create({required String nama, int? createdBy}) async {
+    state = const AsyncLoading();
+    try {
+      final id = await _repository.create(nama: nama, createdBy: createdBy);
+      state = const AsyncData(null);
+      return id;
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<bool> updateJenis({
+    required int id,
+    required String nama,
+    int? updatedBy,
+  }) async {
+    state = const AsyncLoading();
+    try {
+      final updated = await _repository.update(
+        id: id,
+        nama: nama,
+        updatedBy: updatedBy,
+      );
+      state = const AsyncData(null);
+      return updated;
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<bool> delete(int id) async {
+    state = const AsyncLoading();
+    try {
+      final deleted = await _repository.delete(id);
+      state = const AsyncData(null);
+      return deleted;
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      rethrow;
+    }
+  }
+}
 
 final pekerjaanNotarisAggregateProvider = FutureProvider.autoDispose
     .family<PekerjaanAggregateData?, int>((ref, id) {
@@ -161,10 +230,6 @@ class PekerjaanNotarisController extends AsyncNotifier<void> {
         updatedBy: updatedBy,
       );
 
-      // The table stream updates the parent row, but the aggregate shown
-      // in each table cell is cached by its FutureProvider.family.
-      // Invalidate the edited aggregate so its child harga/proses data is
-      // read again immediately after the transaction commits.
       if (updated) {
         ref.invalidate(pekerjaanNotarisAggregateProvider(id));
       }
