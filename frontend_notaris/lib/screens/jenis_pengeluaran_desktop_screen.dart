@@ -159,7 +159,7 @@ class _JenisPengeluaranDesktopScreenState
           ElevatedButton.icon(
             onPressed: () async {
               final nama = controller.text.trim();
-              if (nama.isEmpty) { _validation(dialogContext, 'Nama jenis wajib diisi.'); return; }
+              if (nama.isEmpty) { _validation(dialogContext, 'Nama jenis pengeluaran wajib diisi.'); return; }
               Navigator.pop(dialogContext);
               await _process(item == null ? 'Menyimpan data...' : 'Mengubah data...', () async {
                 final c = ref.read(pengeluaranJenisControllerProvider.notifier);
@@ -172,7 +172,7 @@ class _JenisPengeluaranDesktopScreenState
                   );
 
                   if (!ok) {
-                    throw StateError('Jenis pekerjaan tidak ditemukan.');
+                    throw StateError('Jenis pengeluaran tidak ditemukan.');
                   }
                 }
               });
