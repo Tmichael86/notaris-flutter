@@ -329,7 +329,7 @@ class _TransactionDesktopScreenState
       ],
       registrationDate: '21/09/2026',
       deadline: '28/09/2026',
-      status: 'Belum Selesai',
+      status: 'Dalam Proses',
       materai: 1,
       paymentType: 'Cash',
       discount: 0,
