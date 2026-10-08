@@ -23,6 +23,17 @@ class DevelopmentSeeder {
   static Future<void> seedIfEmpty(AppDatabase db) async {
     final categories = await db.pekerjaanDao.getActivePekerjaanKategori();
 
+    await _ensureJenisKelamin(
+      db,
+      uuid: 'dev-jenis-kelamin-laki-laki',
+      nama: 'Laki-laki',
+    );
+    await _ensureJenisKelamin(
+      db,
+      uuid: 'dev-jenis-kelamin-perempuan',
+      nama: 'Perempuan',
+    );
+
     if (categories.isNotEmpty) {
       return;
     }
@@ -85,6 +96,31 @@ class DevelopmentSeeder {
         pembagianHak: pembagianHak,
       );
     });
+  }
+
+  static Future<void> _ensureJenisKelamin(
+    AppDatabase db, {
+    required String uuid,
+    required String nama,
+  }) async {
+    final existing = await (db.select(db.jenisKelamins)
+          ..where((t) => t.uuid.equals(uuid)))
+        .getSingleOrNull();
+
+    if (existing != null) {
+      return;
+    }
+
+    final now = DateTime.now();
+    await db.into(db.jenisKelamins).insert(
+      JenisKelaminsCompanion.insert(
+        uuid: uuid,
+        nama: nama,
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        isSyncDirty: const Value(false),
+      ),
+    );
   }
 
   static Future<int> _ensureKategori(
