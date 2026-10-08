@@ -25,7 +25,7 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen>{
           loading:()=>const Center(child:CircularProgressIndicator()),
           error:(e,_)=>Center(child:Text('Gagal memuat jenis kelamin: '+e.toString())),
           data:(gs)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-            _header(),const SizedBox(height:20),Expanded(child:_table(items,gs))
+            _header(),const SizedBox(height:20),_table(items,gs)
           ]),
         ),
       ),
@@ -50,7 +50,7 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen>{
       padding:const EdgeInsets.all(18),child:Column(children:[
         Row(children:[Expanded(child:TextField(controller:_search,onChanged:(_)=>setState(()=>_page=1),decoration:const InputDecoration(prefixIcon:Icon(Icons.search),hintText:'Cari NIK, nama, email, atau no telp...',border:OutlineInputBorder()))),const SizedBox(width:14),Text(filtered.length.toString()+' data')]),
         const SizedBox(height:16),
-        Expanded(child:Scrollbar(controller:_hScroll,thumbVisibility:true,child:SingleChildScrollView(controller:_hScroll,scrollDirection:Axis.horizontal,child:DataTable(
+        Scrollbar(controller:_hScroll,thumbVisibility:true,child:SingleChildScrollView(controller:_hScroll,scrollDirection:Axis.horizontal,child:DataTable(
           columnSpacing:28,
           columns:const[DataColumn(label:Text('No')),DataColumn(label:Text('NIK')),DataColumn(label:Text('Nama')),DataColumn(label:Text('Jenis Kelamin')),DataColumn(label:Text('Email')),DataColumn(label:Text('No Telp')),DataColumn(label:Text('Created At')),DataColumn(label:Text('Aksi'))],
           rows:[for(var i=0;i<rows.length;i++)DataRow(cells:[
