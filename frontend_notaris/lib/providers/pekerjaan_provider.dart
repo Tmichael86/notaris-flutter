@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/app_database.dart';
 import '../repositories/pekerjaan_repository.dart';
+import '../repositories/pekerjaan_kategori_repository.dart';
 import 'database_provider.dart';
 
 final pekerjaanNotarisRepositoryProvider =
@@ -28,11 +29,75 @@ final pekerjaanPpatProvider =
   return repository.watchAll();
 });
 
+final pekerjaanKategoriRepositoryProvider =
+    Provider<PekerjaanKategoriRepository>((ref) {
+  final database = ref.watch(appDatabaseProvider);
+  return PekerjaanKategoriRepository(database);
+});
+
 final pekerjaanKategoriProvider =
     StreamProvider.autoDispose<List<PekerjaanKategori>>((ref) {
-  final database = ref.watch(appDatabaseProvider);
-  return database.pekerjaanDao.watchActivePekerjaanKategori();
+  final repository = ref.watch(pekerjaanKategoriRepositoryProvider);
+  return repository.watchAll();
 });
+
+final pekerjaanKategoriControllerProvider =
+    AsyncNotifierProvider<PekerjaanKategoriController, void>(
+  PekerjaanKategoriController.new,
+);
+
+class PekerjaanKategoriController extends AsyncNotifier<void> {
+  PekerjaanKategoriRepository get _repository =>
+      ref.read(pekerjaanKategoriRepositoryProvider);
+
+  @override
+  Future<void> build() async {}
+
+  Future<int> create({required String nama, int? createdBy}) async {
+    state = const AsyncLoading();
+    try {
+      final id = await _repository.create(nama: nama, createdBy: createdBy);
+      state = const AsyncData(null);
+      return id;
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<bool> update({
+    required int id,
+    required String nama,
+    int? updatedBy,
+  }) async {
+    state = const AsyncLoading();
+    try {
+      final updated = await _repository.update(
+        id: id,
+        nama: nama,
+        updatedBy: updatedBy,
+      );
+      state = const AsyncData(null);
+      return updated;
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<bool> delete(int id) async {
+    state = const AsyncLoading();
+    try {
+      final deleted = await _repository.delete(id);
+      state = const AsyncData(null);
+      return deleted;
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      rethrow;
+    }
+  }
+}
+
 
 final pekerjaanNotarisAggregateProvider = FutureProvider.autoDispose
     .family<PekerjaanAggregateData?, int>((ref, id) {
