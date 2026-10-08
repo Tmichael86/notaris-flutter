@@ -1301,14 +1301,14 @@ class _TransactionDesktopScreenState
           TextFormField(
             controller: currentPaymentController,
             keyboardType: TextInputType.number,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
+            inputFormatters: const [
+              _CurrencyInputFormatter(),
             ],
             decoration: inputDecoration(
               labelText: 'Pembayaran Sekarang',
             ),
             onChanged: (value) {
-              // Hindari rebuild parent saat user sedang mengetik.
+              // Simpan nilai numerik tanpa separator untuk persistence.
               currentPayment = _parseCurrency(value);
             },
           ),
