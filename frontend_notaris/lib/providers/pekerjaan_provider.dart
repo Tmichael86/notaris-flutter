@@ -65,7 +65,7 @@ class PekerjaanKategoriController extends AsyncNotifier<void> {
     }
   }
 
-  Future<bool> update({
+  Future<bool> updateCategory({
     required int id,
     required String nama,
     int? updatedBy,
