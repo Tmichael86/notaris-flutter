@@ -1529,6 +1529,10 @@ class _TransactionDesktopScreenState
 
   void _goToStep(int step) {
     if (step < 0 || step >= _workflowSteps.length) return;
+
+    // Navigasi workflow tidak mengubah completion state.
+    // Jika transaksi sudah dimuat dari pencarian, semua step tetap
+    // dianggap sudah terisi. Step aktif hanya menunjukkan posisi editor.
     setState(() => _currentStep = step);
   }
 
@@ -1584,12 +1588,20 @@ class _TransactionDesktopScreenState
         child: Row(
           children: List.generate(_workflowSteps.length, (index) {
             final active = index == _currentStep;
-            final completed = index < _currentStep;
+            // Progress adalah state data, bukan posisi cursor.
+            // Untuk transaksi yang sedang diedit, data sudah dimuat,
+            // sehingga step tetap completed walaupun user berpindah
+            // kembali ke step sebelumnya.
+            final completed = _editingTransactionId != null
+                ? true
+                : index < _currentStep;
             return Row(
               children: [
                 InkWell(
                   borderRadius: BorderRadius.circular(8),
-                  onTap: index <= _currentStep ? () => _goToStep(index) : null,
+                  onTap: (_editingTransactionId != null || index <= _currentStep)
+                      ? () => _goToStep(index)
+                      : null,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     child: Row(
@@ -1631,7 +1643,11 @@ class _TransactionDesktopScreenState
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              completed ? 'Selesai' : active ? 'Sedang diisi' : 'Belum diisi',
+                              completed
+                                  ? 'Selesai'
+                                  : active
+                                      ? 'Sedang diisi'
+                                      : 'Belum diisi',
                               style: const TextStyle(
                                 color: AppColors.textSecondary,
                                 fontSize: 10,
