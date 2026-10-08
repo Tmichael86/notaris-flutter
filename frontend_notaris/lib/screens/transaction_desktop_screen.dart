@@ -5,6 +5,45 @@ import '../core/widgets/searchable_dropdown.dart';
 
 enum TransactionType { notaris, ppat }
 
+/// Formats numeric currency input using Indonesian thousands separators.
+class _CurrencyInputFormatter extends TextInputFormatter {
+  const _CurrencyInputFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isEmpty) {
+      return const TextEditingValue(
+        text: '',
+        selection: TextSelection.collapsed(offset: 0),
+      );
+    }
+    final normalized = digits.replaceFirst(RegExp(r'^0+(?=\d)'), '');
+    final formatted = _formatCurrencyDigits(normalized);
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
+String _formatCurrencyDigits(String digits) {
+  if (digits.isEmpty) return '';
+  final buffer = StringBuffer();
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) buffer.write('.');
+    buffer.write(digits[i]);
+  }
+  return buffer.toString();
+}
+
+double _parseCurrency(String value) {
+  final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
+  return double.tryParse(digits) ?? 0;
+}
 class DummyCategory {
   final String id;
   final String name;
@@ -346,10 +385,12 @@ class _TransactionDesktopScreenState
   }
 
   void _syncEditableControllers() {
-    discountController.text =
-        discount == 0 ? '' : discount.toStringAsFixed(0);
-    currentPaymentController.text =
-        currentPayment == 0 ? '' : currentPayment.toStringAsFixed(0);
+    discountController.text = discount == 0
+        ? ''
+        : _formatCurrencyDigits(discount.toStringAsFixed(0));
+    currentPaymentController.text = currentPayment == 0
+        ? ''
+        : _formatCurrencyDigits(currentPayment.toStringAsFixed(0));
     noteController.text = note;
     materaiController.text = '$materai';
   }
@@ -376,10 +417,7 @@ class _TransactionDesktopScreenState
       (netTotal - currentPayment).clamp(0, double.infinity);
 
   String formatPrice(double value) {
-    return 'Rp ${value.toStringAsFixed(0).replaceAllMapped(
-      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-      (m) => '${m.group(1)}.',
-    )}';
+    return 'Rp ' + _formatCurrencyDigits(value.toStringAsFixed(0));
   }
 
   void changeType(TransactionType type) {
@@ -1159,8 +1197,8 @@ class _TransactionDesktopScreenState
           TextFormField(
             controller: discountController,
             keyboardType: TextInputType.number,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
+            inputFormatters: const [
+              _CurrencyInputFormatter(),
             ],
             decoration: inputDecoration(
               labelText: 'Potongan',
@@ -1173,7 +1211,7 @@ class _TransactionDesktopScreenState
               // Jangan setState di setiap ketikan.
               // Rebuild hanya bagian angka melalui ValueListenableBuilder
               // agar keyboard/focus/cursor tidak terpental.
-              discount = double.tryParse(value) ?? 0;
+              discount = _parseCurrency(value);
             },
           ),
           const SizedBox(height: 14),
@@ -1185,8 +1223,7 @@ class _TransactionDesktopScreenState
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: discountController,
             builder: (context, value, child) {
-              final currentDiscount =
-                  double.tryParse(value.text) ?? 0;
+              final currentDiscount = _parseCurrency(value.text);
               final currentNetTotal =
                   totalCost - currentDiscount;
 
@@ -1248,9 +1285,15 @@ class _TransactionDesktopScreenState
               currentPaymentController,
             ]),
             builder: (context, _) {
+              final currentDiscount = _parseCurrency(discountController.text);
+              final currentPaymentValue = _parseCurrency(currentPaymentController.text);
+              final currentNetTotal = totalCost - currentDiscount;
+              final remaining = (currentNetTotal - currentPaymentValue)
+                  .clamp(0, double.infinity);
+
               return _MoneyRow(
                 label: 'Sisa Pembayaran',
-                value: formatPrice(remainingPayment),
+                value: formatPrice(remaining),
               );
             },
           ),
@@ -1266,7 +1309,7 @@ class _TransactionDesktopScreenState
             ),
             onChanged: (value) {
               // Hindari rebuild parent saat user sedang mengetik.
-              currentPayment = double.tryParse(value) ?? 0;
+              currentPayment = _parseCurrency(value);
             },
           ),
           const SizedBox(height: 14),
@@ -2125,10 +2168,14 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
       text: job?.estimatedTime ?? '',
     );
     serviceCostController = TextEditingController(
-      text: job == null ? '' : job.serviceCost.toStringAsFixed(0),
+      text: job == null
+          ? ''
+          : _formatCurrencyDigits(job.serviceCost.toStringAsFixed(0)),
     );
     otherCostController = TextEditingController(
-      text: job == null ? '' : job.otherCost.toStringAsFixed(0),
+      text: job == null
+          ? ''
+          : _formatCurrencyDigits(job.otherCost.toStringAsFixed(0)),
     );
 
     selectedCategories = List.from(job?.categories ?? const []);
@@ -2227,8 +2274,8 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
       estimatedTime: estimatedController.text.trim().isEmpty
           ? 'Belum ditentukan'
           : estimatedController.text.trim(),
-      serviceCost: double.tryParse(serviceCostController.text) ?? 0,
-      otherCost: double.tryParse(otherCostController.text) ?? 0,
+      serviceCost: _parseCurrency(serviceCostController.text),
+      otherCost: _parseCurrency(otherCostController.text),
       processes: List.from(selectedProcesses),
     );
 
@@ -2397,6 +2444,9 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
                           TextField(
                             controller: serviceCostController,
                             keyboardType: TextInputType.number,
+                            inputFormatters: const [
+                              _CurrencyInputFormatter(),
+                            ],
                             decoration: decoration(
                               label: 'Biaya Layanan',
                             ),
@@ -2405,6 +2455,9 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
                           TextField(
                             controller: otherCostController,
                             keyboardType: TextInputType.number,
+                            inputFormatters: const [
+                              _CurrencyInputFormatter(),
+                            ],
                             decoration: decoration(
                               label: 'Biaya Lainnya',
                             ),
@@ -2428,6 +2481,9 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
                             child: TextField(
                               controller: serviceCostController,
                               keyboardType: TextInputType.number,
+                              inputFormatters: const [
+                                _CurrencyInputFormatter(),
+                              ],
                               decoration: decoration(
                                 label: 'Biaya Layanan',
                               ),
@@ -2438,6 +2494,9 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
                             child: TextField(
                               controller: otherCostController,
                               keyboardType: TextInputType.number,
+                              inputFormatters: const [
+                                _CurrencyInputFormatter(),
+                              ],
                               decoration: decoration(
                                 label: 'Biaya Lainnya',
                               ),
