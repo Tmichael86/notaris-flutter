@@ -145,6 +145,7 @@ class _TransactionDesktopScreenState
   double currentPayment = 0;
   String note = '';
   bool _isSaving = false;
+  int _currentStep = 0;
 
   final discountController = TextEditingController();
   final currentPaymentController = TextEditingController();
@@ -1468,6 +1469,383 @@ class _TransactionDesktopScreenState
     );
   }
 
+  static const _workflowSteps = [
+    ('Jenis Pekerjaan', 'Tentukan layanan dan pekerjaan transaksi.'),
+    ('Data Pemohon', 'Pilih pihak/pemohon transaksi.'),
+    ('Petugas', 'Tentukan petugas yang menangani transaksi.'),
+    ('Pembayaran', 'Atur tagihan, pembayaran, dan keterangan.'),
+    ('Dokumen & Catatan', 'Periksa dokumen dan informasi tambahan.'),
+    ('Selesai Transaksi', 'Tentukan status transaksi secara manual.'),
+  ];
+
+  String _stepTitle(int index) => _workflowSteps[index].$1;
+
+  String _stepDescription(int index) => _workflowSteps[index].$2;
+
+  void _goToStep(int step) {
+    if (step < 0 || step >= _workflowSteps.length) return;
+    setState(() => _currentStep = step);
+  }
+
+  bool _validateCurrentStep() {
+    String? message;
+    switch (_currentStep) {
+      case 0:
+        if (selectedJobs.isEmpty) {
+          message = 'Minimal satu pekerjaan harus ditambahkan.';
+        }
+        break;
+      case 1:
+        if (selectedApplicant == null) {
+          message = 'Pemohon harus dipilih terlebih dahulu.';
+        }
+        break;
+      case 2:
+        if (selectedOfficer == null) {
+          message = 'Petugas harus dipilih terlebih dahulu.';
+        }
+        break;
+      case 3:
+        if (totalCost <= 0) {
+          message = 'Total biaya transaksi harus lebih dari Rp 0.';
+        }
+        break;
+      case 4:
+      case 5:
+        break;
+    }
+
+    if (message == null) return true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+    return false;
+  }
+
+  void _nextStep() {
+    if (!_validateCurrentStep()) return;
+    if (_currentStep < _workflowSteps.length - 1) {
+      setState(() => _currentStep++);
+    } else {
+      _saveTransaction();
+    }
+  }
+
+  Widget workflowProgress() {
+    return card(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: List.generate(_workflowSteps.length, (index) {
+            final active = index == _currentStep;
+            final completed = index < _currentStep;
+            return Row(
+              children: [
+                InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: index <= _currentStep ? () => _goToStep(index) : null,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: active || completed ? AppColors.primary : AppColors.background,
+                            border: Border.all(
+                              color: active || completed ? AppColors.primary : AppColors.border,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: completed
+                              ? const Icon(Icons.check, size: 17, color: AppColors.card)
+                              : Text(
+                                  '${index + 1}',
+                                  style: TextStyle(
+                                    color: active ? AppColors.card : AppColors.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(width: 9),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _stepTitle(index),
+                              style: TextStyle(
+                                color: active ? AppColors.primary : AppColors.textPrimary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              completed ? 'Selesai' : active ? 'Sedang diisi' : 'Belum diisi',
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (index < _workflowSteps.length - 1)
+                  Container(
+                    width: 42,
+                    height: 1,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    color: index < _currentStep ? AppColors.primary : AppColors.divider,
+                  ),
+              ],
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  Widget transactionBasicInformation() {
+    return card(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = (constraints.maxWidth - 32) / 3;
+          Widget field(String label, String value, IconData icon) {
+            return SizedBox(
+              width: width,
+              child: TextFormField(
+                key: ValueKey('$label-$value'),
+                initialValue: value,
+                readOnly: true,
+                decoration: inputDecoration(
+                  labelText: label,
+                  prefixIcon: Icon(icon, size: 18),
+                ),
+              ),
+            );
+          }
+          return Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: [
+              field('No. Transaksi', transactionNumber, Icons.confirmation_number_outlined),
+              field('Tanggal Registrasi', registrationDate, Icons.calendar_today_outlined),
+              field('Tanggal Deadline', deadline, Icons.event_outlined),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget documentsStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              sectionHeader(
+                icon: Icons.folder_open_outlined,
+                title: 'Dokumen',
+                trailing: const _Tag(text: 'Prototype', muted: true),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 20, color: AppColors.textSecondary),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Kelengkapan dokumen akan dihubungkan ke data dokumen transaksi pada tahap implementasi database.',
+                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () => _showSimpleInfoDialog(
+                  'Dokumen',
+                  'Modul dokumen transaksi akan diimplementasikan setelah struktur transaksi inti selesai.',
+                ),
+                style: outlinedButtonStyle(),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Kelola Dokumen'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              sectionHeader(icon: Icons.notes_outlined, title: 'Catatan Transaksi'),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: noteController,
+                maxLines: 5,
+                decoration: inputDecoration(
+                  labelText: 'Catatan',
+                  hintText: 'Tambahkan informasi tambahan transaksi...',
+                ),
+                onChanged: (value) => note = value,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget finishStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              sectionHeader(icon: Icons.flag_outlined, title: 'Status Transaksi'),
+              const SizedBox(height: 10),
+              const Text(
+                'Status tidak berubah otomatis. Pilih status transaksi secara manual sesuai kondisi pekerjaan di lapangan.',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+              ),
+              const SizedBox(height: 18),
+              SearchableDropdown<String>(
+                value: transactionStatus,
+                items: const ['Baru', 'Dalam Proses', 'Selesai'],
+                label: 'Status Transaksi',
+                onChanged: (value) {
+                  if (value != null) setState(() => transactionStatus = value);
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              sectionHeader(icon: Icons.fact_check_outlined, title: 'Ringkasan Transaksi'),
+              const SizedBox(height: 16),
+              _MoneyRow(label: 'Total Biaya', value: formatPrice(totalCost)),
+              const SizedBox(height: 10),
+              _MoneyRow(label: 'Total Netto', value: formatPrice(netTotal), emphasized: true),
+              const SizedBox(height: 10),
+              _MoneyRow(label: 'Pembayaran', value: formatPrice(currentPayment)),
+              const SizedBox(height: 10),
+              _MoneyRow(label: 'Sisa Tagihan', value: formatPrice(remainingPayment)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget currentWorkflowStep() {
+    switch (_currentStep) {
+      case 0:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            typeSwitcher(mobile: false),
+            const SizedBox(height: 20),
+            transactionBasicInformation(),
+            const SizedBox(height: 20),
+            jobsSection(mobile: false),
+          ],
+        );
+      case 1:
+        return applicantCard(mobile: false);
+      case 2:
+        return officerCard();
+      case 3:
+        return paymentSummary(mobile: false);
+      case 4:
+        return documentsStep();
+      case 5:
+        return finishStep();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget workflowNavigation() {
+    final last = _currentStep == _workflowSteps.length - 1;
+    return card(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      child: Row(
+        children: [
+          if (_currentStep > 0)
+            OutlinedButton.icon(
+              onPressed: _isSaving ? null : () => setState(() => _currentStep--),
+              style: outlinedButtonStyle(),
+              icon: const Icon(Icons.arrow_back, size: 18),
+              label: const Text('Kembali'),
+            ),
+          const Spacer(),
+          Text(
+            'Langkah ${_currentStep + 1} dari ${_workflowSteps.length}',
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          ),
+          const SizedBox(width: 14),
+          ElevatedButton.icon(
+            onPressed: _isSaving ? null : _nextStep,
+            style: primaryButtonStyle(),
+            icon: Icon(last ? Icons.save_outlined : Icons.arrow_forward, size: 18),
+            label: Text(last ? 'Simpan Transaksi' : 'Simpan & Lanjut'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget workflowHeader() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _stepTitle(_currentStep),
+                style: const TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                _stepDescription(_currentStep),
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        _StatusTag(text: transactionStatus),
+      ],
+    );
+  }
+
   void _showSimpleInfoDialog(String title, String message) {
     showDialog<void>(
       context: context,
@@ -1550,197 +1928,33 @@ class _TransactionDesktopScreenState
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final mobile = constraints.maxWidth < 760;
-        final horizontalPadding = mobile ? 16.0 : 28.0;
-
-        return Stack(
-          children: [
-            SingleChildScrollView(
-              physics: const ClampingScrollPhysics(),
-              padding: EdgeInsets.fromLTRB(
-                horizontalPadding,
-                24,
-                horizontalPadding,
-                36,
-              ),
-              child: Column(
+    return Stack(
+      children: [
+        SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(28, 24, 28, 36),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              pageHeader(mobile: mobile),
+              pageHeader(mobile: false),
               const SizedBox(height: 20),
-              const Divider(
-                height: 1,
-                color: AppColors.divider,
-              ),
-              const SizedBox(height: 24),
-              typeSwitcher(mobile: mobile),
+              const Divider(height: 1, color: AppColors.divider),
               const SizedBox(height: 20),
-              if (mobile)
-                Column(
-                  children: [
-                    applicantCard(mobile: true),
-                    const SizedBox(height: 16),
-                    officerCard(),
-                  ],
-                )
-              else
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: applicantCard(mobile: false)),
-                    const SizedBox(width: 20),
-                    Expanded(child: officerCard()),
-                  ],
-                ),
+              workflowProgress(),
               const SizedBox(height: 20),
-              jobsSection(mobile: mobile),
+              workflowHeader(),
+              const SizedBox(height: 16),
+              currentWorkflowStep(),
               const SizedBox(height: 20),
-              const Text(
-                'Informasi Transaksi',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 12),
-              transactionInformation(mobile: mobile),
-              const SizedBox(height: 20),
-              if (mobile)
-                paymentSummary(mobile: true)
-              else
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        children: [
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: const Text(
-                              'Aksi Transaksi',
-                              style: TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 17,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          card(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                sectionHeader(
-                                  icon: Icons.print_outlined,
-                                  title: 'Dokumen',
-                                ),
-                                const SizedBox(height: 16),
-                                Wrap(
-                                  spacing: 10,
-                                  runSpacing: 10,
-                                  children: [
-                                    OutlinedButton.icon(
-                                      onPressed: () =>
-                                          _showSimpleInfoDialog(
-                                        'Cetak Invoice',
-                                        'Prototype cetak invoice.',
-                                      ),
-                                      style: outlinedButtonStyle(),
-                                      icon: const Icon(
-                                        Icons.receipt_long_outlined,
-                                        size: 18,
-                                      ),
-                                      label: const Text('Cetak Invoice'),
-                                    ),
-                                    OutlinedButton.icon(
-                                      onPressed: () =>
-                                          _showSimpleInfoDialog(
-                                        'Cetak Serah Terima',
-                                        'Prototype cetak serah terima.',
-                                      ),
-                                      style: outlinedButtonStyle(),
-                                      icon: const Icon(
-                                        Icons.description_outlined,
-                                        size: 18,
-                                      ),
-                                      label: const Text(
-                                        'Cetak Serah Terima',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          bottomActions(mobile: false),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    paymentSummary(mobile: false),
-                  ],
-                ),
-              if (mobile) ...[
-                const SizedBox(height: 20),
-                card(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      sectionHeader(
-                        icon: Icons.print_outlined,
-                        title: 'Dokumen',
-                      ),
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: () => _showSimpleInfoDialog(
-                              'Cetak Invoice',
-                              'Prototype cetak invoice.',
-                            ),
-                            style: outlinedButtonStyle(),
-                            icon: const Icon(
-                              Icons.receipt_long_outlined,
-                              size: 18,
-                            ),
-                            label: const Text('Cetak Invoice'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: () => _showSimpleInfoDialog(
-                              'Cetak Serah Terima',
-                              'Prototype cetak serah terima.',
-                            ),
-                            style: outlinedButtonStyle(),
-                            icon: const Icon(
-                              Icons.description_outlined,
-                              size: 18,
-                            ),
-                            label: const Text('Cetak Serah Terima'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                bottomActions(mobile: true),
-              ],
+              workflowNavigation(),
             ],
           ),
-            ),
-            if (_isSaving)
-              const Positioned.fill(
-                child: _TransactionLoadingOverlay(),
-              ),
-          ],
-        );
-      },
+        ),
+        if (_isSaving)
+          const Positioned.fill(
+            child: _TransactionLoadingOverlay(),
+          ),
+      ],
     );
   }
   @override
