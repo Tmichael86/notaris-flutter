@@ -57,7 +57,7 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen>{
             DataCell(Text((start+i+1).toString())),DataCell(Text(rows[i].nik??'-')),DataCell(Text(rows[i].nama)),DataCell(Text(_gender(rows[i].jenisKelamin,gs))),DataCell(Text(rows[i].email)),DataCell(Text(rows[i].noTelp??'-')),DataCell(Text(_dateTime(rows[i].createdAt))),
             DataCell(Row(mainAxisSize:MainAxisSize.min,children:[IconButton(tooltip:'Edit',onPressed:()=>_showForm(item:rows[i]),icon:const Icon(Icons.edit_outlined)),IconButton(tooltip:'Hapus',onPressed:()=>_delete(rows[i]),icon:const Icon(Icons.delete_outline))]))
           ])]
-        )))),
+        ))),
         if(rows.isEmpty)const Padding(padding:EdgeInsets.all(24),child:Text('Belum ada data petugas.')),
         const SizedBox(height:8),Row(mainAxisAlignment:MainAxisAlignment.end,children:[
           IconButton(onPressed:_page>1?()=>setState(()=>_page--):null,icon:const Icon(Icons.chevron_left)),
