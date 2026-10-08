@@ -231,6 +231,10 @@ class PekerjaanPpatController extends AsyncNotifier<void> {
         updatedBy: updatedBy,
       );
 
+      if (updated) {
+        ref.invalidate(pekerjaanPpatAggregateProvider(id));
+      }
+
       state = const AsyncData(null);
       return updated;
     } catch (error, stackTrace) {
