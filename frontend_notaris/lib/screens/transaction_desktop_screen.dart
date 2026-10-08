@@ -146,6 +146,7 @@ class _TransactionDesktopScreenState
   String note = '';
   bool _isSaving = false;
   int _currentStep = 0;
+  String? _editingTransactionId;
 
   final discountController = TextEditingController();
   final currentPaymentController = TextEditingController();
@@ -385,6 +386,8 @@ class _TransactionDesktopScreenState
     if (type == selectedType) return;
 
     setState(() {
+      _editingTransactionId = null;
+      _currentStep = 0;
       selectedType = type;
       selectedApplicant = null;
       selectedOfficer = null;
@@ -404,6 +407,8 @@ class _TransactionDesktopScreenState
 
   void resetForm() {
     setState(() {
+      _editingTransactionId = null;
+      _currentStep = 0;
       selectedApplicant = null;
       selectedOfficer = null;
       selectedJobs.clear();
@@ -425,6 +430,8 @@ class _TransactionDesktopScreenState
 
   void loadTransaction(DummyTransaction transaction) {
     setState(() {
+      _editingTransactionId = transaction.id;
+      _currentStep = 0;
       selectedType = transaction.type;
       transactionNumber = transaction.number;
       selectedApplicant = transaction.applicant;
@@ -1289,46 +1296,80 @@ class _TransactionDesktopScreenState
   Future<void> _saveTransaction() async {
     if (_isSaving) return;
 
+    if (!_validateCurrentStep()) return;
+
     if (selectedApplicant == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pemohon harus dipilih terlebih dahulu.'),
-        ),
+        const SnackBar(content: Text('Pemohon harus dipilih terlebih dahulu.')),
       );
       return;
     }
 
     if (selectedOfficer == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Petugas harus dipilih terlebih dahulu.'),
-        ),
+        const SnackBar(content: Text('Petugas harus dipilih terlebih dahulu.')),
       );
       return;
     }
 
     if (selectedJobs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Minimal satu pekerjaan harus ditambahkan.'),
-        ),
+        const SnackBar(content: Text('Minimal satu pekerjaan harus ditambahkan.')),
       );
       return;
     }
 
     setState(() => _isSaving = true);
 
-    // Simulasi request API untuk prototype.
-    // Nanti blok ini diganti repository/service Go tanpa mengubah UI.
-    await Future<void>.delayed(const Duration(milliseconds: 1200));
+    // Prototype persistence layer. Saat Drift masuk, method ini akan
+    // memanggil repository yang sama tanpa mengubah workflow UI.
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+
+    final transaction = DummyTransaction(
+      id: _editingTransactionId ?? 'TRX-\${DateTime.now().millisecondsSinceEpoch}',
+      number: transactionNumber,
+      type: selectedType,
+      applicant: selectedApplicant!,
+      officer: selectedOfficer!,
+      jobs: List.unmodifiable(selectedJobs),
+      registrationDate: registrationDate,
+      deadline: deadline,
+      status: transactionStatus,
+      materai: materai,
+      paymentType: paymentType,
+      discount: discount,
+      currentPayment: currentPayment,
+      note: note,
+    );
 
     if (!mounted) return;
 
-    setState(() => _isSaving = false);
+    final isEditing = _editingTransactionId != null;
+
+    setState(() {
+      if (isEditing) {
+        final index = transactions.indexWhere(
+          (item) => item.id == _editingTransactionId,
+        );
+        if (index >= 0) {
+          transactions[index] = transaction;
+        } else {
+          transactions.add(transaction);
+        }
+      } else {
+        transactions.add(transaction);
+        _editingTransactionId = transaction.id;
+      }
+      _isSaving = false;
+    });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Transaksi berhasil disimpan (dummy).'),
+      SnackBar(
+        content: Text(
+          isEditing
+              ? 'Transaksi \${transaction.number} berhasil diperbarui.'
+              : 'Transaksi \${transaction.number} berhasil dibuat.',
+        ),
       ),
     );
   }
@@ -1814,7 +1855,13 @@ class _TransactionDesktopScreenState
             onPressed: _isSaving ? null : _nextStep,
             style: primaryButtonStyle(),
             icon: Icon(last ? Icons.save_outlined : Icons.arrow_forward, size: 18),
-            label: Text(last ? 'Simpan Transaksi' : 'Simpan & Lanjut'),
+            label: Text(
+              last
+                  ? (_editingTransactionId == null
+                      ? 'Simpan Transaksi'
+                      : 'Simpan Perubahan')
+                  : 'Simpan & Lanjut',
+            ),
           ),
         ],
       ),
