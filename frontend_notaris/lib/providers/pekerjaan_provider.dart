@@ -40,6 +40,12 @@ final pekerjaanNotarisAggregateProvider = FutureProvider.autoDispose
   return repository.getAggregate(id);
 });
 
+final pekerjaanPpatAggregateProvider = FutureProvider.autoDispose
+    .family<PekerjaanAggregateData?, int>((ref, id) {
+  final repository = ref.watch(pekerjaanPpatRepositoryProvider);
+  return repository.getAggregate(id);
+});
+
 final pekerjaanNotarisControllerProvider =
     AsyncNotifierProvider<PekerjaanNotarisController, void>(
   PekerjaanNotarisController.new,
