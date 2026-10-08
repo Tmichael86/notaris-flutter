@@ -44,6 +44,7 @@ class PekerjaanKategoris extends Table {
   DateTimeColumn get deletedAt => dateTime().nullable()();
 }
 
+@DataClassName('PengeluaranJenisData')
 class PengeluaranJenis extends Table {
   @override
   String get tableName => 'pengeluaran_jenis';

@@ -2780,7 +2780,7 @@ class PekerjaanKategorisCompanion extends UpdateCompanion<PekerjaanKategori> {
 }
 
 class $PengeluaranJenisTable extends PengeluaranJenis
-    with TableInfo<$PengeluaranJenisTable, PengeluaranJeni> {
+    with TableInfo<$PengeluaranJenisTable, PengeluaranJenisData> {
   @override
   final GeneratedDatabase attachedDatabase;
   final String? _alias;
@@ -2929,7 +2929,7 @@ class $PengeluaranJenisTable extends PengeluaranJenis
   static const String $name = 'pengeluaran_jenis';
   @override
   VerificationContext validateIntegrity(
-    Insertable<PengeluaranJeni> instance, {
+    Insertable<PengeluaranJenisData> instance, {
     bool isInserting = false,
   }) {
     final context = VerificationContext();
@@ -3013,9 +3013,9 @@ class $PengeluaranJenisTable extends PengeluaranJenis
   @override
   Set<GeneratedColumn> get $primaryKey => {id};
   @override
-  PengeluaranJeni map(Map<String, dynamic> data, {String? tablePrefix}) {
+  PengeluaranJenisData map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return PengeluaranJeni(
+    return PengeluaranJenisData(
       id: attachedDatabase.typeMapping.read(
         DriftSqlType.int,
         data['${effectivePrefix}id'],
@@ -3069,7 +3069,8 @@ class $PengeluaranJenisTable extends PengeluaranJenis
   }
 }
 
-class PengeluaranJeni extends DataClass implements Insertable<PengeluaranJeni> {
+class PengeluaranJenisData extends DataClass
+    implements Insertable<PengeluaranJenisData> {
   final int id;
   final String uuid;
   final String nama;
@@ -3081,7 +3082,7 @@ class PengeluaranJeni extends DataClass implements Insertable<PengeluaranJeni> {
   final bool isSyncDirty;
   final DateTime? lastSyncedAt;
   final DateTime? deletedAt;
-  const PengeluaranJeni({
+  const PengeluaranJenisData({
     required this.id,
     required this.uuid,
     required this.nama,
@@ -3151,12 +3152,12 @@ class PengeluaranJeni extends DataClass implements Insertable<PengeluaranJeni> {
     );
   }
 
-  factory PengeluaranJeni.fromJson(
+  factory PengeluaranJenisData.fromJson(
     Map<String, dynamic> json, {
     ValueSerializer? serializer,
   }) {
     serializer ??= driftRuntimeOptions.defaultSerializer;
-    return PengeluaranJeni(
+    return PengeluaranJenisData(
       id: serializer.fromJson<int>(json['id']),
       uuid: serializer.fromJson<String>(json['uuid']),
       nama: serializer.fromJson<String>(json['nama']),
@@ -3188,7 +3189,7 @@ class PengeluaranJeni extends DataClass implements Insertable<PengeluaranJeni> {
     };
   }
 
-  PengeluaranJeni copyWith({
+  PengeluaranJenisData copyWith({
     int? id,
     String? uuid,
     String? nama,
@@ -3200,7 +3201,7 @@ class PengeluaranJeni extends DataClass implements Insertable<PengeluaranJeni> {
     bool? isSyncDirty,
     Value<DateTime?> lastSyncedAt = const Value.absent(),
     Value<DateTime?> deletedAt = const Value.absent(),
-  }) => PengeluaranJeni(
+  }) => PengeluaranJenisData(
     id: id ?? this.id,
     uuid: uuid ?? this.uuid,
     nama: nama ?? this.nama,
@@ -3213,8 +3214,8 @@ class PengeluaranJeni extends DataClass implements Insertable<PengeluaranJeni> {
     lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
   );
-  PengeluaranJeni copyWithCompanion(PengeluaranJenisCompanion data) {
-    return PengeluaranJeni(
+  PengeluaranJenisData copyWithCompanion(PengeluaranJenisCompanion data) {
+    return PengeluaranJenisData(
       id: data.id.present ? data.id.value : this.id,
       uuid: data.uuid.present ? data.uuid.value : this.uuid,
       nama: data.nama.present ? data.nama.value : this.nama,
@@ -3235,7 +3236,7 @@ class PengeluaranJeni extends DataClass implements Insertable<PengeluaranJeni> {
 
   @override
   String toString() {
-    return (StringBuffer('PengeluaranJeni(')
+    return (StringBuffer('PengeluaranJenisData(')
           ..write('id: $id, ')
           ..write('uuid: $uuid, ')
           ..write('nama: $nama, ')
@@ -3268,7 +3269,7 @@ class PengeluaranJeni extends DataClass implements Insertable<PengeluaranJeni> {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is PengeluaranJeni &&
+      (other is PengeluaranJenisData &&
           other.id == this.id &&
           other.uuid == this.uuid &&
           other.nama == this.nama &&
@@ -3282,7 +3283,7 @@ class PengeluaranJeni extends DataClass implements Insertable<PengeluaranJeni> {
           other.deletedAt == this.deletedAt);
 }
 
-class PengeluaranJenisCompanion extends UpdateCompanion<PengeluaranJeni> {
+class PengeluaranJenisCompanion extends UpdateCompanion<PengeluaranJenisData> {
   final Value<int> id;
   final Value<String> uuid;
   final Value<String> nama;
@@ -3321,7 +3322,7 @@ class PengeluaranJenisCompanion extends UpdateCompanion<PengeluaranJeni> {
     this.deletedAt = const Value.absent(),
   }) : uuid = Value(uuid),
        nama = Value(nama);
-  static Insertable<PengeluaranJeni> custom({
+  static Insertable<PengeluaranJenisData> custom({
     Expression<int>? id,
     Expression<String>? uuid,
     Expression<String>? nama,
@@ -12725,21 +12726,21 @@ class $$PengeluaranJenisTableTableManager
         RootTableManager<
           _$AppDatabase,
           $PengeluaranJenisTable,
-          PengeluaranJeni,
+          PengeluaranJenisData,
           $$PengeluaranJenisTableFilterComposer,
           $$PengeluaranJenisTableOrderingComposer,
           $$PengeluaranJenisTableAnnotationComposer,
           $$PengeluaranJenisTableCreateCompanionBuilder,
           $$PengeluaranJenisTableUpdateCompanionBuilder,
           (
-            PengeluaranJeni,
+            PengeluaranJenisData,
             BaseReferences<
               _$AppDatabase,
               $PengeluaranJenisTable,
-              PengeluaranJeni
+              PengeluaranJenisData
             >,
           ),
-          PengeluaranJeni,
+          PengeluaranJenisData,
           PrefetchHooks Function()
         > {
   $$PengeluaranJenisTableTableManager(
@@ -12810,11 +12811,13 @@ class $$PengeluaranJenisTableTableManager
           withReferenceMapper: (p0) => p0
               .map(
                 (e) => (
-                  e.readTable<$PengeluaranJenisTable, PengeluaranJeni>(table),
+                  e.readTable<$PengeluaranJenisTable, PengeluaranJenisData>(
+                    table,
+                  ),
                   BaseReferences<
                     _$AppDatabase,
                     $PengeluaranJenisTable,
-                    PengeluaranJeni
+                    PengeluaranJenisData
                   >(db, table, e),
                 ),
               )
@@ -12828,17 +12831,21 @@ typedef $$PengeluaranJenisTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
       $PengeluaranJenisTable,
-      PengeluaranJeni,
+      PengeluaranJenisData,
       $$PengeluaranJenisTableFilterComposer,
       $$PengeluaranJenisTableOrderingComposer,
       $$PengeluaranJenisTableAnnotationComposer,
       $$PengeluaranJenisTableCreateCompanionBuilder,
       $$PengeluaranJenisTableUpdateCompanionBuilder,
       (
-        PengeluaranJeni,
-        BaseReferences<_$AppDatabase, $PengeluaranJenisTable, PengeluaranJeni>,
+        PengeluaranJenisData,
+        BaseReferences<
+          _$AppDatabase,
+          $PengeluaranJenisTable,
+          PengeluaranJenisData
+        >,
       ),
-      PengeluaranJeni,
+      PengeluaranJenisData,
       PrefetchHooks Function()
     >;
 typedef $$PetugasLocalsTableCreateCompanionBuilder =

@@ -201,7 +201,7 @@ class _JenisPengeluaranDesktopScreenState
     if (ok != true || !mounted) return;
     await _process('Menghapus data...', () async {
       final deleted = await ref.read(pengeluaranJenisControllerProvider.notifier).delete(item.id);
-      if (!deleted) throw StateError('Jenis pekerjaan tidak ditemukan.');
+      if (!deleted) throw StateError('Jenis pengeluaran tidak ditemukan.');
     });
   }
 
@@ -212,7 +212,7 @@ class _JenisPengeluaranDesktopScreenState
       await action();
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message.replaceFirst('...', ' berhasil.'))));
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal: ' + e.toString()), backgroundColor: Colors.red.shade700));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal: $e'), backgroundColor: Colors.red.shade700));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
