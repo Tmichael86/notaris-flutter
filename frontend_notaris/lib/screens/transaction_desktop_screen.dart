@@ -2440,7 +2440,7 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                             Padding(
                               padding: const EdgeInsets.only(top: 6),
                               child: Text('Gagal memuat Master: ${masterAsync.error}',
-                                  style: const TextStyle(color: AppColors.danger, fontSize: 12)),
+                                  style: const TextStyle(color: AppColors.error, fontSize: 12)),
                             ),
                           if (_loadingMasterDetails)
                             const Padding(
@@ -2451,7 +2451,7 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                             Padding(
                               padding: const EdgeInsets.only(top: 6),
                               child: Text(_masterLoadError!,
-                                  style: const TextStyle(color: AppColors.danger, fontSize: 12)),
+                                  style: const TextStyle(color: AppColors.error, fontSize: 12)),
                             ),
                         ],
                       );
