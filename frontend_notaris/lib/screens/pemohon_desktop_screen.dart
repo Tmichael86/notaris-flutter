@@ -15,17 +15,35 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen>{
   final _search=TextEditingController(),_hScroll=ScrollController();
   static const _pageSize=5;int _page=1;bool _loading=false;
 
-  @override Widget build(BuildContext context){
-    final data=ref.watch(pemohonProvider),genders=ref.watch(jenisKelaminProvider);
-    return LoadingOverlay(isLoading:_loading,message:'Memproses data...',child:Padding(padding:const EdgeInsets.all(24),child:data.when(
-      loading:()=>const Center(child:CircularProgressIndicator()),
-      error:(e,_)=>Center(child:Text('Gagal memuat data: '+e.toString())),
-      data:(items)=>genders.when(
-        loading:()=>const Center(child:CircularProgressIndicator()),
-        error:(e,_)=>Center(child:Text('Gagal memuat jenis kelamin: '+e.toString())),
-        data:(gs)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[_header(),const SizedBox(height:20),_table(items,gs)])
-      )
-    )));
+@override
+  Widget build(BuildContext context) {
+    final data = ref.watch(pemohonProvider);
+    final genders = ref.watch(jenisKelaminProvider);
+
+    return LoadingOverlay(
+      isLoading: _loading,
+      message: 'Memproses data...',
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: data.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Gagal memuat data: $e')),
+          data: (items) => genders.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) =>
+                Center(child: Text('Gagal memuat jenis kelamin: $e')),
+            data: (gs) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _header(),
+                const SizedBox(height: 20),
+                _table(items, gs),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
   Widget _header()=>Row(children:[
     Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Pemohon',style:TextStyle(fontSize:24,fontWeight:FontWeight.w700)),const SizedBox(height:4),Text('Master > Pemohon',style:TextStyle(color:AppColors.textSecondary))])),

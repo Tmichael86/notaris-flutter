@@ -105,9 +105,9 @@ class TransactionRepository {
     final totalPekerjaan = jobs.fold<double>(0, (sum, job) => sum + job.total);
     final totalBersih = (totalPekerjaan - diskon).clamp(0, double.infinity);
 
-    return db.transaction(() async {
-      final transactionId = id == null
-          ? await db.into(db.transaksis).insert(
+return db.transaction(() async {
+      final transactionId = id ??
+          await db.into(db.transaksis).insert(
                 TransaksisCompanion.insert(
                   uuid: _uuid.v4(),
                   noAkta: nomorTransaksi.trim(),
@@ -129,8 +129,7 @@ class TransactionRepository {
                   updatedAt: Value(now),
                   isSyncDirty: const Value(true),
                 ),
-              )
-          : id;
+              );
 
       if (id != null) {
         final affected = await (db.update(db.transaksis)
