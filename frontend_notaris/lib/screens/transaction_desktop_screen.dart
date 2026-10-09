@@ -1547,6 +1547,47 @@ class _TransactionDesktopScreenState
     setState(() => _isSaving = true);
     final isEditing = _editingTransactionId != null;
 
+    // Use the root navigator so the modal blocks the entire app shell,
+    // including the sidebar and header, while SQLite is being updated.
+    final savingDialog = showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: Dialog(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: AppColors.primary,
+                  ),
+                ),
+                SizedBox(width: 16),
+                Text(
+                  'Menyimpan transaksi...',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // Give Flutter a frame to paint the modal before starting the save.
+    await WidgetsBinding.instance.endOfFrame;
+
     try {
       final savedId = await ref.read(transactionControllerProvider.notifier).save(
         id: _editingTransactionId == null ? null : int.tryParse(_editingTransactionId!),
@@ -1577,6 +1618,9 @@ class _TransactionDesktopScreenState
       );
 
       if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      await savingDialog;
+      if (!mounted) return;
       setState(() {
         _editingTransactionId = savedId.toString();
         _isSaving = false;
@@ -1592,6 +1636,9 @@ class _TransactionDesktopScreenState
         ),
       );
     } catch (error) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      await savingDialog;
       if (!mounted) return;
       setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2278,10 +2325,6 @@ class _TransactionDesktopScreenState
             ],
           ),
         ),
-        if (_isSaving)
-          const Positioned.fill(
-            child: _TransactionLoadingOverlay(),
-          ),
       ],
     );
   }
@@ -2295,53 +2338,6 @@ class _TransactionDesktopScreenState
   }
 }
 
-class _TransactionLoadingOverlay extends StatelessWidget {
-  const _TransactionLoadingOverlay();
-
-  @override
-  Widget build(BuildContext context) {
-    return AbsorbPointer(
-      absorbing: true,
-      child: Container(
-        color: AppColors.textPrimary.withValues(alpha: 0.18),
-        alignment: Alignment.center,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 20,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: AppColors.primary,
-                ),
-              ),
-              SizedBox(width: 14),
-              Text(
-                'Menyimpan transaksi...',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _TransactionJobDialog extends ConsumerStatefulWidget {
   final TransactionType type;
