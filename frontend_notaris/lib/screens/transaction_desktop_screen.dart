@@ -109,6 +109,8 @@ class DummyTransactionJob {
   final List<DummyProcess> processes;
   final int? masterNotarisId;
   final int? masterPpatId;
+  final int? masterPriceId;
+  final int? masterCategoryId;
 
   const DummyTransactionJob({
     required this.id,
@@ -121,6 +123,8 @@ class DummyTransactionJob {
     required this.processes,
     this.masterNotarisId,
     this.masterPpatId,
+    this.masterPriceId,
+    this.masterCategoryId,
   });
 
   double get totalCost => serviceCost + otherCost;
@@ -2154,6 +2158,8 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
   late List<DummyCategory> selectedCategories;
   late List<DummyProcess> selectedProcesses;
   int? selectedMasterJobId;
+  int? selectedMasterPriceId;
+  List<({int id, int categoryId, String name, String price, String estimate})> _masterPriceOptions = [];
   bool _loadingMasterDetails = false;
   String? _masterLoadError;
 
@@ -2188,12 +2194,22 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
     selectedMasterJobId = widget.type == TransactionType.notaris
         ? job?.masterNotarisId
         : job?.masterPpatId;
+    if (selectedMasterJobId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _selectMasterJob(selectedMasterJobId!);
+      });
+    }
   }
 
   Future<void> _selectMasterJob(int? id) async {
     if (id == null) return;
     setState(() {
       selectedMasterJobId = id;
+      selectedMasterPriceId = null;
+      _masterPriceOptions = [];
+      selectedCategories = [];
+      estimatedController.clear();
+      serviceCostController.clear();
       _loadingMasterDetails = true;
       _masterLoadError = null;
     });
@@ -2211,22 +2227,32 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
       }
       final categoryData = ref.read(pekerjaanKategoriProvider).valueOrNull ?? [];
       final categoryNames = {for (final item in categoryData) item.id: item.nama};
+      final priceOptions = [
+        for (final item in aggregate.harga)
+          if (categoryNames.containsKey(item.kategoriPekerjaanId))
+            (
+              id: item.id,
+              categoryId: item.kategoriPekerjaanId,
+              name: categoryNames[item.kategoriPekerjaanId]!,
+              price: item.harga,
+              estimate: item.estimasiWaktu,
+            ),
+      ];
       setState(() {
         nameController.text = aggregate.nama;
         codeController.text = '${widget.type == TransactionType.notaris ? 'N' : 'P'}-${aggregate.id}';
-        final firstPrice = aggregate.harga.isEmpty ? null : aggregate.harga.first;
-        estimatedController.text = firstPrice?.estimasiWaktu ?? '';
-        serviceCostController.text = firstPrice == null
+        _masterPriceOptions = priceOptions;
+        final currentPrice = priceOptions.where((item) =>
+          item.id == widget.initialJob?.masterPriceId
+        ).firstOrNull;
+        selectedMasterPriceId = currentPrice?.id ?? (priceOptions.length == 1 ? priceOptions.first.id : null);
+        selectedCategories = currentPrice == null
+            ? []
+            : [DummyCategory(id: currentPrice.categoryId.toString(), name: currentPrice.name)];
+        estimatedController.text = currentPrice?.estimate ?? '';
+        serviceCostController.text = currentPrice == null
             ? ''
-            : _formatCurrencyDigits(_parseCurrency(firstPrice.harga).toStringAsFixed(0));
-        selectedCategories = [
-          for (final item in aggregate.harga)
-            if (categoryNames.containsKey(item.kategoriPekerjaanId))
-              DummyCategory(
-                id: item.kategoriPekerjaanId.toString(),
-                name: categoryNames[item.kategoriPekerjaanId]!,
-              ),
-        ];
+            : _formatCurrencyDigits(_parseCurrency(currentPrice.price).toStringAsFixed(0));
         selectedProcesses = [
           for (final item in aggregate.proses)
             DummyProcess(id: item.id.toString(), name: item.nama, status: item.detail),
@@ -2313,8 +2339,8 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
       return;
     }
 
-    if (selectedCategories.isEmpty) {
-      _showValidation('Minimal satu kategori pekerjaan harus dipilih.');
+    if (selectedMasterJobId == null || selectedMasterPriceId == null) {
+      _showValidation('Pilih pekerjaan dan kategori/harga dari Master terlebih dahulu.');
       return;
     }
 
@@ -2339,6 +2365,8 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
       processes: List.from(selectedProcesses),
       masterNotarisId: widget.type == TransactionType.notaris ? selectedMasterJobId : null,
       masterPpatId: widget.type == TransactionType.ppat ? selectedMasterJobId : null,
+      masterPriceId: selectedMasterPriceId,
+      masterCategoryId: selectedCategories.isEmpty ? null : int.tryParse(selectedCategories.first.id),
     );
 
     Navigator.pop(context, result);
@@ -2510,39 +2538,48 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                       title: 'Kategori Pekerjaan',
                     ),
                     const SizedBox(height: 12),
-                    if (selectedCategories.isEmpty)
-                      _DialogEmptyState(
-                        text: 'Belum ada kategori.',
-                      )
-                    else
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: selectedCategories
-                            .map(
-                              (category) => InputChip(
-                                label: Text(category.name),
-                                onDeleted: () {
-                                  setState(
-                                    () => selectedCategories.remove(category),
-                                  );
-                                },
-                                deleteIconColor: AppColors.textSecondary,
-                              ),
-                            )
-                            .toList(),
+                    DropdownButtonFormField<int>(
+                      value: _masterPriceOptions.any((item) => item.id == selectedMasterPriceId)
+                          ? selectedMasterPriceId
+                          : null,
+                      isExpanded: true,
+                      decoration: decoration(
+                        label: 'Kategori / Harga Pekerjaan',
+                        hint: _masterPriceOptions.isEmpty
+                            ? 'Pilih pekerjaan terlebih dahulu'
+                            : 'Pilih kategori yang tersedia untuk pekerjaan ini',
                       ),
-                    const SizedBox(height: 10),
-                    OutlinedButton.icon(
-                      onPressed: addCategory,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Tambah Kategori'),
+                      items: [
+                        for (final item in _masterPriceOptions)
+                          DropdownMenuItem<int>(
+                            value: item.id,
+                            child: Text(
+                              '${item.name} • Rp ${_formatCurrencyDigits(_parseCurrency(item.price).toStringAsFixed(0))} • ${item.estimate}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                      onChanged: _loadingMasterDetails || _masterPriceOptions.isEmpty
+                          ? null
+                          : (id) {
+                              final selected = _masterPriceOptions.where((item) => item.id == id).firstOrNull;
+                              if (selected == null) return;
+                              setState(() {
+                                selectedMasterPriceId = selected.id;
+                                selectedCategories = [
+                                  DummyCategory(id: selected.categoryId.toString(), name: selected.name),
+                                ];
+                                estimatedController.text = selected.estimate;
+                                serviceCostController.text = _formatCurrencyDigits(
+                                  _parseCurrency(selected.price).toStringAsFixed(0),
+                                );
+                              });
+                            },
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Kategori, harga, dan estimasi mengikuti konfigurasi Master. Untuk mengubahnya, edit data di menu Master.',
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                     ),
                     const SizedBox(height: 24),
                     const _DialogSectionTitle(
@@ -2554,6 +2591,7 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                         children: [
                           TextField(
                             controller: estimatedController,
+                            readOnly: selectedMasterPriceId != null,
                             decoration: decoration(
                               label: 'Estimasi Waktu',
                               hint: 'Contoh: 4-7 Hari',
@@ -2562,6 +2600,7 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                           const SizedBox(height: 14),
                           TextField(
                             controller: serviceCostController,
+                            readOnly: selectedMasterPriceId != null,
                             keyboardType: TextInputType.number,
                             inputFormatters: const [
                               _CurrencyInputFormatter(),
@@ -2589,6 +2628,7 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                           Expanded(
                             child: TextField(
                               controller: estimatedController,
+                              readOnly: selectedMasterPriceId != null,
                               decoration: decoration(
                                 label: 'Estimasi Waktu',
                                 hint: 'Contoh: 4-7 Hari',
@@ -2599,6 +2639,7 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                           Expanded(
                             child: TextField(
                               controller: serviceCostController,
+                              readOnly: selectedMasterPriceId != null,
                               keyboardType: TextInputType.number,
                               inputFormatters: const [
                                 _CurrencyInputFormatter(),
