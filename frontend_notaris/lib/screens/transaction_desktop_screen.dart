@@ -405,7 +405,7 @@ class _TransactionDesktopScreenState
     final current = deadline.isEmpty
         ? null
         : DateTime.tryParse(
-            '${deadline.split('/').reversed.join('-')}',
+            deadline.split('/').reversed.join('-'),
           );
     final picked = await showDatePicker(
       context: context,
@@ -615,11 +615,13 @@ class _TransactionDesktopScreenState
     String? labelText,
     String? hintText,
     Widget? prefixIcon,
+    Widget? suffixIcon,
   }) {
     return InputDecoration(
       labelText: labelText,
       hintText: hintText,
       prefixIcon: prefixIcon,
+      suffixIcon: suffixIcon,
       filled: true,
       fillColor: AppColors.card,
       contentPadding: const EdgeInsets.symmetric(
