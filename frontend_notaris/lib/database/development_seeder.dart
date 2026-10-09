@@ -21,8 +21,6 @@ class DevelopmentSeeder {
   /// This method is idempotent: existing records are detected by UUID and
   /// will not be duplicated.
   static Future<void> seedIfEmpty(AppDatabase db) async {
-    final categories = await db.pekerjaanDao.getActivePekerjaanKategori();
-
     await _ensureJenisKelamin(
       db,
       uuid: 'dev-jenis-kelamin-laki-laki',
@@ -33,10 +31,6 @@ class DevelopmentSeeder {
       uuid: 'dev-jenis-kelamin-perempuan',
       nama: 'Perempuan',
     );
-
-    if (categories.isNotEmpty) {
-      return;
-    }
 
     await db.transaction(() async {
       final now = DateTime.now();
@@ -95,7 +89,145 @@ class DevelopmentSeeder {
         hibah: hibah,
         pembagianHak: pembagianHak,
       );
+
+      await _seedPeople(db, now: now);
     });
+  }
+
+  static Future<void> _seedPeople(
+    AppDatabase db, {
+    required DateTime now,
+  }) async {
+    final lakiLaki = await (db.select(db.jenisKelamins)
+          ..where((t) => t.uuid.equals('dev-jenis-kelamin-laki-laki')))
+        .getSingle();
+    final perempuan = await (db.select(db.jenisKelamins)
+          ..where((t) => t.uuid.equals('dev-jenis-kelamin-perempuan')))
+        .getSingle();
+
+    await _ensurePetugas(
+      db,
+      uuid: 'dev-petugas-budi-santoso',
+      nama: 'Budi Santoso',
+      nik: '3505010101900001',
+      alamat: 'Jl. Melati No. 10, Blitar',
+      tempatLahir: 'Blitar',
+      tanggalLahir: DateTime(1990, 1, 1),
+      jenisKelamin: lakiLaki.id,
+      noTelp: '081234560101',
+      email: 'budi.santoso@example.local',
+      now: now,
+    );
+    await _ensurePetugas(
+      db,
+      uuid: 'dev-petugas-siti-rahma',
+      nama: 'Siti Rahma',
+      nik: '3505014508950002',
+      alamat: 'Jl. Kenanga No. 5, Blitar',
+      tempatLahir: 'Blitar',
+      tanggalLahir: DateTime(1995, 8, 5),
+      jenisKelamin: perempuan.id,
+      noTelp: '081234560102',
+      email: 'siti.rahma@example.local',
+      now: now,
+    );
+
+    await _ensurePemohon(
+      db,
+      uuid: 'dev-pemohon-andi-pratama',
+      nama: 'Andi Pratama',
+      nik: '3505011209920003',
+      alamat: 'Jl. Anggrek No. 12, Blitar',
+      jenisKelamin: lakiLaki.id,
+      noTelp: '081234560201',
+      now: now,
+    );
+    await _ensurePemohon(
+      db,
+      uuid: 'dev-pemohon-dewi-lestari',
+      nama: 'Dewi Lestari',
+      nik: '3505015606980004',
+      alamat: 'Jl. Mawar No. 8, Blitar',
+      jenisKelamin: perempuan.id,
+      noTelp: '081234560202',
+      now: now,
+    );
+    await _ensurePemohon(
+      db,
+      uuid: 'dev-pemohon-rizky-maulana',
+      nama: 'Rizky Maulana',
+      nik: '3505010907950005',
+      alamat: 'Jl. Cempaka No. 3, Blitar',
+      jenisKelamin: lakiLaki.id,
+      noTelp: '081234560203',
+      now: now,
+    );
+  }
+
+  static Future<void> _ensurePetugas(
+    AppDatabase db, {
+    required String uuid,
+    required String nama,
+    required String nik,
+    required String alamat,
+    required String tempatLahir,
+    required DateTime tanggalLahir,
+    required int jenisKelamin,
+    required String noTelp,
+    required String email,
+    required DateTime now,
+  }) async {
+    final existing = await (db.select(db.petugasLocals)
+          ..where((t) => t.uuid.equals(uuid)))
+        .getSingleOrNull();
+    if (existing != null) return;
+
+    await db.into(db.petugasLocals).insert(
+      PetugasLocalsCompanion.insert(
+        uuid: uuid,
+        nik: Value(nik),
+        nama: nama,
+        alamat: Value(alamat),
+        tempatLahir: Value(tempatLahir),
+        tanggalLahir: Value(tanggalLahir),
+        jenisKelamin: Value(jenisKelamin),
+        noTelp: Value(noTelp),
+        email: email,
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        isSyncDirty: const Value(false),
+      ),
+    );
+  }
+
+  static Future<void> _ensurePemohon(
+    AppDatabase db, {
+    required String uuid,
+    required String nama,
+    required String nik,
+    required String alamat,
+    required int jenisKelamin,
+    required String noTelp,
+    required DateTime now,
+  }) async {
+    final existing = await (db.select(db.pemohons)
+          ..where((t) => t.uuid.equals(uuid)))
+        .getSingleOrNull();
+    if (existing != null) return;
+
+    await db.into(db.pemohons).insert(
+      PemohonsCompanion.insert(
+        uuid: uuid,
+        nama: nama,
+        alamat: Value(alamat),
+        jenisKelamin: Value(jenisKelamin),
+        noTelp: Value(noTelp),
+        nik: Value(nik),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        isSyncDirty: const Value(false),
+      ),
+    );
   }
 
   static Future<void> _ensureJenisKelamin(
