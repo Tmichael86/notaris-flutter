@@ -365,7 +365,59 @@ class _TransactionDesktopScreenState
   @override
   void initState() {
     super.initState();
+    registrationDate = _formatTransactionDate(DateTime.now());
+    deadline = '';
     _syncEditableControllers();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshTransactionNumber();
+    });
+  }
+
+  static String _formatTransactionDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}';
+  }
+
+  Future<void> _refreshTransactionNumber() async {
+    if (_editingTransactionId != null) return;
+    try {
+      final number = await ref
+          .read(transactionRepositoryProvider)
+          .generateNextTransactionNumber(
+            jenisTransaksi: selectedType == TransactionType.notaris
+                ? 'notaris'
+                : 'ppat',
+            date: DateTime.now(),
+          );
+      if (!mounted || _editingTransactionId != null) return;
+      setState(() => transactionNumber = number);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal membuat nomor transaksi: $error')),
+      );
+    }
+  }
+
+  Future<void> _pickDeadline() async {
+    final now = DateTime.now();
+    final current = deadline.isEmpty
+        ? null
+        : DateTime.tryParse(
+            '${deadline.split('/').reversed.join('-')}',
+          );
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current ?? now,
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 20),
+      helpText: 'Pilih tanggal deadline',
+      cancelText: 'Batal',
+      confirmText: 'Pilih',
+    );
+    if (picked == null || !mounted) return;
+    setState(() => deadline = _formatTransactionDate(picked));
   }
 
   void _syncEditableControllers() {
@@ -414,9 +466,9 @@ class _TransactionDesktopScreenState
       selectedApplicant = null;
       selectedOfficer = null;
       selectedJobs.clear();
-      transactionNumber = type == TransactionType.notaris
-          ? '10122092641342'
-          : '20122092641345';
+      transactionNumber = '';
+      registrationDate = _formatTransactionDate(DateTime.now());
+      deadline = '';
       transactionStatus = 'Baru';
       materai = 0;
       discount = 0;
@@ -425,6 +477,7 @@ class _TransactionDesktopScreenState
     });
 
     _syncEditableControllers();
+    _refreshTransactionNumber();
   }
 
   void resetForm() {
@@ -434,11 +487,9 @@ class _TransactionDesktopScreenState
       selectedApplicant = null;
       selectedOfficer = null;
       selectedJobs.clear();
-      transactionNumber = selectedType == TransactionType.notaris
-          ? '10122092641342'
-          : '20122092641345';
-      registrationDate = '22/09/2026';
-      deadline = '22/09/2026';
+      transactionNumber = '';
+      registrationDate = _formatTransactionDate(DateTime.now());
+      deadline = '';
       transactionStatus = 'Baru';
       paymentType = 'Cash';
       materai = 0;
@@ -448,6 +499,7 @@ class _TransactionDesktopScreenState
     });
 
     _syncEditableControllers();
+    _refreshTransactionNumber();
   }
 
   void loadTransaction(DummyTransaction transaction) {
@@ -1095,9 +1147,16 @@ class _TransactionDesktopScreenState
       key: ValueKey('transaction-deadline-$deadline'),
       initialValue: deadline,
       readOnly: true,
+      onTap: _pickDeadline,
       decoration: inputDecoration(
-        labelText: 'Tanggal Deadline',
+        labelText: 'Tanggal Deadline *',
+        hintText: 'Pilih tanggal deadline',
         prefixIcon: const Icon(Icons.event_outlined, size: 18),
+        suffixIcon: IconButton(
+          tooltip: 'Pilih tanggal',
+          onPressed: _pickDeadline,
+          icon: const Icon(Icons.calendar_month_outlined),
+        ),
       ),
     );
 
@@ -1241,11 +1300,18 @@ class _TransactionDesktopScreenState
             key: ValueKey('payment-deadline-$deadline'),
             initialValue: deadline,
             readOnly: true,
+            onTap: _pickDeadline,
             decoration: inputDecoration(
               labelText: 'Jatuh Tempo',
+              hintText: 'Pilih tanggal deadline',
               prefixIcon: const Icon(
                 Icons.event_outlined,
                 size: 18,
+              ),
+              suffixIcon: IconButton(
+                tooltip: 'Pilih tanggal',
+                onPressed: _pickDeadline,
+                icon: const Icon(Icons.calendar_month_outlined),
               ),
             ),
           ),
@@ -1343,6 +1409,13 @@ class _TransactionDesktopScreenState
     if (selectedJobs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Minimal satu pekerjaan harus ditambahkan.')),
+      );
+      return;
+    }
+
+    if (deadline.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tanggal deadline wajib dipilih.')),
       );
       return;
     }
