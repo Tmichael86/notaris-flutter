@@ -67,7 +67,17 @@ class TransactionRepository {
     final year = (date.year % 100).toString().padLeft(2, '0');
     final dateCode = '$day$month$year';
     final rows = await db.select(db.transaksis).get();
-    final sequencePattern = RegExp('^\\d{3}$dateCode(\\d{4})
+    final sequencePattern = RegExp(r'^\\d{3}\\d{6}(\\d{4})$');
+    var maxSequence = 0;
+    for (final row in rows) {
+      final match = sequencePattern.firstMatch(row.noAkta);
+      if (match == null) continue;
+      final sequence = int.tryParse(match.group(1) ?? '') ?? 0;
+      if (sequence > maxSequence) maxSequence = sequence;
+    }
+    final nextSequence = (maxSequence + 1).toString().padLeft(4, '0');
+    return '$typeCode' '00$dateCode$nextSequence';
+  }
 
   Future<List<TransaksiDetail>> watchDetailsOnce(int transactionId) {
     return (db.select(db.transaksiDetails)
