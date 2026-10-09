@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/theme/app_colors.dart';
 import '../core/widgets/searchable_dropdown.dart';
+import '../database/app_database.dart';
+import '../providers/people_provider.dart';
 
 enum TransactionType { notaris, ppat }
 
@@ -157,16 +159,16 @@ class DummyTransaction {
   double get netTotal => totalCost - discount;
 }
 
-class TransactionDesktopScreen extends StatefulWidget {
+class TransactionDesktopScreen extends ConsumerStatefulWidget {
   const TransactionDesktopScreen({super.key});
 
   @override
-  State<TransactionDesktopScreen> createState() =>
+  ConsumerState<TransactionDesktopScreen> createState() =>
       _TransactionDesktopScreenState();
 }
 
 class _TransactionDesktopScreenState
-    extends State<TransactionDesktopScreen> {
+    extends ConsumerState<TransactionDesktopScreen> {
   TransactionType selectedType = TransactionType.notaris;
 
   DummyApplicant? selectedApplicant;
@@ -192,60 +194,8 @@ class _TransactionDesktopScreenState
   final noteController = TextEditingController();
   final materaiController = TextEditingController();
 
-  final applicants = const [
-    DummyApplicant(
-      id: 'A001',
-      nik: '3505225803800002',
-      name: 'Rita Tri Widayah',
-      phone: '081222333444',
-      address:
-          'Dusun Mronjo RT 002/RW 001 Desa Mronjo Kecamatan Selopuro Kabupaten Blitar',
-      gender: 'Perempuan',
-    ),
-    DummyApplicant(
-      id: 'A002',
-      nik: '3505010101000002',
-      name: 'Siti Aminah',
-      phone: '081234567890',
-      address: 'Jl. Diponegoro No. 20, Blitar',
-      gender: 'Perempuan',
-    ),
-    DummyApplicant(
-      id: 'A003',
-      nik: '3505010101000003',
-      name: 'Andi Pratama',
-      phone: '082233445566',
-      address: 'Jl. Sudirman No. 15, Blitar',
-      gender: 'Laki-laki',
-    ),
-  ];
-
-  final officers = const [
-    DummyOfficer(
-      id: 'P001',
-      nik: '3505010101000011',
-      name: 'Rina Wulandari',
-      email: 'rina@notaris.test',
-      phone: '081111222333',
-      gender: 'Perempuan',
-    ),
-    DummyOfficer(
-      id: 'P002',
-      nik: '3505010101000012',
-      name: 'Dimas Saputra',
-      email: 'dimas@notaris.test',
-      phone: '082222333444',
-      gender: 'Laki-laki',
-    ),
-    DummyOfficer(
-      id: 'P003',
-      nik: '3505010101000013',
-      name: 'Sari Anggraini',
-      email: 'sari@notaris.test',
-      phone: '083333444555',
-      gender: 'Perempuan',
-    ),
-  ];
+  List<DummyApplicant> applicants = [];
+  List<DummyOfficer> officers = [];
 
   final notarisCategories = const [
     DummyCategory(id: 'K001', name: 'Akta Jual Beli'),
@@ -2039,6 +1989,37 @@ class _TransactionDesktopScreenState
 
   @override
   Widget build(BuildContext context) {
+    final pemohonAsync = ref.watch(pemohonProvider);
+    final petugasAsync = ref.watch(petugasProvider);
+    final jenisKelaminAsync = ref.watch(jenisKelaminProvider);
+    final genders = {
+      for (final item in jenisKelaminAsync.valueOrNull ?? <JenisKelamin>[])
+        item.id: item.nama,
+    };
+
+    applicants = [
+      for (final item in pemohonAsync.valueOrNull ?? <Pemohon>[])
+        DummyApplicant(
+          id: item.id.toString(),
+          nik: item.nik ?? '',
+          name: item.nama,
+          phone: item.noTelp ?? '',
+          address: item.alamat ?? '',
+          gender: genders[item.jenisKelamin] ?? '',
+        ),
+    ];
+    officers = [
+      for (final item in petugasAsync.valueOrNull ?? <PetugasLocal>[])
+        DummyOfficer(
+          id: item.id.toString(),
+          nik: item.nik ?? '',
+          name: item.nama,
+          email: item.email,
+          phone: item.noTelp ?? '',
+          gender: genders[item.jenisKelamin] ?? '',
+        ),
+    ];
+
     return Stack(
       children: [
         SingleChildScrollView(
