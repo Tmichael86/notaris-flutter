@@ -391,7 +391,7 @@ class _TransactionDesktopScreenState
       (netTotal - currentPayment).clamp(0, double.infinity);
 
   String formatPrice(double value) {
-    return 'Rp ' + _formatCurrencyDigits(value.toStringAsFixed(0));
+    return 'Rp ${_formatCurrencyDigits(value.toStringAsFixed(0))}';
   }
 
   void changeType(TransactionType type) {
@@ -2448,7 +2448,7 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           DropdownButtonFormField<int>(
-                            value: masterItems.any((item) => item.id == selectedMasterJobId)
+                            initialValue: masterItems.any((item) => item.id == selectedMasterJobId)
                                 ? selectedMasterJobId
                                 : null,
                             isExpanded: true,
@@ -2541,7 +2541,7 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<int>(
-                      value: _masterPriceOptions.any((item) => item.id == selectedMasterPriceId)
+                      initialValue: _masterPriceOptions.any((item) => item.id == selectedMasterPriceId)
                           ? selectedMasterPriceId
                           : null,
                       isExpanded: true,
