@@ -580,14 +580,47 @@ class _TransactionDesktopScreenState
         );
 
         final details = await repository.watchDetailsOnce(row.id);
-        final jobs = details.map((detail) {
+        final jobs = <DummyTransactionJob>[];
+        for (final detail in details) {
           final categories = (detail.kategoriSnapshot ?? '')
               .split(',')
               .map((name) => name.trim())
               .where((name) => name.isNotEmpty)
               .map((name) => DummyCategory(id: name, name: name))
               .toList();
-          return DummyTransactionJob(
+
+          // Transaction details store a snapshot of the job and its price,
+          // while the available process checklist is configured in Master.
+          // Rehydrate that checklist from the matching Notaris/PPAT Master
+          // record when a saved transaction is loaded for review or editing.
+          List<DummyProcess> processes = [];
+          if (detail.pekerjaanNotarisId != null) {
+            final aggregate = await ref
+                .read(pekerjaanNotarisRepositoryProvider)
+                .getAggregate(detail.pekerjaanNotarisId!);
+            processes = [
+              for (final item in aggregate?.proses ?? [])
+                DummyProcess(
+                  id: item.id.toString(),
+                  name: item.nama,
+                  status: item.detail,
+                ),
+            ];
+          } else if (detail.pekerjaanPpatId != null) {
+            final aggregate = await ref
+                .read(pekerjaanPpatRepositoryProvider)
+                .getAggregate(detail.pekerjaanPpatId!);
+            processes = [
+              for (final item in aggregate?.proses ?? [])
+                DummyProcess(
+                  id: item.id.toString(),
+                  name: item.nama,
+                  status: item.detail,
+                ),
+            ];
+          }
+
+          jobs.add(DummyTransactionJob(
             id: detail.id.toString(),
             jobCode: 'DB-${detail.id}',
             name: detail.namaPekerjaanSnapshot,
@@ -595,11 +628,11 @@ class _TransactionDesktopScreenState
             estimatedTime: detail.estimasiWaktuSnapshot ?? '-',
             serviceCost: detail.biayaLayanan,
             otherCost: detail.biayaLainnya,
-            processes: const [],
+            processes: processes,
             masterNotarisId: detail.pekerjaanNotarisId,
             masterPpatId: detail.pekerjaanPpatId,
-          );
-        }).toList();
+          ));
+        }
 
         records.add(DummyTransaction(
           id: row.id.toString(),
