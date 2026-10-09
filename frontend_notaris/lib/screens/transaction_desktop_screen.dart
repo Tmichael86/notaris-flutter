@@ -197,6 +197,20 @@ class _TransactionDesktopScreenState
   List<DummyApplicant> applicants = [];
   List<DummyOfficer> officers = [];
 
+  // Temporary fixtures remain only for the legacy transaction search list.
+  // The applicant/officer pickers above are populated from SQLite Master data.
+  final _demoApplicants = const [
+    DummyApplicant(id: 'A001', nik: '3505225803800002', name: 'Rita Tri Widayah', phone: '081222333444', address: 'Dusun Mronjo, Blitar', gender: 'Perempuan'),
+    DummyApplicant(id: 'A002', nik: '3505010101000002', name: 'Siti Aminah', phone: '081234567890', address: 'Jl. Diponegoro No. 20, Blitar', gender: 'Perempuan'),
+    DummyApplicant(id: 'A003', nik: '3505010101000003', name: 'Andi Pratama', phone: '082233445566', address: 'Jl. Sudirman No. 15, Blitar', gender: 'Laki-laki'),
+  ];
+
+  final _demoOfficers = const [
+    DummyOfficer(id: 'P001', nik: '3505010101000011', name: 'Rina Wulandari', email: 'rina@notaris.test', phone: '081111222333', gender: 'Perempuan'),
+    DummyOfficer(id: 'P002', nik: '3505010101000012', name: 'Dimas Saputra', email: 'dimas@notaris.test', phone: '082222333444', gender: 'Laki-laki'),
+    DummyOfficer(id: 'P003', nik: '3505010101000013', name: 'Sari Anggraini', email: 'sari@notaris.test', phone: '083333444555', gender: 'Perempuan'),
+  ];
+
   final notarisCategories = const [
     DummyCategory(id: 'K001', name: 'Akta Jual Beli'),
     DummyCategory(id: 'K002', name: 'Akta Hibah'),
@@ -237,8 +251,8 @@ class _TransactionDesktopScreenState
       id: 'TRX001',
       number: 'NTRX-2026-0001',
       type: TransactionType.notaris,
-      applicant: applicants[0],
-      officer: officers[0],
+      applicant: _demoApplicants[0],
+      officer: _demoOfficers[0],
       jobs: [
         DummyTransactionJob(
           id: 'TJ001',
@@ -267,8 +281,8 @@ class _TransactionDesktopScreenState
       id: 'TRX002',
       number: 'NTRX-2026-0002',
       type: TransactionType.notaris,
-      applicant: applicants[1],
-      officer: officers[1],
+      applicant: _demoApplicants[1],
+      officer: _demoOfficers[1],
       jobs: [
         DummyTransactionJob(
           id: 'TJ002',
@@ -300,8 +314,8 @@ class _TransactionDesktopScreenState
       id: 'TRX003',
       number: 'PTRX-2026-0001',
       type: TransactionType.ppat,
-      applicant: applicants[2],
-      officer: officers[2],
+      applicant: _demoApplicants[2],
+      officer: _demoOfficers[2],
       jobs: [
         DummyTransactionJob(
           id: 'TJ003',
