@@ -131,6 +131,26 @@ return db.transaction(() async {
                 ),
               );
 
+      // A payment entered during transaction creation must also become
+      // an auditable history row. Editing an existing transaction must not
+      // duplicate the same payment on every save.
+      if (id == null && pembayaranSekarang > 0) {
+        await db.into(db.transaksiRiwayatPembayarans).insert(
+          TransaksiRiwayatPembayaransCompanion.insert(
+            uuid: _uuid.v4(),
+            transaksiId: transactionId,
+            tanggalPembayaran: tanggalTransaksi,
+            nominal: pembayaranSekarang,
+            metodePembayaran: Value(metodePembayaran),
+            keterangan: const Value('Pembayaran awal saat transaksi dibuat'),
+            urutanPembayaran: const Value(1),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            isSyncDirty: const Value(true),
+          ),
+        );
+      }
+
       if (id != null) {
         final affected = await (db.update(db.transaksis)
               ..where((t) => t.id.equals(id) & t.deletedAt.isNull()))
@@ -212,36 +232,54 @@ return db.transaction(() async {
     String method = 'Cash',
     String? note,
   }) async {
-    if (amount <= 0) throw ArgumentError('Nominal pembayaran harus lebih dari Rp 0.');
-    final transaction = await findById(transactionId);
-    if (transaction == null) throw StateError('Transaksi tidak ditemukan.');
-    final now = DateTime.now();
-    final history = await getPaymentHistory(transactionId);
-    final id = await db.into(db.transaksiRiwayatPembayarans).insert(
-      TransaksiRiwayatPembayaransCompanion.insert(
-        uuid: _uuid.v4(),
-        transaksiId: transactionId,
-        tanggalPembayaran: paymentDate,
-        nominal: amount,
-        metodePembayaran: Value(method),
-        keterangan: Value(_nullableText(note)),
-        urutanPembayaran: Value(history.length + 1),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        isSyncDirty: const Value(true),
-      ),
-    );
-    final updatedHistory = await getPaymentHistory(transactionId);
-    final paid = updatedHistory.fold<double>(0, (sum, item) => sum + item.nominal);
-    await (db.update(db.transaksis)..where((t) => t.id.equals(transactionId))).write(
-      TransaksisCompanion(
-        pembayaranSekarang: Value(paid),
-        metodePembayaran: Value(method),
-        updatedAt: Value(now),
-        isSyncDirty: const Value(true),
-      ),
-    );
-    return id;
+    if (amount <= 0) {
+      throw ArgumentError('Nominal pembayaran harus lebih dari Rp 0.');
+    }
+
+    return db.transaction(() async {
+      final transaction = await findById(transactionId);
+      if (transaction == null) {
+        throw StateError('Transaksi tidak ditemukan.');
+      }
+
+      final history = await getPaymentHistory(transactionId);
+      final paid = history.fold<double>(0, (sum, item) => sum + item.nominal);
+      if (paid + amount > transaction.total) {
+        throw ArgumentError(
+          'Nominal pembayaran melebihi sisa tagihan '
+          'Rp ${(transaction.total - paid).clamp(0, double.infinity).toStringAsFixed(0)}.',
+        );
+      }
+
+      final now = DateTime.now();
+      final paymentId = await db.into(db.transaksiRiwayatPembayarans).insert(
+        TransaksiRiwayatPembayaransCompanion.insert(
+          uuid: _uuid.v4(),
+          transaksiId: transactionId,
+          tanggalPembayaran: paymentDate,
+          nominal: amount,
+          metodePembayaran: Value(method),
+          keterangan: Value(_nullableText(note)),
+          urutanPembayaran: Value(history.length + 1),
+          createdAt: Value(now),
+          updatedAt: Value(now),
+          isSyncDirty: const Value(true),
+        ),
+      );
+
+      await (db.update(db.transaksis)
+            ..where((t) => t.id.equals(transactionId)))
+          .write(
+        TransaksisCompanion(
+          pembayaranSekarang: Value(paid + amount),
+          metodePembayaran: Value(method),
+          updatedAt: Value(now),
+          isSyncDirty: const Value(true),
+        ),
+      );
+
+      return paymentId;
+    });
   }
 
   Future<bool> deletePayment(int paymentId) async {
