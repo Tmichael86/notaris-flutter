@@ -2225,7 +2225,9 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
         });
         return;
       }
-      final categoryData = ref.read(pekerjaanKategoriProvider).valueOrNull ?? [];
+      // Wait for Master categories to finish loading before mapping price rows.
+      // Reading valueOrNull here could return an empty list on the first selection.
+      final categoryData = await ref.read(pekerjaanKategoriProvider.future);
       final categoryNames = {for (final item in categoryData) item.id: item.nama};
       final priceOptions = [
         for (final item in aggregate.harga)
