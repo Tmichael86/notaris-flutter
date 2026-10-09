@@ -196,6 +196,80 @@ return db.transaction(() async {
     });
   }
 
+  /// Returns active payment history entries ordered by payment date.
+  Future<List<TransaksiRiwayatPembayaran>> getPaymentHistory(int transactionId) {
+    return (db.select(db.transaksiRiwayatPembayarans)
+          ..where((p) => p.transaksiId.equals(transactionId) & p.deletedAt.isNull() & p.status.equals(1))
+          ..orderBy([(p) => OrderingTerm.asc(p.tanggalPembayaran), (p) => OrderingTerm.asc(p.urutanPembayaran)]))
+        .get();
+  }
+
+  /// Adds an installment as its own auditable record.
+  Future<int> addPayment({
+    required int transactionId,
+    required DateTime paymentDate,
+    required double amount,
+    String method = 'Cash',
+    String? note,
+  }) async {
+    if (amount <= 0) throw ArgumentError('Nominal pembayaran harus lebih dari Rp 0.');
+    final transaction = await findById(transactionId);
+    if (transaction == null) throw StateError('Transaksi tidak ditemukan.');
+    final now = DateTime.now();
+    final history = await getPaymentHistory(transactionId);
+    final id = await db.into(db.transaksiRiwayatPembayarans).insert(
+      TransaksiRiwayatPembayaransCompanion.insert(
+        uuid: _uuid.v4(),
+        transaksiId: transactionId,
+        tanggalPembayaran: paymentDate,
+        nominal: amount,
+        metodePembayaran: Value(method),
+        keterangan: Value(_nullableText(note)),
+        urutanPembayaran: Value(history.length + 1),
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        isSyncDirty: const Value(true),
+      ),
+    );
+    final updatedHistory = await getPaymentHistory(transactionId);
+    final paid = updatedHistory.fold<double>(0, (sum, item) => sum + item.nominal);
+    await (db.update(db.transaksis)..where((t) => t.id.equals(transactionId))).write(
+      TransaksisCompanion(
+        pembayaranSekarang: Value(paid),
+        metodePembayaran: Value(method),
+        updatedAt: Value(now),
+        isSyncDirty: const Value(true),
+      ),
+    );
+    return id;
+  }
+
+  Future<bool> deletePayment(int paymentId) async {
+    final payment = await (db.select(db.transaksiRiwayatPembayarans)
+          ..where((p) => p.id.equals(paymentId) & p.deletedAt.isNull()))
+        .getSingleOrNull();
+    if (payment == null) return false;
+    final now = DateTime.now();
+    await (db.update(db.transaksiRiwayatPembayarans)..where((p) => p.id.equals(paymentId))).write(
+      TransaksiRiwayatPembayaransCompanion(
+        status: const Value(0),
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+        isSyncDirty: const Value(true),
+      ),
+    );
+    final history = await getPaymentHistory(payment.transaksiId);
+    final paid = history.fold<double>(0, (sum, item) => sum + item.nominal);
+    await (db.update(db.transaksis)..where((t) => t.id.equals(payment.transaksiId))).write(
+      TransaksisCompanion(
+        pembayaranSekarang: Value(paid),
+        updatedAt: Value(now),
+        isSyncDirty: const Value(true),
+      ),
+    );
+    return true;
+  }
+
   Future<bool> delete(int id) async {
     final now = DateTime.now();
     return db.transaction(() async {
