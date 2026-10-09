@@ -6,7 +6,6 @@ import '../core/widgets/searchable_dropdown.dart';
 import '../database/app_database.dart';
 import '../providers/people_provider.dart';
 import '../providers/pekerjaan_provider.dart';
-import '../repositories/pekerjaan_repository.dart';
 
 enum TransactionType { notaris, ppat }
 
