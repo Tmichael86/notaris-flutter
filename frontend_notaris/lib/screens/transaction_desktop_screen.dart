@@ -531,20 +531,117 @@ class _TransactionDesktopScreenState
   }
 
   Future<void> showTransactionSearchDialog() async {
-    final filtered =
-        transactions.where((item) => item.type == selectedType).toList();
+    final repository = ref.read(transactionRepositoryProvider);
+    final database = repository.db;
+    final jenis = selectedType == TransactionType.notaris ? 'notaris' : 'ppat';
 
-    final result = await showDialog<DummyTransaction>(
-      context: context,
-      builder: (dialogContext) => _TransactionSearchDialog(
-        title: 'Cari Transaksi ${typeLabel(selectedType)}',
-        transactions: filtered,
-        formatPrice: formatPrice,
-      ),
-    );
+    try {
+      final rows = await (database.select(database.transaksis)
+            ..where((t) =>
+                t.deletedAt.isNull() & t.jenisTransaksi.equals(jenis))
+            ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+          .get();
 
-    if (result != null) {
-      loadTransaction(result);
+      final records = <DummyTransaction>[];
+      for (final row in rows) {
+        final applicantRow = row.pemohonId == null
+            ? null
+            : await (database.select(database.pemohons)
+                  ..where((p) =>
+                      p.id.equals(row.pemohonId!) & p.deletedAt.isNull()))
+                .getSingleOrNull();
+        final officerRow = row.petugasId == null
+            ? null
+            : await (database.select(database.petugasLocals)
+                  ..where((p) =>
+                      p.id.equals(row.petugasId!) & p.deletedAt.isNull()))
+                .getSingleOrNull();
+
+        final applicant = DummyApplicant(
+          id: applicantRow?.id.toString() ?? '',
+          localId: applicantRow?.id,
+          uuid: applicantRow?.uuid,
+          nik: applicantRow?.nik ?? '',
+          name: applicantRow?.nama ?? '(Pemohon tidak ditemukan)',
+          phone: applicantRow?.noTelp ?? '',
+          address: applicantRow?.alamat ?? '',
+          gender: '',
+        );
+        final officer = DummyOfficer(
+          id: officerRow?.id.toString() ?? '',
+          localId: officerRow?.id,
+          uuid: officerRow?.uuid,
+          nik: officerRow?.nik ?? '',
+          name: officerRow?.nama ?? '(Petugas tidak ditemukan)',
+          email: officerRow?.email ?? '',
+          phone: officerRow?.noTelp ?? '',
+          gender: '',
+        );
+
+        final details = await repository.watchDetailsOnce(row.id);
+        final jobs = details.map((detail) {
+          final categories = (detail.kategoriSnapshot ?? '')
+              .split(',')
+              .map((name) => name.trim())
+              .where((name) => name.isNotEmpty)
+              .map((name) => DummyCategory(id: name, name: name))
+              .toList();
+          return DummyTransactionJob(
+            id: detail.id.toString(),
+            jobCode: 'DB-${detail.id}',
+            name: detail.namaPekerjaanSnapshot,
+            categories: categories,
+            estimatedTime: detail.estimasiWaktuSnapshot ?? '-',
+            serviceCost: detail.biayaLayanan,
+            otherCost: detail.biayaLainnya,
+            processes: const [],
+            masterNotarisId: detail.pekerjaanNotarisId,
+            masterPpatId: detail.pekerjaanPpatId,
+          );
+        }).toList();
+
+        records.add(DummyTransaction(
+          id: row.id.toString(),
+          number: row.noAkta,
+          type: row.jenisTransaksi == 'ppat'
+              ? TransactionType.ppat
+              : TransactionType.notaris,
+          applicant: applicant,
+          officer: officer,
+          jobs: jobs,
+          registrationDate: row.tanggalTransaksi == null
+              ? '-'
+              : _formatTransactionDate(row.tanggalTransaksi!),
+          deadline: row.tanggalJatuhTempo == null
+              ? ''
+              : _formatTransactionDate(row.tanggalJatuhTempo!),
+          status: row.statusTransaksi,
+          materai: row.jumlahMaterai,
+          paymentType: row.metodePembayaran,
+          discount: row.diskon,
+          currentPayment: row.pembayaranSekarang,
+          note: row.catatan ?? '',
+        ));
+      }
+
+      if (!mounted) return;
+      final result = await showDialog<DummyTransaction>(
+        context: context,
+        builder: (dialogContext) => _TransactionSearchDialog(
+          title: 'Cari Transaksi ${typeLabel(selectedType)}',
+          transactions: records,
+          formatPrice: formatPrice,
+        ),
+      );
+
+      if (result != null && mounted) {
+        loadTransaction(result);
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat transaksi dari SQLite: $error')),
+      );
     }
   }
 
