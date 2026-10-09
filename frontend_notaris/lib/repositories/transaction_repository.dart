@@ -152,6 +152,11 @@ return db.transaction(() async {
       }
 
       if (id != null) {
+        final existingPayments = await getPaymentHistory(id);
+        final totalPaid = existingPayments.fold<double>(
+          0,
+          (sum, payment) => sum + payment.nominal,
+        );
         final affected = await (db.update(db.transaksis)
               ..where((t) => t.id.equals(id) & t.deletedAt.isNull()))
             .write(
@@ -167,7 +172,7 @@ return db.transaction(() async {
             tanggalTransaksi: Value(tanggalTransaksi),
             tanggalJatuhTempo: Value(tanggalJatuhTempo),
             diskon: Value(diskon),
-            pembayaranSekarang: Value(pembayaranSekarang),
+            pembayaranSekarang: Value(totalPaid),
             metodePembayaran: Value(metodePembayaran),
             jumlahMaterai: Value(jumlahMaterai),
             catatan: Value(_nullableText(catatan)),

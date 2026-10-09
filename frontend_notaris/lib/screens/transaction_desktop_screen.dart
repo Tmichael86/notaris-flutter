@@ -6,6 +6,8 @@ import '../core/widgets/searchable_dropdown.dart';
 import '../database/app_database.dart';
 import '../providers/people_provider.dart';
 import '../providers/pekerjaan_provider.dart';
+import '../providers/transaction_provider.dart';
+import '../repositories/transaction_repository.dart';
 
 enum TransactionType { notaris, ppat }
 
@@ -72,6 +74,8 @@ class DummyProcess {
 
 class DummyApplicant {
   final String id, nik, name, phone, address, gender;
+  final int? localId;
+  final String? uuid;
 
   const DummyApplicant({
     required this.id,
@@ -80,11 +84,15 @@ class DummyApplicant {
     required this.phone,
     required this.address,
     required this.gender,
+    this.localId,
+    this.uuid,
   });
 }
 
 class DummyOfficer {
   final String id, nik, name, email, phone, gender;
+  final int? localId;
+  final String? uuid;
 
   const DummyOfficer({
     required this.id,
@@ -93,6 +101,8 @@ class DummyOfficer {
     required this.email,
     required this.phone,
     required this.gender,
+    this.localId,
+    this.uuid,
   });
 }
 
@@ -1337,59 +1347,84 @@ class _TransactionDesktopScreenState
       return;
     }
 
+    final applicant = selectedApplicant!;
+    final officer = selectedOfficer!;
+    if (applicant.localId == null || applicant.uuid == null ||
+        officer.localId == null || officer.uuid == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pemohon dan petugas harus dipilih dari Master lokal.'),
+        ),
+      );
+      return;
+    }
+
+    DateTime parseDate(String value) {
+      final parts = value.split('/');
+      if (parts.length != 3) {
+        throw FormatException('Format tanggal tidak valid: $value');
+      }
+      return DateTime(
+        int.parse(parts[2]),
+        int.parse(parts[1]),
+        int.parse(parts[0]),
+      );
+    }
+
     setState(() => _isSaving = true);
-
-    // Prototype persistence layer. Saat Drift masuk, method ini akan
-    // memanggil repository yang sama tanpa mengubah workflow UI.
-    await Future<void>.delayed(const Duration(milliseconds: 700));
-
-    final transaction = DummyTransaction(
-      id: _editingTransactionId ?? 'TRX-${DateTime.now().millisecondsSinceEpoch}',
-      number: transactionNumber,
-      type: selectedType,
-      applicant: selectedApplicant!,
-      officer: selectedOfficer!,
-      jobs: List.unmodifiable(selectedJobs),
-      registrationDate: registrationDate,
-      deadline: deadline,
-      status: transactionStatus,
-      materai: materai,
-      paymentType: paymentType,
-      discount: discount,
-      currentPayment: currentPayment,
-      note: note,
-    );
-
-    if (!mounted) return;
-
     final isEditing = _editingTransactionId != null;
 
-    setState(() {
-      if (isEditing) {
-        final index = transactions.indexWhere(
-          (item) => item.id == _editingTransactionId,
-        );
-        if (index >= 0) {
-          transactions[index] = transaction;
-        } else {
-          transactions.add(transaction);
-        }
-      } else {
-        transactions.add(transaction);
-        _editingTransactionId = transaction.id;
-      }
-      _isSaving = false;
-    });
+    try {
+      final savedId = await ref.read(transactionControllerProvider.notifier).save(
+        id: _editingTransactionId == null ? null : int.tryParse(_editingTransactionId!),
+        nomorTransaksi: transactionNumber,
+        jenisTransaksi: selectedType == TransactionType.notaris ? 'notaris' : 'ppat',
+        pemohonId: applicant.localId!,
+        pemohonUuid: applicant.uuid!,
+        petugasId: officer.localId!,
+        petugasUuid: officer.uuid!,
+        status: transactionStatus,
+        tanggalTransaksi: parseDate(registrationDate),
+        tanggalJatuhTempo: deadline.trim().isEmpty ? null : parseDate(deadline),
+        jobs: selectedJobs.map((job) => TransactionJobInput(
+          jenisPekerjaan: selectedType == TransactionType.notaris ? 'notaris' : 'ppat',
+          namaPekerjaan: job.name,
+          pekerjaanNotarisId: job.masterNotarisId,
+          pekerjaanPpatId: job.masterPpatId,
+          kategoriSnapshot: job.categories.map((category) => category.name).join(', '),
+          estimasiWaktuSnapshot: job.estimatedTime,
+          biayaLayanan: job.serviceCost,
+          biayaLainnya: job.otherCost,
+        )).toList(),
+        diskon: discount,
+        pembayaranSekarang: isEditing ? 0 : currentPayment,
+        metodePembayaran: paymentType,
+        jumlahMaterai: materai,
+        catatan: note,
+      );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          isEditing
-              ? 'Transaksi ${transaction.number} berhasil diperbarui.'
-              : 'Transaksi ${transaction.number} berhasil dibuat.',
+      if (!mounted) return;
+      setState(() {
+        _editingTransactionId = savedId.toString();
+        _isSaving = false;
+      });
+      ref.invalidate(transactionsProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEditing
+                ? 'Transaksi $transactionNumber berhasil diperbarui.'
+                : 'Transaksi $transactionNumber berhasil disimpan ke SQLite.',
+          ),
         ),
-      ),
-    );
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyimpan transaksi: $error')),
+      );
+    }
   }
 
   Widget bottomActions({required bool mobile}) {
@@ -2030,6 +2065,8 @@ class _TransactionDesktopScreenState
           phone: item.noTelp ?? '',
           address: item.alamat ?? '',
           gender: genders[item.jenisKelamin] ?? '',
+          localId: item.id,
+          uuid: item.uuid,
         ),
     ];
     officers = [
@@ -2041,6 +2078,8 @@ class _TransactionDesktopScreenState
           email: item.email,
           phone: item.noTelp ?? '',
           gender: genders[item.jenisKelamin] ?? '',
+          localId: item.id,
+          uuid: item.uuid,
         ),
     ];
 
