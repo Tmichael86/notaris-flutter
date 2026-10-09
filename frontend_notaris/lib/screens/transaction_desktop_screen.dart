@@ -5,6 +5,8 @@ import '../core/theme/app_colors.dart';
 import '../core/widgets/searchable_dropdown.dart';
 import '../database/app_database.dart';
 import '../providers/people_provider.dart';
+import '../providers/pekerjaan_provider.dart';
+import '../repositories/pekerjaan_repository.dart';
 
 enum TransactionType { notaris, ppat }
 
@@ -106,6 +108,8 @@ class DummyTransactionJob {
   final double serviceCost;
   final double otherCost;
   final List<DummyProcess> processes;
+  final int? masterNotarisId;
+  final int? masterPpatId;
 
   const DummyTransactionJob({
     required this.id,
@@ -116,6 +120,8 @@ class DummyTransactionJob {
     required this.serviceCost,
     required this.otherCost,
     required this.processes,
+    this.masterNotarisId,
+    this.masterPpatId,
   });
 
   double get totalCost => serviceCost + otherCost;
@@ -2122,7 +2128,7 @@ class _TransactionLoadingOverlay extends StatelessWidget {
   }
 }
 
-class _TransactionJobDialog extends StatefulWidget {
+class _TransactionJobDialog extends ConsumerStatefulWidget {
   final TransactionType type;
   final List<DummyCategory> categories;
   final List<DummyProcess> processes;
@@ -2136,10 +2142,10 @@ class _TransactionJobDialog extends StatefulWidget {
   });
 
   @override
-  State<_TransactionJobDialog> createState() => _TransactionJobDialogState();
+  ConsumerState<_TransactionJobDialog> createState() => _TransactionJobDialogState();
 }
 
-class _TransactionJobDialogState extends State<_TransactionJobDialog> {
+class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
   late final TextEditingController nameController;
   late final TextEditingController codeController;
   late final TextEditingController estimatedController;
@@ -2148,6 +2154,9 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
 
   late List<DummyCategory> selectedCategories;
   late List<DummyProcess> selectedProcesses;
+  int? selectedMasterJobId;
+  bool _loadingMasterDetails = false;
+  String? _masterLoadError;
 
   @override
   void initState() {
@@ -2177,6 +2186,61 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
 
     selectedCategories = List.from(job?.categories ?? const []);
     selectedProcesses = List.from(job?.processes ?? const []);
+    selectedMasterJobId = widget.type == TransactionType.notaris
+        ? job?.masterNotarisId
+        : job?.masterPpatId;
+  }
+
+  Future<void> _selectMasterJob(int? id) async {
+    if (id == null) return;
+    setState(() {
+      selectedMasterJobId = id;
+      _loadingMasterDetails = true;
+      _masterLoadError = null;
+    });
+    try {
+      final aggregate = widget.type == TransactionType.notaris
+          ? await ref.read(pekerjaanNotarisRepositoryProvider).getAggregate(id)
+          : await ref.read(pekerjaanPpatRepositoryProvider).getAggregate(id);
+      if (!mounted) return;
+      if (aggregate == null) {
+        setState(() {
+          _loadingMasterDetails = false;
+          _masterLoadError = 'Detail pekerjaan tidak ditemukan di Master.';
+        });
+        return;
+      }
+      final categoryData = ref.read(pekerjaanKategoriProvider).valueOrNull ?? [];
+      final categoryNames = {for (final item in categoryData) item.id: item.nama};
+      setState(() {
+        nameController.text = aggregate.nama;
+        codeController.text = '${widget.type == TransactionType.notaris ? 'N' : 'P'}-${aggregate.id}';
+        final firstPrice = aggregate.harga.isEmpty ? null : aggregate.harga.first;
+        estimatedController.text = firstPrice?.estimasiWaktu ?? '';
+        serviceCostController.text = firstPrice == null
+            ? ''
+            : _formatCurrencyDigits(_parseCurrency(firstPrice.harga).toStringAsFixed(0));
+        selectedCategories = [
+          for (final item in aggregate.harga)
+            if (categoryNames.containsKey(item.kategoriPekerjaanId))
+              DummyCategory(
+                id: item.kategoriPekerjaanId.toString(),
+                name: categoryNames[item.kategoriPekerjaanId]!,
+              ),
+        ];
+        selectedProcesses = [
+          for (final item in aggregate.proses)
+            DummyProcess(id: item.id.toString(), name: item.nama, status: item.detail),
+        ];
+        _loadingMasterDetails = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadingMasterDetails = false;
+        _masterLoadError = 'Gagal memuat detail Master: $error';
+      });
+    }
   }
 
   InputDecoration decoration({
@@ -2274,6 +2338,8 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
       serviceCost: _parseCurrency(serviceCostController.text),
       otherCost: _parseCurrency(otherCostController.text),
       processes: List.from(selectedProcesses),
+      masterNotarisId: widget.type == TransactionType.notaris ? selectedMasterJobId : null,
+      masterPpatId: widget.type == TransactionType.ppat ? selectedMasterJobId : null,
     );
 
     Navigator.pop(context, result);
@@ -2334,6 +2400,63 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    const _DialogSectionTitle(
+                      title: 'Pilih dari Master Pekerjaan',
+                    ),
+                    const SizedBox(height: 12),
+                    Builder(builder: (context) {
+                      final masterAsync = widget.type == TransactionType.notaris
+                          ? ref.watch(pekerjaanNotarisProvider)
+                          : ref.watch(pekerjaanPpatProvider);
+                      final masterItems = widget.type == TransactionType.notaris
+                          ? (ref.watch(pekerjaanNotarisProvider).valueOrNull ?? [])
+                              .map((item) => (id: item.id, name: item.nama))
+                              .toList()
+                          : (ref.watch(pekerjaanPpatProvider).valueOrNull ?? [])
+                              .map((item) => (id: item.id, name: item.nama))
+                              .toList();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          DropdownButtonFormField<int>(
+                            value: masterItems.any((item) => item.id == selectedMasterJobId)
+                                ? selectedMasterJobId
+                                : null,
+                            isExpanded: true,
+                            decoration: decoration(
+                              label: 'Pekerjaan ${widget.type == TransactionType.notaris ? 'Notaris' : 'PPAT'}',
+                              hint: masterAsync.isLoading ? 'Memuat data Master...' : 'Pilih pekerjaan dari Master',
+                            ),
+                            items: [
+                              for (final item in masterItems)
+                                DropdownMenuItem<int>(
+                                  value: item.id,
+                                  child: Text(item.name, overflow: TextOverflow.ellipsis),
+                                ),
+                            ],
+                            onChanged: _loadingMasterDetails ? null : _selectMasterJob,
+                          ),
+                          if (masterAsync.hasError)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text('Gagal memuat Master: ${masterAsync.error}',
+                                  style: const TextStyle(color: AppColors.danger, fontSize: 12)),
+                            ),
+                          if (_loadingMasterDetails)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 8),
+                              child: LinearProgressIndicator(minHeight: 2),
+                            ),
+                          if (_masterLoadError != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(_masterLoadError!,
+                                  style: const TextStyle(color: AppColors.danger, fontSize: 12)),
+                            ),
+                        ],
+                      );
+                    }),
+                    const SizedBox(height: 20),
                     const _DialogSectionTitle(
                       title: 'Informasi Pekerjaan',
                     ),
