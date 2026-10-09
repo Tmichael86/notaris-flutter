@@ -92,12 +92,34 @@ class TransaksiDetails extends Table {
   DateTimeColumn get deletedAt => dateTime().nullable()();
 }
 
+/// Individual payment records. Each installment is stored independently.
+class TransaksiRiwayatPembayarans extends Table {
+  @override
+  String get tableName => 'transaksi_riwayat_pembayaran';
+
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get uuid => text().unique()();
+  IntColumn get transaksiId => integer().references(Transaksis, #id)();
+  DateTimeColumn get tanggalPembayaran => dateTime()();
+  RealColumn get nominal => real()();
+  TextColumn get metodePembayaran => text().withDefault(const Constant('Cash'))();
+  TextColumn get keterangan => text().nullable()();
+  IntColumn get urutanPembayaran => integer().withDefault(const Constant(1))();
+  IntColumn get status => integer().withDefault(const Constant(1))();
+  DateTimeColumn get createdAt => dateTime().nullable()();
+  DateTimeColumn get updatedAt => dateTime().nullable()();
+  DateTimeColumn get deletedAt => dateTime().nullable()();
+  BoolColumn get isSyncDirty => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get lastSyncedAt => dateTime().nullable()();
+}
+
 @DriftDatabase(
   daos: [PekerjaanDao],
   tables: [
     Pemohons,
     Transaksis,
     TransaksiDetails,
+    TransaksiRiwayatPembayarans,
     JenisKelamins,
     PekerjaanKategoris,
     PengeluaranJenis,
@@ -116,7 +138,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -165,6 +187,9 @@ class AppDatabase extends _$AppDatabase {
             await m.addColumn(transaksis, transaksis.catatan);
             await m.addColumn(transaksis, transaksis.createdAt);
             await m.createTable(transaksiDetails);
+          }
+          if (from < 5) {
+            await m.createTable(transaksiRiwayatPembayarans);
           }
         },
       );
