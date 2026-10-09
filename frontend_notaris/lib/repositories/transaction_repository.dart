@@ -67,7 +67,7 @@ class TransactionRepository {
     final year = (date.year % 100).toString().padLeft(2, '0');
     final dateCode = '$day$month$year';
     final rows = await db.select(db.transaksis).get();
-    final sequencePattern = RegExp(r'^\\d{3}\\d{6}(\\d{4})$');
+    final sequencePattern = RegExp(r'^\d{3}\d{6}(\d{4})$');
     var maxSequence = 0;
     for (final row in rows) {
       final match = sequencePattern.firstMatch(row.noAkta);
