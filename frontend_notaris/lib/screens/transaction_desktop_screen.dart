@@ -1585,7 +1585,9 @@ class _TransactionDesktopScreenState
       ),
     );
 
-    // Give Flutter a frame to paint the modal before starting the save.
+    // Let the root navigator mount and paint the modal before SQLite work starts.
+    // A zero-duration frame wait can still race the route transition on Windows.
+    await Future<void>.delayed(const Duration(milliseconds: 120));
     await WidgetsBinding.instance.endOfFrame;
 
     try {
