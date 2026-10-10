@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -589,12 +591,34 @@ class _TransactionDesktopScreenState
               .map((name) => DummyCategory(id: name, name: name))
               .toList();
 
-          // Transaction details store a snapshot of the job and its price,
-          // while the available process checklist is configured in Master.
-          // Rehydrate that checklist from the matching Notaris/PPAT Master
-          // record when a saved transaction is loaded for review or editing.
+          // Prefer the transaction's own process snapshot. This preserves
+          // processes added manually from the transaction form even when the
+          // corresponding Master job has no configured process checklist.
           List<DummyProcess> processes = [];
-          if (detail.pekerjaanNotarisId != null) {
+          final savedProcesses = detail.prosesSnapshot;
+          if (savedProcesses != null && savedProcesses.trim().isNotEmpty) {
+            try {
+              final decoded = jsonDecode(savedProcesses) as List<dynamic>;
+              processes = [
+                for (final value in decoded)
+                  if (value is Map<String, dynamic>)
+                    DummyProcess(
+                      id: value['id']?.toString() ?? '',
+                      name: value['name']?.toString() ?? '',
+                      status: value['status']?.toString() ?? 'Belum Valid',
+                    ),
+              ];
+            } on FormatException {
+              // Fall back to Master for legacy/corrupted snapshots.
+              processes = [];
+            } on TypeError {
+              processes = [];
+            }
+          }
+
+          // Existing transactions created before schema v6 have no snapshot,
+          // so retain the old Master-based fallback for those records.
+          if (processes.isEmpty && detail.pekerjaanNotarisId != null) {
             final aggregate = await ref
                 .read(pekerjaanNotarisRepositoryProvider)
                 .getAggregate(detail.pekerjaanNotarisId!);
@@ -606,7 +630,7 @@ class _TransactionDesktopScreenState
                   status: item.detail,
                 ),
             ];
-          } else if (detail.pekerjaanPpatId != null) {
+          } else if (processes.isEmpty && detail.pekerjaanPpatId != null) {
             final aggregate = await ref
                 .read(pekerjaanPpatRepositoryProvider)
                 .getAggregate(detail.pekerjaanPpatId!);
@@ -1642,6 +1666,11 @@ class _TransactionDesktopScreenState
           pekerjaanPpatId: job.masterPpatId,
           kategoriSnapshot: job.categories.map((category) => category.name).join(', '),
           estimasiWaktuSnapshot: job.estimatedTime,
+          prosesSnapshot: jsonEncode(job.processes.map((process) => {
+            'id': process.id,
+            'name': process.name,
+            'status': process.status,
+          }).toList()),
           biayaLayanan: job.serviceCost,
           biayaLainnya: job.otherCost,
         )).toList(),
