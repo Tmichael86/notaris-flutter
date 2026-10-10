@@ -128,7 +128,7 @@ class DummyTransactionJob {
   final int? masterPriceId;
   final int? masterCategoryId;
   /// Stable local detail UUID; null for a newly added job.
-  final String? localDetailUuid;
+  final String localDetailUuid;
 
   DummyTransactionJob({
     required this.id,
