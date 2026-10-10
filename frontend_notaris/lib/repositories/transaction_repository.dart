@@ -15,6 +15,7 @@ class TransactionJobInput {
     this.kategoriSnapshot,
     this.estimasiWaktuSnapshot,
     this.prosesSnapshot,
+    this.detailUuid,
   });
 
   /// Must be either 'notaris' or 'ppat'.
@@ -26,6 +27,9 @@ class TransactionJobInput {
   final String? estimasiWaktuSnapshot;
   /// JSON snapshot of the selected process checklist for this transaction job.
   final String? prosesSnapshot;
+  /// Existing detail UUID to preserve when editing a transaction.
+  /// Null means this is a newly added job.
+  final String? detailUuid;
   final double biayaLayanan;
   final double biayaLainnya;
 
@@ -217,9 +221,35 @@ return db.transaction(() async {
           throw StateError('Transaksi tidak ditemukan atau sudah dihapus.');
         }
 
+        // Do not replace every detail row on edit. Stable detail UUIDs are
+        // required so process-level validation state can remain attached to
+        // the same job across ordinary transaction edits.
+
+      }
+
+      final existingDetails = id == null
+          ? <TransaksiDetail>[]
+          : await (db.select(db.transaksiDetails)
+                ..where((t) =>
+                    t.transaksiId.equals(transactionId) &
+                    t.deletedAt.isNull() &
+                    t.status.equals(1)))
+              .get();
+      final existingByUuid = {
+        for (final detail in existingDetails) detail.uuid: detail,
+      };
+      final retainedUuids = jobs
+          .map((job) => job.detailUuid)
+          .whereType<String>()
+          .toSet();
+
+      // Only soft-delete jobs explicitly removed from the edited form.
+      final removedUuids = existingByUuid.keys
+          .where((uuid) => !retainedUuids.contains(uuid))
+          .toList();
+      if (removedUuids.isNotEmpty) {
         await (db.update(db.transaksiDetails)
-              ..where((t) =>
-                  t.transaksiId.equals(id) & t.deletedAt.isNull()))
+              ..where((t) => t.uuid.isIn(removedUuids)))
             .write(
           TransaksiDetailsCompanion(
             status: const Value(0),
@@ -231,25 +261,52 @@ return db.transaction(() async {
       }
 
       for (final job in jobs) {
-        await db.into(db.transaksiDetails).insert(
-              TransaksiDetailsCompanion.insert(
-                uuid: _uuid.v4(),
-                transaksiId: transactionId,
-                jenisPekerjaan: job.jenisPekerjaan,
-                pekerjaanNotarisId: Value(job.pekerjaanNotarisId),
-                pekerjaanPpatId: Value(job.pekerjaanPpatId),
-                namaPekerjaanSnapshot: job.namaPekerjaan,
-                kategoriSnapshot: Value(job.kategoriSnapshot),
-                estimasiWaktuSnapshot: Value(job.estimasiWaktuSnapshot),
-                prosesSnapshot: Value(job.prosesSnapshot),
-                biayaLayanan: Value(job.biayaLayanan),
-                biayaLainnya: Value(job.biayaLainnya),
-                totalSnapshot: Value(job.total),
-                createdAt: Value(now),
-                updatedAt: Value(now),
-                isSyncDirty: const Value(true),
-              ),
-            );
+        final existing = job.detailUuid == null
+            ? null
+            : existingByUuid[job.detailUuid];
+        if (existing != null) {
+          await (db.update(db.transaksiDetails)
+                ..where((t) =>
+                    t.uuid.equals(existing.uuid) &
+                    t.transaksiId.equals(transactionId) &
+                    t.deletedAt.isNull()))
+              .write(
+            TransaksiDetailsCompanion(
+              jenisPekerjaan: Value(job.jenisPekerjaan),
+              pekerjaanNotarisId: Value(job.pekerjaanNotarisId),
+              pekerjaanPpatId: Value(job.pekerjaanPpatId),
+              namaPekerjaanSnapshot: Value(job.namaPekerjaan),
+              kategoriSnapshot: Value(job.kategoriSnapshot),
+              estimasiWaktuSnapshot: Value(job.estimasiWaktuSnapshot),
+              prosesSnapshot: Value(job.prosesSnapshot),
+              biayaLayanan: Value(job.biayaLayanan),
+              biayaLainnya: Value(job.biayaLainnya),
+              totalSnapshot: Value(job.total),
+              updatedAt: Value(now),
+              isSyncDirty: const Value(true),
+            ),
+          );
+        } else {
+          await db.into(db.transaksiDetails).insert(
+                TransaksiDetailsCompanion.insert(
+                  uuid: _uuid.v4(),
+                  transaksiId: transactionId,
+                  jenisPekerjaan: job.jenisPekerjaan,
+                  pekerjaanNotarisId: Value(job.pekerjaanNotarisId),
+                  pekerjaanPpatId: Value(job.pekerjaanPpatId),
+                  namaPekerjaanSnapshot: job.namaPekerjaan,
+                  kategoriSnapshot: Value(job.kategoriSnapshot),
+                  estimasiWaktuSnapshot: Value(job.estimasiWaktuSnapshot),
+                  prosesSnapshot: Value(job.prosesSnapshot),
+                  biayaLayanan: Value(job.biayaLayanan),
+                  biayaLainnya: Value(job.biayaLainnya),
+                  totalSnapshot: Value(job.total),
+                  createdAt: Value(now),
+                  updatedAt: Value(now),
+                  isSyncDirty: const Value(true),
+                ),
+              );
+        }
       }
       return transactionId;
     });
