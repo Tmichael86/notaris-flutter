@@ -2475,6 +2475,12 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
 
   Future<void> _selectMasterJob(int? id) async {
     if (id == null) return;
+    final originalMasterId = widget.type == TransactionType.notaris
+        ? widget.initialJob?.masterNotarisId
+        : widget.initialJob?.masterPpatId;
+    final preserveSavedProcesses =
+        widget.initialJob != null && id == originalMasterId;
+    final savedProcesses = List<DummyProcess>.from(selectedProcesses);
     setState(() {
       selectedMasterJobId = id;
       selectedMasterPriceId = null;
@@ -2527,10 +2533,16 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
         serviceCostController.text = currentPrice == null
             ? ''
             : _formatCurrencyDigits(_parseCurrency(currentPrice.price).toStringAsFixed(0));
-        selectedProcesses = [
-          for (final item in aggregate.proses)
-            DummyProcess(id: item.id.toString(), name: item.nama, status: item.detail),
-        ];
+        selectedProcesses = preserveSavedProcesses && savedProcesses.isNotEmpty
+            ? savedProcesses
+            : [
+                for (final item in aggregate.proses)
+                  DummyProcess(
+                    id: item.id.toString(),
+                    name: item.nama,
+                    status: item.detail,
+                  ),
+              ];
         _loadingMasterDetails = false;
       });
     } catch (error) {
