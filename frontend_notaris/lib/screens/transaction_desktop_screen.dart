@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:uuid/uuid.dart';
 import '../core/theme/app_colors.dart';
 import '../core/widgets/searchable_dropdown.dart';
 import '../database/app_database.dart';
@@ -13,6 +14,8 @@ import '../providers/transaction_provider.dart';
 import '../repositories/transaction_repository.dart';
 
 enum TransactionType { notaris, ppat }
+
+final _transactionJobUuid = Uuid();
 
 /// Formats numeric currency input using Indonesian thousands separators.
 class _CurrencyInputFormatter extends TextInputFormatter {
@@ -127,7 +130,7 @@ class DummyTransactionJob {
   /// Stable local detail UUID; null for a newly added job.
   final String? localDetailUuid;
 
-  const DummyTransactionJob({
+  DummyTransactionJob({
     required this.id,
     required this.jobCode,
     required this.name,
@@ -140,8 +143,8 @@ class DummyTransactionJob {
     this.masterPpatId,
     this.masterPriceId,
     this.masterCategoryId,
-    this.localDetailUuid,
-  });
+    String? localDetailUuid,
+  }) : localDetailUuid = localDetailUuid ?? _transactionJobUuid.v4();
 
   double get totalCost => serviceCost + otherCost;
 }
