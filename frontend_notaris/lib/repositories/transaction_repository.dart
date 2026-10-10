@@ -14,6 +14,7 @@ class TransactionJobInput {
     this.pekerjaanPpatId,
     this.kategoriSnapshot,
     this.estimasiWaktuSnapshot,
+    this.prosesSnapshot,
   });
 
   /// Must be either 'notaris' or 'ppat'.
@@ -23,6 +24,8 @@ class TransactionJobInput {
   final int? pekerjaanPpatId;
   final String? kategoriSnapshot;
   final String? estimasiWaktuSnapshot;
+  /// JSON snapshot of the selected process checklist for this transaction job.
+  final String? prosesSnapshot;
   final double biayaLayanan;
   final double biayaLainnya;
 
@@ -238,6 +241,7 @@ return db.transaction(() async {
                 namaPekerjaanSnapshot: job.namaPekerjaan,
                 kategoriSnapshot: Value(job.kategoriSnapshot),
                 estimasiWaktuSnapshot: Value(job.estimasiWaktuSnapshot),
+                prosesSnapshot: Value(job.prosesSnapshot),
                 biayaLayanan: Value(job.biayaLayanan),
                 biayaLainnya: Value(job.biayaLainnya),
                 totalSnapshot: Value(job.total),
