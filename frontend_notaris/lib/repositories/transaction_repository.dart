@@ -15,7 +15,7 @@ class TransactionJobInput {
     this.kategoriSnapshot,
     this.estimasiWaktuSnapshot,
     this.prosesSnapshot,
-    this.detailUuid,
+    required this.detailUuid,
   });
 
   /// Must be either 'notaris' or 'ppat'.
@@ -27,9 +27,9 @@ class TransactionJobInput {
   final String? estimasiWaktuSnapshot;
   /// JSON snapshot of the selected process checklist for this transaction job.
   final String? prosesSnapshot;
-  /// Existing detail UUID to preserve when editing a transaction.
-  /// Null means this is a newly added job.
-  final String? detailUuid;
+  /// Stable detail UUID generated when the job is selected, and preserved
+  /// across subsequent edits of the same transaction.
+  final String detailUuid;
   final double biayaLayanan;
   final double biayaLainnya;
 
@@ -238,10 +238,7 @@ return db.transaction(() async {
       final existingByUuid = {
         for (final detail in existingDetails) detail.uuid: detail,
       };
-      final retainedUuids = jobs
-          .map((job) => job.detailUuid)
-          .whereType<String>()
-          .toSet();
+      final retainedUuids = jobs.map((job) => job.detailUuid).toSet();
 
       // Only soft-delete jobs explicitly removed from the edited form.
       final removedUuids = existingByUuid.keys
@@ -261,9 +258,7 @@ return db.transaction(() async {
       }
 
       for (final job in jobs) {
-        final existing = job.detailUuid == null
-            ? null
-            : existingByUuid[job.detailUuid];
+        final existing = existingByUuid[job.detailUuid];
         if (existing != null) {
           await (db.update(db.transaksiDetails)
                 ..where((t) =>
