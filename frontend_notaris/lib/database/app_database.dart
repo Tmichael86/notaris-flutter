@@ -79,6 +79,9 @@ class TransaksiDetails extends Table {
   TextColumn get namaPekerjaanSnapshot => text()();
   TextColumn get kategoriSnapshot => text().nullable()();
   TextColumn get estimasiWaktuSnapshot => text().nullable()();
+  // Process checklist captured when this job is attached to a transaction.
+  // Keep it as a snapshot so manually-added processes survive reloads.
+  TextColumn get prosesSnapshot => text().nullable()();
   RealColumn get biayaLayanan => real().withDefault(const Constant(0))();
   RealColumn get biayaLainnya => real().withDefault(const Constant(0))();
   RealColumn get totalSnapshot => real().withDefault(const Constant(0))();
@@ -138,7 +141,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -190,6 +193,9 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 5) {
             await m.createTable(transaksiRiwayatPembayarans);
+          }
+          if (from < 6) {
+            await m.addColumn(transaksiDetails, transaksiDetails.prosesSnapshot);
           }
         },
       );
