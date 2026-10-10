@@ -124,6 +124,8 @@ class DummyTransactionJob {
   final int? masterPpatId;
   final int? masterPriceId;
   final int? masterCategoryId;
+  /// Stable local detail UUID; null for a newly added job.
+  final String? localDetailUuid;
 
   const DummyTransactionJob({
     required this.id,
@@ -138,6 +140,7 @@ class DummyTransactionJob {
     this.masterPpatId,
     this.masterPriceId,
     this.masterCategoryId,
+    this.localDetailUuid,
   });
 
   double get totalCost => serviceCost + otherCost;
@@ -653,6 +656,7 @@ class _TransactionDesktopScreenState
             serviceCost: detail.biayaLayanan,
             otherCost: detail.biayaLainnya,
             processes: processes,
+            localDetailUuid: detail.uuid,
             masterNotarisId: detail.pekerjaanNotarisId,
             masterPpatId: detail.pekerjaanPpatId,
           ));
@@ -1662,6 +1666,7 @@ class _TransactionDesktopScreenState
         jobs: selectedJobs.map((job) => TransactionJobInput(
           jenisPekerjaan: selectedType == TransactionType.notaris ? 'notaris' : 'ppat',
           namaPekerjaan: job.name,
+          detailUuid: job.localDetailUuid,
           pekerjaanNotarisId: job.masterNotarisId,
           pekerjaanPpatId: job.masterPpatId,
           kategoriSnapshot: job.categories.map((category) => category.name).join(', '),
