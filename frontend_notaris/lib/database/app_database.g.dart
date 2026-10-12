@@ -6022,6 +6022,1776 @@ class TransaksiRiwayatPembayaransCompanion
   }
 }
 
+class $TransaksiProsesTable extends TransaksiProses
+    with TableInfo<$TransaksiProsesTable, TransaksiProse> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TransaksiProsesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _transaksiIdMeta = const VerificationMeta(
+    'transaksiId',
+  );
+  @override
+  late final GeneratedColumn<int> transaksiId = GeneratedColumn<int>(
+    'transaksi_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES transaksis (id)',
+    ),
+  );
+  static const VerificationMeta _transaksiDetailUuidMeta =
+      const VerificationMeta('transaksiDetailUuid');
+  @override
+  late final GeneratedColumn<String> transaksiDetailUuid =
+      GeneratedColumn<String>(
+        'transaksi_detail_uuid',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+        defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES transaksi_details (uuid)',
+        ),
+      );
+  static const VerificationMeta _sourceProcessIdMeta = const VerificationMeta(
+    'sourceProcessId',
+  );
+  @override
+  late final GeneratedColumn<String> sourceProcessId = GeneratedColumn<String>(
+    'source_process_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _namaProsesSnapshotMeta =
+      const VerificationMeta('namaProsesSnapshot');
+  @override
+  late final GeneratedColumn<String> namaProsesSnapshot =
+      GeneratedColumn<String>(
+        'nama_proses_snapshot',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _statusProsesMeta = const VerificationMeta(
+    'statusProses',
+  );
+  @override
+  late final GeneratedColumn<String> statusProses = GeneratedColumn<String>(
+    'status_proses',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _legacyStatusMeta = const VerificationMeta(
+    'legacyStatus',
+  );
+  @override
+  late final GeneratedColumn<String> legacyStatus = GeneratedColumn<String>(
+    'legacy_status',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _legacyDataMeta = const VerificationMeta(
+    'legacyData',
+  );
+  @override
+  late final GeneratedColumn<String> legacyData = GeneratedColumn<String>(
+    'legacy_data',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _catatanMeta = const VerificationMeta(
+    'catatan',
+  );
+  @override
+  late final GeneratedColumn<String> catatan = GeneratedColumn<String>(
+    'catatan',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _submittedByUserIdMeta = const VerificationMeta(
+    'submittedByUserId',
+  );
+  @override
+  late final GeneratedColumn<int> submittedByUserId = GeneratedColumn<int>(
+    'submitted_by_user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _submittedAtMeta = const VerificationMeta(
+    'submittedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> submittedAt = GeneratedColumn<DateTime>(
+    'submitted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _validatedByUserIdMeta = const VerificationMeta(
+    'validatedByUserId',
+  );
+  @override
+  late final GeneratedColumn<int> validatedByUserId = GeneratedColumn<int>(
+    'validated_by_user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _validatedAtMeta = const VerificationMeta(
+    'validatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> validatedAt = GeneratedColumn<DateTime>(
+    'validated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSyncDirtyMeta = const VerificationMeta(
+    'isSyncDirty',
+  );
+  @override
+  late final GeneratedColumn<bool> isSyncDirty = GeneratedColumn<bool>(
+    'is_sync_dirty',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_sync_dirty" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _lastSyncedAtMeta = const VerificationMeta(
+    'lastSyncedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastSyncedAt = GeneratedColumn<DateTime>(
+    'last_synced_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    uuid,
+    transaksiId,
+    transaksiDetailUuid,
+    sourceProcessId,
+    namaProsesSnapshot,
+    statusProses,
+    legacyStatus,
+    legacyData,
+    catatan,
+    submittedByUserId,
+    submittedAt,
+    validatedByUserId,
+    validatedAt,
+    createdAt,
+    updatedAt,
+    isSyncDirty,
+    lastSyncedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'transaksi_proses';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TransaksiProse> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('transaksi_id')) {
+      context.handle(
+        _transaksiIdMeta,
+        transaksiId.isAcceptableOrUnknown(
+          data['transaksi_id']!,
+          _transaksiIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_transaksiIdMeta);
+    }
+    if (data.containsKey('transaksi_detail_uuid')) {
+      context.handle(
+        _transaksiDetailUuidMeta,
+        transaksiDetailUuid.isAcceptableOrUnknown(
+          data['transaksi_detail_uuid']!,
+          _transaksiDetailUuidMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_transaksiDetailUuidMeta);
+    }
+    if (data.containsKey('source_process_id')) {
+      context.handle(
+        _sourceProcessIdMeta,
+        sourceProcessId.isAcceptableOrUnknown(
+          data['source_process_id']!,
+          _sourceProcessIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('nama_proses_snapshot')) {
+      context.handle(
+        _namaProsesSnapshotMeta,
+        namaProsesSnapshot.isAcceptableOrUnknown(
+          data['nama_proses_snapshot']!,
+          _namaProsesSnapshotMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_namaProsesSnapshotMeta);
+    }
+    if (data.containsKey('status_proses')) {
+      context.handle(
+        _statusProsesMeta,
+        statusProses.isAcceptableOrUnknown(
+          data['status_proses']!,
+          _statusProsesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('legacy_status')) {
+      context.handle(
+        _legacyStatusMeta,
+        legacyStatus.isAcceptableOrUnknown(
+          data['legacy_status']!,
+          _legacyStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('legacy_data')) {
+      context.handle(
+        _legacyDataMeta,
+        legacyData.isAcceptableOrUnknown(data['legacy_data']!, _legacyDataMeta),
+      );
+    }
+    if (data.containsKey('catatan')) {
+      context.handle(
+        _catatanMeta,
+        catatan.isAcceptableOrUnknown(data['catatan']!, _catatanMeta),
+      );
+    }
+    if (data.containsKey('submitted_by_user_id')) {
+      context.handle(
+        _submittedByUserIdMeta,
+        submittedByUserId.isAcceptableOrUnknown(
+          data['submitted_by_user_id']!,
+          _submittedByUserIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('submitted_at')) {
+      context.handle(
+        _submittedAtMeta,
+        submittedAt.isAcceptableOrUnknown(
+          data['submitted_at']!,
+          _submittedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('validated_by_user_id')) {
+      context.handle(
+        _validatedByUserIdMeta,
+        validatedByUserId.isAcceptableOrUnknown(
+          data['validated_by_user_id']!,
+          _validatedByUserIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('validated_at')) {
+      context.handle(
+        _validatedAtMeta,
+        validatedAt.isAcceptableOrUnknown(
+          data['validated_at']!,
+          _validatedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('is_sync_dirty')) {
+      context.handle(
+        _isSyncDirtyMeta,
+        isSyncDirty.isAcceptableOrUnknown(
+          data['is_sync_dirty']!,
+          _isSyncDirtyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_synced_at')) {
+      context.handle(
+        _lastSyncedAtMeta,
+        lastSyncedAt.isAcceptableOrUnknown(
+          data['last_synced_at']!,
+          _lastSyncedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TransaksiProse map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TransaksiProse(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      transaksiId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}transaksi_id'],
+      )!,
+      transaksiDetailUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}transaksi_detail_uuid'],
+      )!,
+      sourceProcessId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_process_id'],
+      ),
+      namaProsesSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nama_proses_snapshot'],
+      )!,
+      statusProses: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status_proses'],
+      ),
+      legacyStatus: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}legacy_status'],
+      ),
+      legacyData: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}legacy_data'],
+      ),
+      catatan: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}catatan'],
+      ),
+      submittedByUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}submitted_by_user_id'],
+      ),
+      submittedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}submitted_at'],
+      ),
+      validatedByUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}validated_by_user_id'],
+      ),
+      validatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}validated_at'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      ),
+      isSyncDirty: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_sync_dirty'],
+      )!,
+      lastSyncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_synced_at'],
+      ),
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $TransaksiProsesTable createAlias(String alias) {
+    return $TransaksiProsesTable(attachedDatabase, alias);
+  }
+}
+
+class TransaksiProse extends DataClass implements Insertable<TransaksiProse> {
+  final int id;
+  final String uuid;
+  final int transaksiId;
+  final String transaksiDetailUuid;
+
+  /// Original process identifier. May be a Master ID or a manual ID.
+  final String? sourceProcessId;
+  final String namaProsesSnapshot;
+
+  /// Null means the legacy state has not been safely mapped yet.
+  final String? statusProses;
+  final String? legacyStatus;
+  final String? legacyData;
+  final String? catatan;
+  final int? submittedByUserId;
+  final DateTime? submittedAt;
+  final int? validatedByUserId;
+  final DateTime? validatedAt;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final bool isSyncDirty;
+  final DateTime? lastSyncedAt;
+  final DateTime? deletedAt;
+  const TransaksiProse({
+    required this.id,
+    required this.uuid,
+    required this.transaksiId,
+    required this.transaksiDetailUuid,
+    this.sourceProcessId,
+    required this.namaProsesSnapshot,
+    this.statusProses,
+    this.legacyStatus,
+    this.legacyData,
+    this.catatan,
+    this.submittedByUserId,
+    this.submittedAt,
+    this.validatedByUserId,
+    this.validatedAt,
+    this.createdAt,
+    this.updatedAt,
+    required this.isSyncDirty,
+    this.lastSyncedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['uuid'] = Variable<String>(uuid);
+    map['transaksi_id'] = Variable<int>(transaksiId);
+    map['transaksi_detail_uuid'] = Variable<String>(transaksiDetailUuid);
+    if (!nullToAbsent || sourceProcessId != null) {
+      map['source_process_id'] = Variable<String>(sourceProcessId);
+    }
+    map['nama_proses_snapshot'] = Variable<String>(namaProsesSnapshot);
+    if (!nullToAbsent || statusProses != null) {
+      map['status_proses'] = Variable<String>(statusProses);
+    }
+    if (!nullToAbsent || legacyStatus != null) {
+      map['legacy_status'] = Variable<String>(legacyStatus);
+    }
+    if (!nullToAbsent || legacyData != null) {
+      map['legacy_data'] = Variable<String>(legacyData);
+    }
+    if (!nullToAbsent || catatan != null) {
+      map['catatan'] = Variable<String>(catatan);
+    }
+    if (!nullToAbsent || submittedByUserId != null) {
+      map['submitted_by_user_id'] = Variable<int>(submittedByUserId);
+    }
+    if (!nullToAbsent || submittedAt != null) {
+      map['submitted_at'] = Variable<DateTime>(submittedAt);
+    }
+    if (!nullToAbsent || validatedByUserId != null) {
+      map['validated_by_user_id'] = Variable<int>(validatedByUserId);
+    }
+    if (!nullToAbsent || validatedAt != null) {
+      map['validated_at'] = Variable<DateTime>(validatedAt);
+    }
+    if (!nullToAbsent || createdAt != null) {
+      map['created_at'] = Variable<DateTime>(createdAt);
+    }
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
+    map['is_sync_dirty'] = Variable<bool>(isSyncDirty);
+    if (!nullToAbsent || lastSyncedAt != null) {
+      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt);
+    }
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  TransaksiProsesCompanion toCompanion(bool nullToAbsent) {
+    return TransaksiProsesCompanion(
+      id: Value(id),
+      uuid: Value(uuid),
+      transaksiId: Value(transaksiId),
+      transaksiDetailUuid: Value(transaksiDetailUuid),
+      sourceProcessId: sourceProcessId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(sourceProcessId),
+      namaProsesSnapshot: Value(namaProsesSnapshot),
+      statusProses: statusProses == null && nullToAbsent
+          ? const Value.absent()
+          : Value(statusProses),
+      legacyStatus: legacyStatus == null && nullToAbsent
+          ? const Value.absent()
+          : Value(legacyStatus),
+      legacyData: legacyData == null && nullToAbsent
+          ? const Value.absent()
+          : Value(legacyData),
+      catatan: catatan == null && nullToAbsent
+          ? const Value.absent()
+          : Value(catatan),
+      submittedByUserId: submittedByUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(submittedByUserId),
+      submittedAt: submittedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(submittedAt),
+      validatedByUserId: validatedByUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(validatedByUserId),
+      validatedAt: validatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(validatedAt),
+      createdAt: createdAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+      isSyncDirty: Value(isSyncDirty),
+      lastSyncedAt: lastSyncedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory TransaksiProse.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TransaksiProse(
+      id: serializer.fromJson<int>(json['id']),
+      uuid: serializer.fromJson<String>(json['uuid']),
+      transaksiId: serializer.fromJson<int>(json['transaksiId']),
+      transaksiDetailUuid: serializer.fromJson<String>(
+        json['transaksiDetailUuid'],
+      ),
+      sourceProcessId: serializer.fromJson<String?>(json['sourceProcessId']),
+      namaProsesSnapshot: serializer.fromJson<String>(
+        json['namaProsesSnapshot'],
+      ),
+      statusProses: serializer.fromJson<String?>(json['statusProses']),
+      legacyStatus: serializer.fromJson<String?>(json['legacyStatus']),
+      legacyData: serializer.fromJson<String?>(json['legacyData']),
+      catatan: serializer.fromJson<String?>(json['catatan']),
+      submittedByUserId: serializer.fromJson<int?>(json['submittedByUserId']),
+      submittedAt: serializer.fromJson<DateTime?>(json['submittedAt']),
+      validatedByUserId: serializer.fromJson<int?>(json['validatedByUserId']),
+      validatedAt: serializer.fromJson<DateTime?>(json['validatedAt']),
+      createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
+      isSyncDirty: serializer.fromJson<bool>(json['isSyncDirty']),
+      lastSyncedAt: serializer.fromJson<DateTime?>(json['lastSyncedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'uuid': serializer.toJson<String>(uuid),
+      'transaksiId': serializer.toJson<int>(transaksiId),
+      'transaksiDetailUuid': serializer.toJson<String>(transaksiDetailUuid),
+      'sourceProcessId': serializer.toJson<String?>(sourceProcessId),
+      'namaProsesSnapshot': serializer.toJson<String>(namaProsesSnapshot),
+      'statusProses': serializer.toJson<String?>(statusProses),
+      'legacyStatus': serializer.toJson<String?>(legacyStatus),
+      'legacyData': serializer.toJson<String?>(legacyData),
+      'catatan': serializer.toJson<String?>(catatan),
+      'submittedByUserId': serializer.toJson<int?>(submittedByUserId),
+      'submittedAt': serializer.toJson<DateTime?>(submittedAt),
+      'validatedByUserId': serializer.toJson<int?>(validatedByUserId),
+      'validatedAt': serializer.toJson<DateTime?>(validatedAt),
+      'createdAt': serializer.toJson<DateTime?>(createdAt),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
+      'isSyncDirty': serializer.toJson<bool>(isSyncDirty),
+      'lastSyncedAt': serializer.toJson<DateTime?>(lastSyncedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  TransaksiProse copyWith({
+    int? id,
+    String? uuid,
+    int? transaksiId,
+    String? transaksiDetailUuid,
+    Value<String?> sourceProcessId = const Value.absent(),
+    String? namaProsesSnapshot,
+    Value<String?> statusProses = const Value.absent(),
+    Value<String?> legacyStatus = const Value.absent(),
+    Value<String?> legacyData = const Value.absent(),
+    Value<String?> catatan = const Value.absent(),
+    Value<int?> submittedByUserId = const Value.absent(),
+    Value<DateTime?> submittedAt = const Value.absent(),
+    Value<int?> validatedByUserId = const Value.absent(),
+    Value<DateTime?> validatedAt = const Value.absent(),
+    Value<DateTime?> createdAt = const Value.absent(),
+    Value<DateTime?> updatedAt = const Value.absent(),
+    bool? isSyncDirty,
+    Value<DateTime?> lastSyncedAt = const Value.absent(),
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => TransaksiProse(
+    id: id ?? this.id,
+    uuid: uuid ?? this.uuid,
+    transaksiId: transaksiId ?? this.transaksiId,
+    transaksiDetailUuid: transaksiDetailUuid ?? this.transaksiDetailUuid,
+    sourceProcessId: sourceProcessId.present
+        ? sourceProcessId.value
+        : this.sourceProcessId,
+    namaProsesSnapshot: namaProsesSnapshot ?? this.namaProsesSnapshot,
+    statusProses: statusProses.present ? statusProses.value : this.statusProses,
+    legacyStatus: legacyStatus.present ? legacyStatus.value : this.legacyStatus,
+    legacyData: legacyData.present ? legacyData.value : this.legacyData,
+    catatan: catatan.present ? catatan.value : this.catatan,
+    submittedByUserId: submittedByUserId.present
+        ? submittedByUserId.value
+        : this.submittedByUserId,
+    submittedAt: submittedAt.present ? submittedAt.value : this.submittedAt,
+    validatedByUserId: validatedByUserId.present
+        ? validatedByUserId.value
+        : this.validatedByUserId,
+    validatedAt: validatedAt.present ? validatedAt.value : this.validatedAt,
+    createdAt: createdAt.present ? createdAt.value : this.createdAt,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+    isSyncDirty: isSyncDirty ?? this.isSyncDirty,
+    lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  TransaksiProse copyWithCompanion(TransaksiProsesCompanion data) {
+    return TransaksiProse(
+      id: data.id.present ? data.id.value : this.id,
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      transaksiId: data.transaksiId.present
+          ? data.transaksiId.value
+          : this.transaksiId,
+      transaksiDetailUuid: data.transaksiDetailUuid.present
+          ? data.transaksiDetailUuid.value
+          : this.transaksiDetailUuid,
+      sourceProcessId: data.sourceProcessId.present
+          ? data.sourceProcessId.value
+          : this.sourceProcessId,
+      namaProsesSnapshot: data.namaProsesSnapshot.present
+          ? data.namaProsesSnapshot.value
+          : this.namaProsesSnapshot,
+      statusProses: data.statusProses.present
+          ? data.statusProses.value
+          : this.statusProses,
+      legacyStatus: data.legacyStatus.present
+          ? data.legacyStatus.value
+          : this.legacyStatus,
+      legacyData: data.legacyData.present
+          ? data.legacyData.value
+          : this.legacyData,
+      catatan: data.catatan.present ? data.catatan.value : this.catatan,
+      submittedByUserId: data.submittedByUserId.present
+          ? data.submittedByUserId.value
+          : this.submittedByUserId,
+      submittedAt: data.submittedAt.present
+          ? data.submittedAt.value
+          : this.submittedAt,
+      validatedByUserId: data.validatedByUserId.present
+          ? data.validatedByUserId.value
+          : this.validatedByUserId,
+      validatedAt: data.validatedAt.present
+          ? data.validatedAt.value
+          : this.validatedAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      isSyncDirty: data.isSyncDirty.present
+          ? data.isSyncDirty.value
+          : this.isSyncDirty,
+      lastSyncedAt: data.lastSyncedAt.present
+          ? data.lastSyncedAt.value
+          : this.lastSyncedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TransaksiProse(')
+          ..write('id: $id, ')
+          ..write('uuid: $uuid, ')
+          ..write('transaksiId: $transaksiId, ')
+          ..write('transaksiDetailUuid: $transaksiDetailUuid, ')
+          ..write('sourceProcessId: $sourceProcessId, ')
+          ..write('namaProsesSnapshot: $namaProsesSnapshot, ')
+          ..write('statusProses: $statusProses, ')
+          ..write('legacyStatus: $legacyStatus, ')
+          ..write('legacyData: $legacyData, ')
+          ..write('catatan: $catatan, ')
+          ..write('submittedByUserId: $submittedByUserId, ')
+          ..write('submittedAt: $submittedAt, ')
+          ..write('validatedByUserId: $validatedByUserId, ')
+          ..write('validatedAt: $validatedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isSyncDirty: $isSyncDirty, ')
+          ..write('lastSyncedAt: $lastSyncedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    uuid,
+    transaksiId,
+    transaksiDetailUuid,
+    sourceProcessId,
+    namaProsesSnapshot,
+    statusProses,
+    legacyStatus,
+    legacyData,
+    catatan,
+    submittedByUserId,
+    submittedAt,
+    validatedByUserId,
+    validatedAt,
+    createdAt,
+    updatedAt,
+    isSyncDirty,
+    lastSyncedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TransaksiProse &&
+          other.id == this.id &&
+          other.uuid == this.uuid &&
+          other.transaksiId == this.transaksiId &&
+          other.transaksiDetailUuid == this.transaksiDetailUuid &&
+          other.sourceProcessId == this.sourceProcessId &&
+          other.namaProsesSnapshot == this.namaProsesSnapshot &&
+          other.statusProses == this.statusProses &&
+          other.legacyStatus == this.legacyStatus &&
+          other.legacyData == this.legacyData &&
+          other.catatan == this.catatan &&
+          other.submittedByUserId == this.submittedByUserId &&
+          other.submittedAt == this.submittedAt &&
+          other.validatedByUserId == this.validatedByUserId &&
+          other.validatedAt == this.validatedAt &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.isSyncDirty == this.isSyncDirty &&
+          other.lastSyncedAt == this.lastSyncedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class TransaksiProsesCompanion extends UpdateCompanion<TransaksiProse> {
+  final Value<int> id;
+  final Value<String> uuid;
+  final Value<int> transaksiId;
+  final Value<String> transaksiDetailUuid;
+  final Value<String?> sourceProcessId;
+  final Value<String> namaProsesSnapshot;
+  final Value<String?> statusProses;
+  final Value<String?> legacyStatus;
+  final Value<String?> legacyData;
+  final Value<String?> catatan;
+  final Value<int?> submittedByUserId;
+  final Value<DateTime?> submittedAt;
+  final Value<int?> validatedByUserId;
+  final Value<DateTime?> validatedAt;
+  final Value<DateTime?> createdAt;
+  final Value<DateTime?> updatedAt;
+  final Value<bool> isSyncDirty;
+  final Value<DateTime?> lastSyncedAt;
+  final Value<DateTime?> deletedAt;
+  const TransaksiProsesCompanion({
+    this.id = const Value.absent(),
+    this.uuid = const Value.absent(),
+    this.transaksiId = const Value.absent(),
+    this.transaksiDetailUuid = const Value.absent(),
+    this.sourceProcessId = const Value.absent(),
+    this.namaProsesSnapshot = const Value.absent(),
+    this.statusProses = const Value.absent(),
+    this.legacyStatus = const Value.absent(),
+    this.legacyData = const Value.absent(),
+    this.catatan = const Value.absent(),
+    this.submittedByUserId = const Value.absent(),
+    this.submittedAt = const Value.absent(),
+    this.validatedByUserId = const Value.absent(),
+    this.validatedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isSyncDirty = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+  });
+  TransaksiProsesCompanion.insert({
+    this.id = const Value.absent(),
+    required String uuid,
+    required int transaksiId,
+    required String transaksiDetailUuid,
+    this.sourceProcessId = const Value.absent(),
+    required String namaProsesSnapshot,
+    this.statusProses = const Value.absent(),
+    this.legacyStatus = const Value.absent(),
+    this.legacyData = const Value.absent(),
+    this.catatan = const Value.absent(),
+    this.submittedByUserId = const Value.absent(),
+    this.submittedAt = const Value.absent(),
+    this.validatedByUserId = const Value.absent(),
+    this.validatedAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.isSyncDirty = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+  }) : uuid = Value(uuid),
+       transaksiId = Value(transaksiId),
+       transaksiDetailUuid = Value(transaksiDetailUuid),
+       namaProsesSnapshot = Value(namaProsesSnapshot);
+  static Insertable<TransaksiProse> custom({
+    Expression<int>? id,
+    Expression<String>? uuid,
+    Expression<int>? transaksiId,
+    Expression<String>? transaksiDetailUuid,
+    Expression<String>? sourceProcessId,
+    Expression<String>? namaProsesSnapshot,
+    Expression<String>? statusProses,
+    Expression<String>? legacyStatus,
+    Expression<String>? legacyData,
+    Expression<String>? catatan,
+    Expression<int>? submittedByUserId,
+    Expression<DateTime>? submittedAt,
+    Expression<int>? validatedByUserId,
+    Expression<DateTime>? validatedAt,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<bool>? isSyncDirty,
+    Expression<DateTime>? lastSyncedAt,
+    Expression<DateTime>? deletedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (uuid != null) 'uuid': uuid,
+      if (transaksiId != null) 'transaksi_id': transaksiId,
+      if (transaksiDetailUuid != null)
+        'transaksi_detail_uuid': transaksiDetailUuid,
+      if (sourceProcessId != null) 'source_process_id': sourceProcessId,
+      if (namaProsesSnapshot != null)
+        'nama_proses_snapshot': namaProsesSnapshot,
+      if (statusProses != null) 'status_proses': statusProses,
+      if (legacyStatus != null) 'legacy_status': legacyStatus,
+      if (legacyData != null) 'legacy_data': legacyData,
+      if (catatan != null) 'catatan': catatan,
+      if (submittedByUserId != null) 'submitted_by_user_id': submittedByUserId,
+      if (submittedAt != null) 'submitted_at': submittedAt,
+      if (validatedByUserId != null) 'validated_by_user_id': validatedByUserId,
+      if (validatedAt != null) 'validated_at': validatedAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (isSyncDirty != null) 'is_sync_dirty': isSyncDirty,
+      if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+    });
+  }
+
+  TransaksiProsesCompanion copyWith({
+    Value<int>? id,
+    Value<String>? uuid,
+    Value<int>? transaksiId,
+    Value<String>? transaksiDetailUuid,
+    Value<String?>? sourceProcessId,
+    Value<String>? namaProsesSnapshot,
+    Value<String?>? statusProses,
+    Value<String?>? legacyStatus,
+    Value<String?>? legacyData,
+    Value<String?>? catatan,
+    Value<int?>? submittedByUserId,
+    Value<DateTime?>? submittedAt,
+    Value<int?>? validatedByUserId,
+    Value<DateTime?>? validatedAt,
+    Value<DateTime?>? createdAt,
+    Value<DateTime?>? updatedAt,
+    Value<bool>? isSyncDirty,
+    Value<DateTime?>? lastSyncedAt,
+    Value<DateTime?>? deletedAt,
+  }) {
+    return TransaksiProsesCompanion(
+      id: id ?? this.id,
+      uuid: uuid ?? this.uuid,
+      transaksiId: transaksiId ?? this.transaksiId,
+      transaksiDetailUuid: transaksiDetailUuid ?? this.transaksiDetailUuid,
+      sourceProcessId: sourceProcessId ?? this.sourceProcessId,
+      namaProsesSnapshot: namaProsesSnapshot ?? this.namaProsesSnapshot,
+      statusProses: statusProses ?? this.statusProses,
+      legacyStatus: legacyStatus ?? this.legacyStatus,
+      legacyData: legacyData ?? this.legacyData,
+      catatan: catatan ?? this.catatan,
+      submittedByUserId: submittedByUserId ?? this.submittedByUserId,
+      submittedAt: submittedAt ?? this.submittedAt,
+      validatedByUserId: validatedByUserId ?? this.validatedByUserId,
+      validatedAt: validatedAt ?? this.validatedAt,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isSyncDirty: isSyncDirty ?? this.isSyncDirty,
+      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (transaksiId.present) {
+      map['transaksi_id'] = Variable<int>(transaksiId.value);
+    }
+    if (transaksiDetailUuid.present) {
+      map['transaksi_detail_uuid'] = Variable<String>(
+        transaksiDetailUuid.value,
+      );
+    }
+    if (sourceProcessId.present) {
+      map['source_process_id'] = Variable<String>(sourceProcessId.value);
+    }
+    if (namaProsesSnapshot.present) {
+      map['nama_proses_snapshot'] = Variable<String>(namaProsesSnapshot.value);
+    }
+    if (statusProses.present) {
+      map['status_proses'] = Variable<String>(statusProses.value);
+    }
+    if (legacyStatus.present) {
+      map['legacy_status'] = Variable<String>(legacyStatus.value);
+    }
+    if (legacyData.present) {
+      map['legacy_data'] = Variable<String>(legacyData.value);
+    }
+    if (catatan.present) {
+      map['catatan'] = Variable<String>(catatan.value);
+    }
+    if (submittedByUserId.present) {
+      map['submitted_by_user_id'] = Variable<int>(submittedByUserId.value);
+    }
+    if (submittedAt.present) {
+      map['submitted_at'] = Variable<DateTime>(submittedAt.value);
+    }
+    if (validatedByUserId.present) {
+      map['validated_by_user_id'] = Variable<int>(validatedByUserId.value);
+    }
+    if (validatedAt.present) {
+      map['validated_at'] = Variable<DateTime>(validatedAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (isSyncDirty.present) {
+      map['is_sync_dirty'] = Variable<bool>(isSyncDirty.value);
+    }
+    if (lastSyncedAt.present) {
+      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TransaksiProsesCompanion(')
+          ..write('id: $id, ')
+          ..write('uuid: $uuid, ')
+          ..write('transaksiId: $transaksiId, ')
+          ..write('transaksiDetailUuid: $transaksiDetailUuid, ')
+          ..write('sourceProcessId: $sourceProcessId, ')
+          ..write('namaProsesSnapshot: $namaProsesSnapshot, ')
+          ..write('statusProses: $statusProses, ')
+          ..write('legacyStatus: $legacyStatus, ')
+          ..write('legacyData: $legacyData, ')
+          ..write('catatan: $catatan, ')
+          ..write('submittedByUserId: $submittedByUserId, ')
+          ..write('submittedAt: $submittedAt, ')
+          ..write('validatedByUserId: $validatedByUserId, ')
+          ..write('validatedAt: $validatedAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('isSyncDirty: $isSyncDirty, ')
+          ..write('lastSyncedAt: $lastSyncedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TransaksiProsesRiwayatTable extends TransaksiProsesRiwayat
+    with TableInfo<$TransaksiProsesRiwayatTable, TransaksiProsesRiwayatData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TransaksiProsesRiwayatTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _transaksiProsesIdMeta = const VerificationMeta(
+    'transaksiProsesId',
+  );
+  @override
+  late final GeneratedColumn<int> transaksiProsesId = GeneratedColumn<int>(
+    'transaksi_proses_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES transaksi_proses (id)',
+    ),
+  );
+  static const VerificationMeta _statusSebelumnyaMeta = const VerificationMeta(
+    'statusSebelumnya',
+  );
+  @override
+  late final GeneratedColumn<String> statusSebelumnya = GeneratedColumn<String>(
+    'status_sebelumnya',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusBaruMeta = const VerificationMeta(
+    'statusBaru',
+  );
+  @override
+  late final GeneratedColumn<String> statusBaru = GeneratedColumn<String>(
+    'status_baru',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _actorUserIdMeta = const VerificationMeta(
+    'actorUserId',
+  );
+  @override
+  late final GeneratedColumn<int> actorUserId = GeneratedColumn<int>(
+    'actor_user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _catatanMeta = const VerificationMeta(
+    'catatan',
+  );
+  @override
+  late final GeneratedColumn<String> catatan = GeneratedColumn<String>(
+    'catatan',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSyncDirtyMeta = const VerificationMeta(
+    'isSyncDirty',
+  );
+  @override
+  late final GeneratedColumn<bool> isSyncDirty = GeneratedColumn<bool>(
+    'is_sync_dirty',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_sync_dirty" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _lastSyncedAtMeta = const VerificationMeta(
+    'lastSyncedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastSyncedAt = GeneratedColumn<DateTime>(
+    'last_synced_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    uuid,
+    transaksiProsesId,
+    statusSebelumnya,
+    statusBaru,
+    actorUserId,
+    createdAt,
+    catatan,
+    isSyncDirty,
+    lastSyncedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'transaksi_proses_riwayat';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TransaksiProsesRiwayatData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('transaksi_proses_id')) {
+      context.handle(
+        _transaksiProsesIdMeta,
+        transaksiProsesId.isAcceptableOrUnknown(
+          data['transaksi_proses_id']!,
+          _transaksiProsesIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_transaksiProsesIdMeta);
+    }
+    if (data.containsKey('status_sebelumnya')) {
+      context.handle(
+        _statusSebelumnyaMeta,
+        statusSebelumnya.isAcceptableOrUnknown(
+          data['status_sebelumnya']!,
+          _statusSebelumnyaMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status_baru')) {
+      context.handle(
+        _statusBaruMeta,
+        statusBaru.isAcceptableOrUnknown(data['status_baru']!, _statusBaruMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_statusBaruMeta);
+    }
+    if (data.containsKey('actor_user_id')) {
+      context.handle(
+        _actorUserIdMeta,
+        actorUserId.isAcceptableOrUnknown(
+          data['actor_user_id']!,
+          _actorUserIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('catatan')) {
+      context.handle(
+        _catatanMeta,
+        catatan.isAcceptableOrUnknown(data['catatan']!, _catatanMeta),
+      );
+    }
+    if (data.containsKey('is_sync_dirty')) {
+      context.handle(
+        _isSyncDirtyMeta,
+        isSyncDirty.isAcceptableOrUnknown(
+          data['is_sync_dirty']!,
+          _isSyncDirtyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_synced_at')) {
+      context.handle(
+        _lastSyncedAtMeta,
+        lastSyncedAt.isAcceptableOrUnknown(
+          data['last_synced_at']!,
+          _lastSyncedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TransaksiProsesRiwayatData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TransaksiProsesRiwayatData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      transaksiProsesId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}transaksi_proses_id'],
+      )!,
+      statusSebelumnya: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status_sebelumnya'],
+      ),
+      statusBaru: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status_baru'],
+      )!,
+      actorUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}actor_user_id'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      catatan: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}catatan'],
+      ),
+      isSyncDirty: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_sync_dirty'],
+      )!,
+      lastSyncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_synced_at'],
+      ),
+    );
+  }
+
+  @override
+  $TransaksiProsesRiwayatTable createAlias(String alias) {
+    return $TransaksiProsesRiwayatTable(attachedDatabase, alias);
+  }
+}
+
+class TransaksiProsesRiwayatData extends DataClass
+    implements Insertable<TransaksiProsesRiwayatData> {
+  final int id;
+  final String uuid;
+  final int transaksiProsesId;
+  final String? statusSebelumnya;
+  final String statusBaru;
+  final int? actorUserId;
+  final DateTime createdAt;
+  final String? catatan;
+  final bool isSyncDirty;
+  final DateTime? lastSyncedAt;
+  const TransaksiProsesRiwayatData({
+    required this.id,
+    required this.uuid,
+    required this.transaksiProsesId,
+    this.statusSebelumnya,
+    required this.statusBaru,
+    this.actorUserId,
+    required this.createdAt,
+    this.catatan,
+    required this.isSyncDirty,
+    this.lastSyncedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['uuid'] = Variable<String>(uuid);
+    map['transaksi_proses_id'] = Variable<int>(transaksiProsesId);
+    if (!nullToAbsent || statusSebelumnya != null) {
+      map['status_sebelumnya'] = Variable<String>(statusSebelumnya);
+    }
+    map['status_baru'] = Variable<String>(statusBaru);
+    if (!nullToAbsent || actorUserId != null) {
+      map['actor_user_id'] = Variable<int>(actorUserId);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || catatan != null) {
+      map['catatan'] = Variable<String>(catatan);
+    }
+    map['is_sync_dirty'] = Variable<bool>(isSyncDirty);
+    if (!nullToAbsent || lastSyncedAt != null) {
+      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt);
+    }
+    return map;
+  }
+
+  TransaksiProsesRiwayatCompanion toCompanion(bool nullToAbsent) {
+    return TransaksiProsesRiwayatCompanion(
+      id: Value(id),
+      uuid: Value(uuid),
+      transaksiProsesId: Value(transaksiProsesId),
+      statusSebelumnya: statusSebelumnya == null && nullToAbsent
+          ? const Value.absent()
+          : Value(statusSebelumnya),
+      statusBaru: Value(statusBaru),
+      actorUserId: actorUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(actorUserId),
+      createdAt: Value(createdAt),
+      catatan: catatan == null && nullToAbsent
+          ? const Value.absent()
+          : Value(catatan),
+      isSyncDirty: Value(isSyncDirty),
+      lastSyncedAt: lastSyncedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncedAt),
+    );
+  }
+
+  factory TransaksiProsesRiwayatData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TransaksiProsesRiwayatData(
+      id: serializer.fromJson<int>(json['id']),
+      uuid: serializer.fromJson<String>(json['uuid']),
+      transaksiProsesId: serializer.fromJson<int>(json['transaksiProsesId']),
+      statusSebelumnya: serializer.fromJson<String?>(json['statusSebelumnya']),
+      statusBaru: serializer.fromJson<String>(json['statusBaru']),
+      actorUserId: serializer.fromJson<int?>(json['actorUserId']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      catatan: serializer.fromJson<String?>(json['catatan']),
+      isSyncDirty: serializer.fromJson<bool>(json['isSyncDirty']),
+      lastSyncedAt: serializer.fromJson<DateTime?>(json['lastSyncedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'uuid': serializer.toJson<String>(uuid),
+      'transaksiProsesId': serializer.toJson<int>(transaksiProsesId),
+      'statusSebelumnya': serializer.toJson<String?>(statusSebelumnya),
+      'statusBaru': serializer.toJson<String>(statusBaru),
+      'actorUserId': serializer.toJson<int?>(actorUserId),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'catatan': serializer.toJson<String?>(catatan),
+      'isSyncDirty': serializer.toJson<bool>(isSyncDirty),
+      'lastSyncedAt': serializer.toJson<DateTime?>(lastSyncedAt),
+    };
+  }
+
+  TransaksiProsesRiwayatData copyWith({
+    int? id,
+    String? uuid,
+    int? transaksiProsesId,
+    Value<String?> statusSebelumnya = const Value.absent(),
+    String? statusBaru,
+    Value<int?> actorUserId = const Value.absent(),
+    DateTime? createdAt,
+    Value<String?> catatan = const Value.absent(),
+    bool? isSyncDirty,
+    Value<DateTime?> lastSyncedAt = const Value.absent(),
+  }) => TransaksiProsesRiwayatData(
+    id: id ?? this.id,
+    uuid: uuid ?? this.uuid,
+    transaksiProsesId: transaksiProsesId ?? this.transaksiProsesId,
+    statusSebelumnya: statusSebelumnya.present
+        ? statusSebelumnya.value
+        : this.statusSebelumnya,
+    statusBaru: statusBaru ?? this.statusBaru,
+    actorUserId: actorUserId.present ? actorUserId.value : this.actorUserId,
+    createdAt: createdAt ?? this.createdAt,
+    catatan: catatan.present ? catatan.value : this.catatan,
+    isSyncDirty: isSyncDirty ?? this.isSyncDirty,
+    lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
+  );
+  TransaksiProsesRiwayatData copyWithCompanion(
+    TransaksiProsesRiwayatCompanion data,
+  ) {
+    return TransaksiProsesRiwayatData(
+      id: data.id.present ? data.id.value : this.id,
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      transaksiProsesId: data.transaksiProsesId.present
+          ? data.transaksiProsesId.value
+          : this.transaksiProsesId,
+      statusSebelumnya: data.statusSebelumnya.present
+          ? data.statusSebelumnya.value
+          : this.statusSebelumnya,
+      statusBaru: data.statusBaru.present
+          ? data.statusBaru.value
+          : this.statusBaru,
+      actorUserId: data.actorUserId.present
+          ? data.actorUserId.value
+          : this.actorUserId,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      catatan: data.catatan.present ? data.catatan.value : this.catatan,
+      isSyncDirty: data.isSyncDirty.present
+          ? data.isSyncDirty.value
+          : this.isSyncDirty,
+      lastSyncedAt: data.lastSyncedAt.present
+          ? data.lastSyncedAt.value
+          : this.lastSyncedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TransaksiProsesRiwayatData(')
+          ..write('id: $id, ')
+          ..write('uuid: $uuid, ')
+          ..write('transaksiProsesId: $transaksiProsesId, ')
+          ..write('statusSebelumnya: $statusSebelumnya, ')
+          ..write('statusBaru: $statusBaru, ')
+          ..write('actorUserId: $actorUserId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('catatan: $catatan, ')
+          ..write('isSyncDirty: $isSyncDirty, ')
+          ..write('lastSyncedAt: $lastSyncedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    uuid,
+    transaksiProsesId,
+    statusSebelumnya,
+    statusBaru,
+    actorUserId,
+    createdAt,
+    catatan,
+    isSyncDirty,
+    lastSyncedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TransaksiProsesRiwayatData &&
+          other.id == this.id &&
+          other.uuid == this.uuid &&
+          other.transaksiProsesId == this.transaksiProsesId &&
+          other.statusSebelumnya == this.statusSebelumnya &&
+          other.statusBaru == this.statusBaru &&
+          other.actorUserId == this.actorUserId &&
+          other.createdAt == this.createdAt &&
+          other.catatan == this.catatan &&
+          other.isSyncDirty == this.isSyncDirty &&
+          other.lastSyncedAt == this.lastSyncedAt);
+}
+
+class TransaksiProsesRiwayatCompanion
+    extends UpdateCompanion<TransaksiProsesRiwayatData> {
+  final Value<int> id;
+  final Value<String> uuid;
+  final Value<int> transaksiProsesId;
+  final Value<String?> statusSebelumnya;
+  final Value<String> statusBaru;
+  final Value<int?> actorUserId;
+  final Value<DateTime> createdAt;
+  final Value<String?> catatan;
+  final Value<bool> isSyncDirty;
+  final Value<DateTime?> lastSyncedAt;
+  const TransaksiProsesRiwayatCompanion({
+    this.id = const Value.absent(),
+    this.uuid = const Value.absent(),
+    this.transaksiProsesId = const Value.absent(),
+    this.statusSebelumnya = const Value.absent(),
+    this.statusBaru = const Value.absent(),
+    this.actorUserId = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.catatan = const Value.absent(),
+    this.isSyncDirty = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+  });
+  TransaksiProsesRiwayatCompanion.insert({
+    this.id = const Value.absent(),
+    required String uuid,
+    required int transaksiProsesId,
+    this.statusSebelumnya = const Value.absent(),
+    required String statusBaru,
+    this.actorUserId = const Value.absent(),
+    required DateTime createdAt,
+    this.catatan = const Value.absent(),
+    this.isSyncDirty = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+  }) : uuid = Value(uuid),
+       transaksiProsesId = Value(transaksiProsesId),
+       statusBaru = Value(statusBaru),
+       createdAt = Value(createdAt);
+  static Insertable<TransaksiProsesRiwayatData> custom({
+    Expression<int>? id,
+    Expression<String>? uuid,
+    Expression<int>? transaksiProsesId,
+    Expression<String>? statusSebelumnya,
+    Expression<String>? statusBaru,
+    Expression<int>? actorUserId,
+    Expression<DateTime>? createdAt,
+    Expression<String>? catatan,
+    Expression<bool>? isSyncDirty,
+    Expression<DateTime>? lastSyncedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (uuid != null) 'uuid': uuid,
+      if (transaksiProsesId != null) 'transaksi_proses_id': transaksiProsesId,
+      if (statusSebelumnya != null) 'status_sebelumnya': statusSebelumnya,
+      if (statusBaru != null) 'status_baru': statusBaru,
+      if (actorUserId != null) 'actor_user_id': actorUserId,
+      if (createdAt != null) 'created_at': createdAt,
+      if (catatan != null) 'catatan': catatan,
+      if (isSyncDirty != null) 'is_sync_dirty': isSyncDirty,
+      if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
+    });
+  }
+
+  TransaksiProsesRiwayatCompanion copyWith({
+    Value<int>? id,
+    Value<String>? uuid,
+    Value<int>? transaksiProsesId,
+    Value<String?>? statusSebelumnya,
+    Value<String>? statusBaru,
+    Value<int?>? actorUserId,
+    Value<DateTime>? createdAt,
+    Value<String?>? catatan,
+    Value<bool>? isSyncDirty,
+    Value<DateTime?>? lastSyncedAt,
+  }) {
+    return TransaksiProsesRiwayatCompanion(
+      id: id ?? this.id,
+      uuid: uuid ?? this.uuid,
+      transaksiProsesId: transaksiProsesId ?? this.transaksiProsesId,
+      statusSebelumnya: statusSebelumnya ?? this.statusSebelumnya,
+      statusBaru: statusBaru ?? this.statusBaru,
+      actorUserId: actorUserId ?? this.actorUserId,
+      createdAt: createdAt ?? this.createdAt,
+      catatan: catatan ?? this.catatan,
+      isSyncDirty: isSyncDirty ?? this.isSyncDirty,
+      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (transaksiProsesId.present) {
+      map['transaksi_proses_id'] = Variable<int>(transaksiProsesId.value);
+    }
+    if (statusSebelumnya.present) {
+      map['status_sebelumnya'] = Variable<String>(statusSebelumnya.value);
+    }
+    if (statusBaru.present) {
+      map['status_baru'] = Variable<String>(statusBaru.value);
+    }
+    if (actorUserId.present) {
+      map['actor_user_id'] = Variable<int>(actorUserId.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (catatan.present) {
+      map['catatan'] = Variable<String>(catatan.value);
+    }
+    if (isSyncDirty.present) {
+      map['is_sync_dirty'] = Variable<bool>(isSyncDirty.value);
+    }
+    if (lastSyncedAt.present) {
+      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TransaksiProsesRiwayatCompanion(')
+          ..write('id: $id, ')
+          ..write('uuid: $uuid, ')
+          ..write('transaksiProsesId: $transaksiProsesId, ')
+          ..write('statusSebelumnya: $statusSebelumnya, ')
+          ..write('statusBaru: $statusBaru, ')
+          ..write('actorUserId: $actorUserId, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('catatan: $catatan, ')
+          ..write('isSyncDirty: $isSyncDirty, ')
+          ..write('lastSyncedAt: $lastSyncedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $PekerjaanKategorisTable extends PekerjaanKategoris
     with TableInfo<$PekerjaanKategorisTable, PekerjaanKategori> {
   @override
@@ -13179,6 +14949,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final $TransaksiRiwayatPembayaransTable transaksiRiwayatPembayarans =
       $TransaksiRiwayatPembayaransTable(this);
+  late final $TransaksiProsesTable transaksiProses = $TransaksiProsesTable(
+    this,
+  );
+  late final $TransaksiProsesRiwayatTable transaksiProsesRiwayat =
+      $TransaksiProsesRiwayatTable(this);
   late final $PekerjaanKategorisTable pekerjaanKategoris =
       $PekerjaanKategorisTable(this);
   late final $PengeluaranJenisTable pengeluaranJenis = $PengeluaranJenisTable(
@@ -13210,6 +14985,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     pekerjaanPpatLocals,
     transaksiDetails,
     transaksiRiwayatPembayarans,
+    transaksiProses,
+    transaksiProsesRiwayat,
     pekerjaanKategoris,
     pengeluaranJenis,
     petugasLocals,
@@ -14334,6 +16111,26 @@ final class $$TransaksisTableReferences
       manager.$state.copyWith(prefetchedData: cache),
     );
   }
+
+  static MultiTypedResultKey<$TransaksiProsesTable, List<TransaksiProse>>
+  _transaksiProsesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.transaksiProses,
+    aliasName: 'transaksis__id__transaksi_proses__transaksi_id',
+  );
+
+  $$TransaksiProsesTableProcessedTableManager get transaksiProsesRefs {
+    final manager = $$TransaksiProsesTableTableManager(
+      $_db,
+      $_db.transaksiProses,
+    ).filter((f) => f.transaksiId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _transaksiProsesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$TransaksisTableFilterComposer
@@ -14506,6 +16303,31 @@ class $$TransaksisTableFilterComposer
                     $removeJoinBuilderFromRootComposer,
               ),
         );
+    return f(composer);
+  }
+
+  Expression<bool> transaksiProsesRefs(
+    Expression<bool> Function($$TransaksiProsesTableFilterComposer f) f,
+  ) {
+    final $$TransaksiProsesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.transaksiProses,
+      getReferencedColumn: (t) => t.transaksiId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksiProsesTableFilterComposer(
+            $db: $db,
+            $table: $db.transaksiProses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
     return f(composer);
   }
 }
@@ -14780,6 +16602,31 @@ class $$TransaksisTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> transaksiProsesRefs<T extends Object>(
+    Expression<T> Function($$TransaksiProsesTableAnnotationComposer a) f,
+  ) {
+    final $$TransaksiProsesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.transaksiProses,
+      getReferencedColumn: (t) => t.transaksiId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksiProsesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.transaksiProses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$TransaksisTableTableManager
@@ -14798,6 +16645,7 @@ class $$TransaksisTableTableManager
           PrefetchHooks Function({
             bool transaksiDetailsRefs,
             bool transaksiRiwayatPembayaransRefs,
+            bool transaksiProsesRefs,
           })
         > {
   $$TransaksisTableTableManager(_$AppDatabase db, $TransaksisTable table)
@@ -14919,6 +16767,7 @@ class $$TransaksisTableTableManager
               ({
                 transaksiDetailsRefs = false,
                 transaksiRiwayatPembayaransRefs = false,
+                transaksiProsesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -14926,6 +16775,7 @@ class $$TransaksisTableTableManager
                     if (transaksiDetailsRefs) db.transaksiDetails,
                     if (transaksiRiwayatPembayaransRefs)
                       db.transaksiRiwayatPembayarans,
+                    if (transaksiProsesRefs) db.transaksiProses,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -14972,6 +16822,27 @@ class $$TransaksisTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (transaksiProsesRefs)
+                        await $_getPrefetchedData<
+                          Transaksi,
+                          $TransaksisTable,
+                          TransaksiProse
+                        >(
+                          currentTable: table,
+                          referencedTable: $$TransaksisTableReferences
+                              ._transaksiProsesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TransaksisTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).transaksiProsesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.transaksiId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -14995,6 +16866,7 @@ typedef $$TransaksisTableProcessedTableManager =
       PrefetchHooks Function({
         bool transaksiDetailsRefs,
         bool transaksiRiwayatPembayaransRefs,
+        bool transaksiProsesRefs,
       })
     >;
 typedef $$PekerjaanNotarisLocalsTableCreateCompanionBuilder =
@@ -16663,6 +18535,29 @@ final class $$TransaksiDetailsTableReferences
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
+
+  static MultiTypedResultKey<$TransaksiProsesTable, List<TransaksiProse>>
+  _transaksiProsesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.transaksiProses,
+    aliasName:
+        'transaksi_details__uuid__transaksi_proses__transaksi_detail_uuid',
+  );
+
+  $$TransaksiProsesTableProcessedTableManager get transaksiProsesRefs {
+    final manager =
+        $$TransaksiProsesTableTableManager($_db, $_db.transaksiProses).filter(
+          (f) => f.transaksiDetailUuid.uuid.sqlEquals(
+            $_itemColumn<String>('uuid')!,
+          ),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _transaksiProsesRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$TransaksiDetailsTableFilterComposer
@@ -16822,6 +18717,31 @@ class $$TransaksiDetailsTableFilterComposer
           ),
     );
     return composer;
+  }
+
+  Expression<bool> transaksiProsesRefs(
+    Expression<bool> Function($$TransaksiProsesTableFilterComposer f) f,
+  ) {
+    final $$TransaksiProsesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.transaksiProses,
+      getReferencedColumn: (t) => t.transaksiDetailUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksiProsesTableFilterComposer(
+            $db: $db,
+            $table: $db.transaksiProses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 }
 
@@ -17133,6 +19053,31 @@ class $$TransaksiDetailsTableAnnotationComposer
         );
     return composer;
   }
+
+  Expression<T> transaksiProsesRefs<T extends Object>(
+    Expression<T> Function($$TransaksiProsesTableAnnotationComposer a) f,
+  ) {
+    final $$TransaksiProsesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.transaksiProses,
+      getReferencedColumn: (t) => t.transaksiDetailUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksiProsesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.transaksiProses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$TransaksiDetailsTableTableManager
@@ -17152,6 +19097,7 @@ class $$TransaksiDetailsTableTableManager
             bool transaksiId,
             bool pekerjaanNotarisId,
             bool pekerjaanPpatId,
+            bool transaksiProsesRefs,
           })
         > {
   $$TransaksiDetailsTableTableManager(
@@ -17264,10 +19210,13 @@ class $$TransaksiDetailsTableTableManager
                 transaksiId = false,
                 pekerjaanNotarisId = false,
                 pekerjaanPpatId = false,
+                transaksiProsesRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
-                  explicitlyWatchedTables: [],
+                  explicitlyWatchedTables: [
+                    if (transaksiProsesRefs) db.transaksiProses,
+                  ],
                   addJoins:
                       <
                         T extends TableManagerState<
@@ -17321,7 +19270,29 @@ class $$TransaksiDetailsTableTableManager
                         return state;
                       },
                   getPrefetchedDataCallback: (items) async {
-                    return [];
+                    return [
+                      if (transaksiProsesRefs)
+                        await $_getPrefetchedData<
+                          TransaksiDetail,
+                          $TransaksiDetailsTable,
+                          TransaksiProse
+                        >(
+                          currentTable: table,
+                          referencedTable: $$TransaksiDetailsTableReferences
+                              ._transaksiProsesRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TransaksiDetailsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).transaksiProsesRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.transaksiDetailUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
                   },
                 );
               },
@@ -17345,6 +19316,7 @@ typedef $$TransaksiDetailsTableProcessedTableManager =
         bool transaksiId,
         bool pekerjaanNotarisId,
         bool pekerjaanPpatId,
+        bool transaksiProsesRefs,
       })
     >;
 typedef $$TransaksiRiwayatPembayaransTableCreateCompanionBuilder =
@@ -17871,6 +19843,1252 @@ typedef $$TransaksiRiwayatPembayaransTableProcessedTableManager =
       ),
       TransaksiRiwayatPembayaran,
       PrefetchHooks Function({bool transaksiId})
+    >;
+typedef $$TransaksiProsesTableCreateCompanionBuilder =
+    TransaksiProsesCompanion Function({
+      Value<int> id,
+      required String uuid,
+      required int transaksiId,
+      required String transaksiDetailUuid,
+      Value<String?> sourceProcessId,
+      required String namaProsesSnapshot,
+      Value<String?> statusProses,
+      Value<String?> legacyStatus,
+      Value<String?> legacyData,
+      Value<String?> catatan,
+      Value<int?> submittedByUserId,
+      Value<DateTime?> submittedAt,
+      Value<int?> validatedByUserId,
+      Value<DateTime?> validatedAt,
+      Value<DateTime?> createdAt,
+      Value<DateTime?> updatedAt,
+      Value<bool> isSyncDirty,
+      Value<DateTime?> lastSyncedAt,
+      Value<DateTime?> deletedAt,
+    });
+typedef $$TransaksiProsesTableUpdateCompanionBuilder =
+    TransaksiProsesCompanion Function({
+      Value<int> id,
+      Value<String> uuid,
+      Value<int> transaksiId,
+      Value<String> transaksiDetailUuid,
+      Value<String?> sourceProcessId,
+      Value<String> namaProsesSnapshot,
+      Value<String?> statusProses,
+      Value<String?> legacyStatus,
+      Value<String?> legacyData,
+      Value<String?> catatan,
+      Value<int?> submittedByUserId,
+      Value<DateTime?> submittedAt,
+      Value<int?> validatedByUserId,
+      Value<DateTime?> validatedAt,
+      Value<DateTime?> createdAt,
+      Value<DateTime?> updatedAt,
+      Value<bool> isSyncDirty,
+      Value<DateTime?> lastSyncedAt,
+      Value<DateTime?> deletedAt,
+    });
+
+final class $$TransaksiProsesTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $TransaksiProsesTable, TransaksiProse> {
+  $$TransaksiProsesTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $TransaksisTable _transaksiIdTable(_$AppDatabase db) => db.transaksis
+      .createAlias('transaksi_proses__transaksi_id__transaksis__id');
+
+  $$TransaksisTableProcessedTableManager get transaksiId {
+    final $_column = $_itemColumn<int>('transaksi_id')!;
+
+    final manager = $$TransaksisTableTableManager(
+      $_db,
+      $_db.transaksis,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_transaksiIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $TransaksiDetailsTable _transaksiDetailUuidTable(_$AppDatabase db) =>
+      db.transaksiDetails.createAlias(
+        'transaksi_proses__transaksi_detail_uuid__transaksi_details__uuid',
+      );
+
+  $$TransaksiDetailsTableProcessedTableManager get transaksiDetailUuid {
+    final $_column = $_itemColumn<String>('transaksi_detail_uuid')!;
+
+    final manager = $$TransaksiDetailsTableTableManager(
+      $_db,
+      $_db.transaksiDetails,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_transaksiDetailUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $TransaksiProsesRiwayatTable,
+    List<TransaksiProsesRiwayatData>
+  >
+  _transaksiProsesRiwayatRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.transaksiProsesRiwayat,
+    aliasName:
+        'transaksi_proses__id__transaksi_proses_riwayat__transaksi_proses_id',
+  );
+
+  $$TransaksiProsesRiwayatTableProcessedTableManager
+  get transaksiProsesRiwayatRefs {
+    final manager = $$TransaksiProsesRiwayatTableTableManager(
+      $_db,
+      $_db.transaksiProsesRiwayat,
+    ).filter((f) => f.transaksiProsesId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _transaksiProsesRiwayatRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$TransaksiProsesTableFilterComposer
+    extends Composer<_$AppDatabase, $TransaksiProsesTable> {
+  $$TransaksiProsesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceProcessId => $composableBuilder(
+    column: $table.sourceProcessId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get namaProsesSnapshot => $composableBuilder(
+    column: $table.namaProsesSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get statusProses => $composableBuilder(
+    column: $table.statusProses,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get legacyStatus => $composableBuilder(
+    column: $table.legacyStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get legacyData => $composableBuilder(
+    column: $table.legacyData,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get catatan => $composableBuilder(
+    column: $table.catatan,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get submittedByUserId => $composableBuilder(
+    column: $table.submittedByUserId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get submittedAt => $composableBuilder(
+    column: $table.submittedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get validatedByUserId => $composableBuilder(
+    column: $table.validatedByUserId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get validatedAt => $composableBuilder(
+    column: $table.validatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSyncDirty => $composableBuilder(
+    column: $table.isSyncDirty,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$TransaksisTableFilterComposer get transaksiId {
+    final $$TransaksisTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.transaksiId,
+      referencedTable: $db.transaksis,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksisTableFilterComposer(
+            $db: $db,
+            $table: $db.transaksis,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$TransaksiDetailsTableFilterComposer get transaksiDetailUuid {
+    final $$TransaksiDetailsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.transaksiDetailUuid,
+      referencedTable: $db.transaksiDetails,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksiDetailsTableFilterComposer(
+            $db: $db,
+            $table: $db.transaksiDetails,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<bool> transaksiProsesRiwayatRefs(
+    Expression<bool> Function($$TransaksiProsesRiwayatTableFilterComposer f) f,
+  ) {
+    final $$TransaksiProsesRiwayatTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.transaksiProsesRiwayat,
+          getReferencedColumn: (t) => t.transaksiProsesId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TransaksiProsesRiwayatTableFilterComposer(
+                $db: $db,
+                $table: $db.transaksiProsesRiwayat,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$TransaksiProsesTableOrderingComposer
+    extends Composer<_$AppDatabase, $TransaksiProsesTable> {
+  $$TransaksiProsesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceProcessId => $composableBuilder(
+    column: $table.sourceProcessId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get namaProsesSnapshot => $composableBuilder(
+    column: $table.namaProsesSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get statusProses => $composableBuilder(
+    column: $table.statusProses,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get legacyStatus => $composableBuilder(
+    column: $table.legacyStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get legacyData => $composableBuilder(
+    column: $table.legacyData,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get catatan => $composableBuilder(
+    column: $table.catatan,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get submittedByUserId => $composableBuilder(
+    column: $table.submittedByUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get submittedAt => $composableBuilder(
+    column: $table.submittedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get validatedByUserId => $composableBuilder(
+    column: $table.validatedByUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get validatedAt => $composableBuilder(
+    column: $table.validatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSyncDirty => $composableBuilder(
+    column: $table.isSyncDirty,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$TransaksisTableOrderingComposer get transaksiId {
+    final $$TransaksisTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.transaksiId,
+      referencedTable: $db.transaksis,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksisTableOrderingComposer(
+            $db: $db,
+            $table: $db.transaksis,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$TransaksiDetailsTableOrderingComposer get transaksiDetailUuid {
+    final $$TransaksiDetailsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.transaksiDetailUuid,
+      referencedTable: $db.transaksiDetails,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksiDetailsTableOrderingComposer(
+            $db: $db,
+            $table: $db.transaksiDetails,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TransaksiProsesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TransaksiProsesTable> {
+  $$TransaksiProsesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<String> get sourceProcessId => $composableBuilder(
+    column: $table.sourceProcessId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get namaProsesSnapshot => $composableBuilder(
+    column: $table.namaProsesSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get statusProses => $composableBuilder(
+    column: $table.statusProses,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get legacyStatus => $composableBuilder(
+    column: $table.legacyStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get legacyData => $composableBuilder(
+    column: $table.legacyData,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get catatan =>
+      $composableBuilder(column: $table.catatan, builder: (column) => column);
+
+  GeneratedColumn<int> get submittedByUserId => $composableBuilder(
+    column: $table.submittedByUserId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get submittedAt => $composableBuilder(
+    column: $table.submittedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get validatedByUserId => $composableBuilder(
+    column: $table.validatedByUserId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get validatedAt => $composableBuilder(
+    column: $table.validatedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSyncDirty => $composableBuilder(
+    column: $table.isSyncDirty,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  $$TransaksisTableAnnotationComposer get transaksiId {
+    final $$TransaksisTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.transaksiId,
+      referencedTable: $db.transaksis,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksisTableAnnotationComposer(
+            $db: $db,
+            $table: $db.transaksis,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$TransaksiDetailsTableAnnotationComposer get transaksiDetailUuid {
+    final $$TransaksiDetailsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.transaksiDetailUuid,
+      referencedTable: $db.transaksiDetails,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksiDetailsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.transaksiDetails,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  Expression<T> transaksiProsesRiwayatRefs<T extends Object>(
+    Expression<T> Function($$TransaksiProsesRiwayatTableAnnotationComposer a) f,
+  ) {
+    final $$TransaksiProsesRiwayatTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.transaksiProsesRiwayat,
+          getReferencedColumn: (t) => t.transaksiProsesId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$TransaksiProsesRiwayatTableAnnotationComposer(
+                $db: $db,
+                $table: $db.transaksiProsesRiwayat,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$TransaksiProsesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TransaksiProsesTable,
+          TransaksiProse,
+          $$TransaksiProsesTableFilterComposer,
+          $$TransaksiProsesTableOrderingComposer,
+          $$TransaksiProsesTableAnnotationComposer,
+          $$TransaksiProsesTableCreateCompanionBuilder,
+          $$TransaksiProsesTableUpdateCompanionBuilder,
+          (TransaksiProse, $$TransaksiProsesTableReferences),
+          TransaksiProse,
+          PrefetchHooks Function({
+            bool transaksiId,
+            bool transaksiDetailUuid,
+            bool transaksiProsesRiwayatRefs,
+          })
+        > {
+  $$TransaksiProsesTableTableManager(
+    _$AppDatabase db,
+    $TransaksiProsesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TransaksiProsesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TransaksiProsesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TransaksiProsesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> uuid = const Value.absent(),
+                Value<int> transaksiId = const Value.absent(),
+                Value<String> transaksiDetailUuid = const Value.absent(),
+                Value<String?> sourceProcessId = const Value.absent(),
+                Value<String> namaProsesSnapshot = const Value.absent(),
+                Value<String?> statusProses = const Value.absent(),
+                Value<String?> legacyStatus = const Value.absent(),
+                Value<String?> legacyData = const Value.absent(),
+                Value<String?> catatan = const Value.absent(),
+                Value<int?> submittedByUserId = const Value.absent(),
+                Value<DateTime?> submittedAt = const Value.absent(),
+                Value<int?> validatedByUserId = const Value.absent(),
+                Value<DateTime?> validatedAt = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<bool> isSyncDirty = const Value.absent(),
+                Value<DateTime?> lastSyncedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+              }) => TransaksiProsesCompanion(
+                id: id,
+                uuid: uuid,
+                transaksiId: transaksiId,
+                transaksiDetailUuid: transaksiDetailUuid,
+                sourceProcessId: sourceProcessId,
+                namaProsesSnapshot: namaProsesSnapshot,
+                statusProses: statusProses,
+                legacyStatus: legacyStatus,
+                legacyData: legacyData,
+                catatan: catatan,
+                submittedByUserId: submittedByUserId,
+                submittedAt: submittedAt,
+                validatedByUserId: validatedByUserId,
+                validatedAt: validatedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isSyncDirty: isSyncDirty,
+                lastSyncedAt: lastSyncedAt,
+                deletedAt: deletedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String uuid,
+                required int transaksiId,
+                required String transaksiDetailUuid,
+                Value<String?> sourceProcessId = const Value.absent(),
+                required String namaProsesSnapshot,
+                Value<String?> statusProses = const Value.absent(),
+                Value<String?> legacyStatus = const Value.absent(),
+                Value<String?> legacyData = const Value.absent(),
+                Value<String?> catatan = const Value.absent(),
+                Value<int?> submittedByUserId = const Value.absent(),
+                Value<DateTime?> submittedAt = const Value.absent(),
+                Value<int?> validatedByUserId = const Value.absent(),
+                Value<DateTime?> validatedAt = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<bool> isSyncDirty = const Value.absent(),
+                Value<DateTime?> lastSyncedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+              }) => TransaksiProsesCompanion.insert(
+                id: id,
+                uuid: uuid,
+                transaksiId: transaksiId,
+                transaksiDetailUuid: transaksiDetailUuid,
+                sourceProcessId: sourceProcessId,
+                namaProsesSnapshot: namaProsesSnapshot,
+                statusProses: statusProses,
+                legacyStatus: legacyStatus,
+                legacyData: legacyData,
+                catatan: catatan,
+                submittedByUserId: submittedByUserId,
+                submittedAt: submittedAt,
+                validatedByUserId: validatedByUserId,
+                validatedAt: validatedAt,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                isSyncDirty: isSyncDirty,
+                lastSyncedAt: lastSyncedAt,
+                deletedAt: deletedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$TransaksiProsesTable, TransaksiProse>(table),
+                  $$TransaksiProsesTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                transaksiId = false,
+                transaksiDetailUuid = false,
+                transaksiProsesRiwayatRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (transaksiProsesRiwayatRefs) db.transaksiProsesRiwayat,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (transaksiId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.transaksiId,
+                            referencedTable: $$TransaksiProsesTableReferences
+                                ._transaksiIdTable(db),
+                            referencedColumn: $$TransaksiProsesTableReferences
+                                ._transaksiIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (transaksiDetailUuid) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.transaksiDetailUuid,
+                            referencedTable: $$TransaksiProsesTableReferences
+                                ._transaksiDetailUuidTable(db),
+                            referencedColumn: $$TransaksiProsesTableReferences
+                                ._transaksiDetailUuidTable(db)
+                                .uuid,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (transaksiProsesRiwayatRefs)
+                        await $_getPrefetchedData<
+                          TransaksiProse,
+                          $TransaksiProsesTable,
+                          TransaksiProsesRiwayatData
+                        >(
+                          currentTable: table,
+                          referencedTable: $$TransaksiProsesTableReferences
+                              ._transaksiProsesRiwayatRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$TransaksiProsesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).transaksiProsesRiwayatRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.transaksiProsesId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$TransaksiProsesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TransaksiProsesTable,
+      TransaksiProse,
+      $$TransaksiProsesTableFilterComposer,
+      $$TransaksiProsesTableOrderingComposer,
+      $$TransaksiProsesTableAnnotationComposer,
+      $$TransaksiProsesTableCreateCompanionBuilder,
+      $$TransaksiProsesTableUpdateCompanionBuilder,
+      (TransaksiProse, $$TransaksiProsesTableReferences),
+      TransaksiProse,
+      PrefetchHooks Function({
+        bool transaksiId,
+        bool transaksiDetailUuid,
+        bool transaksiProsesRiwayatRefs,
+      })
+    >;
+typedef $$TransaksiProsesRiwayatTableCreateCompanionBuilder =
+    TransaksiProsesRiwayatCompanion Function({
+      Value<int> id,
+      required String uuid,
+      required int transaksiProsesId,
+      Value<String?> statusSebelumnya,
+      required String statusBaru,
+      Value<int?> actorUserId,
+      required DateTime createdAt,
+      Value<String?> catatan,
+      Value<bool> isSyncDirty,
+      Value<DateTime?> lastSyncedAt,
+    });
+typedef $$TransaksiProsesRiwayatTableUpdateCompanionBuilder =
+    TransaksiProsesRiwayatCompanion Function({
+      Value<int> id,
+      Value<String> uuid,
+      Value<int> transaksiProsesId,
+      Value<String?> statusSebelumnya,
+      Value<String> statusBaru,
+      Value<int?> actorUserId,
+      Value<DateTime> createdAt,
+      Value<String?> catatan,
+      Value<bool> isSyncDirty,
+      Value<DateTime?> lastSyncedAt,
+    });
+
+final class $$TransaksiProsesRiwayatTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $TransaksiProsesRiwayatTable,
+          TransaksiProsesRiwayatData
+        > {
+  $$TransaksiProsesRiwayatTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $TransaksiProsesTable _transaksiProsesIdTable(_$AppDatabase db) =>
+      db.transaksiProses.createAlias(
+        'transaksi_proses_riwayat__transaksi_proses_id__transaksi_proses__id',
+      );
+
+  $$TransaksiProsesTableProcessedTableManager get transaksiProsesId {
+    final $_column = $_itemColumn<int>('transaksi_proses_id')!;
+
+    final manager = $$TransaksiProsesTableTableManager(
+      $_db,
+      $_db.transaksiProses,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_transaksiProsesIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$TransaksiProsesRiwayatTableFilterComposer
+    extends Composer<_$AppDatabase, $TransaksiProsesRiwayatTable> {
+  $$TransaksiProsesRiwayatTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get statusSebelumnya => $composableBuilder(
+    column: $table.statusSebelumnya,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get statusBaru => $composableBuilder(
+    column: $table.statusBaru,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get actorUserId => $composableBuilder(
+    column: $table.actorUserId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get catatan => $composableBuilder(
+    column: $table.catatan,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSyncDirty => $composableBuilder(
+    column: $table.isSyncDirty,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$TransaksiProsesTableFilterComposer get transaksiProsesId {
+    final $$TransaksiProsesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.transaksiProsesId,
+      referencedTable: $db.transaksiProses,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksiProsesTableFilterComposer(
+            $db: $db,
+            $table: $db.transaksiProses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TransaksiProsesRiwayatTableOrderingComposer
+    extends Composer<_$AppDatabase, $TransaksiProsesRiwayatTable> {
+  $$TransaksiProsesRiwayatTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get statusSebelumnya => $composableBuilder(
+    column: $table.statusSebelumnya,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get statusBaru => $composableBuilder(
+    column: $table.statusBaru,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get actorUserId => $composableBuilder(
+    column: $table.actorUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get catatan => $composableBuilder(
+    column: $table.catatan,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSyncDirty => $composableBuilder(
+    column: $table.isSyncDirty,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$TransaksiProsesTableOrderingComposer get transaksiProsesId {
+    final $$TransaksiProsesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.transaksiProsesId,
+      referencedTable: $db.transaksiProses,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksiProsesTableOrderingComposer(
+            $db: $db,
+            $table: $db.transaksiProses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TransaksiProsesRiwayatTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TransaksiProsesRiwayatTable> {
+  $$TransaksiProsesRiwayatTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<String> get statusSebelumnya => $composableBuilder(
+    column: $table.statusSebelumnya,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get statusBaru => $composableBuilder(
+    column: $table.statusBaru,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get actorUserId => $composableBuilder(
+    column: $table.actorUserId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get catatan =>
+      $composableBuilder(column: $table.catatan, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSyncDirty => $composableBuilder(
+    column: $table.isSyncDirty,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => column,
+  );
+
+  $$TransaksiProsesTableAnnotationComposer get transaksiProsesId {
+    final $$TransaksiProsesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.transaksiProsesId,
+      referencedTable: $db.transaksiProses,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksiProsesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.transaksiProses,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TransaksiProsesRiwayatTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TransaksiProsesRiwayatTable,
+          TransaksiProsesRiwayatData,
+          $$TransaksiProsesRiwayatTableFilterComposer,
+          $$TransaksiProsesRiwayatTableOrderingComposer,
+          $$TransaksiProsesRiwayatTableAnnotationComposer,
+          $$TransaksiProsesRiwayatTableCreateCompanionBuilder,
+          $$TransaksiProsesRiwayatTableUpdateCompanionBuilder,
+          (TransaksiProsesRiwayatData, $$TransaksiProsesRiwayatTableReferences),
+          TransaksiProsesRiwayatData,
+          PrefetchHooks Function({bool transaksiProsesId})
+        > {
+  $$TransaksiProsesRiwayatTableTableManager(
+    _$AppDatabase db,
+    $TransaksiProsesRiwayatTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TransaksiProsesRiwayatTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$TransaksiProsesRiwayatTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$TransaksiProsesRiwayatTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> uuid = const Value.absent(),
+                Value<int> transaksiProsesId = const Value.absent(),
+                Value<String?> statusSebelumnya = const Value.absent(),
+                Value<String> statusBaru = const Value.absent(),
+                Value<int?> actorUserId = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> catatan = const Value.absent(),
+                Value<bool> isSyncDirty = const Value.absent(),
+                Value<DateTime?> lastSyncedAt = const Value.absent(),
+              }) => TransaksiProsesRiwayatCompanion(
+                id: id,
+                uuid: uuid,
+                transaksiProsesId: transaksiProsesId,
+                statusSebelumnya: statusSebelumnya,
+                statusBaru: statusBaru,
+                actorUserId: actorUserId,
+                createdAt: createdAt,
+                catatan: catatan,
+                isSyncDirty: isSyncDirty,
+                lastSyncedAt: lastSyncedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String uuid,
+                required int transaksiProsesId,
+                Value<String?> statusSebelumnya = const Value.absent(),
+                required String statusBaru,
+                Value<int?> actorUserId = const Value.absent(),
+                required DateTime createdAt,
+                Value<String?> catatan = const Value.absent(),
+                Value<bool> isSyncDirty = const Value.absent(),
+                Value<DateTime?> lastSyncedAt = const Value.absent(),
+              }) => TransaksiProsesRiwayatCompanion.insert(
+                id: id,
+                uuid: uuid,
+                transaksiProsesId: transaksiProsesId,
+                statusSebelumnya: statusSebelumnya,
+                statusBaru: statusBaru,
+                actorUserId: actorUserId,
+                createdAt: createdAt,
+                catatan: catatan,
+                isSyncDirty: isSyncDirty,
+                lastSyncedAt: lastSyncedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $TransaksiProsesRiwayatTable,
+                    TransaksiProsesRiwayatData
+                  >(table),
+                  $$TransaksiProsesRiwayatTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({transaksiProsesId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (transaksiProsesId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.transaksiProsesId,
+                        referencedTable: $$TransaksiProsesRiwayatTableReferences
+                            ._transaksiProsesIdTable(db),
+                        referencedColumn:
+                            $$TransaksiProsesRiwayatTableReferences
+                                ._transaksiProsesIdTable(db)
+                                .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$TransaksiProsesRiwayatTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TransaksiProsesRiwayatTable,
+      TransaksiProsesRiwayatData,
+      $$TransaksiProsesRiwayatTableFilterComposer,
+      $$TransaksiProsesRiwayatTableOrderingComposer,
+      $$TransaksiProsesRiwayatTableAnnotationComposer,
+      $$TransaksiProsesRiwayatTableCreateCompanionBuilder,
+      $$TransaksiProsesRiwayatTableUpdateCompanionBuilder,
+      (TransaksiProsesRiwayatData, $$TransaksiProsesRiwayatTableReferences),
+      TransaksiProsesRiwayatData,
+      PrefetchHooks Function({bool transaksiProsesId})
     >;
 typedef $$PekerjaanKategorisTableCreateCompanionBuilder =
     PekerjaanKategorisCompanion Function({
@@ -23058,6 +26276,13 @@ class $AppDatabaseManager {
       $$TransaksiRiwayatPembayaransTableTableManager(
         _db,
         _db.transaksiRiwayatPembayarans,
+      );
+  $$TransaksiProsesTableTableManager get transaksiProses =>
+      $$TransaksiProsesTableTableManager(_db, _db.transaksiProses);
+  $$TransaksiProsesRiwayatTableTableManager get transaksiProsesRiwayat =>
+      $$TransaksiProsesRiwayatTableTableManager(
+        _db,
+        _db.transaksiProsesRiwayat,
       );
   $$PekerjaanKategorisTableTableManager get pekerjaanKategoris =>
       $$PekerjaanKategorisTableTableManager(_db, _db.pekerjaanKategoris);
