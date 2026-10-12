@@ -25,8 +25,10 @@ class TransactionJobInput {
   final int? pekerjaanPpatId;
   final String? kategoriSnapshot;
   final String? estimasiWaktuSnapshot;
+
   /// JSON snapshot of the selected process checklist for this transaction job.
   final String? prosesSnapshot;
+
   /// Stable detail UUID generated when the job is selected, and preserved
   /// across subsequent edits of the same transaction.
   final String detailUuid;
@@ -51,9 +53,9 @@ class TransactionRepository {
   }
 
   Future<Transaksi?> findById(int id) {
-    return (db.select(db.transaksis)
-          ..where((t) => t.id.equals(id) & t.deletedAt.isNull()))
-        .getSingleOrNull();
+    return (db.select(
+      db.transaksis,
+    )..where((t) => t.id.equals(id) & t.deletedAt.isNull())).getSingleOrNull();
   }
 
   /// Generates the legacy Laravel number format locally.
@@ -83,15 +85,17 @@ class TransactionRepository {
       if (sequence > maxSequence) maxSequence = sequence;
     }
     final nextSequence = (maxSequence + 1).toString().padLeft(4, '0');
-    return '$typeCode' '00$dateCode$nextSequence';
+    return '$typeCode'
+        '00$dateCode$nextSequence';
   }
 
   Future<List<TransaksiDetail>> watchDetailsOnce(int transactionId) {
-    return (db.select(db.transaksiDetails)
-          ..where((t) =>
+    return (db.select(db.transaksiDetails)..where(
+          (t) =>
               t.transaksiId.equals(transactionId) &
               t.deletedAt.isNull() &
-              t.status.equals(1)))
+              t.status.equals(1),
+        ))
         .get();
   }
 
@@ -129,8 +133,7 @@ class TransactionRepository {
           '${jenisTransaksi.toUpperCase()}.',
         );
       }
-      if (job.jenisPekerjaan == 'notaris' &&
-          job.pekerjaanNotarisId == null) {
+      if (job.jenisPekerjaan == 'notaris' && job.pekerjaanNotarisId == null) {
         throw ArgumentError('Referensi pekerjaan Notaris wajib diisi.');
       }
       if (job.jenisPekerjaan == 'ppat' && job.pekerjaanPpatId == null) {
@@ -142,9 +145,12 @@ class TransactionRepository {
     final totalPekerjaan = jobs.fold<double>(0, (sum, job) => sum + job.total);
     final totalBersih = (totalPekerjaan - diskon).clamp(0, double.infinity);
 
-return db.transaction(() async {
-      final transactionId = id ??
-          await db.into(db.transaksis).insert(
+    return db.transaction(() async {
+      final transactionId =
+          id ??
+          await db
+              .into(db.transaksis)
+              .insert(
                 TransaksisCompanion.insert(
                   uuid: _uuid.v4(),
                   noAkta: nomorTransaksi.trim(),
@@ -172,20 +178,24 @@ return db.transaction(() async {
       // an auditable history row. Editing an existing transaction must not
       // duplicate the same payment on every save.
       if (id == null && pembayaranSekarang > 0) {
-        await db.into(db.transaksiRiwayatPembayarans).insert(
-          TransaksiRiwayatPembayaransCompanion.insert(
-            uuid: _uuid.v4(),
-            transaksiId: transactionId,
-            tanggalPembayaran: tanggalTransaksi,
-            nominal: pembayaranSekarang,
-            metodePembayaran: Value(metodePembayaran),
-            keterangan: const Value('Pembayaran awal saat transaksi dibuat'),
-            urutanPembayaran: const Value(1),
-            createdAt: Value(now),
-            updatedAt: Value(now),
-            isSyncDirty: const Value(true),
-          ),
-        );
+        await db
+            .into(db.transaksiRiwayatPembayarans)
+            .insert(
+              TransaksiRiwayatPembayaransCompanion.insert(
+                uuid: _uuid.v4(),
+                transaksiId: transactionId,
+                tanggalPembayaran: tanggalTransaksi,
+                nominal: pembayaranSekarang,
+                metodePembayaran: Value(metodePembayaran),
+                keterangan: const Value(
+                  'Pembayaran awal saat transaksi dibuat',
+                ),
+                urutanPembayaran: const Value(1),
+                createdAt: Value(now),
+                updatedAt: Value(now),
+                isSyncDirty: const Value(true),
+              ),
+            );
       }
 
       if (id != null) {
@@ -194,29 +204,30 @@ return db.transaction(() async {
           0,
           (sum, payment) => sum + payment.nominal,
         );
-        final affected = await (db.update(db.transaksis)
-              ..where((t) => t.id.equals(id) & t.deletedAt.isNull()))
-            .write(
-          TransaksisCompanion(
-            noAkta: Value(nomorTransaksi.trim()),
-            total: Value(totalBersih.toDouble()),
-            pemohonId: Value(pemohonId),
-            pemohonUuid: Value(pemohonUuid),
-            petugasId: Value(petugasId),
-            petugasUuid: Value(petugasUuid),
-            jenisTransaksi: Value(jenisTransaksi),
-            statusTransaksi: Value(status),
-            tanggalTransaksi: Value(tanggalTransaksi),
-            tanggalJatuhTempo: Value(tanggalJatuhTempo),
-            diskon: Value(diskon),
-            pembayaranSekarang: Value(totalPaid),
-            metodePembayaran: Value(metodePembayaran),
-            jumlahMaterai: Value(jumlahMaterai),
-            catatan: Value(_nullableText(catatan)),
-            updatedAt: Value(now),
-            isSyncDirty: const Value(true),
-          ),
-        );
+        final affected =
+            await (db.update(
+              db.transaksis,
+            )..where((t) => t.id.equals(id) & t.deletedAt.isNull())).write(
+              TransaksisCompanion(
+                noAkta: Value(nomorTransaksi.trim()),
+                total: Value(totalBersih.toDouble()),
+                pemohonId: Value(pemohonId),
+                pemohonUuid: Value(pemohonUuid),
+                petugasId: Value(petugasId),
+                petugasUuid: Value(petugasUuid),
+                jenisTransaksi: Value(jenisTransaksi),
+                statusTransaksi: Value(status),
+                tanggalTransaksi: Value(tanggalTransaksi),
+                tanggalJatuhTempo: Value(tanggalJatuhTempo),
+                diskon: Value(diskon),
+                pembayaranSekarang: Value(totalPaid),
+                metodePembayaran: Value(metodePembayaran),
+                jumlahMaterai: Value(jumlahMaterai),
+                catatan: Value(_nullableText(catatan)),
+                updatedAt: Value(now),
+                isSyncDirty: const Value(true),
+              ),
+            );
         if (affected == 0) {
           throw StateError('Transaksi tidak ditemukan atau sudah dihapus.');
         }
@@ -224,17 +235,17 @@ return db.transaction(() async {
         // Do not replace every detail row on edit. Stable detail UUIDs are
         // required so process-level validation state can remain attached to
         // the same job across ordinary transaction edits.
-
       }
 
       final existingDetails = id == null
           ? <TransaksiDetail>[]
-          : await (db.select(db.transaksiDetails)
-                ..where((t) =>
-                    t.transaksiId.equals(transactionId) &
-                    t.deletedAt.isNull() &
-                    t.status.equals(1)))
-              .get();
+          : await (db.select(db.transaksiDetails)..where(
+                  (t) =>
+                      t.transaksiId.equals(transactionId) &
+                      t.deletedAt.isNull() &
+                      t.status.equals(1),
+                ))
+                .get();
       final existingByUuid = {
         for (final detail in existingDetails) detail.uuid: detail,
       };
@@ -245,9 +256,9 @@ return db.transaction(() async {
           .where((uuid) => !retainedUuids.contains(uuid))
           .toList();
       if (removedUuids.isNotEmpty) {
-        await (db.update(db.transaksiDetails)
-              ..where((t) => t.uuid.isIn(removedUuids)))
-            .write(
+        await (db.update(
+          db.transaksiDetails,
+        )..where((t) => t.uuid.isIn(removedUuids))).write(
           TransaksiDetailsCompanion(
             status: const Value(0),
             deletedAt: Value(now),
@@ -260,31 +271,34 @@ return db.transaction(() async {
       for (final job in jobs) {
         final existing = existingByUuid[job.detailUuid];
         if (existing != null) {
-          await (db.update(db.transaksiDetails)
-                ..where((t) =>
+          await (db.update(db.transaksiDetails)..where(
+                (t) =>
                     t.uuid.equals(existing.uuid) &
                     t.transaksiId.equals(transactionId) &
-                    t.deletedAt.isNull()))
+                    t.deletedAt.isNull(),
+              ))
               .write(
-            TransaksiDetailsCompanion(
-              jenisPekerjaan: Value(job.jenisPekerjaan),
-              pekerjaanNotarisId: Value(job.pekerjaanNotarisId),
-              pekerjaanPpatId: Value(job.pekerjaanPpatId),
-              namaPekerjaanSnapshot: Value(job.namaPekerjaan),
-              kategoriSnapshot: Value(job.kategoriSnapshot),
-              estimasiWaktuSnapshot: Value(job.estimasiWaktuSnapshot),
-              prosesSnapshot: Value(job.prosesSnapshot),
-              biayaLayanan: Value(job.biayaLayanan),
-              biayaLainnya: Value(job.biayaLainnya),
-              totalSnapshot: Value(job.total),
-              updatedAt: Value(now),
-              isSyncDirty: const Value(true),
-            ),
-          );
+                TransaksiDetailsCompanion(
+                  jenisPekerjaan: Value(job.jenisPekerjaan),
+                  pekerjaanNotarisId: Value(job.pekerjaanNotarisId),
+                  pekerjaanPpatId: Value(job.pekerjaanPpatId),
+                  namaPekerjaanSnapshot: Value(job.namaPekerjaan),
+                  kategoriSnapshot: Value(job.kategoriSnapshot),
+                  estimasiWaktuSnapshot: Value(job.estimasiWaktuSnapshot),
+                  prosesSnapshot: Value(job.prosesSnapshot),
+                  biayaLayanan: Value(job.biayaLayanan),
+                  biayaLainnya: Value(job.biayaLainnya),
+                  totalSnapshot: Value(job.total),
+                  updatedAt: Value(now),
+                  isSyncDirty: const Value(true),
+                ),
+              );
         } else {
-          await db.into(db.transaksiDetails).insert(
+          await db
+              .into(db.transaksiDetails)
+              .insert(
                 TransaksiDetailsCompanion.insert(
-                  uuid: _uuid.v4(),
+                  uuid: job.detailUuid,
                   transaksiId: transactionId,
                   jenisPekerjaan: job.jenisPekerjaan,
                   pekerjaanNotarisId: Value(job.pekerjaanNotarisId),
@@ -308,10 +322,20 @@ return db.transaction(() async {
   }
 
   /// Returns active payment history entries ordered by payment date.
-  Future<List<TransaksiRiwayatPembayaran>> getPaymentHistory(int transactionId) {
+  Future<List<TransaksiRiwayatPembayaran>> getPaymentHistory(
+    int transactionId,
+  ) {
     return (db.select(db.transaksiRiwayatPembayarans)
-          ..where((p) => p.transaksiId.equals(transactionId) & p.deletedAt.isNull() & p.status.equals(1))
-          ..orderBy([(p) => OrderingTerm.asc(p.tanggalPembayaran), (p) => OrderingTerm.asc(p.urutanPembayaran)]))
+          ..where(
+            (p) =>
+                p.transaksiId.equals(transactionId) &
+                p.deletedAt.isNull() &
+                p.status.equals(1),
+          )
+          ..orderBy([
+            (p) => OrderingTerm.asc(p.tanggalPembayaran),
+            (p) => OrderingTerm.asc(p.urutanPembayaran),
+          ]))
         .get();
   }
 
@@ -343,24 +367,26 @@ return db.transaction(() async {
       }
 
       final now = DateTime.now();
-      final paymentId = await db.into(db.transaksiRiwayatPembayarans).insert(
-        TransaksiRiwayatPembayaransCompanion.insert(
-          uuid: _uuid.v4(),
-          transaksiId: transactionId,
-          tanggalPembayaran: paymentDate,
-          nominal: amount,
-          metodePembayaran: Value(method),
-          keterangan: Value(_nullableText(note)),
-          urutanPembayaran: Value(history.length + 1),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-          isSyncDirty: const Value(true),
-        ),
-      );
+      final paymentId = await db
+          .into(db.transaksiRiwayatPembayarans)
+          .insert(
+            TransaksiRiwayatPembayaransCompanion.insert(
+              uuid: _uuid.v4(),
+              transaksiId: transactionId,
+              tanggalPembayaran: paymentDate,
+              nominal: amount,
+              metodePembayaran: Value(method),
+              keterangan: Value(_nullableText(note)),
+              urutanPembayaran: Value(history.length + 1),
+              createdAt: Value(now),
+              updatedAt: Value(now),
+              isSyncDirty: const Value(true),
+            ),
+          );
 
-      await (db.update(db.transaksis)
-            ..where((t) => t.id.equals(transactionId)))
-          .write(
+      await (db.update(
+        db.transaksis,
+      )..where((t) => t.id.equals(transactionId))).write(
         TransaksisCompanion(
           pembayaranSekarang: Value(paid + amount),
           metodePembayaran: Value(method),
@@ -374,12 +400,15 @@ return db.transaction(() async {
   }
 
   Future<bool> deletePayment(int paymentId) async {
-    final payment = await (db.select(db.transaksiRiwayatPembayarans)
-          ..where((p) => p.id.equals(paymentId) & p.deletedAt.isNull()))
-        .getSingleOrNull();
+    final payment =
+        await (db.select(db.transaksiRiwayatPembayarans)
+              ..where((p) => p.id.equals(paymentId) & p.deletedAt.isNull()))
+            .getSingleOrNull();
     if (payment == null) return false;
     final now = DateTime.now();
-    await (db.update(db.transaksiRiwayatPembayarans)..where((p) => p.id.equals(paymentId))).write(
+    await (db.update(
+      db.transaksiRiwayatPembayarans,
+    )..where((p) => p.id.equals(paymentId))).write(
       TransaksiRiwayatPembayaransCompanion(
         status: const Value(0),
         deletedAt: Value(now),
@@ -389,7 +418,9 @@ return db.transaction(() async {
     );
     final history = await getPaymentHistory(payment.transaksiId);
     final paid = history.fold<double>(0, (sum, item) => sum + item.nominal);
-    await (db.update(db.transaksis)..where((t) => t.id.equals(payment.transaksiId))).write(
+    await (db.update(
+      db.transaksis,
+    )..where((t) => t.id.equals(payment.transaksiId))).write(
       TransaksisCompanion(
         pembayaranSekarang: Value(paid),
         updatedAt: Value(now),
@@ -402,21 +433,21 @@ return db.transaction(() async {
   Future<bool> delete(int id) async {
     final now = DateTime.now();
     return db.transaction(() async {
-      final affected = await (db.update(db.transaksis)
-            ..where((t) => t.id.equals(id) & t.deletedAt.isNull()))
-          .write(
-        TransaksisCompanion(
-          statusTransaksi: const Value('Dihapus'),
-          deletedAt: Value(now),
-          updatedAt: Value(now),
-          isSyncDirty: const Value(true),
-        ),
-      );
+      final affected =
+          await (db.update(
+            db.transaksis,
+          )..where((t) => t.id.equals(id) & t.deletedAt.isNull())).write(
+            TransaksisCompanion(
+              statusTransaksi: const Value('Dihapus'),
+              deletedAt: Value(now),
+              updatedAt: Value(now),
+              isSyncDirty: const Value(true),
+            ),
+          );
       if (affected == 0) return false;
-      await (db.update(db.transaksiDetails)
-            ..where((t) =>
-                t.transaksiId.equals(id) & t.deletedAt.isNull()))
-          .write(
+      await (db.update(
+        db.transaksiDetails,
+      )..where((t) => t.transaksiId.equals(id) & t.deletedAt.isNull())).write(
         TransaksiDetailsCompanion(
           status: const Value(0),
           deletedAt: Value(now),
