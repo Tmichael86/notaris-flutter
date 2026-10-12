@@ -335,7 +335,7 @@ class TransactionRepository {
   /// A null snapshot means the caller did not provide process data, so existing
   /// workflow state must be left untouched. Matching rows keep their validated
   /// status and audit history; removed rows are soft-deleted, never hard-deleted.
-  Future<void> _syncProcessesForJob({
+Future<void> _syncProcessesForJob({
     required int transactionId,
     required String detailUuid,
     required String? snapshot,
@@ -343,7 +343,7 @@ class TransactionRepository {
   }) async {
     if (snapshot == null) return;
 
-    final decoded;
+    final Object? decoded;
     try {
       decoded = jsonDecode(snapshot);
     } on FormatException {
@@ -361,14 +361,14 @@ class TransactionRepository {
       incoming.add(Map<String, dynamic>.from(item));
     }
 
-    final existingRows = await (db.select(db.transaksiProses)
-          ..where(
-            (p) =>
-                p.transaksiDetailUuid.equals(detailUuid) &
-                p.transaksiId.equals(transactionId) &
-                p.deletedAt.isNull(),
-          ))
-        .get();
+    final existingRows =
+        await (db.select(db.transaksiProses)..where(
+              (p) =>
+                  p.transaksiDetailUuid.equals(detailUuid) &
+                  p.transaksiId.equals(transactionId) &
+                  p.deletedAt.isNull(),
+            ))
+            .get();
 
     final unmatched = [...existingRows];
     for (final item in incoming) {
@@ -390,9 +390,9 @@ class TransactionRepository {
 
       if (matchIndex >= 0) {
         final existing = unmatched.removeAt(matchIndex);
-        await (db.update(db.transaksiProses)
-              ..where((p) => p.id.equals(existing.id)))
-            .write(
+        await (db.update(
+          db.transaksiProses,
+        )..where((p) => p.id.equals(existing.id))).write(
           TransaksiProsesCompanion(
             namaProsesSnapshot: Value(name),
             sourceProcessId: Value(sourceId ?? existing.sourceProcessId),
@@ -404,29 +404,31 @@ class TransactionRepository {
         );
       } else {
         final uuid = _uuid.v4();
-        await db.into(db.transaksiProses).insert(
-          TransaksiProsesCompanion.insert(
-            uuid: uuid,
-            transaksiId: transactionId,
-            transaksiDetailUuid: detailUuid,
-            sourceProcessId: Value(sourceId),
-            namaProsesSnapshot: name,
-            statusProses: const Value(null),
-            legacyStatus: Value(legacyStatus),
-            legacyData: Value(legacyData),
-            createdAt: Value(now),
-            updatedAt: Value(now),
-            isSyncDirty: const Value(true),
-          ),
-        );
+        await db
+            .into(db.transaksiProses)
+            .insert(
+              TransaksiProsesCompanion.insert(
+                uuid: uuid,
+                transaksiId: transactionId,
+                transaksiDetailUuid: detailUuid,
+                sourceProcessId: Value(sourceId),
+                namaProsesSnapshot: name,
+                statusProses: const Value(null),
+                legacyStatus: Value(legacyStatus),
+                legacyData: Value(legacyData),
+                createdAt: Value(now),
+                updatedAt: Value(now),
+                isSyncDirty: const Value(true),
+              ),
+            );
       }
     }
 
     if (unmatched.isNotEmpty) {
       final removedIds = unmatched.map((row) => row.id).toList();
-      await (db.update(db.transaksiProses)
-            ..where((p) => p.id.isIn(removedIds)))
-          .write(
+      await (db.update(
+        db.transaksiProses,
+      )..where((p) => p.id.isIn(removedIds))).write(
         TransaksiProsesCompanion(
           deletedAt: Value(now),
           updatedAt: Value(now),

@@ -15,59 +15,67 @@ void main() {
     repository = TransactionRepository(db);
     processRepository = TransaksiProsesRepository(db);
 
-    pekerjaanNotarisId = await db.into(db.pekerjaanNotarisLocals).insert(
-      PekerjaanNotarisLocalsCompanion.insert(
-        uuid: 'job-uuid',
-        nama: 'Akta Test',
-      ),
-    );
+    pekerjaanNotarisId = await db
+        .into(db.pekerjaanNotarisLocals)
+        .insert(
+          PekerjaanNotarisLocalsCompanion.insert(
+            uuid: 'job-uuid',
+            nama: 'Akta Test',
+          ),
+        );
   });
 
   tearDown(() async {
     await db.close();
   });
 
-  test('saving a transaction persists its process snapshot as process rows',
-      () async {
-    final transactionId = await repository.save(
-      nomorTransaksi: '1001210260001',
-      jenisTransaksi: 'notaris',
-      pemohonId: 1,
-      pemohonUuid: 'applicant-uuid',
-      petugasId: 1,
-      petugasUuid: 'officer-uuid',
-      status: 'Baru',
-      tanggalTransaksi: DateTime(2026, 10, 12),
-      jobs: [
-        TransactionJobInput(
-          jenisPekerjaan: 'notaris',
-          namaPekerjaan: 'Akta Test',
-          pekerjaanNotarisId: pekerjaanNotarisId,
-          biayaLayanan: 100000,
-          detailUuid: 'detail-uuid',
-          prosesSnapshot:
-              '[{"id":"process-1","name":"Pemeriksaan dokumen","status":"Belum Valid"},'
-              '{"id":"process-2","name":"Penandatanganan","status":"Belum Valid"}]',
-        ),
-      ],
-    );
+  test(
+    'saving a transaction persists its process snapshot as process rows',
+    () async {
+      final transactionId = await repository.save(
+        nomorTransaksi: '1001210260001',
+        jenisTransaksi: 'notaris',
+        pemohonId: 1,
+        pemohonUuid: 'applicant-uuid',
+        petugasId: 1,
+        petugasUuid: 'officer-uuid',
+        status: 'Baru',
+        tanggalTransaksi: DateTime(2026, 10, 12),
+        jobs: [
+          TransactionJobInput(
+            jenisPekerjaan: 'notaris',
+            namaPekerjaan: 'Akta Test',
+            pekerjaanNotarisId: pekerjaanNotarisId,
+            biayaLayanan: 100000,
+            detailUuid: 'detail-uuid',
+            prosesSnapshot:
+                '[{"id":"process-1","name":"Pemeriksaan dokumen","status":"Belum Valid"},'
+                '{"id":"process-2","name":"Penandatanganan","status":"Belum Valid"}]',
+          ),
+        ],
+      );
 
-    final processes = await processRepository.getByTransactionId(transactionId);
+      final processes = await processRepository.getByTransactionId(
+        transactionId,
+      );
 
-    expect(processes, hasLength(2));
-    expect(
-      processes.map((process) => process.sourceProcessId).toList(),
-      ['process-1', 'process-2'],
-    );
-    expect(
-      processes.map((process) => process.namaProsesSnapshot).toList(),
-      ['Pemeriksaan dokumen', 'Penandatanganan'],
-    );
-    expect(processes.every((process) => process.statusProses == null), isTrue);
-  });
+      expect(processes, hasLength(2));
+      expect(processes.map((process) => process.sourceProcessId).toList(), [
+        'process-1',
+        'process-2',
+      ]);
+      expect(processes.map((process) => process.namaProsesSnapshot).toList(), [
+        'Pemeriksaan dokumen',
+        'Penandatanganan',
+      ]);
+      expect(
+        processes.every((process) => process.statusProses == null),
+        isTrue,
+      );
+    },
+  );
 
-  test('editing a transaction preserves workflow state and soft-deletes removed processes',
-      () async {
+  test('editing a transaction preserves workflow state and soft-deletes removed processes', () async {
     final transactionId = await repository.save(
       nomorTransaksi: '1001210260002',
       jenisTransaksi: 'notaris',
@@ -135,60 +143,65 @@ void main() {
     expect(retained.statusProses, 'belum_dikerjakan');
     expect((await processRepository.getHistory(firstProcess.id)), hasLength(1));
 
-    final allRows = await (db.select(db.transaksiProses)
-          ..where((process) => process.transaksiId.equals(transactionId)))
-        .get();
+    final allRows = await (db.select(
+      db.transaksiProses,
+    )..where((process) => process.transaksiId.equals(transactionId))).get();
     final removed = allRows.firstWhere(
       (process) => process.sourceProcessId == 'process-2',
     );
     expect(removed.deletedAt, isNotNull);
   });
 
-  test('null process snapshot does not delete existing process state', () async {
-    final transactionId = await repository.save(
-      nomorTransaksi: '1001210260003',
-      jenisTransaksi: 'notaris',
-      pemohonId: 1,
-      pemohonUuid: 'applicant-uuid',
-      petugasId: 1,
-      petugasUuid: 'officer-uuid',
-      status: 'Baru',
-      tanggalTransaksi: DateTime(2026, 10, 12),
-      jobs: [
-        TransactionJobInput(
-          jenisPekerjaan: 'notaris',
-          namaPekerjaan: 'Akta Test',
-          pekerjaanNotarisId: pekerjaanNotarisId,
-          biayaLayanan: 100000,
-          detailUuid: 'detail-uuid',
-          prosesSnapshot: '[{"id":"process-1","name":"Pemeriksaan dokumen"}]',
-        ),
-      ],
-    );
+  test(
+    'null process snapshot does not delete existing process state',
+    () async {
+      final transactionId = await repository.save(
+        nomorTransaksi: '1001210260003',
+        jenisTransaksi: 'notaris',
+        pemohonId: 1,
+        pemohonUuid: 'applicant-uuid',
+        petugasId: 1,
+        petugasUuid: 'officer-uuid',
+        status: 'Baru',
+        tanggalTransaksi: DateTime(2026, 10, 12),
+        jobs: [
+          TransactionJobInput(
+            jenisPekerjaan: 'notaris',
+            namaPekerjaan: 'Akta Test',
+            pekerjaanNotarisId: pekerjaanNotarisId,
+            biayaLayanan: 100000,
+            detailUuid: 'detail-uuid',
+            prosesSnapshot: '[{"id":"process-1","name":"Pemeriksaan dokumen"}]',
+          ),
+        ],
+      );
 
-    await repository.save(
-      id: transactionId,
-      nomorTransaksi: '1001210260003',
-      jenisTransaksi: 'notaris',
-      pemohonId: 1,
-      pemohonUuid: 'applicant-uuid',
-      petugasId: 1,
-      petugasUuid: 'officer-uuid',
-      status: 'Dalam Proses',
-      tanggalTransaksi: DateTime(2026, 10, 12),
-      jobs: [
-        TransactionJobInput(
-          jenisPekerjaan: 'notaris',
-          namaPekerjaan: 'Akta Test',
-          pekerjaanNotarisId: pekerjaanNotarisId,
-          biayaLayanan: 100000,
-          detailUuid: 'detail-uuid',
-        ),
-      ],
-    );
+      await repository.save(
+        id: transactionId,
+        nomorTransaksi: '1001210260003',
+        jenisTransaksi: 'notaris',
+        pemohonId: 1,
+        pemohonUuid: 'applicant-uuid',
+        petugasId: 1,
+        petugasUuid: 'officer-uuid',
+        status: 'Dalam Proses',
+        tanggalTransaksi: DateTime(2026, 10, 12),
+        jobs: [
+          TransactionJobInput(
+            jenisPekerjaan: 'notaris',
+            namaPekerjaan: 'Akta Test',
+            pekerjaanNotarisId: pekerjaanNotarisId,
+            biayaLayanan: 100000,
+            detailUuid: 'detail-uuid',
+          ),
+        ],
+      );
 
-    final processes = await processRepository.getByTransactionId(transactionId);
-    expect(processes, hasLength(1));
-    expect(processes.single.sourceProcessId, 'process-1');
-  });
+      final processes = await processRepository.getByTransactionId(
+        transactionId,
+      );
+      expect(processes, hasLength(1));
+      expect(processes.single.sourceProcessId, 'process-1');
+    },
+  );
 }
