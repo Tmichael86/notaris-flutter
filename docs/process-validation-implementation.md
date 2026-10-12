@@ -1,58 +1,28 @@
-# Process Validation Implementation Baseline
+# Process Validation Implementation
 
 Branch: `feature/process-validation-foundation`
 
 ## Purpose
 
-Add process-level validation to the local-first Flutter application while preserving the Laravel Notaris/PPAT business flow. This document records the schema audit and the implementation contract.
+Add process-level validation to the local-first Flutter application while preserving the existing Notaris/PPAT transaction and payment flow. Local rules are a first enforcement layer; the Go API must become authoritative when multi-user synchronization is implemented.
 
-## Audited local schema
+## Current local schema
 
-Current Drift schema version is **6** in `frontend_notaris/lib/database/app_database.dart`.
+Drift schema version is **7** in `frontend_notaris/lib/database/app_database.dart`.
 
-Relevant tables:
+- `Transaksis`: transaction header and transaction-level status.
+- `TransaksiDetails`: one selected job per row, with stable UUID, price/name snapshots, legacy `prosesSnapshot`, active status and soft-delete metadata.
+- `TransaksiProses`: normalized process row linked to transaction ID and the stable transaction-detail UUID. Manual process IDs remain optional; process name is snapshotted.
+- `TransaksiProsesRiwayat`: append-only transition history with previous/new status, actor, timestamp, note and sync metadata.
+- `TransaksiRiwayatPembayarans`: payment history, unchanged by process validation.
 
-- `Transaksis` (`transaksis`): transaction header, UUID, number, type, status, applicant/officer references, dates and sync flags.
-- `TransaksiDetails` (`transaksi_details`): one row per selected job; contains a unique UUID, transaction ID, job type, Master job references, name/category/time snapshots, `prosesSnapshot` JSON, price snapshots, active status, sync flags and soft-delete timestamp.
-- `TransaksiRiwayatPembayarans`: individual payment history rows.
-- Master process tables are local Drift tables in `frontend_notaris/lib/database/pekerjaan_tables.dart`.
+The v6 -> v7 migration backfills valid JSON process items from active transaction details only. It preserves the original JSON, copies each item's status to `legacyStatus`, and stores the original item JSON in `legacyData`. Migrated process rows start with `statusProses = null`; no historical validation event is invented. Soft-deleted/inactive details are not backfilled into the active process workflow.
 
-The current application has **no normalized local row per transaction process**. Process checklists are stored as JSON in `transaksi_details.prosesSnapshot`, with JSON items currently shaped like `{ "id": "...", "name": "...", "status": "..." }`.
+## Stable identity
 
-## Identity-preservation implementation
+Transaction detail UUIDs are preserved when a transaction is edited. Existing details are updated by UUID, removed details are soft-deleted, and newly added jobs use their own UUID. Process rows link to `TransaksiDetails.uuid`, not transaction number or Master process ID. This matters because PPAT records may share a `no_akta`, and manual processes may not have a Master ID.
 
-The original `TransactionRepository.save()` soft-deleted every active detail row on each edit and inserted fresh rows with random UUIDs. This made any process-level status/history association unstable.
-
-On this branch, the first compatibility change has been made:
-
-- Each `DummyTransactionJob` gets a stable local detail UUID when it is created.
-- Loading an existing transaction restores each job's stored detail UUID.
-- `TransactionJobInput` carries that UUID to the repository.
-- Editing updates existing detail rows by UUID, soft-deletes only rows removed from the form, and inserts only newly added jobs.
-- The transaction header update, payment history behavior, job snapshots and process snapshot remain within the existing local transaction workflow.
-
-This is a persistence refactor, not a change to the user's transaction business flow. It has not yet been run through Flutter analyzer or runtime tests in this environment; it must be verified locally before merge.
-
-## Laravel compatibility rules
-
-- Legacy `status` on a record means active/inactive. It is not the validation state.
-- Laravel `transaksi_detail_proses` stores process snapshots with `transaksi_id`, `prosesId`, `pekerjaanNama`, `kategoriNama`, `prosesNama`, `atribut`, `catatan`, `isValidate`, audit actor IDs and timestamps.
-- Notaris: one transaction may have many process details.
-- PPAT: multiple transaction rows can share a `no_akta`; `no_akta` must not replace transaction identity.
-- Master changes must not silently rewrite transaction snapshots.
-- Preserve existing transaction-level statuses and payment/business side effects.
-
-## New process-validation behavior
-
-Initial process states:
-
-- `belum_dikerjakan`
-- `dalam_pengerjaan`
-- `menunggu_validasi`
-- `valid`
-- `perlu_revisi`
-
-Allowed transitions:
+## Process states and allowed transitions
 
 - `belum_dikerjakan -> dalam_pengerjaan`
 - `dalam_pengerjaan -> menunggu_validasi`
@@ -60,42 +30,49 @@ Allowed transitions:
 - `menunggu_validasi -> perlu_revisi`
 - `perlu_revisi -> dalam_pengerjaan`
 
-Every submit, approval and revision decision must record actor, timestamp and note/reason where applicable. A worker must not validate their own work. Admin, Notaris and PPAT validation capability is controlled by explicit permission, not merely by menu visibility.
+A legacy process with a null normalized status must be explicitly initialized to `belum_dikerjakan` before it can use normal transitions. This is a new action recorded now, not an inference about the past.
 
-These states are new behavior; they are not claimed to exist in the legacy Laravel runtime.
+## Repository behavior
 
-## Proposed normalized data (not yet migrated)
+Implemented in `frontend_notaris/lib/repositories/transaksi_proses_repository.dart`:
 
-A normalized process-state record should contain at least:
+- Reads active process rows and excludes rows whose transaction details are inactive/soft-deleted.
+- Checks that process, detail and transaction are active before state changes.
+- Rejects unknown statuses and illegal transitions.
+- Requires a non-empty note when submitting for validation and when requesting revision.
+- Records submitter and submission time on `menunggu_validasi`.
+- Rejects approval/revision by the same user who submitted the process.
+- Records validator and decision time for `valid` or `perlu_revisi`.
+- Clears the latest submission/decision actor metadata when returning from revision to work, while retaining the audit history.
+- Updates process state and appends history in the same Drift transaction.
 
-- stable process UUID
-- transaction UUID and stable detail/job UUID
-- optional Master process reference (nullable for manually-added processes)
-- process name snapshot
-- `status_proses`
-- optional assigned worker (assignment semantics still need confirmation in the existing UI)
-- submit/validation actor IDs and timestamps
-- latest note/revision reason
-- `is_sync_dirty`, `last_synced_at`, and soft-delete marker if required by sync conventions
+The local actor ID is supplied by the caller. This repository does not itself implement role/permission lookup or user assignment. Local checks are not a security boundary; the Go service must repeat authorization and transition checks server-side.
 
-A history record should capture process UUID, previous/new state, actor, timestamp, note and sync metadata.
+## Tests
 
-The migration/backfill must be idempotent and must not fabricate past validation decisions. Existing free-form `status` values in JSON must be preserved as legacy data until their exact meaning is mapped; they must not be blindly converted into an approval decision.
+Repository tests are in `frontend_notaris/test/repositories/transaksi_proses_repository_test.dart`. They cover explicit initialization of legacy rows, rejection of illegal transitions, self-validation rejection, revision-note requirements, resubmission and audit-history sequence.
 
-## Recommended implementation sequence
+Run from `frontend_notaris`:
 
-1. Verify the detail-UUID-preserving transaction edit refactor using Flutter analyzer and create/edit/remove/reopen regression tests.
-2. Add a normalized local process table and process-transition history table using stable detail/job identity.
-3. Add Drift migration from schema v6 to v7, including safe backfill from existing `prosesSnapshot` JSON without inventing validation history.
-4. Add repository methods and tests for process state transitions and audit history.
-5. Add Riverpod providers and Monitoring UI.
-6. Add the equivalent PostgreSQL/GORM model, service-level authorization and transactional state transitions in Go.
-7. Test edit-preservation, Notaris/PPAT identity, soft deletion, duplicate submit, self-validation rejection, revision/resubmission, and sync retry behavior.
+```sh
+dart run build_runner build --delete-conflicting-outputs
+flutter analyze
+flutter test test/repositories/transaksi_proses_repository_test.dart
+```
 
-## Explicit non-goals for this phase
+These commands must be run in the developer's local environment before considering this stage verified. GitHub file updates do not execute Flutter tests.
+
+## Remaining work
+
+1. Run the generated-code/analyzer/test commands locally and fix any reported issues.
+2. Add Riverpod providers and Monitoring UI after repository behavior is verified.
+3. Add Go/GORM models, server-side permission checks and atomic transitions before relying on multi-user validation.
+4. Test transaction edits, soft deletion, duplicate submissions, self-validation rejection, revision/resubmission and sync retry behavior.
+
+## Explicit non-goals
 
 - Do not rewrite transaction business flow.
 - Do not change transaction-level status semantics.
-- Do not implement the pending tax calculator, PPAT status prototype, document/note screen, invoice or receipt here.
-- Do not treat local UI permission checks as authoritative server authorization.
+- Do not implement the pending tax calculator, PPAT status prototype, document/note screen, invoice or receipt in this phase.
+- Do not treat menu visibility or local checks as authoritative server authorization.
 - Do not copy Laravel's page-visit-based unlock behavior into Go.
