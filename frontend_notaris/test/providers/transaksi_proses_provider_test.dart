@@ -126,28 +126,29 @@ void main() {
     final beforeDelete = await container.read(provider.future);
     expect(beforeDelete, hasLength(1));
 
-  final removed = Completer<void>();
-  final subscription = container.listen(provider, (previous, next) {
-    if ((next.asData?.value.isEmpty ?? false) && !removed.isCompleted) {
-      removed.complete();
+    final removed = Completer<void>();
+    final subscription = container.listen(provider, (previous, next) {
+      if ((next.asData?.value.isEmpty ?? false) && !removed.isCompleted) {
+        removed.complete();
+      }
+    });
+
+    try {
+      await (database.update(
+        database.transaksiDetails,
+      )..where((detail) => detail.uuid.equals('provider-detail-uuid'))).write(
+        TransaksiDetailsCompanion(
+          status: const Value(0),
+          deletedAt: Value(DateTime.now()),
+        ),
+      );
+
+      await removed.future.timeout(const Duration(seconds: 2));
+
+      final afterDelete = container.read(provider).requireValue;
+      expect(afterDelete, isEmpty);
+    } finally {
+      subscription.close();
     }
   });
-
-  try {
-    await (database.update(
-      database.transaksiDetails,
-    )..where((detail) => detail.uuid.equals('provider-detail-uuid'))).write(
-      TransaksiDetailsCompanion(
-        status: const Value(0),
-        deletedAt: Value(DateTime.now()),
-      ),
-    );
-
-    await removed.future.timeout(const Duration(seconds: 2));
-
-    final afterDelete = container.read(provider).requireValue;
-    expect(afterDelete, isEmpty);
-  } finally {
-    subscription.close();
-  }});
 }
