@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -120,10 +122,23 @@ void main() {
           actorUserId: 10,
         );
 
-    final beforeDelete = await container.read(
-      transaksiProsesByTransactionProvider(transactionId).future,
-    );
+    final provider = transaksiProsesByTransactionProvider(transactionId);
+    final beforeDelete = await container.read(provider.future);
     expect(beforeDelete, hasLength(1));
+
+    final removed = Completer<void>();
+    final subscription = container.listen(provider, (previous, next) {
+      if ((next.asData?.value.isEmpty ?? false) && !removed.isCompleted) {
+        removed.complete();
+      }
+    });
+
+    final removed = Completer<void>();
+    final subscription = container.listen(provider, (previous, next) {
+      if ((next.asData?.value.isEmpty ?? false) && !removed.isCompleted) {
+        removed.complete();
+      }
+    });
 
     await (database.update(
       database.transaksiDetails,
@@ -134,9 +149,9 @@ void main() {
       ),
     );
 
-    final afterDelete = await container.read(
-      transaksiProsesByTransactionProvider(transactionId).future,
-    );
+    await removed.future.timeout(const Duration(seconds: 2));
+    final afterDelete = container.read(provider).requireValue;
     expect(afterDelete, isEmpty);
+    subscription.close();
   });
 }
