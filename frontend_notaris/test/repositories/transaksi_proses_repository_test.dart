@@ -13,7 +13,9 @@ void main() {
     db = AppDatabase(NativeDatabase.memory());
     repository = TransaksiProsesRepository(db);
 
-    final transactionId = await db.into(db.transaksis).insert(
+    final transactionId = await db
+        .into(db.transaksis)
+        .insert(
           TransaksisCompanion.insert(
             uuid: 'transaction-uuid',
             noAkta: '1000000000001',
@@ -21,7 +23,9 @@ void main() {
           ),
         );
 
-    await db.into(db.transaksiDetails).insert(
+    await db
+        .into(db.transaksiDetails)
+        .insert(
           TransaksiDetailsCompanion.insert(
             uuid: 'detail-uuid',
             transaksiId: transactionId,
@@ -30,7 +34,9 @@ void main() {
           ),
         );
 
-    processId = await db.into(db.transaksiProses).insert(
+    processId = await db
+        .into(db.transaksiProses)
+        .insert(
           TransaksiProsesCompanion.insert(
             uuid: 'process-uuid',
             transaksiId: transactionId,
@@ -45,27 +51,32 @@ void main() {
     await db.close();
   });
 
-  test('legacy process must be initialized before normal transitions', () async {
-    await expectLater(
-      repository.transition(
+  test(
+    'legacy process must be initialized before normal transitions',
+    () async {
+      await expectLater(
+        repository.transition(
+          processId: processId,
+          nextStatus: ProcessValidationStatus.dalamPengerjaan,
+          actorUserId: 10,
+        ),
+        throwsA(isA<StateError>()),
+      );
+
+      await repository.initializeLegacyProcess(
         processId: processId,
-        nextStatus: ProcessValidationStatus.dalamPengerjaan,
         actorUserId: 10,
-      ),
-      throwsA(isA<StateError>()),
-    );
+        note: 'Mulai menggunakan alur validasi baru',
+      );
 
-    await repository.initializeLegacyProcess(
-      processId: processId,
-      actorUserId: 10,
-      note: 'Mulai menggunakan alur validasi baru',
-    );
-
-    final rows = await repository.getByTransactionId(1);
-    expect(rows.single.statusProses, ProcessValidationStatus.belumDikerjakan);
-    expect((await repository.getHistory(processId)).single.statusBaru,
-        ProcessValidationStatus.belumDikerjakan);
-  });
+      final rows = await repository.getByTransactionId(1);
+      expect(rows.single.statusProses, ProcessValidationStatus.belumDikerjakan);
+      expect(
+        (await repository.getHistory(processId)).single.statusBaru,
+        ProcessValidationStatus.belumDikerjakan,
+      );
+    },
+  );
 
   test('rejects an illegal transition', () async {
     await repository.initializeLegacyProcess(
@@ -116,9 +127,9 @@ void main() {
       note: 'Dokumen telah diperiksa',
     );
 
-    final process = await (db.select(db.transaksiProses)
-          ..where((row) => row.id.equals(processId)))
-        .getSingle();
+    final process = await (db.select(
+      db.transaksiProses,
+    )..where((row) => row.id.equals(processId))).getSingle();
     final history = await repository.getHistory(processId);
 
     expect(process.statusProses, ProcessValidationStatus.valid);
@@ -132,56 +143,59 @@ void main() {
     ]);
   });
 
-  test('revision requires a note and can be resubmitted by the worker', () async {
-    await repository.initializeLegacyProcess(
-      processId: processId,
-      actorUserId: 10,
-    );
-    await repository.transition(
-      processId: processId,
-      nextStatus: ProcessValidationStatus.dalamPengerjaan,
-      actorUserId: 10,
-    );
-    await repository.transition(
-      processId: processId,
-      nextStatus: ProcessValidationStatus.menungguValidasi,
-      actorUserId: 10,
-      note: 'Mohon diperiksa',
-    );
+  test(
+    'revision requires a note and can be resubmitted by the worker',
+    () async {
+      await repository.initializeLegacyProcess(
+        processId: processId,
+        actorUserId: 10,
+      );
+      await repository.transition(
+        processId: processId,
+        nextStatus: ProcessValidationStatus.dalamPengerjaan,
+        actorUserId: 10,
+      );
+      await repository.transition(
+        processId: processId,
+        nextStatus: ProcessValidationStatus.menungguValidasi,
+        actorUserId: 10,
+        note: 'Mohon diperiksa',
+      );
 
-    await expectLater(
-      repository.transition(
+      await expectLater(
+        repository.transition(
+          processId: processId,
+          nextStatus: ProcessValidationStatus.perluRevisi,
+          actorUserId: 20,
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      await repository.transition(
         processId: processId,
         nextStatus: ProcessValidationStatus.perluRevisi,
         actorUserId: 20,
-      ),
-      throwsA(isA<ArgumentError>()),
-    );
+        note: 'Lampiran belum lengkap',
+      );
+      await repository.transition(
+        processId: processId,
+        nextStatus: ProcessValidationStatus.dalamPengerjaan,
+        actorUserId: 10,
+      );
+      await repository.transition(
+        processId: processId,
+        nextStatus: ProcessValidationStatus.menungguValidasi,
+        actorUserId: 10,
+        note: 'Lampiran sudah dilengkapi',
+      );
 
-    await repository.transition(
-      processId: processId,
-      nextStatus: ProcessValidationStatus.perluRevisi,
-      actorUserId: 20,
-      note: 'Lampiran belum lengkap',
-    );
-    await repository.transition(
-      processId: processId,
-      nextStatus: ProcessValidationStatus.dalamPengerjaan,
-      actorUserId: 10,
-    );
-    await repository.transition(
-      processId: processId,
-      nextStatus: ProcessValidationStatus.menungguValidasi,
-      actorUserId: 10,
-      note: 'Lampiran sudah dilengkapi',
-    );
-
-    final process = await (db.select(db.transaksiProses)
-          ..where((row) => row.id.equals(processId)))
-        .getSingle();
-    expect(process.statusProses, ProcessValidationStatus.menungguValidasi);
-    expect(process.submittedByUserId, 10);
-    expect(process.validatedByUserId, isNull);
-    expect((await repository.getHistory(processId)).length, 6);
-  });
+      final process = await (db.select(
+        db.transaksiProses,
+      )..where((row) => row.id.equals(processId))).getSingle();
+      expect(process.statusProses, ProcessValidationStatus.menungguValidasi);
+      expect(process.submittedByUserId, 10);
+      expect(process.validatedByUserId, equals(null));
+      expect((await repository.getHistory(processId)).length, 6);
+    },
+  );
 }
