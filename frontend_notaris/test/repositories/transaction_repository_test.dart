@@ -1,0 +1,194 @@
+import 'package:drift/native.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend_notaris/database/app_database.dart';
+import 'package:frontend_notaris/repositories/transaction_repository.dart';
+import 'package:frontend_notaris/repositories/transaksi_proses_repository.dart';
+
+void main() {
+  late AppDatabase db;
+  late TransactionRepository repository;
+  late TransaksiProsesRepository processRepository;
+  late int pekerjaanNotarisId;
+
+  setUp(() async {
+    db = AppDatabase(NativeDatabase.memory());
+    repository = TransactionRepository(db);
+    processRepository = TransaksiProsesRepository(db);
+
+    pekerjaanNotarisId = await db.into(db.pekerjaanNotarisLocals).insert(
+      PekerjaanNotarisLocalsCompanion.insert(
+        uuid: 'job-uuid',
+        nama: 'Akta Test',
+      ),
+    );
+  });
+
+  tearDown(() async {
+    await db.close();
+  });
+
+  test('saving a transaction persists its process snapshot as process rows',
+      () async {
+    final transactionId = await repository.save(
+      nomorTransaksi: '1001210260001',
+      jenisTransaksi: 'notaris',
+      pemohonId: 1,
+      pemohonUuid: 'applicant-uuid',
+      petugasId: 1,
+      petugasUuid: 'officer-uuid',
+      status: 'Baru',
+      tanggalTransaksi: DateTime(2026, 10, 12),
+      jobs: [
+        TransactionJobInput(
+          jenisPekerjaan: 'notaris',
+          namaPekerjaan: 'Akta Test',
+          pekerjaanNotarisId: pekerjaanNotarisId,
+          biayaLayanan: 100000,
+          detailUuid: 'detail-uuid',
+          prosesSnapshot:
+              '[{"id":"process-1","name":"Pemeriksaan dokumen","status":"Belum Valid"},'
+              '{"id":"process-2","name":"Penandatanganan","status":"Belum Valid"}]',
+        ),
+      ],
+    );
+
+    final processes = await processRepository.getByTransactionId(transactionId);
+
+    expect(processes, hasLength(2));
+    expect(
+      processes.map((process) => process.sourceProcessId).toList(),
+      ['process-1', 'process-2'],
+    );
+    expect(
+      processes.map((process) => process.namaProsesSnapshot).toList(),
+      ['Pemeriksaan dokumen', 'Penandatanganan'],
+    );
+    expect(processes.every((process) => process.statusProses == null), isTrue);
+  });
+
+  test('editing a transaction preserves workflow state and soft-deletes removed processes',
+      () async {
+    final transactionId = await repository.save(
+      nomorTransaksi: '1001210260002',
+      jenisTransaksi: 'notaris',
+      pemohonId: 1,
+      pemohonUuid: 'applicant-uuid',
+      petugasId: 1,
+      petugasUuid: 'officer-uuid',
+      status: 'Baru',
+      tanggalTransaksi: DateTime(2026, 10, 12),
+      jobs: [
+        TransactionJobInput(
+          jenisPekerjaan: 'notaris',
+          namaPekerjaan: 'Akta Test',
+          pekerjaanNotarisId: pekerjaanNotarisId,
+          biayaLayanan: 100000,
+          detailUuid: 'detail-uuid',
+          prosesSnapshot:
+              '[{"id":"process-1","name":"Pemeriksaan dokumen","status":"Belum Valid"},'
+              '{"id":"process-2","name":"Penandatanganan","status":"Belum Valid"}]',
+        ),
+      ],
+    );
+
+    final initial = await processRepository.getByTransactionId(transactionId);
+    final firstProcess = initial.firstWhere(
+      (process) => process.sourceProcessId == 'process-1',
+    );
+    await processRepository.initializeLegacyProcess(
+      processId: firstProcess.id,
+      actorUserId: 10,
+    );
+
+    await repository.save(
+      id: transactionId,
+      nomorTransaksi: '1001210260002',
+      jenisTransaksi: 'notaris',
+      pemohonId: 1,
+      pemohonUuid: 'applicant-uuid',
+      petugasId: 1,
+      petugasUuid: 'officer-uuid',
+      status: 'Dalam Proses',
+      tanggalTransaksi: DateTime(2026, 10, 12),
+      jobs: [
+        TransactionJobInput(
+          jenisPekerjaan: 'notaris',
+          namaPekerjaan: 'Akta Test',
+          pekerjaanNotarisId: pekerjaanNotarisId,
+          biayaLayanan: 100000,
+          detailUuid: 'detail-uuid',
+          prosesSnapshot:
+              '[{"id":"process-1","name":"Pemeriksaan dokumen revisi","status":"Belum Valid"},'
+              '{"id":"process-3","name":"Pengesahan","status":"Belum Valid"}]',
+        ),
+      ],
+    );
+
+    final active = await processRepository.getByTransactionId(transactionId);
+    expect(active, hasLength(2));
+
+    final retained = active.firstWhere(
+      (process) => process.sourceProcessId == 'process-1',
+    );
+    expect(retained.id, firstProcess.id);
+    expect(retained.namaProsesSnapshot, 'Pemeriksaan dokumen revisi');
+    expect(retained.statusProses, 'belum_dikerjakan');
+    expect((await processRepository.getHistory(firstProcess.id)), hasLength(1));
+
+    final allRows = await (db.select(db.transaksiProses)
+          ..where((process) => process.transaksiId.equals(transactionId)))
+        .get();
+    final removed = allRows.firstWhere(
+      (process) => process.sourceProcessId == 'process-2',
+    );
+    expect(removed.deletedAt, isNotNull);
+  });
+
+  test('null process snapshot does not delete existing process state', () async {
+    final transactionId = await repository.save(
+      nomorTransaksi: '1001210260003',
+      jenisTransaksi: 'notaris',
+      pemohonId: 1,
+      pemohonUuid: 'applicant-uuid',
+      petugasId: 1,
+      petugasUuid: 'officer-uuid',
+      status: 'Baru',
+      tanggalTransaksi: DateTime(2026, 10, 12),
+      jobs: [
+        TransactionJobInput(
+          jenisPekerjaan: 'notaris',
+          namaPekerjaan: 'Akta Test',
+          pekerjaanNotarisId: pekerjaanNotarisId,
+          biayaLayanan: 100000,
+          detailUuid: 'detail-uuid',
+          prosesSnapshot: '[{"id":"process-1","name":"Pemeriksaan dokumen"}]',
+        ),
+      ],
+    );
+
+    await repository.save(
+      id: transactionId,
+      nomorTransaksi: '1001210260003',
+      jenisTransaksi: 'notaris',
+      pemohonId: 1,
+      pemohonUuid: 'applicant-uuid',
+      petugasId: 1,
+      petugasUuid: 'officer-uuid',
+      status: 'Dalam Proses',
+      tanggalTransaksi: DateTime(2026, 10, 12),
+      jobs: [
+        const TransactionJobInput(
+          jenisPekerjaan: 'notaris',
+          namaPekerjaan: 'Akta Test',
+          pekerjaanNotarisId: 1,
+          biayaLayanan: 100000,
+          detailUuid: 'detail-uuid',
+        ),
+      ],
+    );
+
+    final processes = await processRepository.getByTransactionId(transactionId);
+    expect(processes, hasLength(1));
+    expect(processes.single.sourceProcessId, 'process-1');
+  });
+}
