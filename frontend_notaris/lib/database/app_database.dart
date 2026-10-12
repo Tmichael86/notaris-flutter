@@ -208,7 +208,7 @@ class TransaksiRiwayatPembayarans extends Table {
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
   int get schemaVersion => 7;
@@ -271,7 +271,9 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(transaksiProses);
         await m.createTable(transaksiProsesRiwayat);
 
-        final legacyDetails = await select(transaksiDetails).get();
+        final legacyDetails = await (select(transaksiDetails)..where(
+          (detail) => detail.deletedAt.isNull() & detail.status.equals(1),
+        )).get();
         const uuidGenerator = Uuid();
 
         for (final detail in legacyDetails) {
