@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'dart:convert';
 import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
@@ -316,9 +317,126 @@ class TransactionRepository {
                 ),
               );
         }
+
+        await _syncProcessesForJob(
+          transactionId: transactionId,
+          detailUuid: job.detailUuid,
+          snapshot: job.prosesSnapshot,
+          now: now,
+        );
       }
       return transactionId;
     });
+  }
+
+  /// Reconciles the process rows with an explicitly supplied process snapshot.
+  ///
+  /// A null snapshot means the caller did not provide process data, so existing
+  /// workflow state must be left untouched. Matching rows keep their validated
+  /// status and audit history; removed rows are soft-deleted, never hard-deleted.
+  Future<void> _syncProcessesForJob({
+    required int transactionId,
+    required String detailUuid,
+    required String? snapshot,
+    required DateTime now,
+  }) async {
+    if (snapshot == null) return;
+
+    final decoded;
+    try {
+      decoded = jsonDecode(snapshot);
+    } on FormatException {
+      throw ArgumentError('Snapshot proses bukan JSON yang valid.');
+    }
+    if (decoded is! List) {
+      throw ArgumentError('Snapshot proses harus berupa daftar.');
+    }
+
+    final incoming = <Map<String, dynamic>>[];
+    for (final item in decoded) {
+      if (item is! Map) continue;
+      final name = item['name']?.toString().trim() ?? '';
+      if (name.isEmpty) continue;
+      incoming.add(Map<String, dynamic>.from(item));
+    }
+
+    final existingRows = await (db.select(db.transaksiProses)
+          ..where(
+            (p) =>
+                p.transaksiDetailUuid.equals(detailUuid) &
+                p.transaksiId.equals(transactionId) &
+                p.deletedAt.isNull(),
+          ))
+        .get();
+
+    final unmatched = [...existingRows];
+    final retainedIds = <String>{};
+
+    for (final item in incoming) {
+      final name = item['name']!.toString().trim();
+      final rawSourceId = item['id']?.toString().trim();
+      final sourceId = rawSourceId == null || rawSourceId.isEmpty
+          ? null
+          : rawSourceId;
+
+      final matchIndex = unmatched.indexWhere((row) {
+        if (sourceId != null && row.sourceProcessId != null) {
+          return row.sourceProcessId == sourceId;
+        }
+        return row.namaProsesSnapshot == name;
+      });
+
+      final legacyStatus = item['status']?.toString();
+      final legacyData = jsonEncode(item);
+
+      if (matchIndex >= 0) {
+        final existing = unmatched.removeAt(matchIndex);
+        retainedIds.add(existing.uuid);
+        await (db.update(db.transaksiProses)
+              ..where((p) => p.id.equals(existing.id)))
+            .write(
+          TransaksiProsesCompanion(
+            namaProsesSnapshot: Value(name),
+            sourceProcessId: Value(sourceId ?? existing.sourceProcessId),
+            legacyStatus: Value(legacyStatus),
+            legacyData: Value(legacyData),
+            updatedAt: Value(now),
+            isSyncDirty: const Value(true),
+          ),
+        );
+      } else {
+        final uuid = _uuid.v4();
+        retainedIds.add(uuid);
+        await db.into(db.transaksiProses).insert(
+          TransaksiProsesCompanion.insert(
+            uuid: uuid,
+            transaksiId: transactionId,
+            transaksiDetailUuid: detailUuid,
+            sourceProcessId: Value(sourceId),
+            namaProsesSnapshot: name,
+            statusProses: const Value(null),
+            legacyStatus: Value(legacyStatus),
+            legacyData: Value(legacyData),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            isSyncDirty: const Value(true),
+          ),
+        );
+      }
+    }
+
+    if (unmatched.isNotEmpty) {
+      final removedIds = unmatched.map((row) => row.id).toList();
+      await (db.update(db.transaksiProses)
+            ..where((p) => p.id.isIn(removedIds)))
+          .write(
+        TransaksiProsesCompanion(
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          isSyncDirty: const Value(true),
+        ),
+      );
+    }
   }
 
   /// Returns active payment history entries ordered by payment date.
