@@ -177,10 +177,10 @@ void main() {
       status: 'Dalam Proses',
       tanggalTransaksi: DateTime(2026, 10, 12),
       jobs: [
-        const TransactionJobInput(
+        TransactionJobInput(
           jenisPekerjaan: 'notaris',
           namaPekerjaan: 'Akta Test',
-          pekerjaanNotarisId: 1,
+          pekerjaanNotarisId: pekerjaanNotarisId,
           biayaLayanan: 100000,
           detailUuid: 'detail-uuid',
         ),
