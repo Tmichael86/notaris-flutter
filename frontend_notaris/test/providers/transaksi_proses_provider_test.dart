@@ -16,9 +16,7 @@ void main() {
   setUp(() async {
     database = AppDatabase(NativeDatabase.memory());
     container = ProviderContainer(
-      overrides: [
-        appDatabaseProvider.overrideWithValue(database),
-      ],
+      overrides: [appDatabaseProvider.overrideWithValue(database)],
     );
 
     transactionId = await database
@@ -70,8 +68,9 @@ void main() {
           note: 'Mulai memakai alur validasi',
         );
 
-    var processes = await container
-        .read(transaksiProsesByTransactionProvider(transactionId).future);
+    var processes = await container.read(
+      transaksiProsesByTransactionProvider(transactionId).future,
+    );
     expect(processes, hasLength(1));
     expect(
       processes.single.statusProses,
@@ -96,15 +95,17 @@ void main() {
           note: 'Dokumen siap diperiksa',
         );
 
-    processes = await container
-        .read(transaksiProsesByTransactionProvider(transactionId).future);
+    processes = await container.read(
+      transaksiProsesByTransactionProvider(transactionId).future,
+    );
     expect(
       processes.single.statusProses,
       ProcessValidationStatus.menungguValidasi,
     );
 
-    final history = await container
-        .read(transaksiProsesHistoryProvider(processId).future);
+    final history = await container.read(
+      transaksiProsesHistoryProvider(processId).future,
+    );
     expect(history, hasLength(3));
     expect(history.last.statusBaru, ProcessValidationStatus.menungguValidasi);
     expect(history.last.actorUserId, 10);
@@ -119,21 +120,23 @@ void main() {
           actorUserId: 10,
         );
 
-    final beforeDelete = await container
-        .read(transaksiProsesByTransactionProvider(transactionId).future);
+    final beforeDelete = await container.read(
+      transaksiProsesByTransactionProvider(transactionId).future,
+    );
     expect(beforeDelete, hasLength(1));
 
-    await (database.update(database.transaksiDetails)
-          ..where((detail) => detail.uuid.equals('provider-detail-uuid')))
-        .write(
+    await (database.update(
+      database.transaksiDetails,
+    )..where((detail) => detail.uuid.equals('provider-detail-uuid'))).write(
       TransaksiDetailsCompanion(
         status: const Value(0),
         deletedAt: Value(DateTime.now()),
       ),
     );
 
-    final afterDelete = await container
-        .read(transaksiProsesByTransactionProvider(transactionId).future);
+    final afterDelete = await container.read(
+      transaksiProsesByTransactionProvider(transactionId).future,
+    );
     expect(afterDelete, isEmpty);
   });
 }
