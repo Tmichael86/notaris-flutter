@@ -370,8 +370,6 @@ class TransactionRepository {
         .get();
 
     final unmatched = [...existingRows];
-    final retainedIds = <String>{};
-
     for (final item in incoming) {
       final name = item['name']!.toString().trim();
       final rawSourceId = item['id']?.toString().trim();
@@ -391,7 +389,6 @@ class TransactionRepository {
 
       if (matchIndex >= 0) {
         final existing = unmatched.removeAt(matchIndex);
-        retainedIds.add(existing.uuid);
         await (db.update(db.transaksiProses)
               ..where((p) => p.id.equals(existing.id)))
             .write(
@@ -406,7 +403,6 @@ class TransactionRepository {
         );
       } else {
         final uuid = _uuid.v4();
-        retainedIds.add(uuid);
         await db.into(db.transaksiProses).insert(
           TransaksiProsesCompanion.insert(
             uuid: uuid,
