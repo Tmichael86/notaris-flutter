@@ -12,7 +12,6 @@ import (
 func SetupRouter(
 	cfg config.Config,
 	healthController *controllers.HealthController,
-	syncController controllers.SyncController,
 	groupController *controllers.GroupController,
 	userController *controllers.UserController,
 	authController *controllers.AuthController,
@@ -62,11 +61,9 @@ func SetupRouter(
 		// CRUD routes for petugas, pekerjaan, kategori pekerjaan, jenis pengeluaran,
 		// and pemohon are deferred until their controllers and supporting layers exist.
 
-		sync := v1.Group("/sync")
-		{
-			sync.POST("/push", syncController.Push)
-			sync.GET("/pull", syncController.Pull)
-		}
+		// Sync endpoints remain disabled until authentication, authorization,
+		// and conflict handling are implemented for the local-first sync contract.
+
 	}
 
 	return r
