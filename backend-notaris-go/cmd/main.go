@@ -15,8 +15,6 @@ func main() {
 	cfg := config.LoadConfig()
 	database.ConnectDB(cfg)
 
-	syncService := services.NewSyncService()
-	syncController := controllers.NewSyncController(syncService)
 	healthController := controllers.NewHealthController()
 	groupController := controllers.NewGroupController()
 	userController := controllers.NewUserController()
@@ -30,7 +28,6 @@ func main() {
 	r := routes.SetupRouter(
 		cfg,
 		healthController,
-		syncController,
 		groupController,
 		userController,
 		authController,
