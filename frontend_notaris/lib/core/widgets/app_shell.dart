@@ -74,6 +74,25 @@ class _AppShellState extends State<AppShell> {
     _scaffoldKey.currentState?.closeDrawer();
   }
 
+  bool _canReadMenu(String title) {
+    final session = widget.session;
+    if (session == null) return true;
+
+    for (final access in session.sidebars) {
+      final sidebar = access['sidebar'];
+      if (sidebar is! Map) continue;
+      final name = sidebar['sidebar_nama']?.toString().trim().toLowerCase();
+      if (name != title.trim().toLowerCase()) continue;
+
+      final read = access['read'];
+      return read == 1 || read == true || read?.toString() == '1';
+    }
+    return false;
+  }
+
+  bool _canReadAny(List<String> titles) =>
+      titles.any(_canReadMenu);
+
   Widget _buildHeader({bool mobile = false}) {
     return Container(
       height: mobile ? 58 : 68,
@@ -186,6 +205,7 @@ class _AppShellState extends State<AppShell> {
     VoidCallback? onTap,
     bool dense = false,
   }) {
+    if (!_canReadMenu(title)) return const SizedBox.shrink();
     final selected = selectedMenu == title;
 
     return Padding(
@@ -234,7 +254,9 @@ class _AppShellState extends State<AppShell> {
   }
 
   Widget _sidebarExpansion(String title, IconData icon, List<String> items) {
-    final selected = items.contains(selectedMenu);
+    final visibleItems = items.where(_canReadMenu).toList();
+    if (visibleItems.isEmpty) return const SizedBox.shrink();
+    final selected = visibleItems.contains(selectedMenu);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
@@ -273,7 +295,7 @@ class _AppShellState extends State<AppShell> {
               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
-          children: items
+          children: visibleItems
               .map(
                 (item) => _sidebarItem(
                   item,
@@ -432,6 +454,7 @@ class _AppShellState extends State<AppShell> {
   }
 
   Widget _mobileItem(String title, IconData icon) {
+    if (!_canReadMenu(title)) return const SizedBox.shrink();
     final selected = selectedMenu == title;
 
     return ListTile(
@@ -453,6 +476,8 @@ class _AppShellState extends State<AppShell> {
   }
 
   Widget _mobileExpansion(String title, IconData icon, List<String> items) {
+    final visibleItems = items.where(_canReadMenu).toList();
+    if (visibleItems.isEmpty) return const SizedBox.shrink();
     return ExpansionTile(
       tilePadding: const EdgeInsets.symmetric(horizontal: 16),
       childrenPadding: EdgeInsets.zero,
@@ -464,7 +489,7 @@ class _AppShellState extends State<AppShell> {
       shape: const Border(),
       collapsedShape: const Border(),
       title: Text(title),
-      children: items
+      children: visibleItems
           .map(
             (item) => ListTile(
               contentPadding: const EdgeInsets.only(left: 56, right: 16),
