@@ -118,10 +118,7 @@ void main() {
         );
 
     await tester.pumpWidget(
-      buildSubject(
-        id: transactionId,
-        detailUuid: 'process-list-detail',
-      ),
+      buildSubject(id: transactionId, detailUuid: 'process-list-detail'),
     );
     await tester.pumpAndSettle();
 
@@ -146,10 +143,7 @@ void main() {
         );
 
     await tester.pumpWidget(
-      buildSubject(
-        id: transactionId,
-        detailUuid: 'process-list-detail',
-      ),
+      buildSubject(id: transactionId, detailUuid: 'process-list-detail'),
     );
     await tester.pumpAndSettle();
 
@@ -158,9 +152,7 @@ void main() {
     await (database.update(
       database.transaksiProses,
     )..where((process) => process.uuid.equals('reactive-process'))).write(
-      const TransaksiProsesCompanion(
-        statusProses: Value('perlu_revisi'),
-      ),
+      const TransaksiProsesCompanion(statusProses: Value('perlu_revisi')),
     );
     await tester.pumpAndSettle();
 
@@ -172,10 +164,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      buildSubject(
-        id: transactionId,
-        detailUuid: 'process-list-detail',
-      ),
+      buildSubject(id: transactionId, detailUuid: 'process-list-detail'),
     );
     await tester.pumpAndSettle();
 

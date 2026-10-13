@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
+
 import '../core/theme/app_colors.dart';
 import '../core/widgets/searchable_dropdown.dart';
 import '../database/app_database.dart';
@@ -57,14 +58,12 @@ double _parseCurrency(String value) {
   final digits = value.replaceAll(RegExp(r'[^0-9]'), '');
   return double.tryParse(digits) ?? 0;
 }
+
 class DummyCategory {
   final String id;
   final String name;
 
-  const DummyCategory({
-    required this.id,
-    required this.name,
-  });
+  const DummyCategory({required this.id, required this.name});
 }
 
 class DummyProcess {
@@ -128,6 +127,7 @@ class DummyTransactionJob {
   final int? masterPpatId;
   final int? masterPriceId;
   final int? masterCategoryId;
+
   /// Stable local detail UUID; null for a newly added job.
   final String localDetailUuid;
 
@@ -183,8 +183,7 @@ class DummyTransaction {
     required this.note,
   });
 
-  double get totalCost =>
-      jobs.fold(0, (sum, job) => sum + job.totalCost);
+  double get totalCost => jobs.fold(0, (sum, job) => sum + job.totalCost);
 
   double get netTotal => totalCost - discount;
 }
@@ -230,15 +229,57 @@ class _TransactionDesktopScreenState
   // Temporary fixtures remain only for the legacy transaction search list.
   // The applicant/officer pickers above are populated from SQLite Master data.
   final _demoApplicants = const [
-    DummyApplicant(id: 'A001', nik: '3505225803800002', name: 'Rita Tri Widayah', phone: '081222333444', address: 'Dusun Mronjo, Blitar', gender: 'Perempuan'),
-    DummyApplicant(id: 'A002', nik: '3505010101000002', name: 'Siti Aminah', phone: '081234567890', address: 'Jl. Diponegoro No. 20, Blitar', gender: 'Perempuan'),
-    DummyApplicant(id: 'A003', nik: '3505010101000003', name: 'Andi Pratama', phone: '082233445566', address: 'Jl. Sudirman No. 15, Blitar', gender: 'Laki-laki'),
+    DummyApplicant(
+      id: 'A001',
+      nik: '3505225803800002',
+      name: 'Rita Tri Widayah',
+      phone: '081222333444',
+      address: 'Dusun Mronjo, Blitar',
+      gender: 'Perempuan',
+    ),
+    DummyApplicant(
+      id: 'A002',
+      nik: '3505010101000002',
+      name: 'Siti Aminah',
+      phone: '081234567890',
+      address: 'Jl. Diponegoro No. 20, Blitar',
+      gender: 'Perempuan',
+    ),
+    DummyApplicant(
+      id: 'A003',
+      nik: '3505010101000003',
+      name: 'Andi Pratama',
+      phone: '082233445566',
+      address: 'Jl. Sudirman No. 15, Blitar',
+      gender: 'Laki-laki',
+    ),
   ];
 
   final _demoOfficers = const [
-    DummyOfficer(id: 'P001', nik: '3505010101000011', name: 'Rina Wulandari', email: 'rina@notaris.test', phone: '081111222333', gender: 'Perempuan'),
-    DummyOfficer(id: 'P002', nik: '3505010101000012', name: 'Dimas Saputra', email: 'dimas@notaris.test', phone: '082222333444', gender: 'Laki-laki'),
-    DummyOfficer(id: 'P003', nik: '3505010101000013', name: 'Sari Anggraini', email: 'sari@notaris.test', phone: '083333444555', gender: 'Perempuan'),
+    DummyOfficer(
+      id: 'P001',
+      nik: '3505010101000011',
+      name: 'Rina Wulandari',
+      email: 'rina@notaris.test',
+      phone: '081111222333',
+      gender: 'Perempuan',
+    ),
+    DummyOfficer(
+      id: 'P002',
+      nik: '3505010101000012',
+      name: 'Dimas Saputra',
+      email: 'dimas@notaris.test',
+      phone: '082222333444',
+      gender: 'Laki-laki',
+    ),
+    DummyOfficer(
+      id: 'P003',
+      nik: '3505010101000013',
+      name: 'Sari Anggraini',
+      email: 'sari@notaris.test',
+      phone: '083333444555',
+      gender: 'Perempuan',
+    ),
   ];
 
   final notarisCategories = const [
@@ -262,8 +303,14 @@ class _TransactionDesktopScreenState
   final notarisProcesses = const [
     DummyProcess(id: 'PR001', name: 'Pendalaman berkas dan kelengkapan berkas'),
     DummyProcess(id: 'PR002', name: 'Pendaftaran dan pemesanan nama perseroan'),
-    DummyProcess(id: 'PR003', name: 'Pembuatan draft akta dan penandatanganan akta'),
-    DummyProcess(id: 'PR004', name: 'Pembuatan salinan akta dan pendaftaran AHU'),
+    DummyProcess(
+      id: 'PR003',
+      name: 'Pembuatan draft akta dan penandatanganan akta',
+    ),
+    DummyProcess(
+      id: 'PR004',
+      name: 'Pembuatan salinan akta dan pendaftaran AHU',
+    ),
     DummyProcess(id: 'PR005', name: 'Pencetakan salinan dan pengesahan AHU'),
     DummyProcess(id: 'PR006', name: 'Pengambilan dan pelunasan'),
   ];
@@ -318,9 +365,7 @@ class _TransactionDesktopScreenState
           id: 'TJ002',
           jobCode: 'N002',
           name: 'Akta Kuasa',
-          categories: const [
-            DummyCategory(id: 'K004', name: 'Akta Kuasa'),
-          ],
+          categories: const [DummyCategory(id: 'K004', name: 'Akta Kuasa')],
           estimatedTime: '3 Hari',
           serviceCost: 750000,
           otherCost: 0,
@@ -414,9 +459,7 @@ class _TransactionDesktopScreenState
     final now = DateTime.now();
     final current = deadline.isEmpty
         ? null
-        : DateTime.tryParse(
-            deadline.split('/').reversed.join('-'),
-          );
+        : DateTime.tryParse(deadline.split('/').reversed.join('-'));
     final picked = await showDatePicker(
       context: context,
       initialDate: current ?? now,
@@ -443,13 +486,13 @@ class _TransactionDesktopScreenState
 
   List<DummyCategory> get availableCategories =>
       selectedType == TransactionType.notaris
-          ? notarisCategories
-          : ppatCategories;
+      ? notarisCategories
+      : ppatCategories;
 
   List<DummyProcess> get availableProcesses =>
       selectedType == TransactionType.notaris
-          ? notarisProcesses
-          : ppatProcesses;
+      ? notarisProcesses
+      : ppatProcesses;
 
   String typeLabel(TransactionType type) =>
       type == TransactionType.notaris ? 'NOTARIS' : 'PPAT';
@@ -546,26 +589,28 @@ class _TransactionDesktopScreenState
     final jenis = selectedType == TransactionType.notaris ? 'notaris' : 'ppat';
 
     try {
-      final rows = await (database.select(database.transaksis)
-            ..where((t) =>
-                t.deletedAt.isNull() & t.jenisTransaksi.equals(jenis))
-            ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
-          .get();
+      final rows =
+          await (database.select(database.transaksis)
+                ..where(
+                  (t) => t.deletedAt.isNull() & t.jenisTransaksi.equals(jenis),
+                )
+                ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+              .get();
 
       final records = <DummyTransaction>[];
       for (final row in rows) {
         final applicantRow = row.pemohonId == null
             ? null
-            : await (database.select(database.pemohons)
-                  ..where((p) =>
-                      p.id.equals(row.pemohonId!) & p.deletedAt.isNull()))
-                .getSingleOrNull();
+            : await (database.select(database.pemohons)..where(
+                    (p) => p.id.equals(row.pemohonId!) & p.deletedAt.isNull(),
+                  ))
+                  .getSingleOrNull();
         final officerRow = row.petugasId == null
             ? null
-            : await (database.select(database.petugasLocals)
-                  ..where((p) =>
-                      p.id.equals(row.petugasId!) & p.deletedAt.isNull()))
-                .getSingleOrNull();
+            : await (database.select(database.petugasLocals)..where(
+                    (p) => p.id.equals(row.petugasId!) & p.deletedAt.isNull(),
+                  ))
+                  .getSingleOrNull();
 
         final applicant = DummyApplicant(
           id: applicantRow?.id.toString() ?? '',
@@ -651,43 +696,47 @@ class _TransactionDesktopScreenState
             ];
           }
 
-          jobs.add(DummyTransactionJob(
-            id: detail.id.toString(),
-            jobCode: 'DB-${detail.id}',
-            name: detail.namaPekerjaanSnapshot,
-            categories: categories,
-            estimatedTime: detail.estimasiWaktuSnapshot ?? '-',
-            serviceCost: detail.biayaLayanan,
-            otherCost: detail.biayaLainnya,
-            processes: processes,
-            localDetailUuid: detail.uuid,
-            masterNotarisId: detail.pekerjaanNotarisId,
-            masterPpatId: detail.pekerjaanPpatId,
-          ));
+          jobs.add(
+            DummyTransactionJob(
+              id: detail.id.toString(),
+              jobCode: 'DB-${detail.id}',
+              name: detail.namaPekerjaanSnapshot,
+              categories: categories,
+              estimatedTime: detail.estimasiWaktuSnapshot ?? '-',
+              serviceCost: detail.biayaLayanan,
+              otherCost: detail.biayaLainnya,
+              processes: processes,
+              localDetailUuid: detail.uuid,
+              masterNotarisId: detail.pekerjaanNotarisId,
+              masterPpatId: detail.pekerjaanPpatId,
+            ),
+          );
         }
 
-        records.add(DummyTransaction(
-          id: row.id.toString(),
-          number: row.noAkta,
-          type: row.jenisTransaksi == 'ppat'
-              ? TransactionType.ppat
-              : TransactionType.notaris,
-          applicant: applicant,
-          officer: officer,
-          jobs: jobs,
-          registrationDate: row.tanggalTransaksi == null
-              ? '-'
-              : _formatTransactionDate(row.tanggalTransaksi!),
-          deadline: row.tanggalJatuhTempo == null
-              ? ''
-              : _formatTransactionDate(row.tanggalJatuhTempo!),
-          status: row.statusTransaksi,
-          materai: row.jumlahMaterai,
-          paymentType: row.metodePembayaran,
-          discount: row.diskon,
-          currentPayment: row.pembayaranSekarang,
-          note: row.catatan ?? '',
-        ));
+        records.add(
+          DummyTransaction(
+            id: row.id.toString(),
+            number: row.noAkta,
+            type: row.jenisTransaksi == 'ppat'
+                ? TransactionType.ppat
+                : TransactionType.notaris,
+            applicant: applicant,
+            officer: officer,
+            jobs: jobs,
+            registrationDate: row.tanggalTransaksi == null
+                ? '-'
+                : _formatTransactionDate(row.tanggalTransaksi!),
+            deadline: row.tanggalJatuhTempo == null
+                ? ''
+                : _formatTransactionDate(row.tanggalJatuhTempo!),
+            status: row.statusTransaksi,
+            materai: row.jumlahMaterai,
+            paymentType: row.metodePembayaran,
+            discount: row.diskon,
+            currentPayment: row.pembayaranSekarang,
+            note: row.catatan ?? '',
+          ),
+        );
       }
 
       if (!mounted) return;
@@ -714,9 +763,7 @@ class _TransactionDesktopScreenState
   Future<void> showApplicantDialog() async {
     final result = await showDialog<DummyApplicant>(
       context: context,
-      builder: (dialogContext) => _ApplicantDialog(
-        applicants: applicants,
-      ),
+      builder: (dialogContext) => _ApplicantDialog(applicants: applicants),
     );
 
     if (result != null) {
@@ -727,9 +774,7 @@ class _TransactionDesktopScreenState
   Future<void> showOfficerDialog() async {
     final result = await showDialog<DummyOfficer>(
       context: context,
-      builder: (dialogContext) => _OfficerDialog(
-        officers: officers,
-      ),
+      builder: (dialogContext) => _OfficerDialog(officers: officers),
     );
 
     if (result != null) {
@@ -787,10 +832,7 @@ class _TransactionDesktopScreenState
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: AppColors.card,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 14,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: AppColors.border),
@@ -801,10 +843,7 @@ class _TransactionDesktopScreenState
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(
-          color: AppColors.primary,
-          width: 1.4,
-        ),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
       ),
     );
   }
@@ -813,13 +852,8 @@ class _TransactionDesktopScreenState
     return OutlinedButton.styleFrom(
       foregroundColor: AppColors.primary,
       side: const BorderSide(color: AppColors.primary),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 13,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
   }
 
@@ -828,13 +862,8 @@ class _TransactionDesktopScreenState
       backgroundColor: AppColors.primary,
       foregroundColor: AppColors.card,
       elevation: 0,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 18,
-        vertical: 13,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
   }
 
@@ -861,11 +890,7 @@ class _TransactionDesktopScreenState
   }) {
     return Row(
       children: [
-        Icon(
-          icon,
-          size: 21,
-          color: AppColors.primary,
-        ),
+        Icon(icon, size: 21, color: AppColors.primary),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
@@ -897,11 +922,7 @@ class _TransactionDesktopScreenState
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            size: 28,
-            color: AppColors.textMuted,
-          ),
+          Icon(icon, size: 28, color: AppColors.textMuted),
           const SizedBox(height: 8),
           Text(
             text,
@@ -931,10 +952,7 @@ class _TransactionDesktopScreenState
               ),
             ),
           ),
-          const Text(
-            ':',
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
+          const Text(':', style: TextStyle(color: AppColors.textSecondary)),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -959,10 +977,7 @@ class _TransactionDesktopScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          sectionHeader(
-            icon: Icons.person_outline,
-            title: 'Data Pemohon',
-          ),
+          sectionHeader(icon: Icons.person_outline, title: 'Data Pemohon'),
           const SizedBox(height: 18),
           if (applicant == null)
             emptyState(
@@ -980,9 +995,7 @@ class _TransactionDesktopScreenState
                   infoRow('NIK', applicant.nik),
                   infoRow('Jenis Kelamin', applicant.gender),
                   infoRow('No. HP', applicant.phone),
-                  Expanded(
-                    child: infoRow('Alamat', applicant.address),
-                  ),
+                  Expanded(child: infoRow('Alamat', applicant.address)),
                 ],
               ),
             ),
@@ -1010,10 +1023,7 @@ class _TransactionDesktopScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          sectionHeader(
-            icon: Icons.badge_outlined,
-            title: 'Data Petugas',
-          ),
+          sectionHeader(icon: Icons.badge_outlined, title: 'Data Petugas'),
           const SizedBox(height: 18),
           if (officer == null)
             emptyState(
@@ -1031,9 +1041,7 @@ class _TransactionDesktopScreenState
                   infoRow('NIK', officer.nik),
                   infoRow('Jenis Kelamin', officer.gender),
                   infoRow('No. HP', officer.phone),
-                  Expanded(
-                    child: infoRow('Email', officer.email),
-                  ),
+                  Expanded(child: infoRow('Email', officer.email)),
                 ],
               ),
             ),
@@ -1044,9 +1052,7 @@ class _TransactionDesktopScreenState
               onPressed: showOfficerDialog,
               style: outlinedButtonStyle(),
               icon: const Icon(Icons.search, size: 18),
-              label: Text(
-                officer == null ? 'Pilih Petugas' : 'Ganti Petugas',
-              ),
+              label: Text(officer == null ? 'Pilih Petugas' : 'Ganti Petugas'),
             ),
           ),
         ],
@@ -1139,31 +1145,18 @@ class _TransactionDesktopScreenState
             spacing: 8,
             runSpacing: 8,
             children: [
-              ...job.categories.map(
-                (category) => _Tag(
-                  text: category.name,
-                ),
-              ),
-              _Tag(
-                text: '${job.processes.length} proses',
-                muted: true,
-              ),
+              ...job.categories.map((category) => _Tag(text: category.name)),
+              _Tag(text: '${job.processes.length} proses', muted: true),
             ],
           ),
           const SizedBox(height: 14),
-          const Divider(
-            height: 1,
-            color: AppColors.divider,
-          ),
+          const Divider(height: 1, color: AppColors.divider),
           const SizedBox(height: 14),
           Wrap(
             spacing: 24,
             runSpacing: 10,
             children: [
-              _SummaryItem(
-                label: 'Estimasi',
-                value: job.estimatedTime,
-              ),
+              _SummaryItem(label: 'Estimasi', value: job.estimatedTime),
               _SummaryItem(
                 label: 'Biaya Layanan',
                 value: formatPrice(job.serviceCost),
@@ -1206,7 +1199,10 @@ class _TransactionDesktopScreenState
                     'Prototype status PPAT untuk ${job.name}.',
                   ),
                   style: outlinedButtonStyle(),
-                  icon: const Icon(Icons.assignment_turned_in_outlined, size: 17),
+                  icon: const Icon(
+                    Icons.assignment_turned_in_outlined,
+                    size: 17,
+                  ),
                   label: const Text('Status PPAT'),
                 ),
               ],
@@ -1249,10 +1245,7 @@ class _TransactionDesktopScreenState
                   children: [
                     header,
                     const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: addButton,
-                    ),
+                    SizedBox(width: double.infinity, child: addButton),
                   ],
                 );
               }
@@ -1293,9 +1286,7 @@ class _TransactionDesktopScreenState
       key: ValueKey('transaction-number-$transactionNumber'),
       initialValue: transactionNumber,
       readOnly: true,
-      decoration: inputDecoration(
-        labelText: 'No. Transaksi',
-      ),
+      decoration: inputDecoration(labelText: 'No. Transaksi'),
     );
 
     final registrationField = TextFormField(
@@ -1327,11 +1318,7 @@ class _TransactionDesktopScreenState
 
     final statusField = SearchableDropdown<String>(
       value: transactionStatus,
-      items: const [
-        'Baru',
-        'Dalam Proses',
-        'Selesai',
-      ],
+      items: const ['Baru', 'Dalam Proses', 'Selesai'],
       label: 'Status Transaksi',
       onChanged: (value) {
         if (value != null) {
@@ -1346,9 +1333,7 @@ class _TransactionDesktopScreenState
       onChanged: (value) {
         setState(() => materai = int.tryParse(value) ?? 0);
       },
-      decoration: inputDecoration(
-        labelText: 'Jumlah Materai',
-      ),
+      decoration: inputDecoration(labelText: 'Jumlah Materai'),
     );
 
     final fields = [
@@ -1365,8 +1350,8 @@ class _TransactionDesktopScreenState
           final columns = mobile
               ? 1
               : constraints.maxWidth >= 1000
-                  ? 3
-                  : 2;
+              ? 3
+              : 2;
 
           return Wrap(
             spacing: 16,
@@ -1376,10 +1361,7 @@ class _TransactionDesktopScreenState
                   ? constraints.maxWidth
                   : (constraints.maxWidth - (columns - 1) * 16) / columns;
 
-              return SizedBox(
-                width: width,
-                child: field,
-              );
+              return SizedBox(width: width, child: field);
             }).toList(),
           );
         },
@@ -1397,23 +1379,15 @@ class _TransactionDesktopScreenState
             title: 'Ringkasan Pembayaran',
           ),
           const SizedBox(height: 18),
-          _MoneyRow(
-            label: 'Total Biaya',
-            value: formatPrice(totalCost),
-          ),
+          _MoneyRow(label: 'Total Biaya', value: formatPrice(totalCost)),
           const SizedBox(height: 12),
           TextFormField(
             controller: discountController,
             keyboardType: TextInputType.number,
-            inputFormatters: const [
-              _CurrencyInputFormatter(),
-            ],
+            inputFormatters: const [_CurrencyInputFormatter()],
             decoration: inputDecoration(
               labelText: 'Potongan',
-              prefixIcon: const Icon(
-                Icons.remove_circle_outline,
-                size: 18,
-              ),
+              prefixIcon: const Icon(Icons.remove_circle_outline, size: 18),
             ),
             onChanged: (value) {
               // Jangan setState di setiap ketikan.
@@ -1423,17 +1397,13 @@ class _TransactionDesktopScreenState
             },
           ),
           const SizedBox(height: 14),
-          const Divider(
-            height: 1,
-            color: AppColors.divider,
-          ),
+          const Divider(height: 1, color: AppColors.divider),
           const SizedBox(height: 14),
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: discountController,
             builder: (context, value, child) {
               final currentDiscount = _parseCurrency(value.text);
-              final currentNetTotal =
-                  totalCost - currentDiscount;
+              final currentNetTotal = totalCost - currentDiscount;
 
               return _MoneyRow(
                 label: 'Total Netto',
@@ -1469,10 +1439,7 @@ class _TransactionDesktopScreenState
             decoration: inputDecoration(
               labelText: 'Jatuh Tempo',
               hintText: 'Pilih tanggal deadline',
-              prefixIcon: const Icon(
-                Icons.event_outlined,
-                size: 18,
-              ),
+              prefixIcon: const Icon(Icons.event_outlined, size: 18),
               suffixIcon: IconButton(
                 tooltip: 'Pilih tanggal',
                 onPressed: _pickDeadline,
@@ -1501,7 +1468,9 @@ class _TransactionDesktopScreenState
             ]),
             builder: (context, _) {
               final currentDiscount = _parseCurrency(discountController.text);
-              final currentPaymentValue = _parseCurrency(currentPaymentController.text);
+              final currentPaymentValue = _parseCurrency(
+                currentPaymentController.text,
+              );
               final currentNetTotal = totalCost - currentDiscount;
               final remaining = (currentNetTotal - currentPaymentValue)
                   .clamp(0.0, double.infinity)
@@ -1517,12 +1486,8 @@ class _TransactionDesktopScreenState
           TextFormField(
             controller: currentPaymentController,
             keyboardType: TextInputType.number,
-            inputFormatters: const [
-              _CurrencyInputFormatter(),
-            ],
-            decoration: inputDecoration(
-              labelText: 'Pembayaran Sekarang',
-            ),
+            inputFormatters: const [_CurrencyInputFormatter()],
+            decoration: inputDecoration(labelText: 'Pembayaran Sekarang'),
             onChanged: (value) {
               // Simpan nilai numerik tanpa separator untuk persistence.
               currentPayment = _parseCurrency(value);
@@ -1546,10 +1511,7 @@ class _TransactionDesktopScreenState
       return summary;
     }
 
-    return SizedBox(
-      width: 360,
-      child: summary,
-    );
+    return SizedBox(width: 360, child: summary);
   }
 
   Future<void> _saveTransaction() async {
@@ -1573,7 +1535,9 @@ class _TransactionDesktopScreenState
 
     if (selectedJobs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Minimal satu pekerjaan harus ditambahkan.')),
+        const SnackBar(
+          content: Text('Minimal satu pekerjaan harus ditambahkan.'),
+        ),
       );
       return;
     }
@@ -1587,8 +1551,10 @@ class _TransactionDesktopScreenState
 
     final applicant = selectedApplicant!;
     final officer = selectedOfficer!;
-    if (applicant.localId == null || applicant.uuid == null ||
-        officer.localId == null || officer.uuid == null) {
+    if (applicant.localId == null ||
+        applicant.uuid == null ||
+        officer.localId == null ||
+        officer.uuid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Pemohon dan petugas harus dipilih dari Master lokal.'),
@@ -1656,39 +1622,61 @@ class _TransactionDesktopScreenState
     await WidgetsBinding.instance.endOfFrame;
 
     try {
-      final savedId = await ref.read(transactionControllerProvider.notifier).save(
-        id: _editingTransactionId == null ? null : int.tryParse(_editingTransactionId!),
-        nomorTransaksi: transactionNumber,
-        jenisTransaksi: selectedType == TransactionType.notaris ? 'notaris' : 'ppat',
-        pemohonId: applicant.localId!,
-        pemohonUuid: applicant.uuid!,
-        petugasId: officer.localId!,
-        petugasUuid: officer.uuid!,
-        status: transactionStatus,
-        tanggalTransaksi: parseDate(registrationDate),
-        tanggalJatuhTempo: deadline.trim().isEmpty ? null : parseDate(deadline),
-        jobs: selectedJobs.map((job) => TransactionJobInput(
-          jenisPekerjaan: selectedType == TransactionType.notaris ? 'notaris' : 'ppat',
-          namaPekerjaan: job.name,
-          detailUuid: job.localDetailUuid,
-          pekerjaanNotarisId: job.masterNotarisId,
-          pekerjaanPpatId: job.masterPpatId,
-          kategoriSnapshot: job.categories.map((category) => category.name).join(', '),
-          estimasiWaktuSnapshot: job.estimatedTime,
-          prosesSnapshot: jsonEncode(job.processes.map((process) => {
-            'id': process.id,
-            'name': process.name,
-            'status': process.status,
-          }).toList()),
-          biayaLayanan: job.serviceCost,
-          biayaLainnya: job.otherCost,
-        )).toList(),
-        diskon: discount,
-        pembayaranSekarang: isEditing ? 0 : currentPayment,
-        metodePembayaran: paymentType,
-        jumlahMaterai: materai,
-        catatan: note,
-      );
+      final savedId = await ref
+          .read(transactionControllerProvider.notifier)
+          .save(
+            id: _editingTransactionId == null
+                ? null
+                : int.tryParse(_editingTransactionId!),
+            nomorTransaksi: transactionNumber,
+            jenisTransaksi: selectedType == TransactionType.notaris
+                ? 'notaris'
+                : 'ppat',
+            pemohonId: applicant.localId!,
+            pemohonUuid: applicant.uuid!,
+            petugasId: officer.localId!,
+            petugasUuid: officer.uuid!,
+            status: transactionStatus,
+            tanggalTransaksi: parseDate(registrationDate),
+            tanggalJatuhTempo: deadline.trim().isEmpty
+                ? null
+                : parseDate(deadline),
+            jobs: selectedJobs
+                .map(
+                  (job) => TransactionJobInput(
+                    jenisPekerjaan: selectedType == TransactionType.notaris
+                        ? 'notaris'
+                        : 'ppat',
+                    namaPekerjaan: job.name,
+                    detailUuid: job.localDetailUuid,
+                    pekerjaanNotarisId: job.masterNotarisId,
+                    pekerjaanPpatId: job.masterPpatId,
+                    kategoriSnapshot: job.categories
+                        .map((category) => category.name)
+                        .join(', '),
+                    estimasiWaktuSnapshot: job.estimatedTime,
+                    prosesSnapshot: jsonEncode(
+                      job.processes
+                          .map(
+                            (process) => {
+                              'id': process.id,
+                              'name': process.name,
+                              'status': process.status,
+                            },
+                          )
+                          .toList(),
+                    ),
+                    biayaLayanan: job.serviceCost,
+                    biayaLainnya: job.otherCost,
+                  ),
+                )
+                .toList(),
+            diskon: discount,
+            pembayaranSekarang: isEditing ? 0 : currentPayment,
+            metodePembayaran: paymentType,
+            jumlahMaterai: materai,
+            catatan: note,
+          );
 
       if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
@@ -1738,14 +1726,12 @@ class _TransactionDesktopScreenState
     return Flex(
       direction: mobile ? Axis.vertical : Axis.horizontal,
       mainAxisAlignment: MainAxisAlignment.end,
-      crossAxisAlignment:
-          mobile ? CrossAxisAlignment.stretch : CrossAxisAlignment.center,
+      crossAxisAlignment: mobile
+          ? CrossAxisAlignment.stretch
+          : CrossAxisAlignment.center,
       children: [
         actions[0],
-        SizedBox(
-          width: mobile ? 0 : 12,
-          height: mobile ? 10 : 0,
-        ),
+        SizedBox(width: mobile ? 0 : 12, height: mobile ? 10 : 0),
         actions[1],
       ],
     );
@@ -1806,23 +1792,21 @@ class _TransactionDesktopScreenState
         child: ElevatedButton(
           onPressed: () => changeType(type),
           style: ElevatedButton.styleFrom(
-            backgroundColor:
-                selected ? AppColors.selectedMenuText : AppColors.card,
-            foregroundColor:
-                selected ? AppColors.card : AppColors.selectedMenuText,
+            backgroundColor: selected
+                ? AppColors.selectedMenuText
+                : AppColors.card,
+            foregroundColor: selected
+                ? AppColors.card
+                : AppColors.selectedMenuText,
             elevation: 0,
-            side: const BorderSide(
-              color: AppColors.selectedMenuText,
-            ),
+            side: const BorderSide(color: AppColors.selectedMenuText),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
           ),
           child: Text(
             label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
       );
@@ -1911,9 +1895,8 @@ class _TransactionDesktopScreenState
     }
 
     if (message == null) return true;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
     return false;
   }
 
@@ -1945,11 +1928,15 @@ class _TransactionDesktopScreenState
               children: [
                 InkWell(
                   borderRadius: BorderRadius.circular(8),
-                  onTap: (_editingTransactionId != null || index <= _currentStep)
+                  onTap:
+                      (_editingTransactionId != null || index <= _currentStep)
                       ? () => _goToStep(index)
                       : null,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -1958,18 +1945,28 @@ class _TransactionDesktopScreenState
                           height: 32,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: active || completed ? AppColors.primary : AppColors.background,
+                            color: active || completed
+                                ? AppColors.primary
+                                : AppColors.background,
                             border: Border.all(
-                              color: active || completed ? AppColors.primary : AppColors.border,
+                              color: active || completed
+                                  ? AppColors.primary
+                                  : AppColors.border,
                             ),
                           ),
                           alignment: Alignment.center,
                           child: completed
-                              ? const Icon(Icons.check, size: 17, color: AppColors.card)
+                              ? const Icon(
+                                  Icons.check,
+                                  size: 17,
+                                  color: AppColors.card,
+                                )
                               : Text(
                                   '${index + 1}',
                                   style: TextStyle(
-                                    color: active ? AppColors.card : AppColors.textSecondary,
+                                    color: active
+                                        ? AppColors.card
+                                        : AppColors.textSecondary,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 12,
                                   ),
@@ -1982,7 +1979,9 @@ class _TransactionDesktopScreenState
                             Text(
                               _stepTitle(index),
                               style: TextStyle(
-                                color: active ? AppColors.primary : AppColors.textPrimary,
+                                color: active
+                                    ? AppColors.primary
+                                    : AppColors.textPrimary,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -1992,8 +1991,8 @@ class _TransactionDesktopScreenState
                               completed
                                   ? 'Selesai'
                                   : active
-                                      ? 'Sedang diisi'
-                                      : 'Belum diisi',
+                                  ? 'Sedang diisi'
+                                  : 'Belum diisi',
                               style: const TextStyle(
                                 color: AppColors.textSecondary,
                                 fontSize: 10,
@@ -2010,7 +2009,9 @@ class _TransactionDesktopScreenState
                     width: 42,
                     height: 1,
                     margin: const EdgeInsets.symmetric(horizontal: 4),
-                    color: index < _currentStep ? AppColors.primary : AppColors.divider,
+                    color: index < _currentStep
+                        ? AppColors.primary
+                        : AppColors.divider,
                   ),
               ],
             );
@@ -2039,12 +2040,21 @@ class _TransactionDesktopScreenState
               ),
             );
           }
+
           return Wrap(
             spacing: 16,
             runSpacing: 16,
             children: [
-              field('No. Transaksi', transactionNumber, Icons.confirmation_number_outlined),
-              field('Tanggal Registrasi', registrationDate, Icons.calendar_today_outlined),
+              field(
+                'No. Transaksi',
+                transactionNumber,
+                Icons.confirmation_number_outlined,
+              ),
+              field(
+                'Tanggal Registrasi',
+                registrationDate,
+                Icons.calendar_today_outlined,
+              ),
               field('Tanggal Deadline', deadline, Icons.event_outlined),
             ],
           );
@@ -2076,12 +2086,19 @@ class _TransactionDesktopScreenState
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.info_outline, size: 20, color: AppColors.textSecondary),
+                    Icon(
+                      Icons.info_outline,
+                      size: 20,
+                      color: AppColors.textSecondary,
+                    ),
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Kelengkapan dokumen akan dihubungkan ke data dokumen transaksi pada tahap implementasi database.',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ],
@@ -2105,7 +2122,10 @@ class _TransactionDesktopScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              sectionHeader(icon: Icons.notes_outlined, title: 'Catatan Transaksi'),
+              sectionHeader(
+                icon: Icons.notes_outlined,
+                title: 'Catatan Transaksi',
+              ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: noteController,
@@ -2131,7 +2151,10 @@ class _TransactionDesktopScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              sectionHeader(icon: Icons.flag_outlined, title: 'Status Transaksi'),
+              sectionHeader(
+                icon: Icons.flag_outlined,
+                title: 'Status Transaksi',
+              ),
               const SizedBox(height: 10),
               const Text(
                 'Status tidak berubah otomatis. Pilih status transaksi secara manual sesuai kondisi pekerjaan di lapangan.',
@@ -2154,15 +2177,28 @@ class _TransactionDesktopScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              sectionHeader(icon: Icons.fact_check_outlined, title: 'Ringkasan Transaksi'),
+              sectionHeader(
+                icon: Icons.fact_check_outlined,
+                title: 'Ringkasan Transaksi',
+              ),
               const SizedBox(height: 16),
               _MoneyRow(label: 'Total Biaya', value: formatPrice(totalCost)),
               const SizedBox(height: 10),
-              _MoneyRow(label: 'Total Netto', value: formatPrice(netTotal), emphasized: true),
+              _MoneyRow(
+                label: 'Total Netto',
+                value: formatPrice(netTotal),
+                emphasized: true,
+              ),
               const SizedBox(height: 10),
-              _MoneyRow(label: 'Pembayaran', value: formatPrice(currentPayment)),
+              _MoneyRow(
+                label: 'Pembayaran',
+                value: formatPrice(currentPayment),
+              ),
               const SizedBox(height: 10),
-              _MoneyRow(label: 'Sisa Tagihan', value: formatPrice(remainingPayment)),
+              _MoneyRow(
+                label: 'Sisa Tagihan',
+                value: formatPrice(remainingPayment),
+              ),
             ],
           ),
         ),
@@ -2206,7 +2242,9 @@ class _TransactionDesktopScreenState
         children: [
           if (_currentStep > 0)
             OutlinedButton.icon(
-              onPressed: _isSaving ? null : () => setState(() => _currentStep--),
+              onPressed: _isSaving
+                  ? null
+                  : () => setState(() => _currentStep--),
               style: outlinedButtonStyle(),
               icon: const Icon(Icons.arrow_back, size: 18),
               label: const Text('Kembali'),
@@ -2214,18 +2252,24 @@ class _TransactionDesktopScreenState
           const Spacer(),
           Text(
             'Langkah ${_currentStep + 1} dari ${_workflowSteps.length}',
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+            ),
           ),
           const SizedBox(width: 14),
           ElevatedButton.icon(
             onPressed: _isSaving ? null : _nextStep,
             style: primaryButtonStyle(),
-            icon: Icon(last ? Icons.save_outlined : Icons.arrow_forward, size: 18),
+            icon: Icon(
+              last ? Icons.save_outlined : Icons.arrow_forward,
+              size: 18,
+            ),
             label: Text(
               last
                   ? (_editingTransactionId == null
-                      ? 'Simpan Transaksi'
-                      : 'Simpan Perubahan')
+                        ? 'Simpan Transaksi'
+                        : 'Simpan Perubahan')
                   : 'Simpan & Lanjut',
             ),
           ),
@@ -2244,12 +2288,19 @@ class _TransactionDesktopScreenState
             children: [
               Text(
                 _stepTitle(_currentStep),
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 5),
               Text(
                 _stepDescription(_currentStep),
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
               ),
             ],
           ),
@@ -2272,9 +2323,7 @@ class _TransactionDesktopScreenState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.primary,
-            ),
+            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
             child: const Text('Tutup'),
           ),
         ],
@@ -2308,9 +2357,7 @@ class _TransactionDesktopScreenState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.primary,
-            ),
+            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
             child: const Text('Tutup'),
           ),
         ],
@@ -2380,6 +2427,7 @@ class _TransactionDesktopScreenState
       ],
     );
   }
+
   @override
   void dispose() {
     discountController.dispose();
@@ -2389,7 +2437,6 @@ class _TransactionDesktopScreenState
     super.dispose();
   }
 }
-
 
 class _TransactionJobDialog extends ConsumerStatefulWidget {
   final TransactionType type;
@@ -2405,7 +2452,8 @@ class _TransactionJobDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<_TransactionJobDialog> createState() => _TransactionJobDialogState();
+  ConsumerState<_TransactionJobDialog> createState() =>
+      _TransactionJobDialogState();
 }
 
 class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
@@ -2419,7 +2467,8 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
   late List<DummyProcess> selectedProcesses;
   int? selectedMasterJobId;
   int? selectedMasterPriceId;
-  List<({int id, int categoryId, String name, String price, String estimate})> _masterPriceOptions = [];
+  List<({int id, int categoryId, String name, String price, String estimate})>
+  _masterPriceOptions = [];
   bool _loadingMasterDetails = false;
   String? _masterLoadError;
 
@@ -2429,15 +2478,9 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
 
     final job = widget.initialJob;
 
-    nameController = TextEditingController(
-      text: job?.name ?? '',
-    );
-    codeController = TextEditingController(
-      text: job?.jobCode ?? '',
-    );
-    estimatedController = TextEditingController(
-      text: job?.estimatedTime ?? '',
-    );
+    nameController = TextEditingController(text: job?.name ?? '');
+    codeController = TextEditingController(text: job?.jobCode ?? '');
+    estimatedController = TextEditingController(text: job?.estimatedTime ?? '');
     serviceCostController = TextEditingController(
       text: job == null
           ? ''
@@ -2494,7 +2537,9 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
       // Wait for Master categories to finish loading before mapping price rows.
       // Reading valueOrNull here could return an empty list on the first selection.
       final categoryData = await ref.read(pekerjaanKategoriProvider.future);
-      final categoryNames = {for (final item in categoryData) item.id: item.nama};
+      final categoryNames = {
+        for (final item in categoryData) item.id: item.nama,
+      };
       final priceOptions = [
         for (final item in aggregate.harga)
           if (categoryNames.containsKey(item.kategoriPekerjaanId))
@@ -2508,19 +2553,29 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
       ];
       setState(() {
         nameController.text = aggregate.nama;
-        codeController.text = '${widget.type == TransactionType.notaris ? 'N' : 'P'}-${aggregate.id}';
+        codeController.text =
+            '${widget.type == TransactionType.notaris ? 'N' : 'P'}-${aggregate.id}';
         _masterPriceOptions = priceOptions;
-        final currentPrice = priceOptions.where((item) =>
-          item.id == widget.initialJob?.masterPriceId
-        ).firstOrNull;
-        selectedMasterPriceId = currentPrice?.id ?? (priceOptions.length == 1 ? priceOptions.first.id : null);
+        final currentPrice = priceOptions
+            .where((item) => item.id == widget.initialJob?.masterPriceId)
+            .firstOrNull;
+        selectedMasterPriceId =
+            currentPrice?.id ??
+            (priceOptions.length == 1 ? priceOptions.first.id : null);
         selectedCategories = currentPrice == null
             ? []
-            : [DummyCategory(id: currentPrice.categoryId.toString(), name: currentPrice.name)];
+            : [
+                DummyCategory(
+                  id: currentPrice.categoryId.toString(),
+                  name: currentPrice.name,
+                ),
+              ];
         estimatedController.text = currentPrice?.estimate ?? '';
         serviceCostController.text = currentPrice == null
             ? ''
-            : _formatCurrencyDigits(_parseCurrency(currentPrice.price).toStringAsFixed(0));
+            : _formatCurrencyDigits(
+                _parseCurrency(currentPrice.price).toStringAsFixed(0),
+              );
         selectedProcesses = preserveSavedProcesses && savedProcesses.isNotEmpty
             ? savedProcesses
             : [
@@ -2542,19 +2597,13 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
     }
   }
 
-  InputDecoration decoration({
-    String? label,
-    String? hint,
-  }) {
+  InputDecoration decoration({String? label, String? hint}) {
     return InputDecoration(
       labelText: label,
       hintText: hint,
       filled: true,
       fillColor: AppColors.card,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 14,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: AppColors.border),
@@ -2565,10 +2614,7 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(
-          color: AppColors.primary,
-          width: 1.4,
-        ),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
       ),
     );
   }
@@ -2594,9 +2640,8 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
       builder: (dialogContext) => _ProcessPickerDialog(
         processes: widget.processes
             .where(
-              (item) => !selectedProcesses.any(
-                (selected) => selected.id == item.id,
-              ),
+              (item) =>
+                  !selectedProcesses.any((selected) => selected.id == item.id),
             )
             .toList(),
       ),
@@ -2614,7 +2659,9 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
     }
 
     if (selectedMasterJobId == null || selectedMasterPriceId == null) {
-      _showValidation('Pilih pekerjaan dan kategori/harga dari Master terlebih dahulu.');
+      _showValidation(
+        'Pilih pekerjaan dan kategori/harga dari Master terlebih dahulu.',
+      );
       return;
     }
 
@@ -2624,7 +2671,8 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
     }
 
     final result = DummyTransactionJob(
-      id: widget.initialJob?.id ??
+      id:
+          widget.initialJob?.id ??
           'TJ-${DateTime.now().millisecondsSinceEpoch}',
       jobCode: codeController.text.trim().isEmpty
           ? '${widget.type == TransactionType.notaris ? 'N' : 'P'}-DUMMY'
@@ -2637,19 +2685,24 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
       serviceCost: _parseCurrency(serviceCostController.text),
       otherCost: _parseCurrency(otherCostController.text),
       processes: List.from(selectedProcesses),
-      masterNotarisId: widget.type == TransactionType.notaris ? selectedMasterJobId : null,
-      masterPpatId: widget.type == TransactionType.ppat ? selectedMasterJobId : null,
+      masterNotarisId: widget.type == TransactionType.notaris
+          ? selectedMasterJobId
+          : null,
+      masterPpatId: widget.type == TransactionType.ppat
+          ? selectedMasterJobId
+          : null,
       masterPriceId: selectedMasterPriceId,
-      masterCategoryId: selectedCategories.isEmpty ? null : int.tryParse(selectedCategories.first.id),
+      masterCategoryId: selectedCategories.isEmpty
+          ? null
+          : int.tryParse(selectedCategories.first.id),
     );
 
     Navigator.pop(context, result);
   }
 
   void _showValidation(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -2658,9 +2711,7 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
 
     return Dialog(
       backgroundColor: AppColors.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: 900,
@@ -2691,10 +2742,7 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                 ],
               ),
             ),
-            const Divider(
-              height: 1,
-              color: AppColors.divider,
-            ),
+            const Divider(height: 1, color: AppColors.divider),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
@@ -2705,62 +2753,89 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                       title: 'Pilih dari Master Pekerjaan',
                     ),
                     const SizedBox(height: 12),
-                    Builder(builder: (context) {
-                      final masterAsync = widget.type == TransactionType.notaris
-                          ? ref.watch(pekerjaanNotarisProvider)
-                          : ref.watch(pekerjaanPpatProvider);
-                      final masterItems = widget.type == TransactionType.notaris
-                          ? (ref.watch(pekerjaanNotarisProvider).valueOrNull ?? [])
-                              .map((item) => (id: item.id, name: item.nama))
-                              .toList()
-                          : (ref.watch(pekerjaanPpatProvider).valueOrNull ?? [])
-                              .map((item) => (id: item.id, name: item.nama))
-                              .toList();
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          DropdownButtonFormField<int>(
-                            initialValue: masterItems.any((item) => item.id == selectedMasterJobId)
-                                ? selectedMasterJobId
-                                : null,
-                            isExpanded: true,
-                            decoration: decoration(
-                              label: 'Pekerjaan ${widget.type == TransactionType.notaris ? 'Notaris' : 'PPAT'}',
-                              hint: masterAsync.isLoading ? 'Memuat data Master...' : 'Pilih pekerjaan dari Master',
+                    Builder(
+                      builder: (context) {
+                        final masterAsync =
+                            widget.type == TransactionType.notaris
+                            ? ref.watch(pekerjaanNotarisProvider)
+                            : ref.watch(pekerjaanPpatProvider);
+                        final masterItems =
+                            widget.type == TransactionType.notaris
+                            ? (ref
+                                          .watch(pekerjaanNotarisProvider)
+                                          .valueOrNull ??
+                                      [])
+                                  .map((item) => (id: item.id, name: item.nama))
+                                  .toList()
+                            : (ref.watch(pekerjaanPpatProvider).valueOrNull ??
+                                      [])
+                                  .map((item) => (id: item.id, name: item.nama))
+                                  .toList();
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            DropdownButtonFormField<int>(
+                              initialValue:
+                                  masterItems.any(
+                                    (item) => item.id == selectedMasterJobId,
+                                  )
+                                  ? selectedMasterJobId
+                                  : null,
+                              isExpanded: true,
+                              decoration: decoration(
+                                label:
+                                    'Pekerjaan ${widget.type == TransactionType.notaris ? 'Notaris' : 'PPAT'}',
+                                hint: masterAsync.isLoading
+                                    ? 'Memuat data Master...'
+                                    : 'Pilih pekerjaan dari Master',
+                              ),
+                              items: [
+                                for (final item in masterItems)
+                                  DropdownMenuItem<int>(
+                                    value: item.id,
+                                    child: Text(
+                                      item.name,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                              ],
+                              onChanged: _loadingMasterDetails
+                                  ? null
+                                  : _selectMasterJob,
                             ),
-                            items: [
-                              for (final item in masterItems)
-                                DropdownMenuItem<int>(
-                                  value: item.id,
-                                  child: Text(item.name, overflow: TextOverflow.ellipsis),
+                            if (masterAsync.hasError)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Text(
+                                  'Gagal memuat Master: ${masterAsync.error}',
+                                  style: const TextStyle(
+                                    color: AppColors.error,
+                                    fontSize: 12,
+                                  ),
                                 ),
-                            ],
-                            onChanged: _loadingMasterDetails ? null : _selectMasterJob,
-                          ),
-                          if (masterAsync.hasError)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 6),
-                              child: Text('Gagal memuat Master: ${masterAsync.error}',
-                                  style: const TextStyle(color: AppColors.error, fontSize: 12)),
-                            ),
-                          if (_loadingMasterDetails)
-                            const Padding(
-                              padding: EdgeInsets.only(top: 8),
-                              child: LinearProgressIndicator(minHeight: 2),
-                            ),
-                          if (_masterLoadError != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 6),
-                              child: Text(_masterLoadError!,
-                                  style: const TextStyle(color: AppColors.error, fontSize: 12)),
-                            ),
-                        ],
-                      );
-                    }),
-                    const SizedBox(height: 20),
-                    const _DialogSectionTitle(
-                      title: 'Informasi Pekerjaan',
+                              ),
+                            if (_loadingMasterDetails)
+                              const Padding(
+                                padding: EdgeInsets.only(top: 8),
+                                child: LinearProgressIndicator(minHeight: 2),
+                              ),
+                            if (_masterLoadError != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Text(
+                                  _masterLoadError!,
+                                  style: const TextStyle(
+                                    color: AppColors.error,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
                     ),
+                    const SizedBox(height: 20),
+                    const _DialogSectionTitle(title: 'Informasi Pekerjaan'),
                     const SizedBox(height: 12),
                     if (mobile)
                       Column(
@@ -2808,12 +2883,13 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                         ],
                       ),
                     const SizedBox(height: 24),
-                    const _DialogSectionTitle(
-                      title: 'Kategori Pekerjaan',
-                    ),
+                    const _DialogSectionTitle(title: 'Kategori Pekerjaan'),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<int>(
-                      initialValue: _masterPriceOptions.any((item) => item.id == selectedMasterPriceId)
+                      initialValue:
+                          _masterPriceOptions.any(
+                            (item) => item.id == selectedMasterPriceId,
+                          )
                           ? selectedMasterPriceId
                           : null,
                       isExpanded: true,
@@ -2833,32 +2909,41 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                             ),
                           ),
                       ],
-                      onChanged: _loadingMasterDetails || _masterPriceOptions.isEmpty
+                      onChanged:
+                          _loadingMasterDetails || _masterPriceOptions.isEmpty
                           ? null
                           : (id) {
-                              final selected = _masterPriceOptions.where((item) => item.id == id).firstOrNull;
+                              final selected = _masterPriceOptions
+                                  .where((item) => item.id == id)
+                                  .firstOrNull;
                               if (selected == null) return;
                               setState(() {
                                 selectedMasterPriceId = selected.id;
                                 selectedCategories = [
-                                  DummyCategory(id: selected.categoryId.toString(), name: selected.name),
+                                  DummyCategory(
+                                    id: selected.categoryId.toString(),
+                                    name: selected.name,
+                                  ),
                                 ];
                                 estimatedController.text = selected.estimate;
-                                serviceCostController.text = _formatCurrencyDigits(
-                                  _parseCurrency(selected.price).toStringAsFixed(0),
-                                );
+                                serviceCostController.text =
+                                    _formatCurrencyDigits(
+                                      _parseCurrency(selected.price)
+                                          .toStringAsFixed(0),
+                                    );
                               });
                             },
                     ),
                     const SizedBox(height: 8),
                     Text(
                       'Kategori, harga, dan estimasi mengikuti konfigurasi Master. Untuk mengubahnya, edit data di menu Master.',
-                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
                     ),
                     const SizedBox(height: 24),
-                    const _DialogSectionTitle(
-                      title: 'Biaya dan Estimasi',
-                    ),
+                    const _DialogSectionTitle(title: 'Biaya dan Estimasi'),
                     const SizedBox(height: 12),
                     if (mobile)
                       Column(
@@ -2876,23 +2961,15 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                             controller: serviceCostController,
                             readOnly: selectedMasterPriceId != null,
                             keyboardType: TextInputType.number,
-                            inputFormatters: const [
-                              _CurrencyInputFormatter(),
-                            ],
-                            decoration: decoration(
-                              label: 'Biaya Layanan',
-                            ),
+                            inputFormatters: const [_CurrencyInputFormatter()],
+                            decoration: decoration(label: 'Biaya Layanan'),
                           ),
                           const SizedBox(height: 14),
                           TextField(
                             controller: otherCostController,
                             keyboardType: TextInputType.number,
-                            inputFormatters: const [
-                              _CurrencyInputFormatter(),
-                            ],
-                            decoration: decoration(
-                              label: 'Biaya Lainnya',
-                            ),
+                            inputFormatters: const [_CurrencyInputFormatter()],
+                            decoration: decoration(label: 'Biaya Lainnya'),
                           ),
                         ],
                       )
@@ -2918,9 +2995,7 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                               inputFormatters: const [
                                 _CurrencyInputFormatter(),
                               ],
-                              decoration: decoration(
-                                label: 'Biaya Layanan',
-                              ),
+                              decoration: decoration(label: 'Biaya Layanan'),
                             ),
                           ),
                           const SizedBox(width: 14),
@@ -2931,93 +3006,81 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                               inputFormatters: const [
                                 _CurrencyInputFormatter(),
                               ],
-                              decoration: decoration(
-                                label: 'Biaya Lainnya',
-                              ),
+                              decoration: decoration(label: 'Biaya Lainnya'),
                             ),
                           ),
                         ],
                       ),
                     const SizedBox(height: 24),
-                    const _DialogSectionTitle(
-                      title: 'Proses Pekerjaan',
-                    ),
+                    const _DialogSectionTitle(title: 'Proses Pekerjaan'),
                     const SizedBox(height: 12),
                     if (selectedProcesses.isEmpty)
-                      _DialogEmptyState(
-                        text: 'Belum ada proses.',
-                      )
+                      _DialogEmptyState(text: 'Belum ada proses.')
                     else
                       Column(
-                        children: List.generate(
-                          selectedProcesses.length,
-                          (index) {
-                            final process = selectedProcesses[index];
+                        children: List.generate(selectedProcesses.length, (
+                          index,
+                        ) {
+                          final process = selectedProcesses[index];
 
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.background,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 14,
-                                    backgroundColor:
-                                        AppColors.selectedMenuBg,
-                                    child: Text(
-                                      '${index + 1}',
-                                      style: const TextStyle(
-                                        color: AppColors.primary,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.background,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: AppColors.selectedMenuBg,
+                                  child: Text(
+                                    '${index + 1}',
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      process.name,
-                                      style: const TextStyle(
-                                        color: AppColors.textPrimary,
-                                        fontSize: 13,
-                                      ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    process.name,
+                                    style: const TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 13,
                                     ),
                                   ),
-                                  _StatusTag(text: process.status),
-                                  IconButton(
-                                    tooltip: 'Hapus proses',
-                                    onPressed: () {
-                                      setState(
-                                        () => selectedProcesses.removeAt(
-                                          index,
-                                        ),
-                                      );
-                                    },
-                                    icon: const Icon(
-                                      Icons.delete_outline,
-                                      size: 18,
-                                      color: AppColors.error,
-                                    ),
+                                ),
+                                _StatusTag(text: process.status),
+                                IconButton(
+                                  tooltip: 'Hapus proses',
+                                  onPressed: () {
+                                    setState(
+                                      () => selectedProcesses.removeAt(index),
+                                    );
+                                  },
+                                  icon: const Icon(
+                                    Icons.delete_outline,
+                                    size: 18,
+                                    color: AppColors.error,
                                   ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
                       ),
                     OutlinedButton.icon(
                       onPressed: addProcess,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primary,
-                        side: const BorderSide(
-                          color: AppColors.primary,
-                        ),
+                        side: const BorderSide(color: AppColors.primary),
                       ),
                       icon: const Icon(Icons.add, size: 18),
                       label: const Text('Tambah Proses'),
@@ -3026,10 +3089,7 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                 ),
               ),
             ),
-            const Divider(
-              height: 1,
-              color: AppColors.divider,
-            ),
+            const Divider(height: 1, color: AppColors.divider),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -3089,8 +3149,7 @@ class _TransactionSearchDialog extends StatefulWidget {
       _TransactionSearchDialogState();
 }
 
-class _TransactionSearchDialogState
-    extends State<_TransactionSearchDialog> {
+class _TransactionSearchDialogState extends State<_TransactionSearchDialog> {
   final controller = TextEditingController();
 
   List<DummyTransaction> get filtered {
@@ -3140,17 +3199,13 @@ class _TransactionSearchDialogState
                   ? const Center(
                       child: Text(
                         'Tidak ada transaksi yang sesuai.',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                        ),
+                        style: TextStyle(color: AppColors.textSecondary),
                       ),
                     )
                   : ListView.separated(
                       itemCount: filtered.length,
-                      separatorBuilder: (_, _) => const Divider(
-                        height: 1,
-                        color: AppColors.divider,
-                      ),
+                      separatorBuilder: (_, _) =>
+                          const Divider(height: 1, color: AppColors.divider),
                       itemBuilder: (context, index) {
                         final item = filtered[index];
 
@@ -3185,9 +3240,7 @@ class _TransactionSearchDialogState
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.primary,
-          ),
+          style: TextButton.styleFrom(foregroundColor: AppColors.primary),
           child: const Text('Tutup'),
         ),
       ],
@@ -3204,24 +3257,17 @@ class _TransactionSearchDialogState
 class _ApplicantDialog extends StatelessWidget {
   final List<DummyApplicant> applicants;
 
-  const _ApplicantDialog({
-    required this.applicants,
-  });
+  const _ApplicantDialog({required this.applicants});
 
   @override
   Widget build(BuildContext context) {
     return _SimpleSelectionDialog<DummyApplicant>(
       title: 'Pilih Pemohon',
       items: applicants,
-      searchText: (item) => [
-        item.nik,
-        item.name,
-        item.phone,
-        item.address,
-      ].join(' '),
+      searchText: (item) =>
+          [item.nik, item.name, item.phone, item.address].join(' '),
       titleText: (item) => item.name,
-      subtitleText: (item) =>
-          '${item.nik} • ${item.gender} • ${item.phone}',
+      subtitleText: (item) => '${item.nik} • ${item.gender} • ${item.phone}',
       onSelected: (item) => Navigator.pop(context, item),
     );
   }
@@ -3230,24 +3276,17 @@ class _ApplicantDialog extends StatelessWidget {
 class _OfficerDialog extends StatelessWidget {
   final List<DummyOfficer> officers;
 
-  const _OfficerDialog({
-    required this.officers,
-  });
+  const _OfficerDialog({required this.officers});
 
   @override
   Widget build(BuildContext context) {
     return _SimpleSelectionDialog<DummyOfficer>(
       title: 'Pilih Petugas',
       items: officers,
-      searchText: (item) => [
-        item.nik,
-        item.name,
-        item.email,
-        item.phone,
-      ].join(' '),
+      searchText: (item) =>
+          [item.nik, item.name, item.email, item.phone].join(' '),
       titleText: (item) => item.name,
-      subtitleText: (item) =>
-          '${item.nik} • ${item.email} • ${item.phone}',
+      subtitleText: (item) => '${item.nik} • ${item.email} • ${item.phone}',
       onSelected: (item) => Navigator.pop(context, item),
     );
   }
@@ -3275,8 +3314,7 @@ class _SimpleSelectionDialog<T> extends StatefulWidget {
       _SimpleSelectionDialogState<T>();
 }
 
-class _SimpleSelectionDialogState<T>
-    extends State<_SimpleSelectionDialog<T>> {
+class _SimpleSelectionDialogState<T> extends State<_SimpleSelectionDialog<T>> {
   final controller = TextEditingController();
 
   List<T> get filtered {
@@ -3287,9 +3325,7 @@ class _SimpleSelectionDialogState<T>
     }
 
     return widget.items
-        .where(
-          (item) => widget.searchText(item).toLowerCase().contains(query),
-        )
+        .where((item) => widget.searchText(item).toLowerCase().contains(query))
         .toList();
   }
 
@@ -3323,17 +3359,13 @@ class _SimpleSelectionDialogState<T>
                   ? const Center(
                       child: Text(
                         'Tidak ada data.',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                        ),
+                        style: TextStyle(color: AppColors.textSecondary),
                       ),
                     )
                   : ListView.separated(
                       itemCount: filtered.length,
-                      separatorBuilder: (_, _) => const Divider(
-                        height: 1,
-                        color: AppColors.divider,
-                      ),
+                      separatorBuilder: (_, _) =>
+                          const Divider(height: 1, color: AppColors.divider),
                       itemBuilder: (context, index) {
                         final item = filtered[index];
 
@@ -3367,9 +3399,7 @@ class _SimpleSelectionDialogState<T>
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.primary,
-          ),
+          style: TextButton.styleFrom(foregroundColor: AppColors.primary),
           child: const Text('Tutup'),
         ),
       ],
@@ -3386,9 +3416,7 @@ class _SimpleSelectionDialogState<T>
 class _CategoryPickerDialog extends StatelessWidget {
   final List<DummyCategory> categories;
 
-  const _CategoryPickerDialog({
-    required this.categories,
-  });
+  const _CategoryPickerDialog({required this.categories});
 
   @override
   Widget build(BuildContext context) {
@@ -3406,9 +3434,7 @@ class _CategoryPickerDialog extends StatelessWidget {
 class _ProcessPickerDialog extends StatelessWidget {
   final List<DummyProcess> processes;
 
-  const _ProcessPickerDialog({
-    required this.processes,
-  });
+  const _ProcessPickerDialog({required this.processes});
 
   @override
   Widget build(BuildContext context) {
@@ -3427,30 +3453,20 @@ class _Tag extends StatelessWidget {
   final String text;
   final bool muted;
 
-  const _Tag({
-    required this.text,
-    this.muted = false,
-  });
+  const _Tag({required this.text, this.muted = false});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 5,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: muted
-            ? AppColors.background
-            : AppColors.selectedMenuBg,
+        color: muted ? AppColors.background : AppColors.selectedMenuBg,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         text,
         style: TextStyle(
-          color: muted
-              ? AppColors.textSecondary
-              : AppColors.selectedMenuText,
+          color: muted ? AppColors.textSecondary : AppColors.selectedMenuText,
           fontSize: 11,
           fontWeight: FontWeight.w500,
         ),
@@ -3462,17 +3478,12 @@ class _Tag extends StatelessWidget {
 class _StatusTag extends StatelessWidget {
   final String text;
 
-  const _StatusTag({
-    required this.text,
-  });
+  const _StatusTag({required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 5,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: text == 'Selesai'
             ? AppColors.success.withValues(alpha: .10)
@@ -3482,9 +3493,7 @@ class _StatusTag extends StatelessWidget {
       child: Text(
         text,
         style: TextStyle(
-          color: text == 'Selesai'
-              ? AppColors.success
-              : AppColors.warning,
+          color: text == 'Selesai' ? AppColors.success : AppColors.warning,
           fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
@@ -3516,22 +3525,16 @@ class _MoneyRow extends StatelessWidget {
                   ? AppColors.textPrimary
                   : AppColors.textSecondary,
               fontSize: 13,
-              fontWeight: emphasized
-                  ? FontWeight.w600
-                  : FontWeight.w400,
+              fontWeight: emphasized ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
         ),
         Text(
           value,
           style: TextStyle(
-            color: emphasized
-                ? AppColors.primary
-                : AppColors.textPrimary,
+            color: emphasized ? AppColors.primary : AppColors.textPrimary,
             fontSize: 13,
-            fontWeight: emphasized
-                ? FontWeight.w600
-                : FontWeight.w500,
+            fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
           ),
         ),
       ],
@@ -3568,13 +3571,9 @@ class _SummaryItem extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              color: emphasized
-                  ? AppColors.primary
-                  : AppColors.textPrimary,
+              color: emphasized ? AppColors.primary : AppColors.textPrimary,
               fontSize: 13,
-              fontWeight: emphasized
-                  ? FontWeight.w600
-                  : FontWeight.w500,
+              fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
             ),
           ),
         ],
@@ -3586,9 +3585,7 @@ class _SummaryItem extends StatelessWidget {
 class _DialogSectionTitle extends StatelessWidget {
   final String title;
 
-  const _DialogSectionTitle({
-    required this.title,
-  });
+  const _DialogSectionTitle({required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -3606,9 +3603,7 @@ class _DialogSectionTitle extends StatelessWidget {
 class _DialogEmptyState extends StatelessWidget {
   final String text;
 
-  const _DialogEmptyState({
-    required this.text,
-  });
+  const _DialogEmptyState({required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -3621,10 +3616,7 @@ class _DialogEmptyState extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: const TextStyle(
-          color: AppColors.textSecondary,
-          fontSize: 13,
-        ),
+        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
       ),
     );
   }

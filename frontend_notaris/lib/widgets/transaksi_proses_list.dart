@@ -7,10 +7,7 @@ import '../repositories/transaksi_proses_repository.dart';
 
 /// Legacy snapshot item used while a transaction is still a local form draft.
 class TransaksiProsesFallbackItem {
-  const TransaksiProsesFallbackItem({
-    required this.name,
-    required this.status,
-  });
+  const TransaksiProsesFallbackItem({required this.name, required this.status});
 
   final String name;
   final String status;
@@ -88,10 +85,8 @@ class TransaksiProsesList extends ConsumerWidget {
 
         return ListView.separated(
           itemCount: processes.length,
-          separatorBuilder: (_, _) => const Divider(
-            height: 1,
-            color: AppColors.divider,
-          ),
+          separatorBuilder: (_, _) =>
+              const Divider(height: 1, color: AppColors.divider),
           itemBuilder: (context, index) {
             final process = processes[index];
             return _ProcessRow(
@@ -118,10 +113,8 @@ class TransaksiProsesList extends ConsumerWidget {
 
     return ListView.separated(
       itemCount: fallbackProcesses.length,
-      separatorBuilder: (_, _) => const Divider(
-        height: 1,
-        color: AppColors.divider,
-      ),
+      separatorBuilder: (_, _) =>
+          const Divider(height: 1, color: AppColors.divider),
       itemBuilder: (context, index) {
         final process = fallbackProcesses[index];
         return _ProcessRow(
@@ -175,10 +168,7 @@ class _ProcessRow extends StatelessWidget {
       ),
       title: Text(
         name,
-        style: const TextStyle(
-          color: AppColors.textPrimary,
-          fontSize: 13,
-        ),
+        style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
       ),
       trailing: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 160),
