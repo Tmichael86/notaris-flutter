@@ -12,6 +12,7 @@ import '../providers/people_provider.dart';
 import '../providers/pekerjaan_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../repositories/transaction_repository.dart';
+import '../widgets/transaksi_proses_list.dart';
 
 enum TransactionType { notaris, ppat }
 
@@ -2282,6 +2283,8 @@ class _TransactionDesktopScreenState
   }
 
   void _showProcessDialog(DummyTransactionJob job) {
+    final transactionId = int.tryParse(_editingTransactionId ?? '');
+
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -2289,40 +2292,17 @@ class _TransactionDesktopScreenState
         title: Text('Proses ${job.name}'),
         content: SizedBox(
           width: 700,
-          child: ListView.separated(
-            shrinkWrap: true,
-            itemCount: job.processes.length,
-            separatorBuilder: (_, _) => const Divider(
-              height: 1,
-              color: AppColors.divider,
-            ),
-            itemBuilder: (context, index) {
-              final process = job.processes[index];
-
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(
-                  radius: 15,
-                  backgroundColor: AppColors.selectedMenuBg,
-                  child: Text(
-                    '${index + 1}',
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+          height: 420,
+          child: TransaksiProsesList(
+            transactionId: transactionId,
+            detailUuid: job.localDetailUuid,
+            fallbackProcesses: [
+              for (final process in job.processes)
+                TransaksiProsesFallbackItem(
+                  name: process.name,
+                  status: process.status,
                 ),
-                title: Text(
-                  process.name,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 13,
-                  ),
-                ),
-                trailing: _StatusTag(text: process.status),
-              );
-            },
+            ],
           ),
         ),
         actions: [
