@@ -17,22 +17,41 @@ const (
 	PermissionDelete = "delete"
 )
 
-// RequirePermission enforces the CRUD permission configured for a sidebar.
-// This protects menu-backed API routes; workflow-specific permissions must
-// still be enforced separately by the workflow service.
-func RequirePermission(repository *repositories.SidebarAccessRepository, sidebarCode, permission string) gin.HandlerFunc {
+// RequirePermission resolves the user's current group from the database on
+// every protected request. JWT group claims can be stale after an admin moves
+// a user to another group, so they are not authoritative for current access.
+// Workflow-specific permissions must still be enforced separately.
+func RequirePermission(accessRepository *repositories.SidebarAccessRepository, sidebarCode, permission string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		value, exists := ctx.Get("group_id")
-		groupID, ok := value.(uint)
-		if !exists || !ok || groupID == 0 {
+		value, exists := ctx.Get("user_id")
+		userID, ok := value.(uint)
+		if !exists || !ok || userID == 0 {
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"success": false,
-				"message": "Grup pengguna tidak valid",
+				"message": "Identitas pengguna tidak valid",
 			})
 			return
 		}
 
-		access, err := repository.FindByGroupAndSidebarCode(groupID, sidebarCode)
+		user, err := repositories.NewUserRepository().FindByID(userID)
+		if err != nil || user.Status != 1 {
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"message": "Pengguna tidak ditemukan atau tidak aktif",
+			})
+			return
+		}
+
+		group, err := repositories.NewGroupRepository().FindByID(user.GroupID)
+		if err != nil || group.Status != 1 {
+			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"success": false,
+				"message": "Grup pengguna tidak ditemukan atau tidak aktif",
+			})
+			return
+		}
+
+		access, err := accessRepository.FindByGroupAndSidebarCode(user.GroupID, sidebarCode)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			ctx.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 				"success": false,
