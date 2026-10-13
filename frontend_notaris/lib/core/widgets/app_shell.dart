@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../models/auth_session.dart';
 import '../../screens/dashboard_desktop_screen.dart';
 import '../../screens/groups_desktop_screen.dart';
 import '../../screens/jenis_pengeluaran_desktop_screen.dart';
@@ -23,7 +24,10 @@ import '../../screens/users_desktop_screen.dart';
 import '../../core/theme/app_colors.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  const AppShell({super.key, this.session, this.onLogout});
+
+  final AuthSession? session;
+  final VoidCallback? onLogout;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -118,9 +122,9 @@ class _AppShellState extends State<AppShell> {
           ),
           const SizedBox(width: 4),
           if (!mobile)
-            const Text(
-              'SUPER ADMIN',
-              style: TextStyle(
+            Text(
+              widget.session?.groupName.toUpperCase() ?? 'AKUN',
+              style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: .5,
@@ -146,12 +150,17 @@ class _AppShellState extends State<AppShell> {
             ),
             onSelected: (value) {
               if (value == 'logout') {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const LoginDesktopScreen(),
-                  ),
-                );
+                final logout = widget.onLogout;
+                if (logout != null) {
+                  logout();
+                } else {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const LoginDesktopScreen(),
+                    ),
+                  );
+                }
               }
             },
             itemBuilder: (_) => const [
