@@ -49,6 +49,13 @@ void main() {
     await database.close();
   });
 
+  Future<void> disposeSubject(WidgetTester tester) async {
+    // Cancel Riverpod's Drift stream subscription, then let Drift's deferred
+    // query-stream cleanup timer fire before the test's fake clock is torn down.
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 1));
+  }
+
   Widget buildSubject({
     required int? id,
     required String detailUuid,
@@ -125,6 +132,8 @@ void main() {
     expect(find.text('Pemeriksaan dokumen'), findsOneWidget);
     expect(find.text('Valid'), findsOneWidget);
     expect(find.text('Proses pekerjaan lain'), findsNothing);
+
+    await disposeSubject(tester);
   });
 
   testWidgets('saved process status updates reactively from SQLite', (
@@ -158,6 +167,8 @@ void main() {
 
     expect(find.text('Perlu Revisi'), findsOneWidget);
     expect(find.text('Valid'), findsNothing);
+
+    await disposeSubject(tester);
   });
 
   testWidgets('saved transaction shows an empty state when no process exists', (
@@ -172,5 +183,7 @@ void main() {
       find.text('Belum ada proses tersimpan untuk pekerjaan ini.'),
       findsOneWidget,
     );
+
+    await disposeSubject(tester);
   });
 }
