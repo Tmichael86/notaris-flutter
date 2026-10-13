@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_colors.dart';
-import '../database/app_database.dart';
 import '../providers/transaksi_proses_provider.dart';
 import '../repositories/transaksi_proses_repository.dart';
 
