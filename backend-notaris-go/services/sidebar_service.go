@@ -71,12 +71,14 @@ func (s *SidebarService) GetTree() ([]response.SidebarTree, error) {
 }
 
 func (s *SidebarService) GetGroupAccess(groupID uint) ([]response.SidebarAccessResponse, error) {
-	if _, err := s.groupRepository.FindByID(groupID); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrInvalidSidebarAccess
-		}
+	group, err := s.groupRepository.FindByID(groupID)
+	if errors.Is(err, gorm.ErrRecordNotFound) || (err == nil && group.Status != 1) {
+		return nil, ErrInvalidSidebarAccess
+	}
+	if err != nil {
 		return nil, err
 	}
+
 	sidebars, err := s.GetAll()
 	if err != nil {
 		return nil, err
@@ -104,10 +106,11 @@ func (s *SidebarService) GetGroupAccess(groupID uint) ([]response.SidebarAccessR
 }
 
 func (s *SidebarService) ReplaceGroupAccess(groupID, userID uint, items []request.SidebarAccessItem) error {
-	if _, err := s.groupRepository.FindByID(groupID); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrInvalidSidebarAccess
-		}
+	group, err := s.groupRepository.FindByID(groupID)
+	if errors.Is(err, gorm.ErrRecordNotFound) || (err == nil && group.Status != 1) {
+		return ErrInvalidSidebarAccess
+	}
+	if err != nil {
 		return err
 	}
 	sidebars, err := s.GetAll()
@@ -128,5 +131,7 @@ func (s *SidebarService) ReplaceGroupAccess(groupID, userID uint, items []reques
 		}
 		seen[item.SidebarID] = struct{}{}
 	}
-	return database.DB.Transaction(func(tx *gorm.DB) error { return s.accessRepository.ReplaceForGroup(tx, groupID, userID, items) })
+	return database.DB.Transaction(func(tx *gorm.DB) error {
+		return s.accessRepository.ReplaceForGroup(tx, groupID, userID, items)
+	})
 }
