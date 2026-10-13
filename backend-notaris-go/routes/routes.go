@@ -36,6 +36,7 @@ func SetupRouter(
 		{
 			auth.POST("/login", authController.Login)
 			auth.GET("/me", middleware.JWTAuth(cfg), meController.Me)
+			auth.GET("/me/sidebar-access", middleware.JWTAuth(cfg), meController.SidebarAccess)
 		}
 
 		users := v1.Group("/users")
