@@ -130,6 +130,44 @@ void main() {
     expect(find.text('Proses pekerjaan lain'), findsNothing);
   });
 
+  testWidgets('saved process status updates reactively from SQLite', (
+    tester,
+  ) async {
+    await database
+        .into(database.transaksiProses)
+        .insert(
+          TransaksiProsesCompanion.insert(
+            uuid: 'reactive-process',
+            transaksiId: transactionId,
+            transaksiDetailUuid: 'process-list-detail',
+            namaProsesSnapshot: 'Pemeriksaan berkas',
+            statusProses: const Value('valid'),
+          ),
+        );
+
+    await tester.pumpWidget(
+      buildSubject(
+        id: transactionId,
+        detailUuid: 'process-list-detail',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Valid'), findsOneWidget);
+
+    await (database.update(
+      database.transaksiProses,
+    )..where((process) => process.uuid.equals('reactive-process'))).write(
+      const TransaksiProsesCompanion(
+        statusProses: Value('perlu_revisi'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Perlu Revisi'), findsOneWidget);
+    expect(find.text('Valid'), findsNothing);
+  });
+
   testWidgets('saved transaction shows an empty state when no process exists', (
     tester,
   ) async {
