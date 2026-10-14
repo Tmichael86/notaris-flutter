@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/database/app_database.dart';
@@ -261,7 +262,6 @@ void main() {
     },
   );
 
-
   test(
     'generates the next four-digit sequence without reusing soft-deleted numbers',
     () async {
@@ -301,5 +301,4 @@ void main() {
       throwsA(isA<StateError>()),
     );
   });
-
 }
