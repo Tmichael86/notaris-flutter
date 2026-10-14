@@ -261,4 +261,45 @@ void main() {
     },
   );
 
+
+  test(
+    'generates the next four-digit sequence without reusing soft-deleted numbers',
+    () async {
+      await db.into(db.transaksis).insert(
+        TransaksisCompanion.insert(
+          uuid: 'uuid-soft-deleted-sequence',
+          noAkta: '2001010260007',
+          total: 0,
+          deletedAt: Value(DateTime(2026, 10, 1)),
+        ),
+      );
+
+      final nextNumber = await repository.generateNextTransactionNumber(
+        jenisTransaksi: 'notaris',
+        date: DateTime(2026, 10, 14),
+      );
+
+      expect(nextNumber, '1001410260008');
+      expect(nextNumber, hasLength(13));
+    },
+  );
+
+  test('rejects transaction number sequence overflow beyond 9999', () async {
+    await db.into(db.transaksis).insert(
+      TransaksisCompanion.insert(
+        uuid: 'uuid-sequence-limit',
+        noAkta: '1001410269999',
+        total: 0,
+      ),
+    );
+
+    await expectLater(
+      repository.generateNextTransactionNumber(
+        jenisTransaksi: 'notaris',
+        date: DateTime(2026, 10, 14),
+      ),
+      throwsA(isA<StateError>()),
+    );
+  });
+
 }
