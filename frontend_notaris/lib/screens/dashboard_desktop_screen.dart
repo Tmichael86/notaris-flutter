@@ -402,7 +402,7 @@ class _DashboardDesktopScreenState
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final donutSize =
-                    (constraints.maxWidth * 0.42).clamp(104.0, 140.0);
+                    (constraints.maxWidth * 0.42).clamp(104.0, 140.0).toDouble();
                 return Row(
                   children: [
                     SizedBox(
