@@ -149,11 +149,33 @@ class TransactionRepository {
       }
     }
 
+    final normalizedNoAkta = nomorTransaksi.trim();
+    if (normalizedNoAkta.isEmpty) {
+      throw ArgumentError('Nomor transaksi wajib diisi.');
+    }
+
     final now = DateTime.now();
     final totalPekerjaan = jobs.fold<double>(0, (sum, job) => sum + job.total);
     final totalBersih = (totalPekerjaan - diskon).clamp(0, double.infinity);
 
     return db.transaction(() async {
+      // Catch ordinary collisions with a clear error. The unique SQLite index
+      // remains the final guard against two concurrent writers racing here.
+      final duplicateNumbers = await db.customSelect(
+        'SELECT id FROM transaksis '
+        'WHERE TRIM(no_akta) = ? AND id != ? LIMIT 1',
+        variables: [
+          Variable.withString(normalizedNoAkta),
+          Variable.withInt(id ?? -1),
+        ],
+      ).get();
+      if (duplicateNumbers.isNotEmpty) {
+        throw StateError(
+          'Nomor transaksi "$normalizedNoAkta" sudah digunakan. '
+          'Muat ulang nomor transaksi sebelum menyimpan kembali.',
+        );
+      }
+
       final transactionId =
           id ??
           await db
@@ -217,7 +239,7 @@ class TransactionRepository {
               db.transaksis,
             )..where((t) => t.id.equals(id) & t.deletedAt.isNull())).write(
               TransaksisCompanion(
-                noAkta: Value(nomorTransaksi.trim()),
+                noAkta: Value(normalizedNoAkta),
                 total: Value(totalBersih.toDouble()),
                 pemohonId: Value(pemohonId),
                 pemohonUuid: Value(pemohonUuid),
