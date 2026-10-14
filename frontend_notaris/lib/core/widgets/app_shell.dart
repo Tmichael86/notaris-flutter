@@ -90,8 +90,6 @@ class _AppShellState extends State<AppShell> {
     return false;
   }
 
-  bool _canReadAny(List<String> titles) =>
-      titles.any(_canReadMenu);
 
   Widget _buildHeader({bool mobile = false}) {
     return Container(
