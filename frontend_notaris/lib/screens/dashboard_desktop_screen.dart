@@ -50,7 +50,7 @@ class _DashboardDesktopScreenState
         final padding = mobile ? 16.0 : 28.0;
 
         return Padding(
-          padding: EdgeInsets.fromLTRB(padding, 22, padding, 40),
+          padding: EdgeInsets.fromLTRB(padding, 24, padding, 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -183,7 +183,7 @@ class _DashboardDesktopScreenState
         crossAxisCount: 2,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 1.35,
+        childAspectRatio: 0.98,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
         children: [for (final item in stats) _buildMetricCard(item)],
@@ -215,11 +215,11 @@ class _DashboardDesktopScreenState
       },
       child: Container(
         height: 142,
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.card,
           border: Border.all(color: AppColors.border),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: .035),
@@ -228,57 +228,79 @@ class _DashboardDesktopScreenState
             ),
           ],
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 200;
+            final icon = Container(
+              width: compact ? 34.0 : 42.0,
+              height: compact ? 34.0 : 42.0,
               decoration: BoxDecoration(
                 color: AppColors.selectedMenuBg,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(metric.icon, color: AppColors.primary, size: 24),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
+              child: Icon(
+                metric.icon,
+                color: AppColors.primary,
+                size: compact ? 19 : 22,
+              ),
+            );
+            final details = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  metric.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compact ? 10 : 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                SizedBox(height: compact ? 3 : 6),
+                Text(
+                  metric.value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compact ? 19 : 23,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  metric.subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compact ? 9 : 11,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
+            );
+
+            if (compact) {
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    metric.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    metric.value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 23,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    metric.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textMuted,
-                    ),
-                  ),
+                  icon,
+                  const SizedBox(height: 8),
+                  details,
                 ],
-              ),
-            ),
-          ],
+              );
+            }
+
+            return Row(
+              children: [
+                icon,
+                const SizedBox(width: 12),
+                Expanded(child: details),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -286,12 +308,12 @@ class _DashboardDesktopScreenState
 
   Widget _card({required Widget child, EdgeInsetsGeometry padding = const EdgeInsets.all(18)}) {
     return Container(
-      height: 310,
+      height: 320,
       padding: padding,
       decoration: BoxDecoration(
         color: AppColors.card,
         border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: .035),
@@ -377,27 +399,33 @@ class _DashboardDesktopScreenState
             style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
           ),
           Expanded(
-            child: Row(
-              children: [
-                const SizedBox(
-                  width: 160,
-                  height: 160,
-                  child: CustomPaint(painter: _DonutPainter()),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      _LegendItem('Transaksi selesai', '55%'),
-                      SizedBox(height: 12),
-                      _LegendItem('Transaksi berjalan', '25%'),
-                      SizedBox(height: 12),
-                      _LegendItem('Belum diproses', '20%'),
-                    ],
-                  ),
-                ),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final donutSize =
+                    (constraints.maxWidth * 0.42).clamp(104.0, 140.0);
+                return Row(
+                  children: [
+                    SizedBox(
+                      width: donutSize,
+                      height: donutSize,
+                      child: const CustomPaint(painter: _DonutPainter()),
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _LegendItem('Transaksi selesai', '55%'),
+                          SizedBox(height: 10),
+                          _LegendItem('Transaksi berjalan', '25%'),
+                          SizedBox(height: 10),
+                          _LegendItem('Belum diproses', '20%'),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ],
