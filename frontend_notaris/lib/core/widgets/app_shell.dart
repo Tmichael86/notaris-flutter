@@ -58,17 +58,6 @@ class _AppShellState extends State<AppShell> {
     'Konfigurasi Umum',
   ];
 
-  int get _mobileNavIndex {
-    switch (selectedMenu) {
-      case 'Transaksi':
-        return 1;
-      case 'Monitoring':
-        return 2;
-      default:
-        return 0;
-    }
-  }
-
   void _selectMenu(String title) {
     // Keep navigation permissions consistent even if a menu is triggered
     // from a control that is not currently visible.
