@@ -204,4 +204,61 @@ void main() {
       expect(processes.single.sourceProcessId, 'process-1');
     },
   );
+
+  test(
+    'deletePayment rolls back the payment soft-delete when header update fails',
+    () async {
+      final transactionId = await repository.save(
+        nomorTransaksi: '1001210260004',
+        jenisTransaksi: 'notaris',
+        pemohonId: 1,
+        pemohonUuid: 'applicant-uuid',
+        petugasId: 1,
+        petugasUuid: 'officer-uuid',
+        status: 'Baru',
+        tanggalTransaksi: DateTime(2026, 10, 12),
+        jobs: [
+          TransactionJobInput(
+            jenisPekerjaan: 'notaris',
+            namaPekerjaan: 'Akta Test',
+            pekerjaanNotarisId: pekerjaanNotarisId,
+            biayaLayanan: 100000,
+            detailUuid: 'detail-payment-atomicity',
+          ),
+        ],
+      );
+
+      final paymentId = await repository.addPayment(
+        transactionId: transactionId,
+        paymentDate: DateTime(2026, 10, 14),
+        amount: 25000,
+      );
+
+      // Fail the second write after deletePayment has attempted to soft-delete
+      // the payment row. The transaction should roll the first write back.
+      await db.customStatement('''
+        CREATE TRIGGER fail_payment_header_update
+        BEFORE UPDATE OF pembayaran_sekarang ON transaksis
+        BEGIN
+          SELECT RAISE(ABORT, 'forced header update failure');
+        END
+      ''');
+
+      await expectLater(
+        repository.deletePayment(paymentId),
+        throwsA(anything),
+      );
+
+      final history = await repository.getPaymentHistory(transactionId);
+      expect(history, hasLength(1));
+      expect(history.single.id, paymentId);
+      expect(history.single.deletedAt, isNull);
+      expect(history.single.status, 1);
+
+      final transaction = await repository.findById(transactionId);
+      expect(transaction, isNotNull);
+      expect(transaction!.pembayaranSekarang, 25000);
+    },
+  );
+
 }
