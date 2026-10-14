@@ -86,6 +86,12 @@ class TransactionRepository {
       final sequence = int.tryParse(match.group(1) ?? '') ?? 0;
       if (sequence > maxSequence) maxSequence = sequence;
     }
+    if (maxSequence >= 9999) {
+      throw StateError(
+        'Urutan nomor transaksi telah mencapai batas 9999. '
+        'Format nomor transaksi hanya mendukung empat digit urutan.',
+      );
+    }
     final nextSequence = (maxSequence + 1).toString().padLeft(4, '0');
     return '$typeCode'
         '00$dateCode$nextSequence';
