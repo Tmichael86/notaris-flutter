@@ -70,6 +70,13 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _selectMenu(String title) {
+    // Keep navigation permissions consistent even if a menu is triggered
+    // from a control that is not currently visible.
+    if (!_canReadMenu(title) || selectedMenu == title) {
+      _scaffoldKey.currentState?.closeDrawer();
+      return;
+    }
+
     setState(() => selectedMenu = title);
     _scaffoldKey.currentState?.closeDrawer();
   }
@@ -670,7 +677,28 @@ class _AppShellState extends State<AppShell> {
       color: AppColors.bgLight,
       child: Column(
         children: [
-          Expanded(child: contentArea),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 150),
+              reverseDuration: const Duration(milliseconds: 100),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                final slide = Tween<Offset>(
+                  begin: const Offset(0, 0.012),
+                  end: Offset.zero,
+                ).animate(animation);
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(position: slide, child: child),
+                );
+              },
+              child: KeyedSubtree(
+                key: ValueKey(selectedMenu),
+                child: contentArea,
+              ),
+            ),
+          ),
           const SizedBox(height: 20),
           _buildFooter(),
         ],
@@ -731,6 +759,9 @@ class _AppShellState extends State<AppShell> {
       (Icons.point_of_sale_outlined, Icons.point_of_sale, 'Transaksi'),
       (Icons.monitor_outlined, Icons.monitor, 'Monitoring'),
     ];
+    final visibleItems = items
+        .where((item) => _canReadMenu(item.$3))
+        .toList(growable: false);
 
     return SafeArea(
       top: false,
@@ -748,31 +779,31 @@ class _AppShellState extends State<AppShell> {
         ),
         child: Row(
           children: [
-            for (int i = 0; i < items.length; i++)
+            for (final item in visibleItems)
               Expanded(
                 child: InkWell(
-                  onTap: () => _selectMenu(items[i].$3),
+                  onTap: () => _selectMenu(item.$3),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          _mobileNavIndex == i ? items[i].$2 : items[i].$1,
+                          selectedMenu == item.$3 ? item.$2 : item.$1,
                           size: 22,
-                          color: _mobileNavIndex == i
+                          color: selectedMenu == item.$3
                               ? AppColors.primary
                               : AppColors.textSecondary,
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          items[i].$3,
+                          item.$3,
                           style: TextStyle(
                             fontSize: 11,
-                            fontWeight: _mobileNavIndex == i
+                            fontWeight: selectedMenu == item.$3
                                 ? FontWeight.w600
                                 : FontWeight.w400,
-                            color: _mobileNavIndex == i
+                            color: selectedMenu == item.$3
                                 ? AppColors.primary
                                 : AppColors.textSecondary,
                           ),
