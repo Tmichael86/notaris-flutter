@@ -75,6 +75,10 @@ class _AppShellState extends State<AppShell> {
   }
 
   bool _canReadMenu(String title) {
+    // Dashboard is the authenticated landing page, not a permission-managed
+    // business menu. It must remain reachable for every signed-in user.
+    if (title.trim().toLowerCase() == 'dashboard') return true;
+
     final session = widget.session;
     if (session == null) return true;
 
