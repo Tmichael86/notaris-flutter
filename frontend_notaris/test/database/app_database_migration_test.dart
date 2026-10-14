@@ -124,7 +124,7 @@ void main() {
     return file;
   }
 
-  test('V6 to V8 backfills valid processes and creates UUID unique indexes', () async {
+  test('V6 to V9 backfills processes and creates UUID and transaction-number indexes', () async {
     final file = await createV6Fixture(filename: 'valid_v6.sqlite');
     final db = AppDatabase(NativeDatabase(file));
 
@@ -150,11 +150,11 @@ void main() {
       final uuidIndexes = await db.customSelect('''
         SELECT name FROM sqlite_master
         WHERE type = 'index'
-          AND name IN ('idx_pemohons_uuid_unique', 'idx_transaksis_uuid_unique')
+          AND name IN ('idx_pemohons_uuid_unique', 'idx_transaksis_uuid_unique', 'idx_transaksis_no_akta_unique')
       ''').get();
       expect(
         uuidIndexes.map((row) => row.read<String>('name')).toSet(),
-        {'idx_pemohons_uuid_unique', 'idx_transaksis_uuid_unique'},
+        {'idx_pemohons_uuid_unique', 'idx_transaksis_uuid_unique', 'idx_transaksis_no_akta_unique'},
       );
 
       final details = await db.select(db.transaksiDetails).get();
@@ -184,7 +184,7 @@ void main() {
       final version = await inspectionDb.customSelect(
         'PRAGMA user_version',
       ).getSingle();
-      expect(version.read<int>('user_version'), 8);
+      expect(version.read<int>('user_version'), 9);
     } finally {
       await inspectionDb.close();
     }
@@ -211,7 +211,9 @@ void main() {
           database.execute('''
             CREATE TABLE transaksis (
               id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-              uuid TEXT NOT NULL
+              uuid TEXT NOT NULL,
+              no_akta TEXT NOT NULL DEFAULT '',
+              total REAL NOT NULL DEFAULT 0
             )
           ''');
           database.execute(
@@ -234,7 +236,7 @@ void main() {
     return file;
   }
 
-  test('V7 to V8 enforces unique UUIDs on Pemohons and Transaksis', () async {
+  test('V7 upgrade enforces unique UUIDs on Pemohons and Transaksis', () async {
     final file = await createV7Fixture(filename: 'valid_v7.sqlite');
     final db = AppDatabase(NativeDatabase(file));
 
@@ -287,7 +289,7 @@ void main() {
     });
   }
 
-  test('V7 to V8 rejects blank UUIDs without partial migration', () async {
+  test('V7 upgrade rejects blank UUIDs without partial migration', () async {
     final file = await createV7Fixture(
       filename: 'blank_uuid.sqlite',
       duplicateTable: 'pemohons',
@@ -305,6 +307,57 @@ void main() {
         'PRAGMA user_version',
       ).getSingle();
       expect(version.read<int>('user_version'), 7);
+    } finally {
+      await inspectionDb.close();
+    }
+  });
+
+  test('V8 to V9 rejects duplicate transaction numbers without partial migration', () async {
+    final file = File('${tempDirectory.path}/duplicate_transaction_numbers_v8.sqlite');
+    final setupDb = AppDatabase(
+      NativeDatabase(
+        file,
+        enableMigrations: false,
+        setup: (database) {
+          database.execute('''
+            CREATE TABLE pemohons (
+              id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              uuid TEXT NOT NULL
+            )
+          ''');
+          database.execute('''
+            CREATE TABLE transaksis (
+              id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              uuid TEXT NOT NULL,
+              no_akta TEXT NOT NULL,
+              total REAL NOT NULL
+            )
+          ''');
+          database.execute("INSERT INTO transaksis (uuid, no_akta, total) VALUES ('tx-1', '1001410260001', 0)");
+          database.execute("INSERT INTO transaksis (uuid, no_akta, total) VALUES ('tx-2', ' 1001410260001 ', 0)");
+          database.execute('PRAGMA user_version = 8');
+        },
+      ),
+    );
+    await setupDb.customSelect('SELECT 1').get();
+    await setupDb.close();
+
+    final db = AppDatabase(NativeDatabase(file));
+    await expectLater(db.customSelect('SELECT 1').get(), throwsA(anything));
+    await db.close();
+
+    final inspectionDb = AppDatabase(
+      NativeDatabase(file, enableMigrations: false),
+    );
+    try {
+      final version = await inspectionDb.customSelect('PRAGMA user_version').getSingle();
+      expect(version.read<int>('user_version'), 8);
+      final rows = await inspectionDb.customSelect('SELECT id, no_akta FROM transaksis ORDER BY id').get();
+      expect(rows, hasLength(2));
+      final indexes = await inspectionDb.customSelect(
+        "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_transaksis_no_akta_unique'",
+      ).get();
+      expect(indexes, isEmpty);
     } finally {
       await inspectionDb.close();
     }
