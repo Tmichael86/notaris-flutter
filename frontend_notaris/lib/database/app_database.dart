@@ -211,14 +211,18 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (Migrator m) async {
       await m.createAll();
+      await _createUuidUniqueIndexes();
     },
     onUpgrade: (Migrator m, int from, int to) async {
+      // Keep all pending migration steps atomic. If V8 UUID validation fails,
+      // earlier DDL and backfill work must roll back with it.
+      await transaction(() async {
       if (from < 2) {
         // Extend the existing local Pemohon table.
         await m.addColumn(pemohons, pemohons.jenisKelamin);
@@ -268,10 +272,8 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(transaksiDetails, transaksiDetails.prosesSnapshot);
       }
       if (from < 7) {
-        // Keep V7 DDL and legacy backfill atomic. If the backfill fails, SQLite
-        // must roll back the new tables as well so a retry starts from V6.
-        await transaction(() async {
-          await m.createTable(transaksiProses);
+        // The enclosing upgrade transaction also covers V7 DDL and backfill.
+        await m.createTable(transaksiProses);
           await m.createTable(transaksiProsesRiwayat);
 
           final legacyDetails = await (select(transaksiDetails)..where(
@@ -327,10 +329,57 @@ class AppDatabase extends _$AppDatabase {
               );
             }
           }
-        });
       }
+
+      if (from < 8) {
+        await _validateUuidValuesForUniqueIndexes();
+        await _createUuidUniqueIndexes();
+      }
+      });
     },
   );
+
+  Future<void> _createUuidUniqueIndexes() async {
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_pemohons_uuid_unique '
+      'ON pemohons (uuid)',
+    );
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_transaksis_uuid_unique '
+      'ON transaksis (uuid)',
+    );
+  }
+
+  /// Refuse to guess which local record owns a duplicate identity. Rewriting
+  /// UUIDs automatically could break links to server records during sync.
+  Future<void> _validateUuidValuesForUniqueIndexes() async {
+    for (final table in const ['pemohons', 'transaksis']) {
+      final blankRows = await customSelect(
+        "SELECT COUNT(*) AS count FROM $table WHERE TRIM(uuid) = ''",
+      ).getSingle();
+      final blankCount = blankRows.read<int>('count');
+      if (blankCount > 0) {
+        throw StateError(
+          'Cannot upgrade to schema V8: $table contains $blankCount '
+          'blank UUID value(s). Repair these records before retrying.',
+        );
+      }
+
+      final duplicates = await customSelect(
+        'SELECT uuid, COUNT(*) AS occurrences FROM $table '
+        'GROUP BY uuid HAVING COUNT(*) > 1 LIMIT 1',
+      ).get();
+      if (duplicates.isNotEmpty) {
+        final row = duplicates.first;
+        final uuid = row.read<String>('uuid');
+        final count = row.read<int>('occurrences');
+        throw StateError(
+          'Cannot upgrade to schema V8: UUID "$uuid" appears $count times '
+          'in $table. Resolve duplicates before retrying.',
+        );
+      }
+    }
+  }
 
   // --- QUERY METODE KUSTOM UNTUK SYNC ENGINE ---
 
