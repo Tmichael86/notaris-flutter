@@ -174,7 +174,7 @@ void main() {
   });
 
   test(
-    'failed V6 to V7 migration keeps the old version and reveals partial DDL',
+    'failed V6 to V7 migration rolls back V7 DDL and keeps the old version',
     () async {
       // This deliberately damaged V6 fixture omits deleted_at. The migration
       // creates the two V7 tables, then fails when its backfill query references
@@ -231,11 +231,9 @@ void main() {
         ''').get();
         expect(
           tables.map((row) => row.read<String>('name')).toSet(),
-          {'transaksi_proses', 'transaksi_proses_riwayat'},
+          isEmpty,
           reason:
-              'This captures whether DDL is rolled back when the migration '
-              'callback fails. If this expectation changes, revisit the '
-              'atomicity decision and update the test accordingly.',
+              'V7 tables must not remain when the migration transaction fails.',
         );
       } finally {
         await inspectionDb.close();
