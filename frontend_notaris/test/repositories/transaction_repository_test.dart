@@ -284,6 +284,56 @@ void main() {
     },
   );
 
+  test(
+    'duplicate numbers from separately opened forms are rejected without partial saves',
+    () async {
+      // Two forms can ask for a number before either one is saved.
+      final firstCandidate = await repository.generateNextTransactionNumber(
+        jenisTransaksi: 'notaris',
+        date: DateTime(2026, 10, 14),
+      );
+      final secondCandidate = await repository.generateNextTransactionNumber(
+        jenisTransaksi: 'notaris',
+        date: DateTime(2026, 10, 14),
+      );
+      expect(secondCandidate, firstCandidate);
+
+      Future<int> saveWithNumber(String number, String detailUuid) {
+        return repository.save(
+          nomorTransaksi: number,
+          jenisTransaksi: 'notaris',
+          pemohonId: 1,
+          pemohonUuid: 'applicant-uuid',
+          petugasId: 1,
+          petugasUuid: 'officer-uuid',
+          status: 'Baru',
+          tanggalTransaksi: DateTime(2026, 10, 14),
+          jobs: [
+            TransactionJobInput(
+              jenisPekerjaan: 'notaris',
+              namaPekerjaan: 'Akta Test',
+              pekerjaanNotarisId: pekerjaanNotarisId,
+              biayaLayanan: 100000,
+              detailUuid: detailUuid,
+            ),
+          ],
+        );
+      }
+
+      await saveWithNumber(firstCandidate, 'detail-first-candidate');
+      await expectLater(
+        saveWithNumber(secondCandidate, 'detail-second-candidate'),
+        throwsA(isA<StateError>()),
+      );
+
+      final rows = await db.select(db.transaksis).get();
+      expect(rows, hasLength(1));
+      expect(rows.single.noAkta, firstCandidate);
+      final details = await db.select(db.transaksiDetails).get();
+      expect(details, hasLength(1));
+    },
+  );
+
   test('rejects transaction number sequence overflow beyond 9999', () async {
     await db.into(db.transaksis).insert(
       TransaksisCompanion.insert(
