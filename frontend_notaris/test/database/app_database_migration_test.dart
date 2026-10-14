@@ -19,13 +19,8 @@ void main() {
     }
   });
 
-  Future<File> createV6Fixture({
-    required String filename,
-    bool omitDeletedAt = false,
-  }) async {
+  Future<File> createV6Fixture({required String filename}) async {
     final file = File('${tempDirectory.path}/$filename');
-
-    final detailsDeletedAtColumn = omitDeletedAt ? '' : 'deleted_at INTEGER,';
 
     final executor = NativeDatabase(
       file,
@@ -80,8 +75,7 @@ void main() {
             status INTEGER NOT NULL DEFAULT 1,
             is_sync_dirty INTEGER NOT NULL DEFAULT 1,
             last_synced_at INTEGER,
-            $detailsDeletedAtColumn
-            CHECK (status IN (0, 1))
+            deleted_at INTEGER
           )
         ''');
 
@@ -96,28 +90,17 @@ void main() {
              nama_pekerjaan_snapshot, proses_snapshot, status, deleted_at)
           VALUES
             (1, 'detail-valid', 1, 'notaris', 'Akta Valid',
-             '[{"id":"process-1","name":"Pemeriksaan dokumen","status":"Belum Valid"},'
-             '{"id":22,"name":"Penandatanganan","status":"Selesai"},'
-             '{"id":"blank","name":"   "}, "not-a-map"]',
-             1, NULL)
+             '[{"id":"process-1","name":"Pemeriksaan dokumen","status":"Belum Valid"},{"id":22,"name":"Penandatanganan","status":"Selesai"},{"id":"blank","name":"   "},"not-a-map"]',
+             1, NULL),
+            (2, 'detail-malformed', 1, 'notaris', 'Akta Malformed',
+             '[invalid json', 1, NULL),
+            (3, 'detail-object', 1, 'notaris', 'Akta Object',
+             '{"name":"Not a list"}', 1, NULL),
+            (4, 'detail-inactive', 1, 'notaris', 'Akta Inactive',
+             '[{"id":"inactive","name":"Jangan dimigrasikan"}]', 0, NULL),
+            (5, 'detail-deleted', 1, 'notaris', 'Akta Deleted',
+             '[{"id":"deleted","name":"Jangan dimigrasikan"}]', 1, 123456)
         ''');
-
-        if (!omitDeletedAt) {
-          database.execute('''
-            INSERT INTO transaksi_details
-              (id, uuid, transaksi_id, jenis_pekerjaan,
-               nama_pekerjaan_snapshot, proses_snapshot, status, deleted_at)
-            VALUES
-              (2, 'detail-malformed', 1, 'notaris', 'Akta Malformed',
-               '[invalid json', 1, NULL),
-              (3, 'detail-object', 1, 'notaris', 'Akta Object',
-               '{"name":"Not a list"}', 1, NULL),
-              (4, 'detail-inactive', 1, 'notaris', 'Akta Inactive',
-               '[{"id":"inactive","name":"Jangan dimigrasikan"}]', 0, NULL),
-              (5, 'detail-deleted', 1, 'notaris', 'Akta Deleted',
-               '[{"id":"deleted","name":"Jangan dimigrasikan"}]', 1, 123456)
-          ''');
-        }
 
         database.execute('PRAGMA user_version = 6');
       },
