@@ -226,6 +226,13 @@ class TransactionRepository {
           0,
           (sum, payment) => sum + payment.nominal,
         );
+        if (totalPaid > totalBersih) {
+          throw ArgumentError(
+            'Total tagihan tidak boleh lebih kecil daripada pembayaran '
+            'yang sudah tercatat.',
+          );
+        }
+
         final affected = await (db.update(db.transaksis)
               ..where((t) => t.id.equals(id) & t.deletedAt.isNull()))
             .write(
