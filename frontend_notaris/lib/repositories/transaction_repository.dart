@@ -516,35 +516,48 @@ Future<void> _syncProcessesForJob({
     });
   }
 
-  Future<bool> deletePayment(int paymentId) async {
-    final payment =
-        await (db.select(db.transaksiRiwayatPembayarans)
-              ..where((p) => p.id.equals(paymentId) & p.deletedAt.isNull()))
-            .getSingleOrNull();
-    if (payment == null) return false;
-    final now = DateTime.now();
-    await (db.update(
-      db.transaksiRiwayatPembayarans,
-    )..where((p) => p.id.equals(paymentId))).write(
-      TransaksiRiwayatPembayaransCompanion(
-        status: const Value(0),
-        deletedAt: Value(now),
-        updatedAt: Value(now),
-        isSyncDirty: const Value(true),
-      ),
-    );
-    final history = await getPaymentHistory(payment.transaksiId);
-    final paid = history.fold<double>(0, (sum, item) => sum + item.nominal);
-    await (db.update(
-      db.transaksis,
-    )..where((t) => t.id.equals(payment.transaksiId))).write(
-      TransaksisCompanion(
-        pembayaranSekarang: Value(paid),
-        updatedAt: Value(now),
-        isSyncDirty: const Value(true),
-      ),
-    );
-    return true;
+  /// Soft-deletes a payment and refreshes the transaction total atomically.
+  ///
+  /// If updating the transaction header fails, the payment must remain active
+  /// so the payment history and cached paid amount cannot diverge.
+  Future<bool> deletePayment(int paymentId) {
+    return db.transaction(() async {
+      final payment =
+          await (db.select(db.transaksiRiwayatPembayarans)
+                ..where((p) => p.id.equals(paymentId) & p.deletedAt.isNull()))
+              .getSingleOrNull();
+      if (payment == null) return false;
+
+      final now = DateTime.now();
+      await (db.update(
+        db.transaksiRiwayatPembayarans,
+      )..where((p) => p.id.equals(paymentId) & p.deletedAt.isNull())).write(
+        TransaksiRiwayatPembayaransCompanion(
+          status: const Value(0),
+          deletedAt: Value(now),
+          updatedAt: Value(now),
+          isSyncDirty: const Value(true),
+        ),
+      );
+
+      final history = await getPaymentHistory(payment.transaksiId);
+      final paid = history.fold<double>(0, (sum, item) => sum + item.nominal);
+      final affected = await (db.update(
+        db.transaksis,
+      )..where((t) => t.id.equals(payment.transaksiId) & t.deletedAt.isNull()))
+          .write(
+        TransaksisCompanion(
+          pembayaranSekarang: Value(paid),
+          updatedAt: Value(now),
+          isSyncDirty: const Value(true),
+        ),
+      );
+      if (affected == 0) {
+        throw StateError('Transaksi tidak ditemukan atau sudah dihapus.');
+      }
+
+      return true;
+    });
   }
 
   Future<bool> delete(int id) async {
