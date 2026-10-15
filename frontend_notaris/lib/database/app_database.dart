@@ -211,66 +211,71 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (Migrator m) async {
       await m.createAll();
+      await _createUuidUniqueIndexes();
     },
     onUpgrade: (Migrator m, int from, int to) async {
-      if (from < 2) {
-        // Extend the existing local Pemohon table.
-        await m.addColumn(pemohons, pemohons.jenisKelamin);
-        await m.addColumn(pemohons, pemohons.noTelp);
-        await m.addColumn(pemohons, pemohons.createdBy);
-        await m.addColumn(pemohons, pemohons.updatedBy);
-        await m.addColumn(pemohons, pemohons.createdAt);
-        await m.addColumn(pemohons, pemohons.status);
+      // Keep all pending migration steps atomic. If V8 UUID validation fails,
+      // earlier DDL and backfill work must roll back with it.
+      await transaction(() async {
+        if (from < 2) {
+          // Extend the existing local Pemohon table.
+          await m.addColumn(pemohons, pemohons.jenisKelamin);
+          await m.addColumn(pemohons, pemohons.noTelp);
+          await m.addColumn(pemohons, pemohons.createdBy);
+          await m.addColumn(pemohons, pemohons.updatedBy);
+          await m.addColumn(pemohons, pemohons.createdAt);
+          await m.addColumn(pemohons, pemohons.status);
 
-        // Create the new reference/master tables.
-        await m.createTable(jenisKelamins);
-        await m.createTable(pekerjaanKategoris);
-        await m.createTable(pengeluaranJenis);
-        await m.createTable(petugasLocals);
-      }
+          // Create the new reference/master tables.
+          await m.createTable(jenisKelamins);
+          await m.createTable(pekerjaanKategoris);
+          await m.createTable(pengeluaranJenis);
+          await m.createTable(petugasLocals);
+        }
 
-      if (from < 3) {
-        await m.createTable(pekerjaanNotarisLocals);
-        await m.createTable(pekerjaanNotarisHargaLocals);
-        await m.createTable(pekerjaanNotarisProsesLocals);
-        await m.createTable(pekerjaanNotarisAtributLocals);
-        await m.createTable(pekerjaanPpatLocals);
-        await m.createTable(pekerjaanPpatHargaLocals);
-        await m.createTable(pekerjaanPpatProsesLocals);
-        await m.createTable(pekerjaanPpatAtributLocals);
-      }
+        if (from < 3) {
+          await m.createTable(pekerjaanNotarisLocals);
+          await m.createTable(pekerjaanNotarisHargaLocals);
+          await m.createTable(pekerjaanNotarisProsesLocals);
+          await m.createTable(pekerjaanNotarisAtributLocals);
+          await m.createTable(pekerjaanPpatLocals);
+          await m.createTable(pekerjaanPpatHargaLocals);
+          await m.createTable(pekerjaanPpatProsesLocals);
+          await m.createTable(pekerjaanPpatAtributLocals);
+        }
 
-      if (from < 4) {
-        await m.addColumn(transaksis, transaksis.petugasId);
-        await m.addColumn(transaksis, transaksis.petugasUuid);
-        await m.addColumn(transaksis, transaksis.jenisTransaksi);
-        await m.addColumn(transaksis, transaksis.statusTransaksi);
-        await m.addColumn(transaksis, transaksis.tanggalTransaksi);
-        await m.addColumn(transaksis, transaksis.tanggalJatuhTempo);
-        await m.addColumn(transaksis, transaksis.diskon);
-        await m.addColumn(transaksis, transaksis.pembayaranSekarang);
-        await m.addColumn(transaksis, transaksis.metodePembayaran);
-        await m.addColumn(transaksis, transaksis.jumlahMaterai);
-        await m.addColumn(transaksis, transaksis.catatan);
-        await m.addColumn(transaksis, transaksis.createdAt);
-        await m.createTable(transaksiDetails);
-      }
-      if (from < 5) {
-        await m.createTable(transaksiRiwayatPembayarans);
-      }
-      if (from < 6) {
-        await m.addColumn(transaksiDetails, transaksiDetails.prosesSnapshot);
-      }
-      if (from < 7) {
-        // Keep V7 DDL and legacy backfill atomic. If the backfill fails, SQLite
-        // must roll back the new tables as well so a retry starts from V6.
-        await transaction(() async {
+        if (from < 4) {
+          await m.addColumn(transaksis, transaksis.petugasId);
+          await m.addColumn(transaksis, transaksis.petugasUuid);
+          await m.addColumn(transaksis, transaksis.jenisTransaksi);
+          await m.addColumn(transaksis, transaksis.statusTransaksi);
+          await m.addColumn(transaksis, transaksis.tanggalTransaksi);
+          await m.addColumn(transaksis, transaksis.tanggalJatuhTempo);
+          await m.addColumn(transaksis, transaksis.diskon);
+          await m.addColumn(transaksis, transaksis.pembayaranSekarang);
+          await m.addColumn(transaksis, transaksis.metodePembayaran);
+          await m.addColumn(transaksis, transaksis.jumlahMaterai);
+          await m.addColumn(transaksis, transaksis.catatan);
+          await m.addColumn(transaksis, transaksis.createdAt);
+          await m.createTable(transaksiDetails);
+        }
+
+        if (from < 5) {
+          await m.createTable(transaksiRiwayatPembayarans);
+        }
+
+        if (from < 6) {
+          await m.addColumn(transaksiDetails, transaksiDetails.prosesSnapshot);
+        }
+
+        if (from < 7) {
+          // The enclosing upgrade transaction also covers V7 DDL and backfill.
           await m.createTable(transaksiProses);
           await m.createTable(transaksiProsesRiwayat);
 
@@ -281,13 +286,11 @@ class AppDatabase extends _$AppDatabase {
 
           for (final detail in legacyDetails) {
             final snapshot = detail.prosesSnapshot;
-
             if (snapshot == null || snapshot.trim().isEmpty) {
               continue;
             }
 
             dynamic decoded;
-
             try {
               decoded = jsonDecode(snapshot);
             } on FormatException {
@@ -305,7 +308,6 @@ class AppDatabase extends _$AppDatabase {
               }
 
               final name = item['name']?.toString().trim() ?? '';
-
               if (name.isEmpty) {
                 continue;
               }
@@ -327,10 +329,57 @@ class AppDatabase extends _$AppDatabase {
               );
             }
           }
-        });
-      }
+        }
+
+        if (from < 8) {
+          await _validateUuidValuesForUniqueIndexes();
+          await _createUuidUniqueIndexes();
+        }
+      });
     },
   );
+
+  Future<void> _createUuidUniqueIndexes() async {
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_pemohons_uuid_unique '
+      'ON pemohons (uuid)',
+    );
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_transaksis_uuid_unique '
+      'ON transaksis (uuid)',
+    );
+  }
+
+  /// Refuse to guess which local record owns a duplicate identity. Rewriting
+  /// UUIDs automatically could break links to server records during sync.
+  Future<void> _validateUuidValuesForUniqueIndexes() async {
+    for (final table in const ['pemohons', 'transaksis']) {
+      final blankRows = await customSelect(
+        "SELECT COUNT(*) AS count FROM $table WHERE TRIM(uuid) = ''",
+      ).getSingle();
+      final blankCount = blankRows.read<int>('count');
+      if (blankCount > 0) {
+        throw StateError(
+          'Cannot upgrade to schema V8: $table contains $blankCount '
+          'blank UUID value(s). Repair these records before retrying.',
+        );
+      }
+
+      final duplicates = await customSelect(
+        'SELECT uuid, COUNT(*) AS occurrences FROM $table '
+        'GROUP BY uuid HAVING COUNT(*) > 1 LIMIT 1',
+      ).get();
+      if (duplicates.isNotEmpty) {
+        final row = duplicates.first;
+        final uuid = row.read<String>('uuid');
+        final count = row.read<int>('occurrences');
+        throw StateError(
+          'Cannot upgrade to schema V8: UUID "$uuid" appears $count times '
+          'in $table. Resolve duplicates before retrying.',
+        );
+      }
+    }
+  }
 
   // --- QUERY METODE KUSTOM UNTUK SYNC ENGINE ---
 

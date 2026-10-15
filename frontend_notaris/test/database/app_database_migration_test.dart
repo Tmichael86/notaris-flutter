@@ -29,6 +29,13 @@ void main() {
         // V7 adds the normalized process tables and backfills them from
         // transaksi_details.proses_snapshot.
         database.execute('''
+          CREATE TABLE pemohons (
+            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+            uuid TEXT NOT NULL
+          )
+        ''');
+
+        database.execute('''
           CREATE TABLE transaksis (
             id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
             uuid TEXT NOT NULL,
@@ -117,7 +124,7 @@ void main() {
     return file;
   }
 
-  test('V6 to V7 backfills only valid processes from active details', () async {
+  test('V6 to V8 backfills valid processes and creates UUID unique indexes', () async {
     final file = await createV6Fixture(filename: 'valid_v6.sqlite');
     final db = AppDatabase(NativeDatabase(file));
 
@@ -140,6 +147,16 @@ void main() {
       );
       expect(processes.map((process) => process.uuid).toSet(), hasLength(2));
 
+      final uuidIndexes = await db.customSelect('''
+        SELECT name FROM sqlite_master
+        WHERE type = 'index'
+          AND name IN ('idx_pemohons_uuid_unique', 'idx_transaksis_uuid_unique')
+      ''').get();
+      expect(
+        uuidIndexes.map((row) => row.read<String>('name')).toSet(),
+        {'idx_pemohons_uuid_unique', 'idx_transaksis_uuid_unique'},
+      );
+
       final details = await db.select(db.transaksiDetails).get();
       final snapshots = {
         for (final detail in details) detail.uuid: detail.prosesSnapshot,
@@ -160,6 +177,126 @@ void main() {
     }
 
     // Reopen without executing migrations and inspect SQLite's stored version.
+    final inspectionDb = AppDatabase(
+      NativeDatabase(file, enableMigrations: false),
+    );
+    try {
+      final version = await inspectionDb.customSelect(
+        'PRAGMA user_version',
+      ).getSingle();
+      expect(version.read<int>('user_version'), 8);
+    } finally {
+      await inspectionDb.close();
+    }
+  });
+
+
+  Future<File> createV7Fixture({
+    required String filename,
+    String? duplicateTable,
+    bool blankUuid = false,
+  }) async {
+    final file = File('${tempDirectory.path}/$filename');
+    final setupDb = AppDatabase(
+      NativeDatabase(
+        file,
+        enableMigrations: false,
+        setup: (database) {
+          database.execute('''
+            CREATE TABLE pemohons (
+              id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              uuid TEXT NOT NULL
+            )
+          ''');
+          database.execute('''
+            CREATE TABLE transaksis (
+              id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              uuid TEXT NOT NULL
+            )
+          ''');
+          database.execute(
+            "INSERT INTO pemohons (uuid) VALUES ('${blankUuid ? '' : 'pemohon-1'}')",
+          );
+          database.execute(
+            "INSERT INTO transaksis (uuid) VALUES ('transaksi-1')",
+          );
+          if (duplicateTable != null) {
+            database.execute(
+              "INSERT INTO $duplicateTable (uuid) VALUES ('${blankUuid ? '' : duplicateTable == 'pemohons' ? 'pemohon-1' : 'transaksi-1'}')",
+            );
+          }
+          database.execute('PRAGMA user_version = 7');
+        },
+      ),
+    );
+    await setupDb.customSelect('SELECT 1').get();
+    await setupDb.close();
+    return file;
+  }
+
+  test('V7 to V8 enforces unique UUIDs on Pemohons and Transaksis', () async {
+    final file = await createV7Fixture(filename: 'valid_v7.sqlite');
+    final db = AppDatabase(NativeDatabase(file));
+
+    try {
+      await db.customSelect('SELECT 1').get();
+      await expectLater(
+        db.customStatement("INSERT INTO pemohons (uuid) VALUES ('pemohon-1')"),
+        throwsA(anything),
+      );
+      await expectLater(
+        db.customStatement("INSERT INTO transaksis (uuid) VALUES ('transaksi-1')"),
+        throwsA(anything),
+      );
+    } finally {
+      await db.close();
+    }
+  });
+
+  for (final table in ['pemohons', 'transaksis']) {
+    test('V7 to V8 rejects duplicate UUIDs in $table without partial migration', () async {
+      final file = await createV7Fixture(
+        filename: 'duplicate_$table.sqlite',
+        duplicateTable: table,
+      );
+      final db = AppDatabase(NativeDatabase(file));
+      await expectLater(
+        db.customSelect('SELECT 1').get(),
+        throwsA(anything),
+      );
+      await db.close();
+
+      final inspectionDb = AppDatabase(
+        NativeDatabase(file, enableMigrations: false),
+      );
+      try {
+        final version = await inspectionDb.customSelect(
+          'PRAGMA user_version',
+        ).getSingle();
+        expect(version.read<int>('user_version'), 7);
+
+        final indexes = await inspectionDb.customSelect('''
+          SELECT name FROM sqlite_master
+          WHERE type = 'index'
+            AND name IN ('idx_pemohons_uuid_unique', 'idx_transaksis_uuid_unique')
+        ''').get();
+        expect(indexes, isEmpty);
+      } finally {
+        await inspectionDb.close();
+      }
+    });
+  }
+
+  test('V7 to V8 rejects blank UUIDs without partial migration', () async {
+    final file = await createV7Fixture(
+      filename: 'blank_uuid.sqlite',
+      duplicateTable: 'pemohons',
+      blankUuid: true,
+    );
+    final db = AppDatabase(NativeDatabase(file));
+    await expectLater(db.customSelect('SELECT 1').get(), throwsA(anything));
+    await db.close();
+
     final inspectionDb = AppDatabase(
       NativeDatabase(file, enableMigrations: false),
     );
