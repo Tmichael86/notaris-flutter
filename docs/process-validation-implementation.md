@@ -1,6 +1,7 @@
 # Process Validation Implementation
 
-Branch: `feature/process-validation-foundation`
+Origin: `feature/process-validation-foundation`
+Current reference branch: `integration/notaris-stabilization`
 
 ## Purpose
 
@@ -8,15 +9,23 @@ Add process-level validation to the local-first Flutter application while preser
 
 ## Current local schema
 
-Drift schema version is **7** in `frontend_notaris/lib/database/app_database.dart`.
+Drift schema version is **9** in `frontend_notaris/lib/database/app_database.dart` on the stabilization branch. Keep this number aligned with the actual `schemaVersion` value whenever migrations are added.
+
+Relevant tables:
 
 - `Transaksis`: transaction header and transaction-level status.
 - `TransaksiDetails`: one selected job per row, with stable UUID, price/name snapshots, legacy `prosesSnapshot`, active status and soft-delete metadata.
 - `TransaksiProses`: normalized process row linked to transaction ID and the stable transaction-detail UUID. Manual process IDs remain optional; process name is snapshotted.
 - `TransaksiProsesRiwayat`: append-only transition history with previous/new status, actor, timestamp, note and sync metadata.
-- `TransaksiRiwayatPembayarans`: payment history, unchanged by process validation.
+- `TransaksiRiwayatPembayarans`: payment history, separate from process validation.
 
-The v6 -> v7 migration backfills valid JSON process items from active transaction details only. It preserves the original JSON, copies each item's status to `legacyStatus`, and stores the original item JSON in `legacyData`. Migrated process rows start with `statusProses = null`; no historical validation event is invented. Soft-deleted/inactive details are not backfilled into the active process workflow.
+Migration notes:
+
+- **v6 -> v7:** backfills valid JSON process items from active transaction details only. It preserves the original JSON, copies each item's status to `legacyStatus`, and stores the original item JSON in `legacyData`. Migrated process rows start with `statusProses = null`; no historical validation event is invented. Soft-deleted/inactive details are not backfilled into the active process workflow.
+- **v8:** adds unique UUID indexes for `pemohons.uuid` and `transaksis.uuid`.
+- **v9:** adds duplicate transaction-number checks and a unique expression index for active transaction numbers after trimming.
+
+This document previously said schema version 7 after the integration branch had advanced to version 9. That was documentation drift. When changing schema/migrations, update this document and related handoff notes in the same change, and verify the version against `app_database.dart`.
 
 ## Stable identity
 
@@ -62,17 +71,23 @@ flutter test test/repositories/transaksi_proses_repository_test.dart
 
 These commands must be run in the developer's local environment before considering this stage verified. GitHub file updates do not execute Flutter tests.
 
-## Remaining work
+## Remaining work and verification warning
 
-1. Run the generated-code/analyzer/test commands locally and fix any reported issues.
-2. Add Riverpod providers and Monitoring UI after repository behavior is verified.
-3. Add Go/GORM models, server-side permission checks and atomic transitions before relying on multi-user validation.
-4. Test transaction edits, soft deletion, duplicate submissions, self-validation rejection, revision/resubmission and sync retry behavior.
+This document originated on `feature/process-validation-foundation`. Its original implementation checklist may be stale on the later integration branch. Inspect the actual files and tests before treating any UI/provider item as incomplete or complete.
+
+Known backend work from the last audit of `integration/notaris-stabilization`:
+
+1. Add Go/GORM models and verify them against actual PostgreSQL migrations/schema and the Laravel reference. Do not assume all three schemas match.
+2. Implement server-side permission checks and authoritative process transitions, including no self-validation, required notes, and atomic state/history writes.
+3. Add meaningful Go tests for authorization, transitions, and transaction boundaries. Earlier `go test ./...` runs reported `[no test files]` for the Go packages, so successful command exit alone did not prove business behavior.
+4. Test transaction edits, soft deletion, duplicate submissions, self-validation rejection, revision/resubmission and eventual sync retry behavior.
+5. Re-audit Riverpod providers and Monitoring UI on the current integration branch rather than relying on this historical checklist.
 
 ## Explicit non-goals
 
 - Do not rewrite transaction business flow.
 - Do not change transaction-level status semantics.
-- Do not implement the pending tax calculator, PPAT status prototype, document/note screen, invoice or receipt in this phase.
+- Do not implement the pending tax calculator, PPAT status prototype, document/note screen, invoice or receipt in this phase unless the project scope is explicitly revised.
 - Do not treat menu visibility or local checks as authoritative server authorization.
 - Do not copy Laravel's page-visit-based unlock behavior into Go.
+- Do not start full bidirectional sync before the API contract, authorization, conflict policy, idempotency, delta pull, and deletion semantics are defined and tested.
