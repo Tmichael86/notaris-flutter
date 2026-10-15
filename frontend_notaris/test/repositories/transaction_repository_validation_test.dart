@@ -74,7 +74,7 @@ void main() {
     },
   );
 
-  Future<int> saveTransaction({
+  Future<int> _save({
     double discount = 0,
     double payment = 0,
   }) {
