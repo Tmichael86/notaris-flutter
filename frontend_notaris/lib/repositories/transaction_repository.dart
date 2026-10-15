@@ -154,9 +154,43 @@ class TransactionRepository {
       throw ArgumentError('Nomor transaksi wajib diisi.');
     }
 
-    final now = DateTime.now();
+    for (final job in jobs) {
+      if (!job.biayaLayanan.isFinite ||
+          !job.biayaLainnya.isFinite ||
+          job.biayaLayanan < 0 ||
+          job.biayaLainnya < 0) {
+        throw ArgumentError(
+          'Biaya pekerjaan harus berupa angka valid dan tidak boleh negatif.',
+        );
+      }
+    }
+
     final totalPekerjaan = jobs.fold<double>(0, (sum, job) => sum + job.total);
-    final totalBersih = (totalPekerjaan - diskon).clamp(0, double.infinity);
+    if (!totalPekerjaan.isFinite) {
+      throw ArgumentError('Total pekerjaan tidak valid.');
+    }
+
+    if (!diskon.isFinite || diskon < 0 || diskon > totalPekerjaan) {
+      throw ArgumentError(
+        'Diskon harus bernilai antara Rp 0 dan total pekerjaan.',
+      );
+    }
+
+    final totalBersih = totalPekerjaan - diskon;
+
+    if (!pembayaranSekarang.isFinite ||
+        pembayaranSekarang < 0 ||
+        pembayaranSekarang > totalBersih) {
+      throw ArgumentError(
+        'Pembayaran awal harus bernilai antara Rp 0 dan total tagihan.',
+      );
+    }
+
+    if (jumlahMaterai < 0) {
+      throw ArgumentError('Jumlah materai tidak boleh negatif.');
+    }
+
+    final now = DateTime.now();
 
     return db.transaction(() async {
       // Catch ordinary collisions with a clear error. The unique SQLite index
@@ -169,6 +203,7 @@ class TransactionRepository {
           Variable.withInt(id ?? -1),
         ],
       ).get();
+
       if (duplicateNumbers.isNotEmpty) {
         throw StateError(
           'Nomor transaksi "$normalizedNoAkta" sudah digunakan. '
@@ -181,7 +216,7 @@ class TransactionRepository {
           await db
               .into(db.transaksis)
               .insert(
-                TransaksisCompanion.insert(
+              TransaksisCompanion.insert(
                   uuid: _uuid.v4(),
                   noAkta: nomorTransaksi.trim(),
                   total: totalBersih.toDouble(),
