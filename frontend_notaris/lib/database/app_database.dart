@@ -268,62 +268,66 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(transaksiDetails, transaksiDetails.prosesSnapshot);
       }
       if (from < 7) {
-        await m.createTable(transaksiProses);
-        await m.createTable(transaksiProsesRiwayat);
+        // Keep V7 DDL and legacy backfill atomic. If the backfill fails, SQLite
+        // must roll back the new tables as well so a retry starts from V6.
+        await transaction(() async {
+          await m.createTable(transaksiProses);
+          await m.createTable(transaksiProsesRiwayat);
 
-        final legacyDetails = await (select(transaksiDetails)..where(
-          (detail) => detail.deletedAt.isNull() & detail.status.equals(1),
-        )).get();
-        const uuidGenerator = Uuid();
+          final legacyDetails = await (select(transaksiDetails)..where(
+            (detail) => detail.deletedAt.isNull() & detail.status.equals(1),
+          )).get();
+          const uuidGenerator = Uuid();
 
-        for (final detail in legacyDetails) {
-          final snapshot = detail.prosesSnapshot;
+          for (final detail in legacyDetails) {
+            final snapshot = detail.prosesSnapshot;
 
-          if (snapshot == null || snapshot.trim().isEmpty) {
-            continue;
-          }
-
-          dynamic decoded;
-
-          try {
-            decoded = jsonDecode(snapshot);
-          } on FormatException {
-            // Keep malformed legacy JSON untouched in the original snapshot.
-            continue;
-          }
-
-          if (decoded is! List) {
-            continue;
-          }
-
-          for (final item in decoded) {
-            if (item is! Map) {
+            if (snapshot == null || snapshot.trim().isEmpty) {
               continue;
             }
 
-            final name = item['name']?.toString().trim() ?? '';
+            dynamic decoded;
 
-            if (name.isEmpty) {
+            try {
+              decoded = jsonDecode(snapshot);
+            } on FormatException {
+              // Keep malformed legacy JSON untouched in the original snapshot.
               continue;
             }
 
-            await into(transaksiProses).insert(
-              TransaksiProsesCompanion.insert(
-                uuid: uuidGenerator.v4(),
-                transaksiId: detail.transaksiId,
-                transaksiDetailUuid: detail.uuid,
-                sourceProcessId: Value(item['id']?.toString()),
-                namaProsesSnapshot: name,
-                statusProses: const Value(null),
-                legacyStatus: Value(item['status']?.toString()),
-                legacyData: Value(jsonEncode(item)),
-                createdAt: Value(detail.createdAt),
-                updatedAt: Value(detail.updatedAt),
-                isSyncDirty: const Value(true),
-              ),
-            );
+            if (decoded is! List) {
+              continue;
+            }
+
+            for (final item in decoded) {
+              if (item is! Map) {
+                continue;
+              }
+
+              final name = item['name']?.toString().trim() ?? '';
+
+              if (name.isEmpty) {
+                continue;
+              }
+
+              await into(transaksiProses).insert(
+                TransaksiProsesCompanion.insert(
+                  uuid: uuidGenerator.v4(),
+                  transaksiId: detail.transaksiId,
+                  transaksiDetailUuid: detail.uuid,
+                  sourceProcessId: Value(item['id']?.toString()),
+                  namaProsesSnapshot: name,
+                  statusProses: const Value(null),
+                  legacyStatus: Value(item['status']?.toString()),
+                  legacyData: Value(jsonEncode(item)),
+                  createdAt: Value(detail.createdAt),
+                  updatedAt: Value(detail.updatedAt),
+                  isSyncDirty: const Value(true),
+                ),
+              );
+            }
           }
-        }
+        });
       }
     },
   );
