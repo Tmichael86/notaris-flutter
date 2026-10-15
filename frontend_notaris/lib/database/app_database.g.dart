@@ -4173,6 +4173,17 @@ class $TransaksiDetailsTable extends TransaksiDetails
         type: DriftSqlType.string,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _prosesSnapshotMeta = const VerificationMeta(
+    'prosesSnapshot',
+  );
+  @override
+  late final GeneratedColumn<String> prosesSnapshot = GeneratedColumn<String>(
+    'proses_snapshot',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _biayaLayananMeta = const VerificationMeta(
     'biayaLayanan',
   );
@@ -4289,6 +4300,7 @@ class $TransaksiDetailsTable extends TransaksiDetails
     namaPekerjaanSnapshot,
     kategoriSnapshot,
     estimasiWaktuSnapshot,
+    prosesSnapshot,
     biayaLayanan,
     biayaLainnya,
     totalSnapshot,
@@ -4388,6 +4400,15 @@ class $TransaksiDetailsTable extends TransaksiDetails
         estimasiWaktuSnapshot.isAcceptableOrUnknown(
           data['estimasi_waktu_snapshot']!,
           _estimasiWaktuSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('proses_snapshot')) {
+      context.handle(
+        _prosesSnapshotMeta,
+        prosesSnapshot.isAcceptableOrUnknown(
+          data['proses_snapshot']!,
+          _prosesSnapshotMeta,
         ),
       );
     }
@@ -4505,6 +4526,10 @@ class $TransaksiDetailsTable extends TransaksiDetails
         DriftSqlType.string,
         data['${effectivePrefix}estimasi_waktu_snapshot'],
       ),
+      prosesSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}proses_snapshot'],
+      ),
       biayaLayanan: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}biaya_layanan'],
@@ -4560,6 +4585,7 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
   final String namaPekerjaanSnapshot;
   final String? kategoriSnapshot;
   final String? estimasiWaktuSnapshot;
+  final String? prosesSnapshot;
   final double biayaLayanan;
   final double biayaLainnya;
   final double totalSnapshot;
@@ -4579,6 +4605,7 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     required this.namaPekerjaanSnapshot,
     this.kategoriSnapshot,
     this.estimasiWaktuSnapshot,
+    this.prosesSnapshot,
     required this.biayaLayanan,
     required this.biayaLainnya,
     required this.totalSnapshot,
@@ -4608,6 +4635,9 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     }
     if (!nullToAbsent || estimasiWaktuSnapshot != null) {
       map['estimasi_waktu_snapshot'] = Variable<String>(estimasiWaktuSnapshot);
+    }
+    if (!nullToAbsent || prosesSnapshot != null) {
+      map['proses_snapshot'] = Variable<String>(prosesSnapshot);
     }
     map['biaya_layanan'] = Variable<double>(biayaLayanan);
     map['biaya_lainnya'] = Variable<double>(biayaLainnya);
@@ -4648,6 +4678,9 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       estimasiWaktuSnapshot: estimasiWaktuSnapshot == null && nullToAbsent
           ? const Value.absent()
           : Value(estimasiWaktuSnapshot),
+      prosesSnapshot: prosesSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(prosesSnapshot),
       biayaLayanan: Value(biayaLayanan),
       biayaLainnya: Value(biayaLainnya),
       totalSnapshot: Value(totalSnapshot),
@@ -4687,6 +4720,7 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       estimasiWaktuSnapshot: serializer.fromJson<String?>(
         json['estimasiWaktuSnapshot'],
       ),
+      prosesSnapshot: serializer.fromJson<String?>(json['prosesSnapshot']),
       biayaLayanan: serializer.fromJson<double>(json['biayaLayanan']),
       biayaLainnya: serializer.fromJson<double>(json['biayaLainnya']),
       totalSnapshot: serializer.fromJson<double>(json['totalSnapshot']),
@@ -4713,6 +4747,7 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       'estimasiWaktuSnapshot': serializer.toJson<String?>(
         estimasiWaktuSnapshot,
       ),
+      'prosesSnapshot': serializer.toJson<String?>(prosesSnapshot),
       'biayaLayanan': serializer.toJson<double>(biayaLayanan),
       'biayaLainnya': serializer.toJson<double>(biayaLainnya),
       'totalSnapshot': serializer.toJson<double>(totalSnapshot),
@@ -4735,6 +4770,7 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     String? namaPekerjaanSnapshot,
     Value<String?> kategoriSnapshot = const Value.absent(),
     Value<String?> estimasiWaktuSnapshot = const Value.absent(),
+    Value<String?> prosesSnapshot = const Value.absent(),
     double? biayaLayanan,
     double? biayaLainnya,
     double? totalSnapshot,
@@ -4762,6 +4798,9 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     estimasiWaktuSnapshot: estimasiWaktuSnapshot.present
         ? estimasiWaktuSnapshot.value
         : this.estimasiWaktuSnapshot,
+    prosesSnapshot: prosesSnapshot.present
+        ? prosesSnapshot.value
+        : this.prosesSnapshot,
     biayaLayanan: biayaLayanan ?? this.biayaLayanan,
     biayaLainnya: biayaLainnya ?? this.biayaLainnya,
     totalSnapshot: totalSnapshot ?? this.totalSnapshot,
@@ -4797,6 +4836,9 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       estimasiWaktuSnapshot: data.estimasiWaktuSnapshot.present
           ? data.estimasiWaktuSnapshot.value
           : this.estimasiWaktuSnapshot,
+      prosesSnapshot: data.prosesSnapshot.present
+          ? data.prosesSnapshot.value
+          : this.prosesSnapshot,
       biayaLayanan: data.biayaLayanan.present
           ? data.biayaLayanan.value
           : this.biayaLayanan,
@@ -4831,6 +4873,7 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
           ..write('namaPekerjaanSnapshot: $namaPekerjaanSnapshot, ')
           ..write('kategoriSnapshot: $kategoriSnapshot, ')
           ..write('estimasiWaktuSnapshot: $estimasiWaktuSnapshot, ')
+          ..write('prosesSnapshot: $prosesSnapshot, ')
           ..write('biayaLayanan: $biayaLayanan, ')
           ..write('biayaLainnya: $biayaLainnya, ')
           ..write('totalSnapshot: $totalSnapshot, ')
@@ -4855,6 +4898,7 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     namaPekerjaanSnapshot,
     kategoriSnapshot,
     estimasiWaktuSnapshot,
+    prosesSnapshot,
     biayaLayanan,
     biayaLainnya,
     totalSnapshot,
@@ -4878,6 +4922,7 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
           other.namaPekerjaanSnapshot == this.namaPekerjaanSnapshot &&
           other.kategoriSnapshot == this.kategoriSnapshot &&
           other.estimasiWaktuSnapshot == this.estimasiWaktuSnapshot &&
+          other.prosesSnapshot == this.prosesSnapshot &&
           other.biayaLayanan == this.biayaLayanan &&
           other.biayaLainnya == this.biayaLainnya &&
           other.totalSnapshot == this.totalSnapshot &&
@@ -4899,6 +4944,7 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
   final Value<String> namaPekerjaanSnapshot;
   final Value<String?> kategoriSnapshot;
   final Value<String?> estimasiWaktuSnapshot;
+  final Value<String?> prosesSnapshot;
   final Value<double> biayaLayanan;
   final Value<double> biayaLainnya;
   final Value<double> totalSnapshot;
@@ -4918,6 +4964,7 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     this.namaPekerjaanSnapshot = const Value.absent(),
     this.kategoriSnapshot = const Value.absent(),
     this.estimasiWaktuSnapshot = const Value.absent(),
+    this.prosesSnapshot = const Value.absent(),
     this.biayaLayanan = const Value.absent(),
     this.biayaLainnya = const Value.absent(),
     this.totalSnapshot = const Value.absent(),
@@ -4938,6 +4985,7 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     required String namaPekerjaanSnapshot,
     this.kategoriSnapshot = const Value.absent(),
     this.estimasiWaktuSnapshot = const Value.absent(),
+    this.prosesSnapshot = const Value.absent(),
     this.biayaLayanan = const Value.absent(),
     this.biayaLainnya = const Value.absent(),
     this.totalSnapshot = const Value.absent(),
@@ -4961,6 +5009,7 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     Expression<String>? namaPekerjaanSnapshot,
     Expression<String>? kategoriSnapshot,
     Expression<String>? estimasiWaktuSnapshot,
+    Expression<String>? prosesSnapshot,
     Expression<double>? biayaLayanan,
     Expression<double>? biayaLainnya,
     Expression<double>? totalSnapshot,
@@ -4984,6 +5033,7 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
       if (kategoriSnapshot != null) 'kategori_snapshot': kategoriSnapshot,
       if (estimasiWaktuSnapshot != null)
         'estimasi_waktu_snapshot': estimasiWaktuSnapshot,
+      if (prosesSnapshot != null) 'proses_snapshot': prosesSnapshot,
       if (biayaLayanan != null) 'biaya_layanan': biayaLayanan,
       if (biayaLainnya != null) 'biaya_lainnya': biayaLainnya,
       if (totalSnapshot != null) 'total_snapshot': totalSnapshot,
@@ -5006,6 +5056,7 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     Value<String>? namaPekerjaanSnapshot,
     Value<String?>? kategoriSnapshot,
     Value<String?>? estimasiWaktuSnapshot,
+    Value<String?>? prosesSnapshot,
     Value<double>? biayaLayanan,
     Value<double>? biayaLainnya,
     Value<double>? totalSnapshot,
@@ -5028,6 +5079,7 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
       kategoriSnapshot: kategoriSnapshot ?? this.kategoriSnapshot,
       estimasiWaktuSnapshot:
           estimasiWaktuSnapshot ?? this.estimasiWaktuSnapshot,
+      prosesSnapshot: prosesSnapshot ?? this.prosesSnapshot,
       biayaLayanan: biayaLayanan ?? this.biayaLayanan,
       biayaLainnya: biayaLainnya ?? this.biayaLainnya,
       totalSnapshot: totalSnapshot ?? this.totalSnapshot,
@@ -5074,6 +5126,9 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
         estimasiWaktuSnapshot.value,
       );
     }
+    if (prosesSnapshot.present) {
+      map['proses_snapshot'] = Variable<String>(prosesSnapshot.value);
+    }
     if (biayaLayanan.present) {
       map['biaya_layanan'] = Variable<double>(biayaLayanan.value);
     }
@@ -5116,6 +5171,7 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
           ..write('namaPekerjaanSnapshot: $namaPekerjaanSnapshot, ')
           ..write('kategoriSnapshot: $kategoriSnapshot, ')
           ..write('estimasiWaktuSnapshot: $estimasiWaktuSnapshot, ')
+          ..write('prosesSnapshot: $prosesSnapshot, ')
           ..write('biayaLayanan: $biayaLayanan, ')
           ..write('biayaLainnya: $biayaLainnya, ')
           ..write('totalSnapshot: $totalSnapshot, ')
@@ -16510,6 +16566,7 @@ typedef $$TransaksiDetailsTableCreateCompanionBuilder =
       required String namaPekerjaanSnapshot,
       Value<String?> kategoriSnapshot,
       Value<String?> estimasiWaktuSnapshot,
+      Value<String?> prosesSnapshot,
       Value<double> biayaLayanan,
       Value<double> biayaLainnya,
       Value<double> totalSnapshot,
@@ -16531,6 +16588,7 @@ typedef $$TransaksiDetailsTableUpdateCompanionBuilder =
       Value<String> namaPekerjaanSnapshot,
       Value<String?> kategoriSnapshot,
       Value<String?> estimasiWaktuSnapshot,
+      Value<String?> prosesSnapshot,
       Value<double> biayaLayanan,
       Value<double> biayaLainnya,
       Value<double> totalSnapshot,
@@ -16643,6 +16701,11 @@ class $$TransaksiDetailsTableFilterComposer
 
   ColumnFilters<String> get estimasiWaktuSnapshot => $composableBuilder(
     column: $table.estimasiWaktuSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get prosesSnapshot => $composableBuilder(
+    column: $table.prosesSnapshot,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16801,6 +16864,11 @@ class $$TransaksiDetailsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get prosesSnapshot => $composableBuilder(
+    column: $table.prosesSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get biayaLayanan => $composableBuilder(
     column: $table.biayaLayanan,
     builder: (column) => ColumnOrderings(column),
@@ -16950,6 +17018,11 @@ class $$TransaksiDetailsTableAnnotationComposer
 
   GeneratedColumn<String> get estimasiWaktuSnapshot => $composableBuilder(
     column: $table.estimasiWaktuSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get prosesSnapshot => $composableBuilder(
+    column: $table.prosesSnapshot,
     builder: (column) => column,
   );
 
@@ -17105,6 +17178,7 @@ class $$TransaksiDetailsTableTableManager
                 Value<String> namaPekerjaanSnapshot = const Value.absent(),
                 Value<String?> kategoriSnapshot = const Value.absent(),
                 Value<String?> estimasiWaktuSnapshot = const Value.absent(),
+                Value<String?> prosesSnapshot = const Value.absent(),
                 Value<double> biayaLayanan = const Value.absent(),
                 Value<double> biayaLainnya = const Value.absent(),
                 Value<double> totalSnapshot = const Value.absent(),
@@ -17124,6 +17198,7 @@ class $$TransaksiDetailsTableTableManager
                 namaPekerjaanSnapshot: namaPekerjaanSnapshot,
                 kategoriSnapshot: kategoriSnapshot,
                 estimasiWaktuSnapshot: estimasiWaktuSnapshot,
+                prosesSnapshot: prosesSnapshot,
                 biayaLayanan: biayaLayanan,
                 biayaLainnya: biayaLainnya,
                 totalSnapshot: totalSnapshot,
@@ -17145,6 +17220,7 @@ class $$TransaksiDetailsTableTableManager
                 required String namaPekerjaanSnapshot,
                 Value<String?> kategoriSnapshot = const Value.absent(),
                 Value<String?> estimasiWaktuSnapshot = const Value.absent(),
+                Value<String?> prosesSnapshot = const Value.absent(),
                 Value<double> biayaLayanan = const Value.absent(),
                 Value<double> biayaLainnya = const Value.absent(),
                 Value<double> totalSnapshot = const Value.absent(),
@@ -17164,6 +17240,7 @@ class $$TransaksiDetailsTableTableManager
                 namaPekerjaanSnapshot: namaPekerjaanSnapshot,
                 kategoriSnapshot: kategoriSnapshot,
                 estimasiWaktuSnapshot: estimasiWaktuSnapshot,
+                prosesSnapshot: prosesSnapshot,
                 biayaLayanan: biayaLayanan,
                 biayaLainnya: biayaLainnya,
                 totalSnapshot: totalSnapshot,
