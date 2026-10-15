@@ -211,13 +211,14 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (Migrator m) async {
       await m.createAll();
       await _createUuidUniqueIndexes();
+      await _createTransactionNumberUniqueIndex();
     },
     onUpgrade: (Migrator m, int from, int to) async {
       // Keep all pending migration steps atomic. If V8 UUID validation fails,
@@ -335,6 +336,11 @@ class AppDatabase extends _$AppDatabase {
           await _validateUuidValuesForUniqueIndexes();
           await _createUuidUniqueIndexes();
         }
+
+        if (from < 9) {
+          await _validateTransactionNumbersForUniqueIndex();
+          await _createTransactionNumberUniqueIndex();
+        }
       });
     },
   );
@@ -348,6 +354,36 @@ class AppDatabase extends _$AppDatabase {
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_transaksis_uuid_unique '
       'ON transaksis (uuid)',
     );
+  }
+
+  Future<void> _createTransactionNumberUniqueIndex() async {
+    // Ignore empty legacy placeholders produced by older sync payloads, but
+    // enforce uniqueness for every real transaction number. TRIM() prevents
+    // whitespace differences from bypassing the invariant.
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_transaksis_no_akta_unique '
+      'ON transaksis (TRIM(no_akta)) WHERE TRIM(no_akta) <> \'\'',
+    );
+  }
+
+  /// Refuse to upgrade silently when legacy transaction numbers collide.
+  /// Existing records are preserved so the operator can resolve duplicates.
+  Future<void> _validateTransactionNumbersForUniqueIndex() async {
+    final duplicates = await customSelect(
+      'SELECT TRIM(no_akta) AS normalized_number, COUNT(*) AS occurrences '
+      'FROM transaksis WHERE TRIM(no_akta) <> \'\' '
+      'GROUP BY TRIM(no_akta) HAVING COUNT(*) > 1 LIMIT 1',
+    ).get();
+
+    if (duplicates.isNotEmpty) {
+      final row = duplicates.first;
+      final number = row.read<String>('normalized_number');
+      final count = row.read<int>('occurrences');
+      throw StateError(
+        'Cannot upgrade to schema V9: transaction number "$number" '
+        'appears $count times. Resolve duplicate numbers before retrying.',
+      );
+    }
   }
 
   /// Refuse to guess which local record owns a duplicate identity. Rewriting

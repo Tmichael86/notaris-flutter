@@ -1702,9 +1702,24 @@ class _TransactionDesktopScreenState
       await savingDialog;
       if (!mounted) return;
       setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal menyimpan transaksi: $error')),
-      );
+      final errorText = error.toString();
+      final duplicateNumber = errorText.contains('Nomor transaksi') ||
+          errorText.contains('idx_transaksis_no_akta_unique');
+      if (duplicateNumber && _editingTransactionId == null) {
+        await _refreshTransactionNumber();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Nomor transaksi sudah digunakan. Nomor baru dimuat; silakan simpan kembali.',
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menyimpan transaksi: $error')),
+        );
+      }
     }
   }
 
