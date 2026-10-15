@@ -210,6 +210,9 @@ class TransaksiRiwayatPembayarans extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
+  /// Creates an isolated database for repository and migration tests.
+  AppDatabase.forTesting(QueryExecutor executor) : super(executor);
+
   @override
   int get schemaVersion => 9;
 
