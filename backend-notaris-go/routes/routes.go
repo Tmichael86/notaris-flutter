@@ -12,18 +12,12 @@ import (
 func SetupRouter(
 	cfg config.Config,
 	healthController *controllers.HealthController,
-	syncController controllers.SyncController,
 	groupController *controllers.GroupController,
 	userController *controllers.UserController,
 	authController *controllers.AuthController,
 	meController *controllers.MeController,
 	sidebarController *controllers.SidebarController,
 	sidebarAccessController *controllers.SidebarAccessController,
-	petugasController *controllers.PetugasController,
-	kategoriPekerjaanController *controllers.KategoriPekerjaanController,
-	jenisPengeluaranController *controllers.JenisPengeluaranController,
-	pekerjaanController *controllers.PekerjaanController,
-	pemohonController *controllers.PemohonController,
 ) *gin.Engine {
 	r := gin.Default()
 	sidebarAccessRepository := repositories.NewSidebarAccessRepository()
@@ -36,6 +30,7 @@ func SetupRouter(
 		{
 			auth.POST("/login", authController.Login)
 			auth.GET("/me", middleware.JWTAuth(cfg), meController.Me)
+			auth.GET("/me/sidebar-access", middleware.JWTAuth(cfg), meController.SidebarAccess)
 		}
 
 		users := v1.Group("/users")
@@ -63,65 +58,12 @@ func SetupRouter(
 			sidebars.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "sidebars", middleware.PermissionRead), sidebarController.GetByID)
 		}
 
-		petugas := v1.Group("/petugas")
-		{
-			petugas.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), petugasController.GetAll)
-			petugas.GET("/jenis-kelamin", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), petugasController.GetJenisKelamin)
-			petugas.GET("/users", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), petugasController.GetUsers)
-			petugas.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), petugasController.GetByID)
-			petugas.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionCreate), petugasController.Create)
-			petugas.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionUpdate), petugasController.Update)
-			petugas.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionDelete), petugasController.Delete)
-		}
+		// CRUD routes for petugas, pekerjaan, kategori pekerjaan, jenis pengeluaran,
+		// and pemohon are deferred until their controllers and supporting layers exist.
 
-		kategoriPekerjaan := v1.Group("/kategori-pekerjaan")
-		{
-			kategoriPekerjaan.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "kategori_pekerjaan", middleware.PermissionRead), kategoriPekerjaanController.GetAll)
-			kategoriPekerjaan.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "kategori_pekerjaan", middleware.PermissionCreate), kategoriPekerjaanController.Create)
-			kategoriPekerjaan.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "kategori_pekerjaan", middleware.PermissionUpdate), kategoriPekerjaanController.Update)
-			kategoriPekerjaan.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "kategori_pekerjaan", middleware.PermissionDelete), kategoriPekerjaanController.Delete)
-		}
+		// Sync endpoints remain disabled until authentication, authorization,
+		// and conflict handling are implemented for the local-first sync contract.
 
-		pekerjaanNotaris := v1.Group("/pekerjaan-notaris")
-		{
-			pekerjaanNotaris.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionRead), pekerjaanController.GetAllNotaris)
-			pekerjaanNotaris.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionRead), pekerjaanController.GetByNotaris)
-			pekerjaanNotaris.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionCreate), pekerjaanController.CreateNotaris)
-			pekerjaanNotaris.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionUpdate), pekerjaanController.UpdateNotaris)
-			pekerjaanNotaris.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionDelete), pekerjaanController.DeleteNotaris)
-		}
-
-		pekerjaanPPAT := v1.Group("/pekerjaan-ppat")
-		{
-			pekerjaanPPAT.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionRead), pekerjaanController.GetAllPPAT)
-			pekerjaanPPAT.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionRead), pekerjaanController.GetByPPAT)
-			pekerjaanPPAT.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionCreate), pekerjaanController.CreatePPAT)
-			pekerjaanPPAT.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionUpdate), pekerjaanController.UpdatePPAT)
-			pekerjaanPPAT.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionDelete), pekerjaanController.DeletePPAT)
-		}
-
-		pemohon := v1.Group("/pemohon")
-		{
-			pemohon.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionRead), pemohonController.GetAll)
-			pemohon.GET("/jenis-kelamin", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionRead), pemohonController.GetJenisKelamin)
-			pemohon.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionCreate), pemohonController.Create)
-			pemohon.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionUpdate), pemohonController.Update)
-			pemohon.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionDelete), pemohonController.Delete)
-		}
-
-		jenisPengeluaran := v1.Group("/jenis-pengeluaran")
-		{
-			jenisPengeluaran.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "jenis_pengeluaran", middleware.PermissionRead), jenisPengeluaranController.GetAll)
-			jenisPengeluaran.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "jenis_pengeluaran", middleware.PermissionCreate), jenisPengeluaranController.Create)
-			jenisPengeluaran.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "jenis_pengeluaran", middleware.PermissionUpdate), jenisPengeluaranController.Update)
-			jenisPengeluaran.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "jenis_pengeluaran", middleware.PermissionDelete), jenisPengeluaranController.Delete)
-		}
-
-		sync := v1.Group("/sync")
-		{
-			sync.POST("/push", syncController.Push)
-			sync.GET("/pull", syncController.Pull)
-		}
 	}
 
 	return r

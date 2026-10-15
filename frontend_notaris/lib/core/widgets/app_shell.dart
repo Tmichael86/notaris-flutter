@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../models/auth_session.dart';
 import '../../screens/dashboard_desktop_screen.dart';
 import '../../screens/groups_desktop_screen.dart';
 import '../../screens/jenis_pengeluaran_desktop_screen.dart';
@@ -23,7 +24,10 @@ import '../../screens/users_desktop_screen.dart';
 import '../../core/theme/app_colors.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  const AppShell({super.key, this.session, this.onLogout});
+
+  final AuthSession? session;
+  final VoidCallback? onLogout;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -54,21 +58,38 @@ class _AppShellState extends State<AppShell> {
     'Konfigurasi Umum',
   ];
 
-  int get _mobileNavIndex {
-    switch (selectedMenu) {
-      case 'Transaksi':
-        return 1;
-      case 'Monitoring':
-        return 2;
-      default:
-        return 0;
-    }
-  }
-
   void _selectMenu(String title) {
+    // Keep navigation permissions consistent even if a menu is triggered
+    // from a control that is not currently visible.
+    if (!_canReadMenu(title) || selectedMenu == title) {
+      _scaffoldKey.currentState?.closeDrawer();
+      return;
+    }
+
     setState(() => selectedMenu = title);
     _scaffoldKey.currentState?.closeDrawer();
   }
+
+  bool _canReadMenu(String title) {
+    // Dashboard is the authenticated landing page, not a permission-managed
+    // business menu. It must remain reachable for every signed-in user.
+    if (title.trim().toLowerCase() == 'dashboard') return true;
+
+    final session = widget.session;
+    if (session == null) return true;
+
+    for (final access in session.sidebars) {
+      final sidebar = access['sidebar'];
+      if (sidebar is! Map) continue;
+      final name = sidebar['sidebar_nama']?.toString().trim().toLowerCase();
+      if (name != title.trim().toLowerCase()) continue;
+
+      final read = access['read'];
+      return read == 1 || read == true || read?.toString() == '1';
+    }
+    return false;
+  }
+
 
   Widget _buildHeader({bool mobile = false}) {
     return Container(
@@ -118,9 +139,9 @@ class _AppShellState extends State<AppShell> {
           ),
           const SizedBox(width: 4),
           if (!mobile)
-            const Text(
-              'SUPER ADMIN',
-              style: TextStyle(
+            Text(
+              widget.session?.groupName.toUpperCase() ?? 'AKUN',
+              style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: .5,
@@ -146,12 +167,17 @@ class _AppShellState extends State<AppShell> {
             ),
             onSelected: (value) {
               if (value == 'logout') {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const LoginDesktopScreen(),
-                  ),
-                );
+                final logout = widget.onLogout;
+                if (logout != null) {
+                  logout();
+                } else {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const LoginDesktopScreen(),
+                    ),
+                  );
+                }
               }
             },
             itemBuilder: (_) => const [
@@ -177,6 +203,7 @@ class _AppShellState extends State<AppShell> {
     VoidCallback? onTap,
     bool dense = false,
   }) {
+    if (!_canReadMenu(title)) return const SizedBox.shrink();
     final selected = selectedMenu == title;
 
     return Padding(
@@ -225,7 +252,9 @@ class _AppShellState extends State<AppShell> {
   }
 
   Widget _sidebarExpansion(String title, IconData icon, List<String> items) {
-    final selected = items.contains(selectedMenu);
+    final visibleItems = items.where(_canReadMenu).toList();
+    if (visibleItems.isEmpty) return const SizedBox.shrink();
+    final selected = visibleItems.contains(selectedMenu);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
@@ -264,7 +293,7 @@ class _AppShellState extends State<AppShell> {
               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
-          children: items
+          children: visibleItems
               .map(
                 (item) => _sidebarItem(
                   item,
@@ -423,6 +452,7 @@ class _AppShellState extends State<AppShell> {
   }
 
   Widget _mobileItem(String title, IconData icon) {
+    if (!_canReadMenu(title)) return const SizedBox.shrink();
     final selected = selectedMenu == title;
 
     return ListTile(
@@ -444,6 +474,8 @@ class _AppShellState extends State<AppShell> {
   }
 
   Widget _mobileExpansion(String title, IconData icon, List<String> items) {
+    final visibleItems = items.where(_canReadMenu).toList();
+    if (visibleItems.isEmpty) return const SizedBox.shrink();
     return ExpansionTile(
       tilePadding: const EdgeInsets.symmetric(horizontal: 16),
       childrenPadding: EdgeInsets.zero,
@@ -455,7 +487,7 @@ class _AppShellState extends State<AppShell> {
       shape: const Border(),
       collapsedShape: const Border(),
       title: Text(title),
-      children: items
+      children: visibleItems
           .map(
             (item) => ListTile(
               contentPadding: const EdgeInsets.only(left: 56, right: 16),
@@ -634,7 +666,28 @@ class _AppShellState extends State<AppShell> {
       color: AppColors.bgLight,
       child: Column(
         children: [
-          Expanded(child: contentArea),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 150),
+              reverseDuration: const Duration(milliseconds: 100),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                final slide = Tween<Offset>(
+                  begin: const Offset(0, 0.012),
+                  end: Offset.zero,
+                ).animate(animation);
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(position: slide, child: child),
+                );
+              },
+              child: KeyedSubtree(
+                key: ValueKey(selectedMenu),
+                child: contentArea,
+              ),
+            ),
+          ),
           const SizedBox(height: 20),
           _buildFooter(),
         ],
@@ -695,6 +748,9 @@ class _AppShellState extends State<AppShell> {
       (Icons.point_of_sale_outlined, Icons.point_of_sale, 'Transaksi'),
       (Icons.monitor_outlined, Icons.monitor, 'Monitoring'),
     ];
+    final visibleItems = items
+        .where((item) => _canReadMenu(item.$3))
+        .toList(growable: false);
 
     return SafeArea(
       top: false,
@@ -712,31 +768,31 @@ class _AppShellState extends State<AppShell> {
         ),
         child: Row(
           children: [
-            for (int i = 0; i < items.length; i++)
+            for (final item in visibleItems)
               Expanded(
                 child: InkWell(
-                  onTap: () => _selectMenu(items[i].$3),
+                  onTap: () => _selectMenu(item.$3),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          _mobileNavIndex == i ? items[i].$2 : items[i].$1,
+                          selectedMenu == item.$3 ? item.$2 : item.$1,
                           size: 22,
-                          color: _mobileNavIndex == i
+                          color: selectedMenu == item.$3
                               ? AppColors.primary
                               : AppColors.textSecondary,
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          items[i].$3,
+                          item.$3,
                           style: TextStyle(
                             fontSize: 11,
-                            fontWeight: _mobileNavIndex == i
+                            fontWeight: selectedMenu == item.$3
                                 ? FontWeight.w600
                                 : FontWeight.w400,
-                            color: _mobileNavIndex == i
+                            color: selectedMenu == item.$3
                                 ? AppColors.primary
                                 : AppColors.textSecondary,
                           ),

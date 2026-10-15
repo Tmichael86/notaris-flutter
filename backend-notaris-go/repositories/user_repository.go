@@ -41,8 +41,9 @@ func (r *UserRepository) FindActiveByLogin(login string) (*models.User, error) {
 	var user models.User
 	err := r.db.Table("users").
 		Select("users.*, groups.group_nama AS group_nama").
-		Joins("LEFT JOIN groups ON groups.id = users.group_id").
+		Joins("JOIN groups ON groups.id = users.group_id").
 		Where("users.status = ?", 1).
+		Where("groups.status = ?", 1).
 		Where("users.username = ? OR users.email = ?", login, login).
 		First(&user).Error
 	if err != nil {
