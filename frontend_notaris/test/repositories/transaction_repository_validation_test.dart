@@ -7,6 +7,32 @@ void main() {
   late AppDatabase database;
   late TransactionRepository repository;
 
+  Future<int> saveTransaction({
+    double discount = 0,
+    double payment = 0,
+  }) {
+    return repository.save(
+      nomorTransaksi: '1000110260001',
+      jenisTransaksi: 'notaris',
+      pemohonId: 1,
+      pemohonUuid: 'pemohon-test',
+      petugasId: 1,
+      petugasUuid: 'petugas-test',
+      status: 'Baru',
+      tanggalTransaksi: DateTime(2026, 10, 15),
+      jobs: const [
+        TransactionJobInput(
+          jenisPekerjaan: 'notaris',
+          namaPekerjaan: 'Akta test',
+          pekerjaanNotarisId: 1,
+          biayaLayanan: 100,
+        ),
+      ],
+      diskon: discount,
+      pembayaranSekarang: payment,
+    );
+  }
+
   setUp(() {
     database = AppDatabase.forTesting(NativeDatabase.memory());
     repository = TransactionRepository(database);
@@ -20,7 +46,7 @@ void main() {
     'rejects an initial payment greater than the net transaction total',
     () async {
       await expectLater(
-        _save(payment: 101),
+        saveTransaction(payment: 101),
         throwsArgumentError,
       );
     },
@@ -30,7 +56,7 @@ void main() {
     'rejects a discount greater than the job total',
     () async {
       await expectLater(
-        _save(discount: 101),
+        saveTransaction(discount: 101),
         throwsArgumentError,
       );
     },
@@ -40,7 +66,7 @@ void main() {
     'rejects a negative initial payment',
     () async {
       await expectLater(
-        _save(payment: -1),
+        saveTransaction(payment: -1),
         throwsArgumentError,
       );
     },
@@ -73,30 +99,4 @@ void main() {
       );
     },
   );
-
-  Future<int> _save({
-    double discount = 0,
-    double payment = 0,
-  }) {
-    return repository.save(
-      nomorTransaksi: '1000110260001',
-      jenisTransaksi: 'notaris',
-      pemohonId: 1,
-      pemohonUuid: 'pemohon-test',
-      petugasId: 1,
-      petugasUuid: 'petugas-test',
-      status: 'Baru',
-      tanggalTransaksi: DateTime(2026, 10, 15),
-      jobs: const [
-        TransactionJobInput(
-          jenisPekerjaan: 'notaris',
-          namaPekerjaan: 'Akta test',
-          pekerjaanNotarisId: 1,
-          biayaLayanan: 100,
-        ),
-      ],
-      diskon: discount,
-      pembayaranSekarang: payment,
-    );
-  }
 }
