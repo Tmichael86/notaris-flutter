@@ -1,7 +1,16 @@
+import 'dart:convert';
+
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import '../core/theme/app_colors.dart';
 import '../core/widgets/searchable_dropdown.dart';
+import '../database/app_database.dart';
+import '../providers/people_provider.dart';
+import '../providers/pekerjaan_provider.dart';
+import '../providers/transaction_provider.dart';
+import '../repositories/transaction_repository.dart';
 
 enum TransactionType { notaris, ppat }
 
@@ -68,6 +77,8 @@ class DummyProcess {
 
 class DummyApplicant {
   final String id, nik, name, phone, address, gender;
+  final int? localId;
+  final String? uuid;
 
   const DummyApplicant({
     required this.id,
@@ -76,11 +87,15 @@ class DummyApplicant {
     required this.phone,
     required this.address,
     required this.gender,
+    this.localId,
+    this.uuid,
   });
 }
 
 class DummyOfficer {
   final String id, nik, name, email, phone, gender;
+  final int? localId;
+  final String? uuid;
 
   const DummyOfficer({
     required this.id,
@@ -89,6 +104,8 @@ class DummyOfficer {
     required this.email,
     required this.phone,
     required this.gender,
+    this.localId,
+    this.uuid,
   });
 }
 
@@ -103,6 +120,10 @@ class DummyTransactionJob {
   final double serviceCost;
   final double otherCost;
   final List<DummyProcess> processes;
+  final int? masterNotarisId;
+  final int? masterPpatId;
+  final int? masterPriceId;
+  final int? masterCategoryId;
 
   const DummyTransactionJob({
     required this.id,
@@ -113,6 +134,10 @@ class DummyTransactionJob {
     required this.serviceCost,
     required this.otherCost,
     required this.processes,
+    this.masterNotarisId,
+    this.masterPpatId,
+    this.masterPriceId,
+    this.masterCategoryId,
   });
 
   double get totalCost => serviceCost + otherCost;
@@ -157,16 +182,16 @@ class DummyTransaction {
   double get netTotal => totalCost - discount;
 }
 
-class TransactionDesktopScreen extends StatefulWidget {
+class TransactionDesktopScreen extends ConsumerStatefulWidget {
   const TransactionDesktopScreen({super.key});
 
   @override
-  State<TransactionDesktopScreen> createState() =>
+  ConsumerState<TransactionDesktopScreen> createState() =>
       _TransactionDesktopScreenState();
 }
 
 class _TransactionDesktopScreenState
-    extends State<TransactionDesktopScreen> {
+    extends ConsumerState<TransactionDesktopScreen> {
   TransactionType selectedType = TransactionType.notaris;
 
   DummyApplicant? selectedApplicant;
@@ -192,59 +217,21 @@ class _TransactionDesktopScreenState
   final noteController = TextEditingController();
   final materaiController = TextEditingController();
 
-  final applicants = const [
-    DummyApplicant(
-      id: 'A001',
-      nik: '3505225803800002',
-      name: 'Rita Tri Widayah',
-      phone: '081222333444',
-      address:
-          'Dusun Mronjo RT 002/RW 001 Desa Mronjo Kecamatan Selopuro Kabupaten Blitar',
-      gender: 'Perempuan',
-    ),
-    DummyApplicant(
-      id: 'A002',
-      nik: '3505010101000002',
-      name: 'Siti Aminah',
-      phone: '081234567890',
-      address: 'Jl. Diponegoro No. 20, Blitar',
-      gender: 'Perempuan',
-    ),
-    DummyApplicant(
-      id: 'A003',
-      nik: '3505010101000003',
-      name: 'Andi Pratama',
-      phone: '082233445566',
-      address: 'Jl. Sudirman No. 15, Blitar',
-      gender: 'Laki-laki',
-    ),
+  List<DummyApplicant> applicants = [];
+  List<DummyOfficer> officers = [];
+
+  // Temporary fixtures remain only for the legacy transaction search list.
+  // The applicant/officer pickers above are populated from SQLite Master data.
+  final _demoApplicants = const [
+    DummyApplicant(id: 'A001', nik: '3505225803800002', name: 'Rita Tri Widayah', phone: '081222333444', address: 'Dusun Mronjo, Blitar', gender: 'Perempuan'),
+    DummyApplicant(id: 'A002', nik: '3505010101000002', name: 'Siti Aminah', phone: '081234567890', address: 'Jl. Diponegoro No. 20, Blitar', gender: 'Perempuan'),
+    DummyApplicant(id: 'A003', nik: '3505010101000003', name: 'Andi Pratama', phone: '082233445566', address: 'Jl. Sudirman No. 15, Blitar', gender: 'Laki-laki'),
   ];
 
-  final officers = const [
-    DummyOfficer(
-      id: 'P001',
-      nik: '3505010101000011',
-      name: 'Rina Wulandari',
-      email: 'rina@notaris.test',
-      phone: '081111222333',
-      gender: 'Perempuan',
-    ),
-    DummyOfficer(
-      id: 'P002',
-      nik: '3505010101000012',
-      name: 'Dimas Saputra',
-      email: 'dimas@notaris.test',
-      phone: '082222333444',
-      gender: 'Laki-laki',
-    ),
-    DummyOfficer(
-      id: 'P003',
-      nik: '3505010101000013',
-      name: 'Sari Anggraini',
-      email: 'sari@notaris.test',
-      phone: '083333444555',
-      gender: 'Perempuan',
-    ),
+  final _demoOfficers = const [
+    DummyOfficer(id: 'P001', nik: '3505010101000011', name: 'Rina Wulandari', email: 'rina@notaris.test', phone: '081111222333', gender: 'Perempuan'),
+    DummyOfficer(id: 'P002', nik: '3505010101000012', name: 'Dimas Saputra', email: 'dimas@notaris.test', phone: '082222333444', gender: 'Laki-laki'),
+    DummyOfficer(id: 'P003', nik: '3505010101000013', name: 'Sari Anggraini', email: 'sari@notaris.test', phone: '083333444555', gender: 'Perempuan'),
   ];
 
   final notarisCategories = const [
@@ -287,8 +274,8 @@ class _TransactionDesktopScreenState
       id: 'TRX001',
       number: 'NTRX-2026-0001',
       type: TransactionType.notaris,
-      applicant: applicants[0],
-      officer: officers[0],
+      applicant: _demoApplicants[0],
+      officer: _demoOfficers[0],
       jobs: [
         DummyTransactionJob(
           id: 'TJ001',
@@ -317,8 +304,8 @@ class _TransactionDesktopScreenState
       id: 'TRX002',
       number: 'NTRX-2026-0002',
       type: TransactionType.notaris,
-      applicant: applicants[1],
-      officer: officers[1],
+      applicant: _demoApplicants[1],
+      officer: _demoOfficers[1],
       jobs: [
         DummyTransactionJob(
           id: 'TJ002',
@@ -350,8 +337,8 @@ class _TransactionDesktopScreenState
       id: 'TRX003',
       number: 'PTRX-2026-0001',
       type: TransactionType.ppat,
-      applicant: applicants[2],
-      officer: officers[2],
+      applicant: _demoApplicants[2],
+      officer: _demoOfficers[2],
       jobs: [
         DummyTransactionJob(
           id: 'TJ003',
@@ -381,7 +368,59 @@ class _TransactionDesktopScreenState
   @override
   void initState() {
     super.initState();
+    registrationDate = _formatTransactionDate(DateTime.now());
+    deadline = '';
     _syncEditableControllers();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshTransactionNumber();
+    });
+  }
+
+  static String _formatTransactionDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}';
+  }
+
+  Future<void> _refreshTransactionNumber() async {
+    if (_editingTransactionId != null) return;
+    try {
+      final number = await ref
+          .read(transactionRepositoryProvider)
+          .generateNextTransactionNumber(
+            jenisTransaksi: selectedType == TransactionType.notaris
+                ? 'notaris'
+                : 'ppat',
+            date: DateTime.now(),
+          );
+      if (!mounted || _editingTransactionId != null) return;
+      setState(() => transactionNumber = number);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal membuat nomor transaksi: $error')),
+      );
+    }
+  }
+
+  Future<void> _pickDeadline() async {
+    final now = DateTime.now();
+    final current = deadline.isEmpty
+        ? null
+        : DateTime.tryParse(
+            deadline.split('/').reversed.join('-'),
+          );
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current ?? now,
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 20),
+      helpText: 'Pilih tanggal deadline',
+      cancelText: 'Batal',
+      confirmText: 'Pilih',
+    );
+    if (picked == null || !mounted) return;
+    setState(() => deadline = _formatTransactionDate(picked));
   }
 
   void _syncEditableControllers() {
@@ -417,7 +456,7 @@ class _TransactionDesktopScreenState
       (netTotal - currentPayment).clamp(0, double.infinity);
 
   String formatPrice(double value) {
-    return 'Rp ' + _formatCurrencyDigits(value.toStringAsFixed(0));
+    return 'Rp ${_formatCurrencyDigits(value.toStringAsFixed(0))}';
   }
 
   void changeType(TransactionType type) {
@@ -430,9 +469,9 @@ class _TransactionDesktopScreenState
       selectedApplicant = null;
       selectedOfficer = null;
       selectedJobs.clear();
-      transactionNumber = type == TransactionType.notaris
-          ? '10122092641342'
-          : '20122092641345';
+      transactionNumber = '';
+      registrationDate = _formatTransactionDate(DateTime.now());
+      deadline = '';
       transactionStatus = 'Baru';
       materai = 0;
       discount = 0;
@@ -441,6 +480,7 @@ class _TransactionDesktopScreenState
     });
 
     _syncEditableControllers();
+    _refreshTransactionNumber();
   }
 
   void resetForm() {
@@ -450,11 +490,9 @@ class _TransactionDesktopScreenState
       selectedApplicant = null;
       selectedOfficer = null;
       selectedJobs.clear();
-      transactionNumber = selectedType == TransactionType.notaris
-          ? '10122092641342'
-          : '20122092641345';
-      registrationDate = '22/09/2026';
-      deadline = '22/09/2026';
+      transactionNumber = '';
+      registrationDate = _formatTransactionDate(DateTime.now());
+      deadline = '';
       transactionStatus = 'Baru';
       paymentType = 'Cash';
       materai = 0;
@@ -464,6 +502,7 @@ class _TransactionDesktopScreenState
     });
 
     _syncEditableControllers();
+    _refreshTransactionNumber();
   }
 
   void loadTransaction(DummyTransaction transaction) {
@@ -495,20 +534,172 @@ class _TransactionDesktopScreenState
   }
 
   Future<void> showTransactionSearchDialog() async {
-    final filtered =
-        transactions.where((item) => item.type == selectedType).toList();
+    final repository = ref.read(transactionRepositoryProvider);
+    final database = repository.db;
+    final jenis = selectedType == TransactionType.notaris ? 'notaris' : 'ppat';
 
-    final result = await showDialog<DummyTransaction>(
-      context: context,
-      builder: (dialogContext) => _TransactionSearchDialog(
-        title: 'Cari Transaksi ${typeLabel(selectedType)}',
-        transactions: filtered,
-        formatPrice: formatPrice,
-      ),
-    );
+    try {
+      final rows = await (database.select(database.transaksis)
+            ..where((t) =>
+                t.deletedAt.isNull() & t.jenisTransaksi.equals(jenis))
+            ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+          .get();
 
-    if (result != null) {
-      loadTransaction(result);
+      final records = <DummyTransaction>[];
+      for (final row in rows) {
+        final applicantRow = row.pemohonId == null
+            ? null
+            : await (database.select(database.pemohons)
+                  ..where((p) =>
+                      p.id.equals(row.pemohonId!) & p.deletedAt.isNull()))
+                .getSingleOrNull();
+        final officerRow = row.petugasId == null
+            ? null
+            : await (database.select(database.petugasLocals)
+                  ..where((p) =>
+                      p.id.equals(row.petugasId!) & p.deletedAt.isNull()))
+                .getSingleOrNull();
+
+        final applicant = DummyApplicant(
+          id: applicantRow?.id.toString() ?? '',
+          localId: applicantRow?.id,
+          uuid: applicantRow?.uuid,
+          nik: applicantRow?.nik ?? '',
+          name: applicantRow?.nama ?? '(Pemohon tidak ditemukan)',
+          phone: applicantRow?.noTelp ?? '',
+          address: applicantRow?.alamat ?? '',
+          gender: '',
+        );
+        final officer = DummyOfficer(
+          id: officerRow?.id.toString() ?? '',
+          localId: officerRow?.id,
+          uuid: officerRow?.uuid,
+          nik: officerRow?.nik ?? '',
+          name: officerRow?.nama ?? '(Petugas tidak ditemukan)',
+          email: officerRow?.email ?? '',
+          phone: officerRow?.noTelp ?? '',
+          gender: '',
+        );
+
+        final details = await repository.watchDetailsOnce(row.id);
+        final jobs = <DummyTransactionJob>[];
+        for (final detail in details) {
+          final categories = (detail.kategoriSnapshot ?? '')
+              .split(',')
+              .map((name) => name.trim())
+              .where((name) => name.isNotEmpty)
+              .map((name) => DummyCategory(id: name, name: name))
+              .toList();
+
+          // Prefer the transaction's own process snapshot. This preserves
+          // processes added manually from the transaction form even when the
+          // corresponding Master job has no configured process checklist.
+          List<DummyProcess> processes = [];
+          final savedProcesses = detail.prosesSnapshot;
+          if (savedProcesses != null && savedProcesses.trim().isNotEmpty) {
+            try {
+              final decoded = jsonDecode(savedProcesses) as List<dynamic>;
+              processes = [
+                for (final value in decoded)
+                  if (value is Map<String, dynamic>)
+                    DummyProcess(
+                      id: value['id']?.toString() ?? '',
+                      name: value['name']?.toString() ?? '',
+                      status: value['status']?.toString() ?? 'Belum Valid',
+                    ),
+              ];
+            } on FormatException {
+              // Fall back to Master for legacy/corrupted snapshots.
+              processes = [];
+            } on TypeError {
+              processes = [];
+            }
+          }
+
+          // Existing transactions created before schema v6 have no snapshot,
+          // so retain the old Master-based fallback for those records.
+          if (processes.isEmpty && detail.pekerjaanNotarisId != null) {
+            final aggregate = await ref
+                .read(pekerjaanNotarisRepositoryProvider)
+                .getAggregate(detail.pekerjaanNotarisId!);
+            processes = [
+              for (final item in aggregate?.proses ?? [])
+                DummyProcess(
+                  id: item.id.toString(),
+                  name: item.nama,
+                  status: item.detail,
+                ),
+            ];
+          } else if (processes.isEmpty && detail.pekerjaanPpatId != null) {
+            final aggregate = await ref
+                .read(pekerjaanPpatRepositoryProvider)
+                .getAggregate(detail.pekerjaanPpatId!);
+            processes = [
+              for (final item in aggregate?.proses ?? [])
+                DummyProcess(
+                  id: item.id.toString(),
+                  name: item.nama,
+                  status: item.detail,
+                ),
+            ];
+          }
+
+          jobs.add(DummyTransactionJob(
+            id: detail.id.toString(),
+            jobCode: 'DB-${detail.id}',
+            name: detail.namaPekerjaanSnapshot,
+            categories: categories,
+            estimatedTime: detail.estimasiWaktuSnapshot ?? '-',
+            serviceCost: detail.biayaLayanan,
+            otherCost: detail.biayaLainnya,
+            processes: processes,
+            masterNotarisId: detail.pekerjaanNotarisId,
+            masterPpatId: detail.pekerjaanPpatId,
+          ));
+        }
+
+        records.add(DummyTransaction(
+          id: row.id.toString(),
+          number: row.noAkta,
+          type: row.jenisTransaksi == 'ppat'
+              ? TransactionType.ppat
+              : TransactionType.notaris,
+          applicant: applicant,
+          officer: officer,
+          jobs: jobs,
+          registrationDate: row.tanggalTransaksi == null
+              ? '-'
+              : _formatTransactionDate(row.tanggalTransaksi!),
+          deadline: row.tanggalJatuhTempo == null
+              ? ''
+              : _formatTransactionDate(row.tanggalJatuhTempo!),
+          status: row.statusTransaksi,
+          materai: row.jumlahMaterai,
+          paymentType: row.metodePembayaran,
+          discount: row.diskon,
+          currentPayment: row.pembayaranSekarang,
+          note: row.catatan ?? '',
+        ));
+      }
+
+      if (!mounted) return;
+      final result = await showDialog<DummyTransaction>(
+        context: context,
+        builder: (dialogContext) => _TransactionSearchDialog(
+          title: 'Cari Transaksi ${typeLabel(selectedType)}',
+          transactions: records,
+          formatPrice: formatPrice,
+        ),
+      );
+
+      if (result != null && mounted) {
+        loadTransaction(result);
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal memuat transaksi dari SQLite: $error')),
+      );
     }
   }
 
@@ -579,11 +770,13 @@ class _TransactionDesktopScreenState
     String? labelText,
     String? hintText,
     Widget? prefixIcon,
+    Widget? suffixIcon,
   }) {
     return InputDecoration(
       labelText: labelText,
       hintText: hintText,
       prefixIcon: prefixIcon,
+      suffixIcon: suffixIcon,
       filled: true,
       fillColor: AppColors.card,
       contentPadding: const EdgeInsets.symmetric(
@@ -1111,9 +1304,16 @@ class _TransactionDesktopScreenState
       key: ValueKey('transaction-deadline-$deadline'),
       initialValue: deadline,
       readOnly: true,
+      onTap: _pickDeadline,
       decoration: inputDecoration(
-        labelText: 'Tanggal Deadline',
+        labelText: 'Tanggal Deadline *',
+        hintText: 'Pilih tanggal deadline',
         prefixIcon: const Icon(Icons.event_outlined, size: 18),
+        suffixIcon: IconButton(
+          tooltip: 'Pilih tanggal',
+          onPressed: _pickDeadline,
+          icon: const Icon(Icons.calendar_month_outlined),
+        ),
       ),
     );
 
@@ -1257,11 +1457,18 @@ class _TransactionDesktopScreenState
             key: ValueKey('payment-deadline-$deadline'),
             initialValue: deadline,
             readOnly: true,
+            onTap: _pickDeadline,
             decoration: inputDecoration(
               labelText: 'Jatuh Tempo',
+              hintText: 'Pilih tanggal deadline',
               prefixIcon: const Icon(
                 Icons.event_outlined,
                 size: 18,
+              ),
+              suffixIcon: IconButton(
+                tooltip: 'Pilih tanggal',
+                onPressed: _pickDeadline,
+                icon: const Icon(Icons.calendar_month_outlined),
               ),
             ),
           ),
@@ -1363,59 +1570,145 @@ class _TransactionDesktopScreenState
       return;
     }
 
+    if (deadline.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tanggal deadline wajib dipilih.')),
+      );
+      return;
+    }
+
+    final applicant = selectedApplicant!;
+    final officer = selectedOfficer!;
+    if (applicant.localId == null || applicant.uuid == null ||
+        officer.localId == null || officer.uuid == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pemohon dan petugas harus dipilih dari Master lokal.'),
+        ),
+      );
+      return;
+    }
+
+    DateTime parseDate(String value) {
+      final parts = value.split('/');
+      if (parts.length != 3) {
+        throw FormatException('Format tanggal tidak valid: $value');
+      }
+      return DateTime(
+        int.parse(parts[2]),
+        int.parse(parts[1]),
+        int.parse(parts[0]),
+      );
+    }
+
     setState(() => _isSaving = true);
-
-    // Prototype persistence layer. Saat Drift masuk, method ini akan
-    // memanggil repository yang sama tanpa mengubah workflow UI.
-    await Future<void>.delayed(const Duration(milliseconds: 700));
-
-    final transaction = DummyTransaction(
-      id: _editingTransactionId ?? 'TRX-${DateTime.now().millisecondsSinceEpoch}',
-      number: transactionNumber,
-      type: selectedType,
-      applicant: selectedApplicant!,
-      officer: selectedOfficer!,
-      jobs: List.unmodifiable(selectedJobs),
-      registrationDate: registrationDate,
-      deadline: deadline,
-      status: transactionStatus,
-      materai: materai,
-      paymentType: paymentType,
-      discount: discount,
-      currentPayment: currentPayment,
-      note: note,
-    );
-
-    if (!mounted) return;
-
     final isEditing = _editingTransactionId != null;
 
-    setState(() {
-      if (isEditing) {
-        final index = transactions.indexWhere(
-          (item) => item.id == _editingTransactionId,
-        );
-        if (index >= 0) {
-          transactions[index] = transaction;
-        } else {
-          transactions.add(transaction);
-        }
-      } else {
-        transactions.add(transaction);
-        _editingTransactionId = transaction.id;
-      }
-      _isSaving = false;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          isEditing
-              ? 'Transaksi ${transaction.number} berhasil diperbarui.'
-              : 'Transaksi ${transaction.number} berhasil dibuat.',
+    // Use the root navigator so the modal blocks the entire app shell,
+    // including the sidebar and header, while SQLite is being updated.
+    final savingDialog = showDialog<void>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: Dialog(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: AppColors.primary,
+                  ),
+                ),
+                SizedBox(width: 16),
+                Text(
+                  'Menyimpan transaksi...',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
+
+    // Let the root navigator mount and paint the modal before SQLite work starts.
+    // A zero-duration frame wait can still race the route transition on Windows.
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    await WidgetsBinding.instance.endOfFrame;
+
+    try {
+      final savedId = await ref.read(transactionControllerProvider.notifier).save(
+        id: _editingTransactionId == null ? null : int.tryParse(_editingTransactionId!),
+        nomorTransaksi: transactionNumber,
+        jenisTransaksi: selectedType == TransactionType.notaris ? 'notaris' : 'ppat',
+        pemohonId: applicant.localId!,
+        pemohonUuid: applicant.uuid!,
+        petugasId: officer.localId!,
+        petugasUuid: officer.uuid!,
+        status: transactionStatus,
+        tanggalTransaksi: parseDate(registrationDate),
+        tanggalJatuhTempo: deadline.trim().isEmpty ? null : parseDate(deadline),
+        jobs: selectedJobs.map((job) => TransactionJobInput(
+          jenisPekerjaan: selectedType == TransactionType.notaris ? 'notaris' : 'ppat',
+          namaPekerjaan: job.name,
+          pekerjaanNotarisId: job.masterNotarisId,
+          pekerjaanPpatId: job.masterPpatId,
+          kategoriSnapshot: job.categories.map((category) => category.name).join(', '),
+          estimasiWaktuSnapshot: job.estimatedTime,
+          prosesSnapshot: jsonEncode(job.processes.map((process) => {
+            'id': process.id,
+            'name': process.name,
+            'status': process.status,
+          }).toList()),
+          biayaLayanan: job.serviceCost,
+          biayaLainnya: job.otherCost,
+        )).toList(),
+        diskon: discount,
+        pembayaranSekarang: isEditing ? 0 : currentPayment,
+        metodePembayaran: paymentType,
+        jumlahMaterai: materai,
+        catatan: note,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      await savingDialog;
+      if (!mounted) return;
+      setState(() {
+        _editingTransactionId = savedId.toString();
+        _isSaving = false;
+      });
+      ref.invalidate(transactionsProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isEditing
+                ? 'Transaksi $transactionNumber berhasil diperbarui.'
+                : 'Transaksi $transactionNumber berhasil disimpan ke SQLite.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      await savingDialog;
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyimpan transaksi: $error')),
+      );
+    }
   }
 
   Widget bottomActions({required bool mobile}) {
@@ -2039,6 +2332,41 @@ class _TransactionDesktopScreenState
 
   @override
   Widget build(BuildContext context) {
+    final pemohonAsync = ref.watch(pemohonProvider);
+    final petugasAsync = ref.watch(petugasProvider);
+    final jenisKelaminAsync = ref.watch(jenisKelaminProvider);
+    final genders = {
+      for (final item in jenisKelaminAsync.valueOrNull ?? <JenisKelamin>[])
+        item.id: item.nama,
+    };
+
+    applicants = [
+      for (final item in pemohonAsync.valueOrNull ?? <Pemohon>[])
+        DummyApplicant(
+          id: item.id.toString(),
+          nik: item.nik ?? '',
+          name: item.nama,
+          phone: item.noTelp ?? '',
+          address: item.alamat ?? '',
+          gender: genders[item.jenisKelamin] ?? '',
+          localId: item.id,
+          uuid: item.uuid,
+        ),
+    ];
+    officers = [
+      for (final item in petugasAsync.valueOrNull ?? <PetugasLocal>[])
+        DummyOfficer(
+          id: item.id.toString(),
+          nik: item.nik ?? '',
+          name: item.nama,
+          email: item.email,
+          phone: item.noTelp ?? '',
+          gender: genders[item.jenisKelamin] ?? '',
+          localId: item.id,
+          uuid: item.uuid,
+        ),
+    ];
+
     return Stack(
       children: [
         SingleChildScrollView(
@@ -2061,10 +2389,6 @@ class _TransactionDesktopScreenState
             ],
           ),
         ),
-        if (_isSaving)
-          const Positioned.fill(
-            child: _TransactionLoadingOverlay(),
-          ),
       ],
     );
   }
@@ -2078,55 +2402,8 @@ class _TransactionDesktopScreenState
   }
 }
 
-class _TransactionLoadingOverlay extends StatelessWidget {
-  const _TransactionLoadingOverlay();
 
-  @override
-  Widget build(BuildContext context) {
-    return AbsorbPointer(
-      absorbing: true,
-      child: Container(
-        color: AppColors.textPrimary.withValues(alpha: 0.18),
-        alignment: Alignment.center,
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 20,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: AppColors.primary,
-                ),
-              ),
-              SizedBox(width: 14),
-              Text(
-                'Menyimpan transaksi...',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TransactionJobDialog extends StatefulWidget {
+class _TransactionJobDialog extends ConsumerStatefulWidget {
   final TransactionType type;
   final List<DummyCategory> categories;
   final List<DummyProcess> processes;
@@ -2140,10 +2417,10 @@ class _TransactionJobDialog extends StatefulWidget {
   });
 
   @override
-  State<_TransactionJobDialog> createState() => _TransactionJobDialogState();
+  ConsumerState<_TransactionJobDialog> createState() => _TransactionJobDialogState();
 }
 
-class _TransactionJobDialogState extends State<_TransactionJobDialog> {
+class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
   late final TextEditingController nameController;
   late final TextEditingController codeController;
   late final TextEditingController estimatedController;
@@ -2152,6 +2429,11 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
 
   late List<DummyCategory> selectedCategories;
   late List<DummyProcess> selectedProcesses;
+  int? selectedMasterJobId;
+  int? selectedMasterPriceId;
+  List<({int id, int categoryId, String name, String price, String estimate})> _masterPriceOptions = [];
+  bool _loadingMasterDetails = false;
+  String? _masterLoadError;
 
   @override
   void initState() {
@@ -2181,6 +2463,95 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
 
     selectedCategories = List.from(job?.categories ?? const []);
     selectedProcesses = List.from(job?.processes ?? const []);
+    selectedMasterJobId = widget.type == TransactionType.notaris
+        ? job?.masterNotarisId
+        : job?.masterPpatId;
+    if (selectedMasterJobId != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _selectMasterJob(selectedMasterJobId!);
+      });
+    }
+  }
+
+  Future<void> _selectMasterJob(int? id) async {
+    if (id == null) return;
+    final originalMasterId = widget.type == TransactionType.notaris
+        ? widget.initialJob?.masterNotarisId
+        : widget.initialJob?.masterPpatId;
+    final preserveSavedProcesses =
+        widget.initialJob != null && id == originalMasterId;
+    final savedProcesses = List<DummyProcess>.from(selectedProcesses);
+    setState(() {
+      selectedMasterJobId = id;
+      selectedMasterPriceId = null;
+      _masterPriceOptions = [];
+      selectedCategories = [];
+      estimatedController.clear();
+      serviceCostController.clear();
+      _loadingMasterDetails = true;
+      _masterLoadError = null;
+    });
+    try {
+      final aggregate = widget.type == TransactionType.notaris
+          ? await ref.read(pekerjaanNotarisRepositoryProvider).getAggregate(id)
+          : await ref.read(pekerjaanPpatRepositoryProvider).getAggregate(id);
+      if (!mounted) return;
+      if (aggregate == null) {
+        setState(() {
+          _loadingMasterDetails = false;
+          _masterLoadError = 'Detail pekerjaan tidak ditemukan di Master.';
+        });
+        return;
+      }
+      // Wait for Master categories to finish loading before mapping price rows.
+      // Reading valueOrNull here could return an empty list on the first selection.
+      final categoryData = await ref.read(pekerjaanKategoriProvider.future);
+      final categoryNames = {for (final item in categoryData) item.id: item.nama};
+      final priceOptions = [
+        for (final item in aggregate.harga)
+          if (categoryNames.containsKey(item.kategoriPekerjaanId))
+            (
+              id: item.id,
+              categoryId: item.kategoriPekerjaanId,
+              name: categoryNames[item.kategoriPekerjaanId]!,
+              price: item.harga,
+              estimate: item.estimasiWaktu,
+            ),
+      ];
+      setState(() {
+        nameController.text = aggregate.nama;
+        codeController.text = '${widget.type == TransactionType.notaris ? 'N' : 'P'}-${aggregate.id}';
+        _masterPriceOptions = priceOptions;
+        final currentPrice = priceOptions.where((item) =>
+          item.id == widget.initialJob?.masterPriceId
+        ).firstOrNull;
+        selectedMasterPriceId = currentPrice?.id ?? (priceOptions.length == 1 ? priceOptions.first.id : null);
+        selectedCategories = currentPrice == null
+            ? []
+            : [DummyCategory(id: currentPrice.categoryId.toString(), name: currentPrice.name)];
+        estimatedController.text = currentPrice?.estimate ?? '';
+        serviceCostController.text = currentPrice == null
+            ? ''
+            : _formatCurrencyDigits(_parseCurrency(currentPrice.price).toStringAsFixed(0));
+        selectedProcesses = preserveSavedProcesses && savedProcesses.isNotEmpty
+            ? savedProcesses
+            : [
+                for (final item in aggregate.proses)
+                  DummyProcess(
+                    id: item.id.toString(),
+                    name: item.nama,
+                    status: item.detail,
+                  ),
+              ];
+        _loadingMasterDetails = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadingMasterDetails = false;
+        _masterLoadError = 'Gagal memuat detail Master: $error';
+      });
+    }
   }
 
   InputDecoration decoration({
@@ -2254,8 +2625,8 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
       return;
     }
 
-    if (selectedCategories.isEmpty) {
-      _showValidation('Minimal satu kategori pekerjaan harus dipilih.');
+    if (selectedMasterJobId == null || selectedMasterPriceId == null) {
+      _showValidation('Pilih pekerjaan dan kategori/harga dari Master terlebih dahulu.');
       return;
     }
 
@@ -2278,6 +2649,10 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
       serviceCost: _parseCurrency(serviceCostController.text),
       otherCost: _parseCurrency(otherCostController.text),
       processes: List.from(selectedProcesses),
+      masterNotarisId: widget.type == TransactionType.notaris ? selectedMasterJobId : null,
+      masterPpatId: widget.type == TransactionType.ppat ? selectedMasterJobId : null,
+      masterPriceId: selectedMasterPriceId,
+      masterCategoryId: selectedCategories.isEmpty ? null : int.tryParse(selectedCategories.first.id),
     );
 
     Navigator.pop(context, result);
@@ -2339,6 +2714,63 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const _DialogSectionTitle(
+                      title: 'Pilih dari Master Pekerjaan',
+                    ),
+                    const SizedBox(height: 12),
+                    Builder(builder: (context) {
+                      final masterAsync = widget.type == TransactionType.notaris
+                          ? ref.watch(pekerjaanNotarisProvider)
+                          : ref.watch(pekerjaanPpatProvider);
+                      final masterItems = widget.type == TransactionType.notaris
+                          ? (ref.watch(pekerjaanNotarisProvider).valueOrNull ?? [])
+                              .map((item) => (id: item.id, name: item.nama))
+                              .toList()
+                          : (ref.watch(pekerjaanPpatProvider).valueOrNull ?? [])
+                              .map((item) => (id: item.id, name: item.nama))
+                              .toList();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          DropdownButtonFormField<int>(
+                            initialValue: masterItems.any((item) => item.id == selectedMasterJobId)
+                                ? selectedMasterJobId
+                                : null,
+                            isExpanded: true,
+                            decoration: decoration(
+                              label: 'Pekerjaan ${widget.type == TransactionType.notaris ? 'Notaris' : 'PPAT'}',
+                              hint: masterAsync.isLoading ? 'Memuat data Master...' : 'Pilih pekerjaan dari Master',
+                            ),
+                            items: [
+                              for (final item in masterItems)
+                                DropdownMenuItem<int>(
+                                  value: item.id,
+                                  child: Text(item.name, overflow: TextOverflow.ellipsis),
+                                ),
+                            ],
+                            onChanged: _loadingMasterDetails ? null : _selectMasterJob,
+                          ),
+                          if (masterAsync.hasError)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text('Gagal memuat Master: ${masterAsync.error}',
+                                  style: const TextStyle(color: AppColors.error, fontSize: 12)),
+                            ),
+                          if (_loadingMasterDetails)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 8),
+                              child: LinearProgressIndicator(minHeight: 2),
+                            ),
+                          if (_masterLoadError != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(_masterLoadError!,
+                                  style: const TextStyle(color: AppColors.error, fontSize: 12)),
+                            ),
+                        ],
+                      );
+                    }),
+                    const SizedBox(height: 20),
+                    const _DialogSectionTitle(
                       title: 'Informasi Pekerjaan',
                     ),
                     const SizedBox(height: 12),
@@ -2392,39 +2824,48 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
                       title: 'Kategori Pekerjaan',
                     ),
                     const SizedBox(height: 12),
-                    if (selectedCategories.isEmpty)
-                      _DialogEmptyState(
-                        text: 'Belum ada kategori.',
-                      )
-                    else
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: selectedCategories
-                            .map(
-                              (category) => InputChip(
-                                label: Text(category.name),
-                                onDeleted: () {
-                                  setState(
-                                    () => selectedCategories.remove(category),
-                                  );
-                                },
-                                deleteIconColor: AppColors.textSecondary,
-                              ),
-                            )
-                            .toList(),
+                    DropdownButtonFormField<int>(
+                      initialValue: _masterPriceOptions.any((item) => item.id == selectedMasterPriceId)
+                          ? selectedMasterPriceId
+                          : null,
+                      isExpanded: true,
+                      decoration: decoration(
+                        label: 'Kategori / Harga Pekerjaan',
+                        hint: _masterPriceOptions.isEmpty
+                            ? 'Pilih pekerjaan terlebih dahulu'
+                            : 'Pilih kategori yang tersedia untuk pekerjaan ini',
                       ),
-                    const SizedBox(height: 10),
-                    OutlinedButton.icon(
-                      onPressed: addCategory,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Tambah Kategori'),
+                      items: [
+                        for (final item in _masterPriceOptions)
+                          DropdownMenuItem<int>(
+                            value: item.id,
+                            child: Text(
+                              '${item.name} • Rp ${_formatCurrencyDigits(_parseCurrency(item.price).toStringAsFixed(0))} • ${item.estimate}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                      ],
+                      onChanged: _loadingMasterDetails || _masterPriceOptions.isEmpty
+                          ? null
+                          : (id) {
+                              final selected = _masterPriceOptions.where((item) => item.id == id).firstOrNull;
+                              if (selected == null) return;
+                              setState(() {
+                                selectedMasterPriceId = selected.id;
+                                selectedCategories = [
+                                  DummyCategory(id: selected.categoryId.toString(), name: selected.name),
+                                ];
+                                estimatedController.text = selected.estimate;
+                                serviceCostController.text = _formatCurrencyDigits(
+                                  _parseCurrency(selected.price).toStringAsFixed(0),
+                                );
+                              });
+                            },
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Kategori, harga, dan estimasi mengikuti konfigurasi Master. Untuk mengubahnya, edit data di menu Master.',
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                     ),
                     const SizedBox(height: 24),
                     const _DialogSectionTitle(
@@ -2436,6 +2877,7 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
                         children: [
                           TextField(
                             controller: estimatedController,
+                            readOnly: selectedMasterPriceId != null,
                             decoration: decoration(
                               label: 'Estimasi Waktu',
                               hint: 'Contoh: 4-7 Hari',
@@ -2444,6 +2886,7 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
                           const SizedBox(height: 14),
                           TextField(
                             controller: serviceCostController,
+                            readOnly: selectedMasterPriceId != null,
                             keyboardType: TextInputType.number,
                             inputFormatters: const [
                               _CurrencyInputFormatter(),
@@ -2471,6 +2914,7 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
                           Expanded(
                             child: TextField(
                               controller: estimatedController,
+                              readOnly: selectedMasterPriceId != null,
                               decoration: decoration(
                                 label: 'Estimasi Waktu',
                                 hint: 'Contoh: 4-7 Hari',
@@ -2481,6 +2925,7 @@ class _TransactionJobDialogState extends State<_TransactionJobDialog> {
                           Expanded(
                             child: TextField(
                               controller: serviceCostController,
+                              readOnly: selectedMasterPriceId != null,
                               keyboardType: TextInputType.number,
                               inputFormatters: const [
                                 _CurrencyInputFormatter(),

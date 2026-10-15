@@ -1577,6 +1577,144 @@ class $TransaksisTable extends Transaksis
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _petugasIdMeta = const VerificationMeta(
+    'petugasId',
+  );
+  @override
+  late final GeneratedColumn<int> petugasId = GeneratedColumn<int>(
+    'petugas_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _petugasUuidMeta = const VerificationMeta(
+    'petugasUuid',
+  );
+  @override
+  late final GeneratedColumn<String> petugasUuid = GeneratedColumn<String>(
+    'petugas_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _jenisTransaksiMeta = const VerificationMeta(
+    'jenisTransaksi',
+  );
+  @override
+  late final GeneratedColumn<String> jenisTransaksi = GeneratedColumn<String>(
+    'jenis_transaksi',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('notaris'),
+  );
+  static const VerificationMeta _statusTransaksiMeta = const VerificationMeta(
+    'statusTransaksi',
+  );
+  @override
+  late final GeneratedColumn<String> statusTransaksi = GeneratedColumn<String>(
+    'status_transaksi',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Baru'),
+  );
+  static const VerificationMeta _tanggalTransaksiMeta = const VerificationMeta(
+    'tanggalTransaksi',
+  );
+  @override
+  late final GeneratedColumn<DateTime> tanggalTransaksi =
+      GeneratedColumn<DateTime>(
+        'tanggal_transaksi',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _tanggalJatuhTempoMeta = const VerificationMeta(
+    'tanggalJatuhTempo',
+  );
+  @override
+  late final GeneratedColumn<DateTime> tanggalJatuhTempo =
+      GeneratedColumn<DateTime>(
+        'tanggal_jatuh_tempo',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _diskonMeta = const VerificationMeta('diskon');
+  @override
+  late final GeneratedColumn<double> diskon = GeneratedColumn<double>(
+    'diskon',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _pembayaranSekarangMeta =
+      const VerificationMeta('pembayaranSekarang');
+  @override
+  late final GeneratedColumn<double> pembayaranSekarang =
+      GeneratedColumn<double>(
+        'pembayaran_sekarang',
+        aliasedName,
+        false,
+        type: DriftSqlType.double,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(0),
+      );
+  static const VerificationMeta _metodePembayaranMeta = const VerificationMeta(
+    'metodePembayaran',
+  );
+  @override
+  late final GeneratedColumn<String> metodePembayaran = GeneratedColumn<String>(
+    'metode_pembayaran',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Cash'),
+  );
+  static const VerificationMeta _jumlahMateraiMeta = const VerificationMeta(
+    'jumlahMaterai',
+  );
+  @override
+  late final GeneratedColumn<int> jumlahMaterai = GeneratedColumn<int>(
+    'jumlah_materai',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _catatanMeta = const VerificationMeta(
+    'catatan',
+  );
+  @override
+  late final GeneratedColumn<String> catatan = GeneratedColumn<String>(
+    'catatan',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _isSyncDirtyMeta = const VerificationMeta(
     'isSyncDirty',
   );
@@ -1633,6 +1771,18 @@ class $TransaksisTable extends Transaksis
     total,
     pemohonId,
     pemohonUuid,
+    petugasId,
+    petugasUuid,
+    jenisTransaksi,
+    statusTransaksi,
+    tanggalTransaksi,
+    tanggalJatuhTempo,
+    diskon,
+    pembayaranSekarang,
+    metodePembayaran,
+    jumlahMaterai,
+    catatan,
+    createdAt,
     isSyncDirty,
     lastSyncedAt,
     updatedAt,
@@ -1690,6 +1840,102 @@ class $TransaksisTable extends Transaksis
           data['pemohon_uuid']!,
           _pemohonUuidMeta,
         ),
+      );
+    }
+    if (data.containsKey('petugas_id')) {
+      context.handle(
+        _petugasIdMeta,
+        petugasId.isAcceptableOrUnknown(data['petugas_id']!, _petugasIdMeta),
+      );
+    }
+    if (data.containsKey('petugas_uuid')) {
+      context.handle(
+        _petugasUuidMeta,
+        petugasUuid.isAcceptableOrUnknown(
+          data['petugas_uuid']!,
+          _petugasUuidMeta,
+        ),
+      );
+    }
+    if (data.containsKey('jenis_transaksi')) {
+      context.handle(
+        _jenisTransaksiMeta,
+        jenisTransaksi.isAcceptableOrUnknown(
+          data['jenis_transaksi']!,
+          _jenisTransaksiMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status_transaksi')) {
+      context.handle(
+        _statusTransaksiMeta,
+        statusTransaksi.isAcceptableOrUnknown(
+          data['status_transaksi']!,
+          _statusTransaksiMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tanggal_transaksi')) {
+      context.handle(
+        _tanggalTransaksiMeta,
+        tanggalTransaksi.isAcceptableOrUnknown(
+          data['tanggal_transaksi']!,
+          _tanggalTransaksiMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tanggal_jatuh_tempo')) {
+      context.handle(
+        _tanggalJatuhTempoMeta,
+        tanggalJatuhTempo.isAcceptableOrUnknown(
+          data['tanggal_jatuh_tempo']!,
+          _tanggalJatuhTempoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('diskon')) {
+      context.handle(
+        _diskonMeta,
+        diskon.isAcceptableOrUnknown(data['diskon']!, _diskonMeta),
+      );
+    }
+    if (data.containsKey('pembayaran_sekarang')) {
+      context.handle(
+        _pembayaranSekarangMeta,
+        pembayaranSekarang.isAcceptableOrUnknown(
+          data['pembayaran_sekarang']!,
+          _pembayaranSekarangMeta,
+        ),
+      );
+    }
+    if (data.containsKey('metode_pembayaran')) {
+      context.handle(
+        _metodePembayaranMeta,
+        metodePembayaran.isAcceptableOrUnknown(
+          data['metode_pembayaran']!,
+          _metodePembayaranMeta,
+        ),
+      );
+    }
+    if (data.containsKey('jumlah_materai')) {
+      context.handle(
+        _jumlahMateraiMeta,
+        jumlahMaterai.isAcceptableOrUnknown(
+          data['jumlah_materai']!,
+          _jumlahMateraiMeta,
+        ),
+      );
+    }
+    if (data.containsKey('catatan')) {
+      context.handle(
+        _catatanMeta,
+        catatan.isAcceptableOrUnknown(data['catatan']!, _catatanMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
       );
     }
     if (data.containsKey('is_sync_dirty')) {
@@ -1755,6 +2001,54 @@ class $TransaksisTable extends Transaksis
         DriftSqlType.string,
         data['${effectivePrefix}pemohon_uuid'],
       ),
+      petugasId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}petugas_id'],
+      ),
+      petugasUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}petugas_uuid'],
+      ),
+      jenisTransaksi: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}jenis_transaksi'],
+      )!,
+      statusTransaksi: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status_transaksi'],
+      )!,
+      tanggalTransaksi: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}tanggal_transaksi'],
+      ),
+      tanggalJatuhTempo: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}tanggal_jatuh_tempo'],
+      ),
+      diskon: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}diskon'],
+      )!,
+      pembayaranSekarang: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}pembayaran_sekarang'],
+      )!,
+      metodePembayaran: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}metode_pembayaran'],
+      )!,
+      jumlahMaterai: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}jumlah_materai'],
+      )!,
+      catatan: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}catatan'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      ),
       isSyncDirty: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_sync_dirty'],
@@ -1787,6 +2081,18 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
   final double total;
   final int? pemohonId;
   final String? pemohonUuid;
+  final int? petugasId;
+  final String? petugasUuid;
+  final String jenisTransaksi;
+  final String statusTransaksi;
+  final DateTime? tanggalTransaksi;
+  final DateTime? tanggalJatuhTempo;
+  final double diskon;
+  final double pembayaranSekarang;
+  final String metodePembayaran;
+  final int jumlahMaterai;
+  final String? catatan;
+  final DateTime? createdAt;
   final bool isSyncDirty;
   final DateTime? lastSyncedAt;
   final DateTime? updatedAt;
@@ -1798,6 +2104,18 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
     required this.total,
     this.pemohonId,
     this.pemohonUuid,
+    this.petugasId,
+    this.petugasUuid,
+    required this.jenisTransaksi,
+    required this.statusTransaksi,
+    this.tanggalTransaksi,
+    this.tanggalJatuhTempo,
+    required this.diskon,
+    required this.pembayaranSekarang,
+    required this.metodePembayaran,
+    required this.jumlahMaterai,
+    this.catatan,
+    this.createdAt,
     required this.isSyncDirty,
     this.lastSyncedAt,
     this.updatedAt,
@@ -1815,6 +2133,30 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
     }
     if (!nullToAbsent || pemohonUuid != null) {
       map['pemohon_uuid'] = Variable<String>(pemohonUuid);
+    }
+    if (!nullToAbsent || petugasId != null) {
+      map['petugas_id'] = Variable<int>(petugasId);
+    }
+    if (!nullToAbsent || petugasUuid != null) {
+      map['petugas_uuid'] = Variable<String>(petugasUuid);
+    }
+    map['jenis_transaksi'] = Variable<String>(jenisTransaksi);
+    map['status_transaksi'] = Variable<String>(statusTransaksi);
+    if (!nullToAbsent || tanggalTransaksi != null) {
+      map['tanggal_transaksi'] = Variable<DateTime>(tanggalTransaksi);
+    }
+    if (!nullToAbsent || tanggalJatuhTempo != null) {
+      map['tanggal_jatuh_tempo'] = Variable<DateTime>(tanggalJatuhTempo);
+    }
+    map['diskon'] = Variable<double>(diskon);
+    map['pembayaran_sekarang'] = Variable<double>(pembayaranSekarang);
+    map['metode_pembayaran'] = Variable<String>(metodePembayaran);
+    map['jumlah_materai'] = Variable<int>(jumlahMaterai);
+    if (!nullToAbsent || catatan != null) {
+      map['catatan'] = Variable<String>(catatan);
+    }
+    if (!nullToAbsent || createdAt != null) {
+      map['created_at'] = Variable<DateTime>(createdAt);
     }
     map['is_sync_dirty'] = Variable<bool>(isSyncDirty);
     if (!nullToAbsent || lastSyncedAt != null) {
@@ -1841,6 +2183,30 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
       pemohonUuid: pemohonUuid == null && nullToAbsent
           ? const Value.absent()
           : Value(pemohonUuid),
+      petugasId: petugasId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(petugasId),
+      petugasUuid: petugasUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(petugasUuid),
+      jenisTransaksi: Value(jenisTransaksi),
+      statusTransaksi: Value(statusTransaksi),
+      tanggalTransaksi: tanggalTransaksi == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tanggalTransaksi),
+      tanggalJatuhTempo: tanggalJatuhTempo == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tanggalJatuhTempo),
+      diskon: Value(diskon),
+      pembayaranSekarang: Value(pembayaranSekarang),
+      metodePembayaran: Value(metodePembayaran),
+      jumlahMaterai: Value(jumlahMaterai),
+      catatan: catatan == null && nullToAbsent
+          ? const Value.absent()
+          : Value(catatan),
+      createdAt: createdAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAt),
       isSyncDirty: Value(isSyncDirty),
       lastSyncedAt: lastSyncedAt == null && nullToAbsent
           ? const Value.absent()
@@ -1866,6 +2232,24 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
       total: serializer.fromJson<double>(json['total']),
       pemohonId: serializer.fromJson<int?>(json['pemohonId']),
       pemohonUuid: serializer.fromJson<String?>(json['pemohonUuid']),
+      petugasId: serializer.fromJson<int?>(json['petugasId']),
+      petugasUuid: serializer.fromJson<String?>(json['petugasUuid']),
+      jenisTransaksi: serializer.fromJson<String>(json['jenisTransaksi']),
+      statusTransaksi: serializer.fromJson<String>(json['statusTransaksi']),
+      tanggalTransaksi: serializer.fromJson<DateTime?>(
+        json['tanggalTransaksi'],
+      ),
+      tanggalJatuhTempo: serializer.fromJson<DateTime?>(
+        json['tanggalJatuhTempo'],
+      ),
+      diskon: serializer.fromJson<double>(json['diskon']),
+      pembayaranSekarang: serializer.fromJson<double>(
+        json['pembayaranSekarang'],
+      ),
+      metodePembayaran: serializer.fromJson<String>(json['metodePembayaran']),
+      jumlahMaterai: serializer.fromJson<int>(json['jumlahMaterai']),
+      catatan: serializer.fromJson<String?>(json['catatan']),
+      createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
       isSyncDirty: serializer.fromJson<bool>(json['isSyncDirty']),
       lastSyncedAt: serializer.fromJson<DateTime?>(json['lastSyncedAt']),
       updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
@@ -1882,6 +2266,18 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
       'total': serializer.toJson<double>(total),
       'pemohonId': serializer.toJson<int?>(pemohonId),
       'pemohonUuid': serializer.toJson<String?>(pemohonUuid),
+      'petugasId': serializer.toJson<int?>(petugasId),
+      'petugasUuid': serializer.toJson<String?>(petugasUuid),
+      'jenisTransaksi': serializer.toJson<String>(jenisTransaksi),
+      'statusTransaksi': serializer.toJson<String>(statusTransaksi),
+      'tanggalTransaksi': serializer.toJson<DateTime?>(tanggalTransaksi),
+      'tanggalJatuhTempo': serializer.toJson<DateTime?>(tanggalJatuhTempo),
+      'diskon': serializer.toJson<double>(diskon),
+      'pembayaranSekarang': serializer.toJson<double>(pembayaranSekarang),
+      'metodePembayaran': serializer.toJson<String>(metodePembayaran),
+      'jumlahMaterai': serializer.toJson<int>(jumlahMaterai),
+      'catatan': serializer.toJson<String?>(catatan),
+      'createdAt': serializer.toJson<DateTime?>(createdAt),
       'isSyncDirty': serializer.toJson<bool>(isSyncDirty),
       'lastSyncedAt': serializer.toJson<DateTime?>(lastSyncedAt),
       'updatedAt': serializer.toJson<DateTime?>(updatedAt),
@@ -1896,6 +2292,18 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
     double? total,
     Value<int?> pemohonId = const Value.absent(),
     Value<String?> pemohonUuid = const Value.absent(),
+    Value<int?> petugasId = const Value.absent(),
+    Value<String?> petugasUuid = const Value.absent(),
+    String? jenisTransaksi,
+    String? statusTransaksi,
+    Value<DateTime?> tanggalTransaksi = const Value.absent(),
+    Value<DateTime?> tanggalJatuhTempo = const Value.absent(),
+    double? diskon,
+    double? pembayaranSekarang,
+    String? metodePembayaran,
+    int? jumlahMaterai,
+    Value<String?> catatan = const Value.absent(),
+    Value<DateTime?> createdAt = const Value.absent(),
     bool? isSyncDirty,
     Value<DateTime?> lastSyncedAt = const Value.absent(),
     Value<DateTime?> updatedAt = const Value.absent(),
@@ -1907,6 +2315,22 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
     total: total ?? this.total,
     pemohonId: pemohonId.present ? pemohonId.value : this.pemohonId,
     pemohonUuid: pemohonUuid.present ? pemohonUuid.value : this.pemohonUuid,
+    petugasId: petugasId.present ? petugasId.value : this.petugasId,
+    petugasUuid: petugasUuid.present ? petugasUuid.value : this.petugasUuid,
+    jenisTransaksi: jenisTransaksi ?? this.jenisTransaksi,
+    statusTransaksi: statusTransaksi ?? this.statusTransaksi,
+    tanggalTransaksi: tanggalTransaksi.present
+        ? tanggalTransaksi.value
+        : this.tanggalTransaksi,
+    tanggalJatuhTempo: tanggalJatuhTempo.present
+        ? tanggalJatuhTempo.value
+        : this.tanggalJatuhTempo,
+    diskon: diskon ?? this.diskon,
+    pembayaranSekarang: pembayaranSekarang ?? this.pembayaranSekarang,
+    metodePembayaran: metodePembayaran ?? this.metodePembayaran,
+    jumlahMaterai: jumlahMaterai ?? this.jumlahMaterai,
+    catatan: catatan.present ? catatan.value : this.catatan,
+    createdAt: createdAt.present ? createdAt.value : this.createdAt,
     isSyncDirty: isSyncDirty ?? this.isSyncDirty,
     lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
     updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
@@ -1922,6 +2346,34 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
       pemohonUuid: data.pemohonUuid.present
           ? data.pemohonUuid.value
           : this.pemohonUuid,
+      petugasId: data.petugasId.present ? data.petugasId.value : this.petugasId,
+      petugasUuid: data.petugasUuid.present
+          ? data.petugasUuid.value
+          : this.petugasUuid,
+      jenisTransaksi: data.jenisTransaksi.present
+          ? data.jenisTransaksi.value
+          : this.jenisTransaksi,
+      statusTransaksi: data.statusTransaksi.present
+          ? data.statusTransaksi.value
+          : this.statusTransaksi,
+      tanggalTransaksi: data.tanggalTransaksi.present
+          ? data.tanggalTransaksi.value
+          : this.tanggalTransaksi,
+      tanggalJatuhTempo: data.tanggalJatuhTempo.present
+          ? data.tanggalJatuhTempo.value
+          : this.tanggalJatuhTempo,
+      diskon: data.diskon.present ? data.diskon.value : this.diskon,
+      pembayaranSekarang: data.pembayaranSekarang.present
+          ? data.pembayaranSekarang.value
+          : this.pembayaranSekarang,
+      metodePembayaran: data.metodePembayaran.present
+          ? data.metodePembayaran.value
+          : this.metodePembayaran,
+      jumlahMaterai: data.jumlahMaterai.present
+          ? data.jumlahMaterai.value
+          : this.jumlahMaterai,
+      catatan: data.catatan.present ? data.catatan.value : this.catatan,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       isSyncDirty: data.isSyncDirty.present
           ? data.isSyncDirty.value
           : this.isSyncDirty,
@@ -1942,6 +2394,18 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
           ..write('total: $total, ')
           ..write('pemohonId: $pemohonId, ')
           ..write('pemohonUuid: $pemohonUuid, ')
+          ..write('petugasId: $petugasId, ')
+          ..write('petugasUuid: $petugasUuid, ')
+          ..write('jenisTransaksi: $jenisTransaksi, ')
+          ..write('statusTransaksi: $statusTransaksi, ')
+          ..write('tanggalTransaksi: $tanggalTransaksi, ')
+          ..write('tanggalJatuhTempo: $tanggalJatuhTempo, ')
+          ..write('diskon: $diskon, ')
+          ..write('pembayaranSekarang: $pembayaranSekarang, ')
+          ..write('metodePembayaran: $metodePembayaran, ')
+          ..write('jumlahMaterai: $jumlahMaterai, ')
+          ..write('catatan: $catatan, ')
+          ..write('createdAt: $createdAt, ')
           ..write('isSyncDirty: $isSyncDirty, ')
           ..write('lastSyncedAt: $lastSyncedAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -1951,18 +2415,30 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     uuid,
     noAkta,
     total,
     pemohonId,
     pemohonUuid,
+    petugasId,
+    petugasUuid,
+    jenisTransaksi,
+    statusTransaksi,
+    tanggalTransaksi,
+    tanggalJatuhTempo,
+    diskon,
+    pembayaranSekarang,
+    metodePembayaran,
+    jumlahMaterai,
+    catatan,
+    createdAt,
     isSyncDirty,
     lastSyncedAt,
     updatedAt,
     deletedAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1973,6 +2449,18 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
           other.total == this.total &&
           other.pemohonId == this.pemohonId &&
           other.pemohonUuid == this.pemohonUuid &&
+          other.petugasId == this.petugasId &&
+          other.petugasUuid == this.petugasUuid &&
+          other.jenisTransaksi == this.jenisTransaksi &&
+          other.statusTransaksi == this.statusTransaksi &&
+          other.tanggalTransaksi == this.tanggalTransaksi &&
+          other.tanggalJatuhTempo == this.tanggalJatuhTempo &&
+          other.diskon == this.diskon &&
+          other.pembayaranSekarang == this.pembayaranSekarang &&
+          other.metodePembayaran == this.metodePembayaran &&
+          other.jumlahMaterai == this.jumlahMaterai &&
+          other.catatan == this.catatan &&
+          other.createdAt == this.createdAt &&
           other.isSyncDirty == this.isSyncDirty &&
           other.lastSyncedAt == this.lastSyncedAt &&
           other.updatedAt == this.updatedAt &&
@@ -1986,6 +2474,18 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
   final Value<double> total;
   final Value<int?> pemohonId;
   final Value<String?> pemohonUuid;
+  final Value<int?> petugasId;
+  final Value<String?> petugasUuid;
+  final Value<String> jenisTransaksi;
+  final Value<String> statusTransaksi;
+  final Value<DateTime?> tanggalTransaksi;
+  final Value<DateTime?> tanggalJatuhTempo;
+  final Value<double> diskon;
+  final Value<double> pembayaranSekarang;
+  final Value<String> metodePembayaran;
+  final Value<int> jumlahMaterai;
+  final Value<String?> catatan;
+  final Value<DateTime?> createdAt;
   final Value<bool> isSyncDirty;
   final Value<DateTime?> lastSyncedAt;
   final Value<DateTime?> updatedAt;
@@ -1997,6 +2497,18 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
     this.total = const Value.absent(),
     this.pemohonId = const Value.absent(),
     this.pemohonUuid = const Value.absent(),
+    this.petugasId = const Value.absent(),
+    this.petugasUuid = const Value.absent(),
+    this.jenisTransaksi = const Value.absent(),
+    this.statusTransaksi = const Value.absent(),
+    this.tanggalTransaksi = const Value.absent(),
+    this.tanggalJatuhTempo = const Value.absent(),
+    this.diskon = const Value.absent(),
+    this.pembayaranSekarang = const Value.absent(),
+    this.metodePembayaran = const Value.absent(),
+    this.jumlahMaterai = const Value.absent(),
+    this.catatan = const Value.absent(),
+    this.createdAt = const Value.absent(),
     this.isSyncDirty = const Value.absent(),
     this.lastSyncedAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -2009,6 +2521,18 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
     required double total,
     this.pemohonId = const Value.absent(),
     this.pemohonUuid = const Value.absent(),
+    this.petugasId = const Value.absent(),
+    this.petugasUuid = const Value.absent(),
+    this.jenisTransaksi = const Value.absent(),
+    this.statusTransaksi = const Value.absent(),
+    this.tanggalTransaksi = const Value.absent(),
+    this.tanggalJatuhTempo = const Value.absent(),
+    this.diskon = const Value.absent(),
+    this.pembayaranSekarang = const Value.absent(),
+    this.metodePembayaran = const Value.absent(),
+    this.jumlahMaterai = const Value.absent(),
+    this.catatan = const Value.absent(),
+    this.createdAt = const Value.absent(),
     this.isSyncDirty = const Value.absent(),
     this.lastSyncedAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -2023,6 +2547,18 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
     Expression<double>? total,
     Expression<int>? pemohonId,
     Expression<String>? pemohonUuid,
+    Expression<int>? petugasId,
+    Expression<String>? petugasUuid,
+    Expression<String>? jenisTransaksi,
+    Expression<String>? statusTransaksi,
+    Expression<DateTime>? tanggalTransaksi,
+    Expression<DateTime>? tanggalJatuhTempo,
+    Expression<double>? diskon,
+    Expression<double>? pembayaranSekarang,
+    Expression<String>? metodePembayaran,
+    Expression<int>? jumlahMaterai,
+    Expression<String>? catatan,
+    Expression<DateTime>? createdAt,
     Expression<bool>? isSyncDirty,
     Expression<DateTime>? lastSyncedAt,
     Expression<DateTime>? updatedAt,
@@ -2035,6 +2571,18 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
       if (total != null) 'total': total,
       if (pemohonId != null) 'pemohon_id': pemohonId,
       if (pemohonUuid != null) 'pemohon_uuid': pemohonUuid,
+      if (petugasId != null) 'petugas_id': petugasId,
+      if (petugasUuid != null) 'petugas_uuid': petugasUuid,
+      if (jenisTransaksi != null) 'jenis_transaksi': jenisTransaksi,
+      if (statusTransaksi != null) 'status_transaksi': statusTransaksi,
+      if (tanggalTransaksi != null) 'tanggal_transaksi': tanggalTransaksi,
+      if (tanggalJatuhTempo != null) 'tanggal_jatuh_tempo': tanggalJatuhTempo,
+      if (diskon != null) 'diskon': diskon,
+      if (pembayaranSekarang != null) 'pembayaran_sekarang': pembayaranSekarang,
+      if (metodePembayaran != null) 'metode_pembayaran': metodePembayaran,
+      if (jumlahMaterai != null) 'jumlah_materai': jumlahMaterai,
+      if (catatan != null) 'catatan': catatan,
+      if (createdAt != null) 'created_at': createdAt,
       if (isSyncDirty != null) 'is_sync_dirty': isSyncDirty,
       if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -2049,6 +2597,18 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
     Value<double>? total,
     Value<int?>? pemohonId,
     Value<String?>? pemohonUuid,
+    Value<int?>? petugasId,
+    Value<String?>? petugasUuid,
+    Value<String>? jenisTransaksi,
+    Value<String>? statusTransaksi,
+    Value<DateTime?>? tanggalTransaksi,
+    Value<DateTime?>? tanggalJatuhTempo,
+    Value<double>? diskon,
+    Value<double>? pembayaranSekarang,
+    Value<String>? metodePembayaran,
+    Value<int>? jumlahMaterai,
+    Value<String?>? catatan,
+    Value<DateTime?>? createdAt,
     Value<bool>? isSyncDirty,
     Value<DateTime?>? lastSyncedAt,
     Value<DateTime?>? updatedAt,
@@ -2061,6 +2621,18 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
       total: total ?? this.total,
       pemohonId: pemohonId ?? this.pemohonId,
       pemohonUuid: pemohonUuid ?? this.pemohonUuid,
+      petugasId: petugasId ?? this.petugasId,
+      petugasUuid: petugasUuid ?? this.petugasUuid,
+      jenisTransaksi: jenisTransaksi ?? this.jenisTransaksi,
+      statusTransaksi: statusTransaksi ?? this.statusTransaksi,
+      tanggalTransaksi: tanggalTransaksi ?? this.tanggalTransaksi,
+      tanggalJatuhTempo: tanggalJatuhTempo ?? this.tanggalJatuhTempo,
+      diskon: diskon ?? this.diskon,
+      pembayaranSekarang: pembayaranSekarang ?? this.pembayaranSekarang,
+      metodePembayaran: metodePembayaran ?? this.metodePembayaran,
+      jumlahMaterai: jumlahMaterai ?? this.jumlahMaterai,
+      catatan: catatan ?? this.catatan,
+      createdAt: createdAt ?? this.createdAt,
       isSyncDirty: isSyncDirty ?? this.isSyncDirty,
       lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -2089,6 +2661,42 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
     if (pemohonUuid.present) {
       map['pemohon_uuid'] = Variable<String>(pemohonUuid.value);
     }
+    if (petugasId.present) {
+      map['petugas_id'] = Variable<int>(petugasId.value);
+    }
+    if (petugasUuid.present) {
+      map['petugas_uuid'] = Variable<String>(petugasUuid.value);
+    }
+    if (jenisTransaksi.present) {
+      map['jenis_transaksi'] = Variable<String>(jenisTransaksi.value);
+    }
+    if (statusTransaksi.present) {
+      map['status_transaksi'] = Variable<String>(statusTransaksi.value);
+    }
+    if (tanggalTransaksi.present) {
+      map['tanggal_transaksi'] = Variable<DateTime>(tanggalTransaksi.value);
+    }
+    if (tanggalJatuhTempo.present) {
+      map['tanggal_jatuh_tempo'] = Variable<DateTime>(tanggalJatuhTempo.value);
+    }
+    if (diskon.present) {
+      map['diskon'] = Variable<double>(diskon.value);
+    }
+    if (pembayaranSekarang.present) {
+      map['pembayaran_sekarang'] = Variable<double>(pembayaranSekarang.value);
+    }
+    if (metodePembayaran.present) {
+      map['metode_pembayaran'] = Variable<String>(metodePembayaran.value);
+    }
+    if (jumlahMaterai.present) {
+      map['jumlah_materai'] = Variable<int>(jumlahMaterai.value);
+    }
+    if (catatan.present) {
+      map['catatan'] = Variable<String>(catatan.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
     if (isSyncDirty.present) {
       map['is_sync_dirty'] = Variable<bool>(isSyncDirty.value);
     }
@@ -2113,9 +2721,2409 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
           ..write('total: $total, ')
           ..write('pemohonId: $pemohonId, ')
           ..write('pemohonUuid: $pemohonUuid, ')
+          ..write('petugasId: $petugasId, ')
+          ..write('petugasUuid: $petugasUuid, ')
+          ..write('jenisTransaksi: $jenisTransaksi, ')
+          ..write('statusTransaksi: $statusTransaksi, ')
+          ..write('tanggalTransaksi: $tanggalTransaksi, ')
+          ..write('tanggalJatuhTempo: $tanggalJatuhTempo, ')
+          ..write('diskon: $diskon, ')
+          ..write('pembayaranSekarang: $pembayaranSekarang, ')
+          ..write('metodePembayaran: $metodePembayaran, ')
+          ..write('jumlahMaterai: $jumlahMaterai, ')
+          ..write('catatan: $catatan, ')
+          ..write('createdAt: $createdAt, ')
           ..write('isSyncDirty: $isSyncDirty, ')
           ..write('lastSyncedAt: $lastSyncedAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PekerjaanNotarisLocalsTable extends PekerjaanNotarisLocals
+    with TableInfo<$PekerjaanNotarisLocalsTable, PekerjaanNotarisLocal> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PekerjaanNotarisLocalsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _namaMeta = const VerificationMeta('nama');
+  @override
+  late final GeneratedColumn<String> nama = GeneratedColumn<String>(
+    'nama',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdByMeta = const VerificationMeta(
+    'createdBy',
+  );
+  @override
+  late final GeneratedColumn<int> createdBy = GeneratedColumn<int>(
+    'created_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedByMeta = const VerificationMeta(
+    'updatedBy',
+  );
+  @override
+  late final GeneratedColumn<int> updatedBy = GeneratedColumn<int>(
+    'updated_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<int> status = GeneratedColumn<int>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _isSyncDirtyMeta = const VerificationMeta(
+    'isSyncDirty',
+  );
+  @override
+  late final GeneratedColumn<bool> isSyncDirty = GeneratedColumn<bool>(
+    'is_sync_dirty',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_sync_dirty" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _lastSyncedAtMeta = const VerificationMeta(
+    'lastSyncedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastSyncedAt = GeneratedColumn<DateTime>(
+    'last_synced_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    uuid,
+    nama,
+    createdBy,
+    updatedBy,
+    createdAt,
+    updatedAt,
+    status,
+    isSyncDirty,
+    lastSyncedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pekerjaan_notaris';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PekerjaanNotarisLocal> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('nama')) {
+      context.handle(
+        _namaMeta,
+        nama.isAcceptableOrUnknown(data['nama']!, _namaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_namaMeta);
+    }
+    if (data.containsKey('created_by')) {
+      context.handle(
+        _createdByMeta,
+        createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta),
+      );
+    }
+    if (data.containsKey('updated_by')) {
+      context.handle(
+        _updatedByMeta,
+        updatedBy.isAcceptableOrUnknown(data['updated_by']!, _updatedByMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('is_sync_dirty')) {
+      context.handle(
+        _isSyncDirtyMeta,
+        isSyncDirty.isAcceptableOrUnknown(
+          data['is_sync_dirty']!,
+          _isSyncDirtyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_synced_at')) {
+      context.handle(
+        _lastSyncedAtMeta,
+        lastSyncedAt.isAcceptableOrUnknown(
+          data['last_synced_at']!,
+          _lastSyncedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PekerjaanNotarisLocal map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PekerjaanNotarisLocal(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      nama: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nama'],
+      )!,
+      createdBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_by'],
+      ),
+      updatedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_by'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}status'],
+      )!,
+      isSyncDirty: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_sync_dirty'],
+      )!,
+      lastSyncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_synced_at'],
+      ),
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $PekerjaanNotarisLocalsTable createAlias(String alias) {
+    return $PekerjaanNotarisLocalsTable(attachedDatabase, alias);
+  }
+}
+
+class PekerjaanNotarisLocal extends DataClass
+    implements Insertable<PekerjaanNotarisLocal> {
+  final int id;
+  final String uuid;
+  final String nama;
+  final int? createdBy;
+  final int? updatedBy;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final int status;
+  final bool isSyncDirty;
+  final DateTime? lastSyncedAt;
+  final DateTime? deletedAt;
+  const PekerjaanNotarisLocal({
+    required this.id,
+    required this.uuid,
+    required this.nama,
+    this.createdBy,
+    this.updatedBy,
+    this.createdAt,
+    this.updatedAt,
+    required this.status,
+    required this.isSyncDirty,
+    this.lastSyncedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['uuid'] = Variable<String>(uuid);
+    map['nama'] = Variable<String>(nama);
+    if (!nullToAbsent || createdBy != null) {
+      map['created_by'] = Variable<int>(createdBy);
+    }
+    if (!nullToAbsent || updatedBy != null) {
+      map['updated_by'] = Variable<int>(updatedBy);
+    }
+    if (!nullToAbsent || createdAt != null) {
+      map['created_at'] = Variable<DateTime>(createdAt);
+    }
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
+    map['status'] = Variable<int>(status);
+    map['is_sync_dirty'] = Variable<bool>(isSyncDirty);
+    if (!nullToAbsent || lastSyncedAt != null) {
+      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt);
+    }
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  PekerjaanNotarisLocalsCompanion toCompanion(bool nullToAbsent) {
+    return PekerjaanNotarisLocalsCompanion(
+      id: Value(id),
+      uuid: Value(uuid),
+      nama: Value(nama),
+      createdBy: createdBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdBy),
+      updatedBy: updatedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedBy),
+      createdAt: createdAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+      status: Value(status),
+      isSyncDirty: Value(isSyncDirty),
+      lastSyncedAt: lastSyncedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory PekerjaanNotarisLocal.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PekerjaanNotarisLocal(
+      id: serializer.fromJson<int>(json['id']),
+      uuid: serializer.fromJson<String>(json['uuid']),
+      nama: serializer.fromJson<String>(json['nama']),
+      createdBy: serializer.fromJson<int?>(json['createdBy']),
+      updatedBy: serializer.fromJson<int?>(json['updatedBy']),
+      createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
+      status: serializer.fromJson<int>(json['status']),
+      isSyncDirty: serializer.fromJson<bool>(json['isSyncDirty']),
+      lastSyncedAt: serializer.fromJson<DateTime?>(json['lastSyncedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'uuid': serializer.toJson<String>(uuid),
+      'nama': serializer.toJson<String>(nama),
+      'createdBy': serializer.toJson<int?>(createdBy),
+      'updatedBy': serializer.toJson<int?>(updatedBy),
+      'createdAt': serializer.toJson<DateTime?>(createdAt),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
+      'status': serializer.toJson<int>(status),
+      'isSyncDirty': serializer.toJson<bool>(isSyncDirty),
+      'lastSyncedAt': serializer.toJson<DateTime?>(lastSyncedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  PekerjaanNotarisLocal copyWith({
+    int? id,
+    String? uuid,
+    String? nama,
+    Value<int?> createdBy = const Value.absent(),
+    Value<int?> updatedBy = const Value.absent(),
+    Value<DateTime?> createdAt = const Value.absent(),
+    Value<DateTime?> updatedAt = const Value.absent(),
+    int? status,
+    bool? isSyncDirty,
+    Value<DateTime?> lastSyncedAt = const Value.absent(),
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => PekerjaanNotarisLocal(
+    id: id ?? this.id,
+    uuid: uuid ?? this.uuid,
+    nama: nama ?? this.nama,
+    createdBy: createdBy.present ? createdBy.value : this.createdBy,
+    updatedBy: updatedBy.present ? updatedBy.value : this.updatedBy,
+    createdAt: createdAt.present ? createdAt.value : this.createdAt,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+    status: status ?? this.status,
+    isSyncDirty: isSyncDirty ?? this.isSyncDirty,
+    lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  PekerjaanNotarisLocal copyWithCompanion(
+    PekerjaanNotarisLocalsCompanion data,
+  ) {
+    return PekerjaanNotarisLocal(
+      id: data.id.present ? data.id.value : this.id,
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      nama: data.nama.present ? data.nama.value : this.nama,
+      createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      updatedBy: data.updatedBy.present ? data.updatedBy.value : this.updatedBy,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      status: data.status.present ? data.status.value : this.status,
+      isSyncDirty: data.isSyncDirty.present
+          ? data.isSyncDirty.value
+          : this.isSyncDirty,
+      lastSyncedAt: data.lastSyncedAt.present
+          ? data.lastSyncedAt.value
+          : this.lastSyncedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PekerjaanNotarisLocal(')
+          ..write('id: $id, ')
+          ..write('uuid: $uuid, ')
+          ..write('nama: $nama, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('updatedBy: $updatedBy, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('status: $status, ')
+          ..write('isSyncDirty: $isSyncDirty, ')
+          ..write('lastSyncedAt: $lastSyncedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    uuid,
+    nama,
+    createdBy,
+    updatedBy,
+    createdAt,
+    updatedAt,
+    status,
+    isSyncDirty,
+    lastSyncedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PekerjaanNotarisLocal &&
+          other.id == this.id &&
+          other.uuid == this.uuid &&
+          other.nama == this.nama &&
+          other.createdBy == this.createdBy &&
+          other.updatedBy == this.updatedBy &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.status == this.status &&
+          other.isSyncDirty == this.isSyncDirty &&
+          other.lastSyncedAt == this.lastSyncedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class PekerjaanNotarisLocalsCompanion
+    extends UpdateCompanion<PekerjaanNotarisLocal> {
+  final Value<int> id;
+  final Value<String> uuid;
+  final Value<String> nama;
+  final Value<int?> createdBy;
+  final Value<int?> updatedBy;
+  final Value<DateTime?> createdAt;
+  final Value<DateTime?> updatedAt;
+  final Value<int> status;
+  final Value<bool> isSyncDirty;
+  final Value<DateTime?> lastSyncedAt;
+  final Value<DateTime?> deletedAt;
+  const PekerjaanNotarisLocalsCompanion({
+    this.id = const Value.absent(),
+    this.uuid = const Value.absent(),
+    this.nama = const Value.absent(),
+    this.createdBy = const Value.absent(),
+    this.updatedBy = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.status = const Value.absent(),
+    this.isSyncDirty = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+  });
+  PekerjaanNotarisLocalsCompanion.insert({
+    this.id = const Value.absent(),
+    required String uuid,
+    required String nama,
+    this.createdBy = const Value.absent(),
+    this.updatedBy = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.status = const Value.absent(),
+    this.isSyncDirty = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+  }) : uuid = Value(uuid),
+       nama = Value(nama);
+  static Insertable<PekerjaanNotarisLocal> custom({
+    Expression<int>? id,
+    Expression<String>? uuid,
+    Expression<String>? nama,
+    Expression<int>? createdBy,
+    Expression<int>? updatedBy,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? status,
+    Expression<bool>? isSyncDirty,
+    Expression<DateTime>? lastSyncedAt,
+    Expression<DateTime>? deletedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (uuid != null) 'uuid': uuid,
+      if (nama != null) 'nama': nama,
+      if (createdBy != null) 'created_by': createdBy,
+      if (updatedBy != null) 'updated_by': updatedBy,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (status != null) 'status': status,
+      if (isSyncDirty != null) 'is_sync_dirty': isSyncDirty,
+      if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+    });
+  }
+
+  PekerjaanNotarisLocalsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? uuid,
+    Value<String>? nama,
+    Value<int?>? createdBy,
+    Value<int?>? updatedBy,
+    Value<DateTime?>? createdAt,
+    Value<DateTime?>? updatedAt,
+    Value<int>? status,
+    Value<bool>? isSyncDirty,
+    Value<DateTime?>? lastSyncedAt,
+    Value<DateTime?>? deletedAt,
+  }) {
+    return PekerjaanNotarisLocalsCompanion(
+      id: id ?? this.id,
+      uuid: uuid ?? this.uuid,
+      nama: nama ?? this.nama,
+      createdBy: createdBy ?? this.createdBy,
+      updatedBy: updatedBy ?? this.updatedBy,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      status: status ?? this.status,
+      isSyncDirty: isSyncDirty ?? this.isSyncDirty,
+      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (nama.present) {
+      map['nama'] = Variable<String>(nama.value);
+    }
+    if (createdBy.present) {
+      map['created_by'] = Variable<int>(createdBy.value);
+    }
+    if (updatedBy.present) {
+      map['updated_by'] = Variable<int>(updatedBy.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<int>(status.value);
+    }
+    if (isSyncDirty.present) {
+      map['is_sync_dirty'] = Variable<bool>(isSyncDirty.value);
+    }
+    if (lastSyncedAt.present) {
+      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PekerjaanNotarisLocalsCompanion(')
+          ..write('id: $id, ')
+          ..write('uuid: $uuid, ')
+          ..write('nama: $nama, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('updatedBy: $updatedBy, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('status: $status, ')
+          ..write('isSyncDirty: $isSyncDirty, ')
+          ..write('lastSyncedAt: $lastSyncedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PekerjaanPpatLocalsTable extends PekerjaanPpatLocals
+    with TableInfo<$PekerjaanPpatLocalsTable, PekerjaanPpatLocal> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PekerjaanPpatLocalsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _namaMeta = const VerificationMeta('nama');
+  @override
+  late final GeneratedColumn<String> nama = GeneratedColumn<String>(
+    'nama',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdByMeta = const VerificationMeta(
+    'createdBy',
+  );
+  @override
+  late final GeneratedColumn<int> createdBy = GeneratedColumn<int>(
+    'created_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedByMeta = const VerificationMeta(
+    'updatedBy',
+  );
+  @override
+  late final GeneratedColumn<int> updatedBy = GeneratedColumn<int>(
+    'updated_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<int> status = GeneratedColumn<int>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _isSyncDirtyMeta = const VerificationMeta(
+    'isSyncDirty',
+  );
+  @override
+  late final GeneratedColumn<bool> isSyncDirty = GeneratedColumn<bool>(
+    'is_sync_dirty',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_sync_dirty" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _lastSyncedAtMeta = const VerificationMeta(
+    'lastSyncedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastSyncedAt = GeneratedColumn<DateTime>(
+    'last_synced_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    uuid,
+    nama,
+    createdBy,
+    updatedBy,
+    createdAt,
+    updatedAt,
+    status,
+    isSyncDirty,
+    lastSyncedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pekerjaan_ppat';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PekerjaanPpatLocal> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('nama')) {
+      context.handle(
+        _namaMeta,
+        nama.isAcceptableOrUnknown(data['nama']!, _namaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_namaMeta);
+    }
+    if (data.containsKey('created_by')) {
+      context.handle(
+        _createdByMeta,
+        createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta),
+      );
+    }
+    if (data.containsKey('updated_by')) {
+      context.handle(
+        _updatedByMeta,
+        updatedBy.isAcceptableOrUnknown(data['updated_by']!, _updatedByMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('is_sync_dirty')) {
+      context.handle(
+        _isSyncDirtyMeta,
+        isSyncDirty.isAcceptableOrUnknown(
+          data['is_sync_dirty']!,
+          _isSyncDirtyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_synced_at')) {
+      context.handle(
+        _lastSyncedAtMeta,
+        lastSyncedAt.isAcceptableOrUnknown(
+          data['last_synced_at']!,
+          _lastSyncedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PekerjaanPpatLocal map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PekerjaanPpatLocal(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      nama: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nama'],
+      )!,
+      createdBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}created_by'],
+      ),
+      updatedBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_by'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}status'],
+      )!,
+      isSyncDirty: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_sync_dirty'],
+      )!,
+      lastSyncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_synced_at'],
+      ),
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $PekerjaanPpatLocalsTable createAlias(String alias) {
+    return $PekerjaanPpatLocalsTable(attachedDatabase, alias);
+  }
+}
+
+class PekerjaanPpatLocal extends DataClass
+    implements Insertable<PekerjaanPpatLocal> {
+  final int id;
+  final String uuid;
+  final String nama;
+  final int? createdBy;
+  final int? updatedBy;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final int status;
+  final bool isSyncDirty;
+  final DateTime? lastSyncedAt;
+  final DateTime? deletedAt;
+  const PekerjaanPpatLocal({
+    required this.id,
+    required this.uuid,
+    required this.nama,
+    this.createdBy,
+    this.updatedBy,
+    this.createdAt,
+    this.updatedAt,
+    required this.status,
+    required this.isSyncDirty,
+    this.lastSyncedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['uuid'] = Variable<String>(uuid);
+    map['nama'] = Variable<String>(nama);
+    if (!nullToAbsent || createdBy != null) {
+      map['created_by'] = Variable<int>(createdBy);
+    }
+    if (!nullToAbsent || updatedBy != null) {
+      map['updated_by'] = Variable<int>(updatedBy);
+    }
+    if (!nullToAbsent || createdAt != null) {
+      map['created_at'] = Variable<DateTime>(createdAt);
+    }
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
+    map['status'] = Variable<int>(status);
+    map['is_sync_dirty'] = Variable<bool>(isSyncDirty);
+    if (!nullToAbsent || lastSyncedAt != null) {
+      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt);
+    }
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  PekerjaanPpatLocalsCompanion toCompanion(bool nullToAbsent) {
+    return PekerjaanPpatLocalsCompanion(
+      id: Value(id),
+      uuid: Value(uuid),
+      nama: Value(nama),
+      createdBy: createdBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdBy),
+      updatedBy: updatedBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedBy),
+      createdAt: createdAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+      status: Value(status),
+      isSyncDirty: Value(isSyncDirty),
+      lastSyncedAt: lastSyncedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory PekerjaanPpatLocal.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PekerjaanPpatLocal(
+      id: serializer.fromJson<int>(json['id']),
+      uuid: serializer.fromJson<String>(json['uuid']),
+      nama: serializer.fromJson<String>(json['nama']),
+      createdBy: serializer.fromJson<int?>(json['createdBy']),
+      updatedBy: serializer.fromJson<int?>(json['updatedBy']),
+      createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
+      status: serializer.fromJson<int>(json['status']),
+      isSyncDirty: serializer.fromJson<bool>(json['isSyncDirty']),
+      lastSyncedAt: serializer.fromJson<DateTime?>(json['lastSyncedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'uuid': serializer.toJson<String>(uuid),
+      'nama': serializer.toJson<String>(nama),
+      'createdBy': serializer.toJson<int?>(createdBy),
+      'updatedBy': serializer.toJson<int?>(updatedBy),
+      'createdAt': serializer.toJson<DateTime?>(createdAt),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
+      'status': serializer.toJson<int>(status),
+      'isSyncDirty': serializer.toJson<bool>(isSyncDirty),
+      'lastSyncedAt': serializer.toJson<DateTime?>(lastSyncedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  PekerjaanPpatLocal copyWith({
+    int? id,
+    String? uuid,
+    String? nama,
+    Value<int?> createdBy = const Value.absent(),
+    Value<int?> updatedBy = const Value.absent(),
+    Value<DateTime?> createdAt = const Value.absent(),
+    Value<DateTime?> updatedAt = const Value.absent(),
+    int? status,
+    bool? isSyncDirty,
+    Value<DateTime?> lastSyncedAt = const Value.absent(),
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => PekerjaanPpatLocal(
+    id: id ?? this.id,
+    uuid: uuid ?? this.uuid,
+    nama: nama ?? this.nama,
+    createdBy: createdBy.present ? createdBy.value : this.createdBy,
+    updatedBy: updatedBy.present ? updatedBy.value : this.updatedBy,
+    createdAt: createdAt.present ? createdAt.value : this.createdAt,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+    status: status ?? this.status,
+    isSyncDirty: isSyncDirty ?? this.isSyncDirty,
+    lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  PekerjaanPpatLocal copyWithCompanion(PekerjaanPpatLocalsCompanion data) {
+    return PekerjaanPpatLocal(
+      id: data.id.present ? data.id.value : this.id,
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      nama: data.nama.present ? data.nama.value : this.nama,
+      createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
+      updatedBy: data.updatedBy.present ? data.updatedBy.value : this.updatedBy,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      status: data.status.present ? data.status.value : this.status,
+      isSyncDirty: data.isSyncDirty.present
+          ? data.isSyncDirty.value
+          : this.isSyncDirty,
+      lastSyncedAt: data.lastSyncedAt.present
+          ? data.lastSyncedAt.value
+          : this.lastSyncedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PekerjaanPpatLocal(')
+          ..write('id: $id, ')
+          ..write('uuid: $uuid, ')
+          ..write('nama: $nama, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('updatedBy: $updatedBy, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('status: $status, ')
+          ..write('isSyncDirty: $isSyncDirty, ')
+          ..write('lastSyncedAt: $lastSyncedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    uuid,
+    nama,
+    createdBy,
+    updatedBy,
+    createdAt,
+    updatedAt,
+    status,
+    isSyncDirty,
+    lastSyncedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PekerjaanPpatLocal &&
+          other.id == this.id &&
+          other.uuid == this.uuid &&
+          other.nama == this.nama &&
+          other.createdBy == this.createdBy &&
+          other.updatedBy == this.updatedBy &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.status == this.status &&
+          other.isSyncDirty == this.isSyncDirty &&
+          other.lastSyncedAt == this.lastSyncedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class PekerjaanPpatLocalsCompanion extends UpdateCompanion<PekerjaanPpatLocal> {
+  final Value<int> id;
+  final Value<String> uuid;
+  final Value<String> nama;
+  final Value<int?> createdBy;
+  final Value<int?> updatedBy;
+  final Value<DateTime?> createdAt;
+  final Value<DateTime?> updatedAt;
+  final Value<int> status;
+  final Value<bool> isSyncDirty;
+  final Value<DateTime?> lastSyncedAt;
+  final Value<DateTime?> deletedAt;
+  const PekerjaanPpatLocalsCompanion({
+    this.id = const Value.absent(),
+    this.uuid = const Value.absent(),
+    this.nama = const Value.absent(),
+    this.createdBy = const Value.absent(),
+    this.updatedBy = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.status = const Value.absent(),
+    this.isSyncDirty = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+  });
+  PekerjaanPpatLocalsCompanion.insert({
+    this.id = const Value.absent(),
+    required String uuid,
+    required String nama,
+    this.createdBy = const Value.absent(),
+    this.updatedBy = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.status = const Value.absent(),
+    this.isSyncDirty = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+  }) : uuid = Value(uuid),
+       nama = Value(nama);
+  static Insertable<PekerjaanPpatLocal> custom({
+    Expression<int>? id,
+    Expression<String>? uuid,
+    Expression<String>? nama,
+    Expression<int>? createdBy,
+    Expression<int>? updatedBy,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? status,
+    Expression<bool>? isSyncDirty,
+    Expression<DateTime>? lastSyncedAt,
+    Expression<DateTime>? deletedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (uuid != null) 'uuid': uuid,
+      if (nama != null) 'nama': nama,
+      if (createdBy != null) 'created_by': createdBy,
+      if (updatedBy != null) 'updated_by': updatedBy,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (status != null) 'status': status,
+      if (isSyncDirty != null) 'is_sync_dirty': isSyncDirty,
+      if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+    });
+  }
+
+  PekerjaanPpatLocalsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? uuid,
+    Value<String>? nama,
+    Value<int?>? createdBy,
+    Value<int?>? updatedBy,
+    Value<DateTime?>? createdAt,
+    Value<DateTime?>? updatedAt,
+    Value<int>? status,
+    Value<bool>? isSyncDirty,
+    Value<DateTime?>? lastSyncedAt,
+    Value<DateTime?>? deletedAt,
+  }) {
+    return PekerjaanPpatLocalsCompanion(
+      id: id ?? this.id,
+      uuid: uuid ?? this.uuid,
+      nama: nama ?? this.nama,
+      createdBy: createdBy ?? this.createdBy,
+      updatedBy: updatedBy ?? this.updatedBy,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      status: status ?? this.status,
+      isSyncDirty: isSyncDirty ?? this.isSyncDirty,
+      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (nama.present) {
+      map['nama'] = Variable<String>(nama.value);
+    }
+    if (createdBy.present) {
+      map['created_by'] = Variable<int>(createdBy.value);
+    }
+    if (updatedBy.present) {
+      map['updated_by'] = Variable<int>(updatedBy.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<int>(status.value);
+    }
+    if (isSyncDirty.present) {
+      map['is_sync_dirty'] = Variable<bool>(isSyncDirty.value);
+    }
+    if (lastSyncedAt.present) {
+      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PekerjaanPpatLocalsCompanion(')
+          ..write('id: $id, ')
+          ..write('uuid: $uuid, ')
+          ..write('nama: $nama, ')
+          ..write('createdBy: $createdBy, ')
+          ..write('updatedBy: $updatedBy, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('status: $status, ')
+          ..write('isSyncDirty: $isSyncDirty, ')
+          ..write('lastSyncedAt: $lastSyncedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $TransaksiDetailsTable extends TransaksiDetails
+    with TableInfo<$TransaksiDetailsTable, TransaksiDetail> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TransaksiDetailsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _transaksiIdMeta = const VerificationMeta(
+    'transaksiId',
+  );
+  @override
+  late final GeneratedColumn<int> transaksiId = GeneratedColumn<int>(
+    'transaksi_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES transaksis (id)',
+    ),
+  );
+  static const VerificationMeta _jenisPekerjaanMeta = const VerificationMeta(
+    'jenisPekerjaan',
+  );
+  @override
+  late final GeneratedColumn<String> jenisPekerjaan = GeneratedColumn<String>(
+    'jenis_pekerjaan',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pekerjaanNotarisIdMeta =
+      const VerificationMeta('pekerjaanNotarisId');
+  @override
+  late final GeneratedColumn<int> pekerjaanNotarisId = GeneratedColumn<int>(
+    'pekerjaan_notaris_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES pekerjaan_notaris (id)',
+    ),
+  );
+  static const VerificationMeta _pekerjaanPpatIdMeta = const VerificationMeta(
+    'pekerjaanPpatId',
+  );
+  @override
+  late final GeneratedColumn<int> pekerjaanPpatId = GeneratedColumn<int>(
+    'pekerjaan_ppat_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES pekerjaan_ppat (id)',
+    ),
+  );
+  static const VerificationMeta _namaPekerjaanSnapshotMeta =
+      const VerificationMeta('namaPekerjaanSnapshot');
+  @override
+  late final GeneratedColumn<String> namaPekerjaanSnapshot =
+      GeneratedColumn<String>(
+        'nama_pekerjaan_snapshot',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _kategoriSnapshotMeta = const VerificationMeta(
+    'kategoriSnapshot',
+  );
+  @override
+  late final GeneratedColumn<String> kategoriSnapshot = GeneratedColumn<String>(
+    'kategori_snapshot',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _estimasiWaktuSnapshotMeta =
+      const VerificationMeta('estimasiWaktuSnapshot');
+  @override
+  late final GeneratedColumn<String> estimasiWaktuSnapshot =
+      GeneratedColumn<String>(
+        'estimasi_waktu_snapshot',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _biayaLayananMeta = const VerificationMeta(
+    'biayaLayanan',
+  );
+  @override
+  late final GeneratedColumn<double> biayaLayanan = GeneratedColumn<double>(
+    'biaya_layanan',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _biayaLainnyaMeta = const VerificationMeta(
+    'biayaLainnya',
+  );
+  @override
+  late final GeneratedColumn<double> biayaLainnya = GeneratedColumn<double>(
+    'biaya_lainnya',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _totalSnapshotMeta = const VerificationMeta(
+    'totalSnapshot',
+  );
+  @override
+  late final GeneratedColumn<double> totalSnapshot = GeneratedColumn<double>(
+    'total_snapshot',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<int> status = GeneratedColumn<int>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _isSyncDirtyMeta = const VerificationMeta(
+    'isSyncDirty',
+  );
+  @override
+  late final GeneratedColumn<bool> isSyncDirty = GeneratedColumn<bool>(
+    'is_sync_dirty',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_sync_dirty" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _lastSyncedAtMeta = const VerificationMeta(
+    'lastSyncedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastSyncedAt = GeneratedColumn<DateTime>(
+    'last_synced_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    uuid,
+    transaksiId,
+    jenisPekerjaan,
+    pekerjaanNotarisId,
+    pekerjaanPpatId,
+    namaPekerjaanSnapshot,
+    kategoriSnapshot,
+    estimasiWaktuSnapshot,
+    biayaLayanan,
+    biayaLainnya,
+    totalSnapshot,
+    createdAt,
+    updatedAt,
+    status,
+    isSyncDirty,
+    lastSyncedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'transaksi_details';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<TransaksiDetail> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('transaksi_id')) {
+      context.handle(
+        _transaksiIdMeta,
+        transaksiId.isAcceptableOrUnknown(
+          data['transaksi_id']!,
+          _transaksiIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_transaksiIdMeta);
+    }
+    if (data.containsKey('jenis_pekerjaan')) {
+      context.handle(
+        _jenisPekerjaanMeta,
+        jenisPekerjaan.isAcceptableOrUnknown(
+          data['jenis_pekerjaan']!,
+          _jenisPekerjaanMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_jenisPekerjaanMeta);
+    }
+    if (data.containsKey('pekerjaan_notaris_id')) {
+      context.handle(
+        _pekerjaanNotarisIdMeta,
+        pekerjaanNotarisId.isAcceptableOrUnknown(
+          data['pekerjaan_notaris_id']!,
+          _pekerjaanNotarisIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('pekerjaan_ppat_id')) {
+      context.handle(
+        _pekerjaanPpatIdMeta,
+        pekerjaanPpatId.isAcceptableOrUnknown(
+          data['pekerjaan_ppat_id']!,
+          _pekerjaanPpatIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('nama_pekerjaan_snapshot')) {
+      context.handle(
+        _namaPekerjaanSnapshotMeta,
+        namaPekerjaanSnapshot.isAcceptableOrUnknown(
+          data['nama_pekerjaan_snapshot']!,
+          _namaPekerjaanSnapshotMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_namaPekerjaanSnapshotMeta);
+    }
+    if (data.containsKey('kategori_snapshot')) {
+      context.handle(
+        _kategoriSnapshotMeta,
+        kategoriSnapshot.isAcceptableOrUnknown(
+          data['kategori_snapshot']!,
+          _kategoriSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('estimasi_waktu_snapshot')) {
+      context.handle(
+        _estimasiWaktuSnapshotMeta,
+        estimasiWaktuSnapshot.isAcceptableOrUnknown(
+          data['estimasi_waktu_snapshot']!,
+          _estimasiWaktuSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('biaya_layanan')) {
+      context.handle(
+        _biayaLayananMeta,
+        biayaLayanan.isAcceptableOrUnknown(
+          data['biaya_layanan']!,
+          _biayaLayananMeta,
+        ),
+      );
+    }
+    if (data.containsKey('biaya_lainnya')) {
+      context.handle(
+        _biayaLainnyaMeta,
+        biayaLainnya.isAcceptableOrUnknown(
+          data['biaya_lainnya']!,
+          _biayaLainnyaMeta,
+        ),
+      );
+    }
+    if (data.containsKey('total_snapshot')) {
+      context.handle(
+        _totalSnapshotMeta,
+        totalSnapshot.isAcceptableOrUnknown(
+          data['total_snapshot']!,
+          _totalSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('is_sync_dirty')) {
+      context.handle(
+        _isSyncDirtyMeta,
+        isSyncDirty.isAcceptableOrUnknown(
+          data['is_sync_dirty']!,
+          _isSyncDirtyMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_synced_at')) {
+      context.handle(
+        _lastSyncedAtMeta,
+        lastSyncedAt.isAcceptableOrUnknown(
+          data['last_synced_at']!,
+          _lastSyncedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  TransaksiDetail map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return TransaksiDetail(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      transaksiId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}transaksi_id'],
+      )!,
+      jenisPekerjaan: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}jenis_pekerjaan'],
+      )!,
+      pekerjaanNotarisId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pekerjaan_notaris_id'],
+      ),
+      pekerjaanPpatId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pekerjaan_ppat_id'],
+      ),
+      namaPekerjaanSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nama_pekerjaan_snapshot'],
+      )!,
+      kategoriSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kategori_snapshot'],
+      ),
+      estimasiWaktuSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}estimasi_waktu_snapshot'],
+      ),
+      biayaLayanan: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}biaya_layanan'],
+      )!,
+      biayaLainnya: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}biaya_lainnya'],
+      )!,
+      totalSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}total_snapshot'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      ),
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}status'],
+      )!,
+      isSyncDirty: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_sync_dirty'],
+      )!,
+      lastSyncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_synced_at'],
+      ),
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $TransaksiDetailsTable createAlias(String alias) {
+    return $TransaksiDetailsTable(attachedDatabase, alias);
+  }
+}
+
+class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
+  final int id;
+  final String uuid;
+  final int transaksiId;
+  final String jenisPekerjaan;
+  final int? pekerjaanNotarisId;
+  final int? pekerjaanPpatId;
+  final String namaPekerjaanSnapshot;
+  final String? kategoriSnapshot;
+  final String? estimasiWaktuSnapshot;
+  final double biayaLayanan;
+  final double biayaLainnya;
+  final double totalSnapshot;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final int status;
+  final bool isSyncDirty;
+  final DateTime? lastSyncedAt;
+  final DateTime? deletedAt;
+  const TransaksiDetail({
+    required this.id,
+    required this.uuid,
+    required this.transaksiId,
+    required this.jenisPekerjaan,
+    this.pekerjaanNotarisId,
+    this.pekerjaanPpatId,
+    required this.namaPekerjaanSnapshot,
+    this.kategoriSnapshot,
+    this.estimasiWaktuSnapshot,
+    required this.biayaLayanan,
+    required this.biayaLainnya,
+    required this.totalSnapshot,
+    this.createdAt,
+    this.updatedAt,
+    required this.status,
+    required this.isSyncDirty,
+    this.lastSyncedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['uuid'] = Variable<String>(uuid);
+    map['transaksi_id'] = Variable<int>(transaksiId);
+    map['jenis_pekerjaan'] = Variable<String>(jenisPekerjaan);
+    if (!nullToAbsent || pekerjaanNotarisId != null) {
+      map['pekerjaan_notaris_id'] = Variable<int>(pekerjaanNotarisId);
+    }
+    if (!nullToAbsent || pekerjaanPpatId != null) {
+      map['pekerjaan_ppat_id'] = Variable<int>(pekerjaanPpatId);
+    }
+    map['nama_pekerjaan_snapshot'] = Variable<String>(namaPekerjaanSnapshot);
+    if (!nullToAbsent || kategoriSnapshot != null) {
+      map['kategori_snapshot'] = Variable<String>(kategoriSnapshot);
+    }
+    if (!nullToAbsent || estimasiWaktuSnapshot != null) {
+      map['estimasi_waktu_snapshot'] = Variable<String>(estimasiWaktuSnapshot);
+    }
+    map['biaya_layanan'] = Variable<double>(biayaLayanan);
+    map['biaya_lainnya'] = Variable<double>(biayaLainnya);
+    map['total_snapshot'] = Variable<double>(totalSnapshot);
+    if (!nullToAbsent || createdAt != null) {
+      map['created_at'] = Variable<DateTime>(createdAt);
+    }
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
+    map['status'] = Variable<int>(status);
+    map['is_sync_dirty'] = Variable<bool>(isSyncDirty);
+    if (!nullToAbsent || lastSyncedAt != null) {
+      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt);
+    }
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  TransaksiDetailsCompanion toCompanion(bool nullToAbsent) {
+    return TransaksiDetailsCompanion(
+      id: Value(id),
+      uuid: Value(uuid),
+      transaksiId: Value(transaksiId),
+      jenisPekerjaan: Value(jenisPekerjaan),
+      pekerjaanNotarisId: pekerjaanNotarisId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pekerjaanNotarisId),
+      pekerjaanPpatId: pekerjaanPpatId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pekerjaanPpatId),
+      namaPekerjaanSnapshot: Value(namaPekerjaanSnapshot),
+      kategoriSnapshot: kategoriSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(kategoriSnapshot),
+      estimasiWaktuSnapshot: estimasiWaktuSnapshot == null && nullToAbsent
+          ? const Value.absent()
+          : Value(estimasiWaktuSnapshot),
+      biayaLayanan: Value(biayaLayanan),
+      biayaLainnya: Value(biayaLainnya),
+      totalSnapshot: Value(totalSnapshot),
+      createdAt: createdAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAt),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+      status: Value(status),
+      isSyncDirty: Value(isSyncDirty),
+      lastSyncedAt: lastSyncedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory TransaksiDetail.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return TransaksiDetail(
+      id: serializer.fromJson<int>(json['id']),
+      uuid: serializer.fromJson<String>(json['uuid']),
+      transaksiId: serializer.fromJson<int>(json['transaksiId']),
+      jenisPekerjaan: serializer.fromJson<String>(json['jenisPekerjaan']),
+      pekerjaanNotarisId: serializer.fromJson<int?>(json['pekerjaanNotarisId']),
+      pekerjaanPpatId: serializer.fromJson<int?>(json['pekerjaanPpatId']),
+      namaPekerjaanSnapshot: serializer.fromJson<String>(
+        json['namaPekerjaanSnapshot'],
+      ),
+      kategoriSnapshot: serializer.fromJson<String?>(json['kategoriSnapshot']),
+      estimasiWaktuSnapshot: serializer.fromJson<String?>(
+        json['estimasiWaktuSnapshot'],
+      ),
+      biayaLayanan: serializer.fromJson<double>(json['biayaLayanan']),
+      biayaLainnya: serializer.fromJson<double>(json['biayaLainnya']),
+      totalSnapshot: serializer.fromJson<double>(json['totalSnapshot']),
+      createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
+      status: serializer.fromJson<int>(json['status']),
+      isSyncDirty: serializer.fromJson<bool>(json['isSyncDirty']),
+      lastSyncedAt: serializer.fromJson<DateTime?>(json['lastSyncedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'uuid': serializer.toJson<String>(uuid),
+      'transaksiId': serializer.toJson<int>(transaksiId),
+      'jenisPekerjaan': serializer.toJson<String>(jenisPekerjaan),
+      'pekerjaanNotarisId': serializer.toJson<int?>(pekerjaanNotarisId),
+      'pekerjaanPpatId': serializer.toJson<int?>(pekerjaanPpatId),
+      'namaPekerjaanSnapshot': serializer.toJson<String>(namaPekerjaanSnapshot),
+      'kategoriSnapshot': serializer.toJson<String?>(kategoriSnapshot),
+      'estimasiWaktuSnapshot': serializer.toJson<String?>(
+        estimasiWaktuSnapshot,
+      ),
+      'biayaLayanan': serializer.toJson<double>(biayaLayanan),
+      'biayaLainnya': serializer.toJson<double>(biayaLainnya),
+      'totalSnapshot': serializer.toJson<double>(totalSnapshot),
+      'createdAt': serializer.toJson<DateTime?>(createdAt),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
+      'status': serializer.toJson<int>(status),
+      'isSyncDirty': serializer.toJson<bool>(isSyncDirty),
+      'lastSyncedAt': serializer.toJson<DateTime?>(lastSyncedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  TransaksiDetail copyWith({
+    int? id,
+    String? uuid,
+    int? transaksiId,
+    String? jenisPekerjaan,
+    Value<int?> pekerjaanNotarisId = const Value.absent(),
+    Value<int?> pekerjaanPpatId = const Value.absent(),
+    String? namaPekerjaanSnapshot,
+    Value<String?> kategoriSnapshot = const Value.absent(),
+    Value<String?> estimasiWaktuSnapshot = const Value.absent(),
+    double? biayaLayanan,
+    double? biayaLainnya,
+    double? totalSnapshot,
+    Value<DateTime?> createdAt = const Value.absent(),
+    Value<DateTime?> updatedAt = const Value.absent(),
+    int? status,
+    bool? isSyncDirty,
+    Value<DateTime?> lastSyncedAt = const Value.absent(),
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => TransaksiDetail(
+    id: id ?? this.id,
+    uuid: uuid ?? this.uuid,
+    transaksiId: transaksiId ?? this.transaksiId,
+    jenisPekerjaan: jenisPekerjaan ?? this.jenisPekerjaan,
+    pekerjaanNotarisId: pekerjaanNotarisId.present
+        ? pekerjaanNotarisId.value
+        : this.pekerjaanNotarisId,
+    pekerjaanPpatId: pekerjaanPpatId.present
+        ? pekerjaanPpatId.value
+        : this.pekerjaanPpatId,
+    namaPekerjaanSnapshot: namaPekerjaanSnapshot ?? this.namaPekerjaanSnapshot,
+    kategoriSnapshot: kategoriSnapshot.present
+        ? kategoriSnapshot.value
+        : this.kategoriSnapshot,
+    estimasiWaktuSnapshot: estimasiWaktuSnapshot.present
+        ? estimasiWaktuSnapshot.value
+        : this.estimasiWaktuSnapshot,
+    biayaLayanan: biayaLayanan ?? this.biayaLayanan,
+    biayaLainnya: biayaLainnya ?? this.biayaLainnya,
+    totalSnapshot: totalSnapshot ?? this.totalSnapshot,
+    createdAt: createdAt.present ? createdAt.value : this.createdAt,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+    status: status ?? this.status,
+    isSyncDirty: isSyncDirty ?? this.isSyncDirty,
+    lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  TransaksiDetail copyWithCompanion(TransaksiDetailsCompanion data) {
+    return TransaksiDetail(
+      id: data.id.present ? data.id.value : this.id,
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      transaksiId: data.transaksiId.present
+          ? data.transaksiId.value
+          : this.transaksiId,
+      jenisPekerjaan: data.jenisPekerjaan.present
+          ? data.jenisPekerjaan.value
+          : this.jenisPekerjaan,
+      pekerjaanNotarisId: data.pekerjaanNotarisId.present
+          ? data.pekerjaanNotarisId.value
+          : this.pekerjaanNotarisId,
+      pekerjaanPpatId: data.pekerjaanPpatId.present
+          ? data.pekerjaanPpatId.value
+          : this.pekerjaanPpatId,
+      namaPekerjaanSnapshot: data.namaPekerjaanSnapshot.present
+          ? data.namaPekerjaanSnapshot.value
+          : this.namaPekerjaanSnapshot,
+      kategoriSnapshot: data.kategoriSnapshot.present
+          ? data.kategoriSnapshot.value
+          : this.kategoriSnapshot,
+      estimasiWaktuSnapshot: data.estimasiWaktuSnapshot.present
+          ? data.estimasiWaktuSnapshot.value
+          : this.estimasiWaktuSnapshot,
+      biayaLayanan: data.biayaLayanan.present
+          ? data.biayaLayanan.value
+          : this.biayaLayanan,
+      biayaLainnya: data.biayaLainnya.present
+          ? data.biayaLainnya.value
+          : this.biayaLainnya,
+      totalSnapshot: data.totalSnapshot.present
+          ? data.totalSnapshot.value
+          : this.totalSnapshot,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      status: data.status.present ? data.status.value : this.status,
+      isSyncDirty: data.isSyncDirty.present
+          ? data.isSyncDirty.value
+          : this.isSyncDirty,
+      lastSyncedAt: data.lastSyncedAt.present
+          ? data.lastSyncedAt.value
+          : this.lastSyncedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TransaksiDetail(')
+          ..write('id: $id, ')
+          ..write('uuid: $uuid, ')
+          ..write('transaksiId: $transaksiId, ')
+          ..write('jenisPekerjaan: $jenisPekerjaan, ')
+          ..write('pekerjaanNotarisId: $pekerjaanNotarisId, ')
+          ..write('pekerjaanPpatId: $pekerjaanPpatId, ')
+          ..write('namaPekerjaanSnapshot: $namaPekerjaanSnapshot, ')
+          ..write('kategoriSnapshot: $kategoriSnapshot, ')
+          ..write('estimasiWaktuSnapshot: $estimasiWaktuSnapshot, ')
+          ..write('biayaLayanan: $biayaLayanan, ')
+          ..write('biayaLainnya: $biayaLainnya, ')
+          ..write('totalSnapshot: $totalSnapshot, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('status: $status, ')
+          ..write('isSyncDirty: $isSyncDirty, ')
+          ..write('lastSyncedAt: $lastSyncedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    uuid,
+    transaksiId,
+    jenisPekerjaan,
+    pekerjaanNotarisId,
+    pekerjaanPpatId,
+    namaPekerjaanSnapshot,
+    kategoriSnapshot,
+    estimasiWaktuSnapshot,
+    biayaLayanan,
+    biayaLainnya,
+    totalSnapshot,
+    createdAt,
+    updatedAt,
+    status,
+    isSyncDirty,
+    lastSyncedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is TransaksiDetail &&
+          other.id == this.id &&
+          other.uuid == this.uuid &&
+          other.transaksiId == this.transaksiId &&
+          other.jenisPekerjaan == this.jenisPekerjaan &&
+          other.pekerjaanNotarisId == this.pekerjaanNotarisId &&
+          other.pekerjaanPpatId == this.pekerjaanPpatId &&
+          other.namaPekerjaanSnapshot == this.namaPekerjaanSnapshot &&
+          other.kategoriSnapshot == this.kategoriSnapshot &&
+          other.estimasiWaktuSnapshot == this.estimasiWaktuSnapshot &&
+          other.biayaLayanan == this.biayaLayanan &&
+          other.biayaLainnya == this.biayaLainnya &&
+          other.totalSnapshot == this.totalSnapshot &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.status == this.status &&
+          other.isSyncDirty == this.isSyncDirty &&
+          other.lastSyncedAt == this.lastSyncedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
+  final Value<int> id;
+  final Value<String> uuid;
+  final Value<int> transaksiId;
+  final Value<String> jenisPekerjaan;
+  final Value<int?> pekerjaanNotarisId;
+  final Value<int?> pekerjaanPpatId;
+  final Value<String> namaPekerjaanSnapshot;
+  final Value<String?> kategoriSnapshot;
+  final Value<String?> estimasiWaktuSnapshot;
+  final Value<double> biayaLayanan;
+  final Value<double> biayaLainnya;
+  final Value<double> totalSnapshot;
+  final Value<DateTime?> createdAt;
+  final Value<DateTime?> updatedAt;
+  final Value<int> status;
+  final Value<bool> isSyncDirty;
+  final Value<DateTime?> lastSyncedAt;
+  final Value<DateTime?> deletedAt;
+  const TransaksiDetailsCompanion({
+    this.id = const Value.absent(),
+    this.uuid = const Value.absent(),
+    this.transaksiId = const Value.absent(),
+    this.jenisPekerjaan = const Value.absent(),
+    this.pekerjaanNotarisId = const Value.absent(),
+    this.pekerjaanPpatId = const Value.absent(),
+    this.namaPekerjaanSnapshot = const Value.absent(),
+    this.kategoriSnapshot = const Value.absent(),
+    this.estimasiWaktuSnapshot = const Value.absent(),
+    this.biayaLayanan = const Value.absent(),
+    this.biayaLainnya = const Value.absent(),
+    this.totalSnapshot = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.status = const Value.absent(),
+    this.isSyncDirty = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+  });
+  TransaksiDetailsCompanion.insert({
+    this.id = const Value.absent(),
+    required String uuid,
+    required int transaksiId,
+    required String jenisPekerjaan,
+    this.pekerjaanNotarisId = const Value.absent(),
+    this.pekerjaanPpatId = const Value.absent(),
+    required String namaPekerjaanSnapshot,
+    this.kategoriSnapshot = const Value.absent(),
+    this.estimasiWaktuSnapshot = const Value.absent(),
+    this.biayaLayanan = const Value.absent(),
+    this.biayaLainnya = const Value.absent(),
+    this.totalSnapshot = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.status = const Value.absent(),
+    this.isSyncDirty = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+  }) : uuid = Value(uuid),
+       transaksiId = Value(transaksiId),
+       jenisPekerjaan = Value(jenisPekerjaan),
+       namaPekerjaanSnapshot = Value(namaPekerjaanSnapshot);
+  static Insertable<TransaksiDetail> custom({
+    Expression<int>? id,
+    Expression<String>? uuid,
+    Expression<int>? transaksiId,
+    Expression<String>? jenisPekerjaan,
+    Expression<int>? pekerjaanNotarisId,
+    Expression<int>? pekerjaanPpatId,
+    Expression<String>? namaPekerjaanSnapshot,
+    Expression<String>? kategoriSnapshot,
+    Expression<String>? estimasiWaktuSnapshot,
+    Expression<double>? biayaLayanan,
+    Expression<double>? biayaLainnya,
+    Expression<double>? totalSnapshot,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? status,
+    Expression<bool>? isSyncDirty,
+    Expression<DateTime>? lastSyncedAt,
+    Expression<DateTime>? deletedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (uuid != null) 'uuid': uuid,
+      if (transaksiId != null) 'transaksi_id': transaksiId,
+      if (jenisPekerjaan != null) 'jenis_pekerjaan': jenisPekerjaan,
+      if (pekerjaanNotarisId != null)
+        'pekerjaan_notaris_id': pekerjaanNotarisId,
+      if (pekerjaanPpatId != null) 'pekerjaan_ppat_id': pekerjaanPpatId,
+      if (namaPekerjaanSnapshot != null)
+        'nama_pekerjaan_snapshot': namaPekerjaanSnapshot,
+      if (kategoriSnapshot != null) 'kategori_snapshot': kategoriSnapshot,
+      if (estimasiWaktuSnapshot != null)
+        'estimasi_waktu_snapshot': estimasiWaktuSnapshot,
+      if (biayaLayanan != null) 'biaya_layanan': biayaLayanan,
+      if (biayaLainnya != null) 'biaya_lainnya': biayaLainnya,
+      if (totalSnapshot != null) 'total_snapshot': totalSnapshot,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (status != null) 'status': status,
+      if (isSyncDirty != null) 'is_sync_dirty': isSyncDirty,
+      if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+    });
+  }
+
+  TransaksiDetailsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? uuid,
+    Value<int>? transaksiId,
+    Value<String>? jenisPekerjaan,
+    Value<int?>? pekerjaanNotarisId,
+    Value<int?>? pekerjaanPpatId,
+    Value<String>? namaPekerjaanSnapshot,
+    Value<String?>? kategoriSnapshot,
+    Value<String?>? estimasiWaktuSnapshot,
+    Value<double>? biayaLayanan,
+    Value<double>? biayaLainnya,
+    Value<double>? totalSnapshot,
+    Value<DateTime?>? createdAt,
+    Value<DateTime?>? updatedAt,
+    Value<int>? status,
+    Value<bool>? isSyncDirty,
+    Value<DateTime?>? lastSyncedAt,
+    Value<DateTime?>? deletedAt,
+  }) {
+    return TransaksiDetailsCompanion(
+      id: id ?? this.id,
+      uuid: uuid ?? this.uuid,
+      transaksiId: transaksiId ?? this.transaksiId,
+      jenisPekerjaan: jenisPekerjaan ?? this.jenisPekerjaan,
+      pekerjaanNotarisId: pekerjaanNotarisId ?? this.pekerjaanNotarisId,
+      pekerjaanPpatId: pekerjaanPpatId ?? this.pekerjaanPpatId,
+      namaPekerjaanSnapshot:
+          namaPekerjaanSnapshot ?? this.namaPekerjaanSnapshot,
+      kategoriSnapshot: kategoriSnapshot ?? this.kategoriSnapshot,
+      estimasiWaktuSnapshot:
+          estimasiWaktuSnapshot ?? this.estimasiWaktuSnapshot,
+      biayaLayanan: biayaLayanan ?? this.biayaLayanan,
+      biayaLainnya: biayaLainnya ?? this.biayaLainnya,
+      totalSnapshot: totalSnapshot ?? this.totalSnapshot,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      status: status ?? this.status,
+      isSyncDirty: isSyncDirty ?? this.isSyncDirty,
+      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (transaksiId.present) {
+      map['transaksi_id'] = Variable<int>(transaksiId.value);
+    }
+    if (jenisPekerjaan.present) {
+      map['jenis_pekerjaan'] = Variable<String>(jenisPekerjaan.value);
+    }
+    if (pekerjaanNotarisId.present) {
+      map['pekerjaan_notaris_id'] = Variable<int>(pekerjaanNotarisId.value);
+    }
+    if (pekerjaanPpatId.present) {
+      map['pekerjaan_ppat_id'] = Variable<int>(pekerjaanPpatId.value);
+    }
+    if (namaPekerjaanSnapshot.present) {
+      map['nama_pekerjaan_snapshot'] = Variable<String>(
+        namaPekerjaanSnapshot.value,
+      );
+    }
+    if (kategoriSnapshot.present) {
+      map['kategori_snapshot'] = Variable<String>(kategoriSnapshot.value);
+    }
+    if (estimasiWaktuSnapshot.present) {
+      map['estimasi_waktu_snapshot'] = Variable<String>(
+        estimasiWaktuSnapshot.value,
+      );
+    }
+    if (biayaLayanan.present) {
+      map['biaya_layanan'] = Variable<double>(biayaLayanan.value);
+    }
+    if (biayaLainnya.present) {
+      map['biaya_lainnya'] = Variable<double>(biayaLainnya.value);
+    }
+    if (totalSnapshot.present) {
+      map['total_snapshot'] = Variable<double>(totalSnapshot.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<int>(status.value);
+    }
+    if (isSyncDirty.present) {
+      map['is_sync_dirty'] = Variable<bool>(isSyncDirty.value);
+    }
+    if (lastSyncedAt.present) {
+      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TransaksiDetailsCompanion(')
+          ..write('id: $id, ')
+          ..write('uuid: $uuid, ')
+          ..write('transaksiId: $transaksiId, ')
+          ..write('jenisPekerjaan: $jenisPekerjaan, ')
+          ..write('pekerjaanNotarisId: $pekerjaanNotarisId, ')
+          ..write('pekerjaanPpatId: $pekerjaanPpatId, ')
+          ..write('namaPekerjaanSnapshot: $namaPekerjaanSnapshot, ')
+          ..write('kategoriSnapshot: $kategoriSnapshot, ')
+          ..write('estimasiWaktuSnapshot: $estimasiWaktuSnapshot, ')
+          ..write('biayaLayanan: $biayaLayanan, ')
+          ..write('biayaLainnya: $biayaLainnya, ')
+          ..write('totalSnapshot: $totalSnapshot, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('status: $status, ')
+          ..write('isSyncDirty: $isSyncDirty, ')
+          ..write('lastSyncedAt: $lastSyncedAt, ')
           ..write('deletedAt: $deletedAt')
           ..write(')'))
         .toString();
@@ -4476,666 +7484,6 @@ class PetugasLocalsCompanion extends UpdateCompanion<PetugasLocal> {
           ..write('noTelp: $noTelp, ')
           ..write('email: $email, ')
           ..write('userId: $userId, ')
-          ..write('createdBy: $createdBy, ')
-          ..write('updatedBy: $updatedBy, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt, ')
-          ..write('status: $status, ')
-          ..write('isSyncDirty: $isSyncDirty, ')
-          ..write('lastSyncedAt: $lastSyncedAt, ')
-          ..write('deletedAt: $deletedAt')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $PekerjaanNotarisLocalsTable extends PekerjaanNotarisLocals
-    with TableInfo<$PekerjaanNotarisLocalsTable, PekerjaanNotarisLocal> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $PekerjaanNotarisLocalsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
-    'id',
-    aliasedName,
-    false,
-    hasAutoIncrement: true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'PRIMARY KEY AUTOINCREMENT',
-    ),
-  );
-  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
-  @override
-  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
-    'uuid',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
-  );
-  static const VerificationMeta _namaMeta = const VerificationMeta('nama');
-  @override
-  late final GeneratedColumn<String> nama = GeneratedColumn<String>(
-    'nama',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _createdByMeta = const VerificationMeta(
-    'createdBy',
-  );
-  @override
-  late final GeneratedColumn<int> createdBy = GeneratedColumn<int>(
-    'created_by',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _updatedByMeta = const VerificationMeta(
-    'updatedBy',
-  );
-  @override
-  late final GeneratedColumn<int> updatedBy = GeneratedColumn<int>(
-    'updated_by',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-    'created_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
-    'updatedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-    'updated_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _statusMeta = const VerificationMeta('status');
-  @override
-  late final GeneratedColumn<int> status = GeneratedColumn<int>(
-    'status',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(1),
-  );
-  static const VerificationMeta _isSyncDirtyMeta = const VerificationMeta(
-    'isSyncDirty',
-  );
-  @override
-  late final GeneratedColumn<bool> isSyncDirty = GeneratedColumn<bool>(
-    'is_sync_dirty',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_sync_dirty" IN (0, 1))',
-    ),
-    defaultValue: const Constant(true),
-  );
-  static const VerificationMeta _lastSyncedAtMeta = const VerificationMeta(
-    'lastSyncedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> lastSyncedAt = GeneratedColumn<DateTime>(
-    'last_synced_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
-    'deletedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
-    'deleted_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    uuid,
-    nama,
-    createdBy,
-    updatedBy,
-    createdAt,
-    updatedAt,
-    status,
-    isSyncDirty,
-    lastSyncedAt,
-    deletedAt,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'pekerjaan_notaris';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<PekerjaanNotarisLocal> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    }
-    if (data.containsKey('uuid')) {
-      context.handle(
-        _uuidMeta,
-        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_uuidMeta);
-    }
-    if (data.containsKey('nama')) {
-      context.handle(
-        _namaMeta,
-        nama.isAcceptableOrUnknown(data['nama']!, _namaMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_namaMeta);
-    }
-    if (data.containsKey('created_by')) {
-      context.handle(
-        _createdByMeta,
-        createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta),
-      );
-    }
-    if (data.containsKey('updated_by')) {
-      context.handle(
-        _updatedByMeta,
-        updatedBy.isAcceptableOrUnknown(data['updated_by']!, _updatedByMeta),
-      );
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
-      );
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(
-        _updatedAtMeta,
-        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
-      );
-    }
-    if (data.containsKey('status')) {
-      context.handle(
-        _statusMeta,
-        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
-      );
-    }
-    if (data.containsKey('is_sync_dirty')) {
-      context.handle(
-        _isSyncDirtyMeta,
-        isSyncDirty.isAcceptableOrUnknown(
-          data['is_sync_dirty']!,
-          _isSyncDirtyMeta,
-        ),
-      );
-    }
-    if (data.containsKey('last_synced_at')) {
-      context.handle(
-        _lastSyncedAtMeta,
-        lastSyncedAt.isAcceptableOrUnknown(
-          data['last_synced_at']!,
-          _lastSyncedAtMeta,
-        ),
-      );
-    }
-    if (data.containsKey('deleted_at')) {
-      context.handle(
-        _deletedAtMeta,
-        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  PekerjaanNotarisLocal map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return PekerjaanNotarisLocal(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}id'],
-      )!,
-      uuid: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}uuid'],
-      )!,
-      nama: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}nama'],
-      )!,
-      createdBy: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}created_by'],
-      ),
-      updatedBy: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}updated_by'],
-      ),
-      createdAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}created_at'],
-      ),
-      updatedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}updated_at'],
-      ),
-      status: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}status'],
-      )!,
-      isSyncDirty: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}is_sync_dirty'],
-      )!,
-      lastSyncedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}last_synced_at'],
-      ),
-      deletedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}deleted_at'],
-      ),
-    );
-  }
-
-  @override
-  $PekerjaanNotarisLocalsTable createAlias(String alias) {
-    return $PekerjaanNotarisLocalsTable(attachedDatabase, alias);
-  }
-}
-
-class PekerjaanNotarisLocal extends DataClass
-    implements Insertable<PekerjaanNotarisLocal> {
-  final int id;
-  final String uuid;
-  final String nama;
-  final int? createdBy;
-  final int? updatedBy;
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
-  final int status;
-  final bool isSyncDirty;
-  final DateTime? lastSyncedAt;
-  final DateTime? deletedAt;
-  const PekerjaanNotarisLocal({
-    required this.id,
-    required this.uuid,
-    required this.nama,
-    this.createdBy,
-    this.updatedBy,
-    this.createdAt,
-    this.updatedAt,
-    required this.status,
-    required this.isSyncDirty,
-    this.lastSyncedAt,
-    this.deletedAt,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
-    map['uuid'] = Variable<String>(uuid);
-    map['nama'] = Variable<String>(nama);
-    if (!nullToAbsent || createdBy != null) {
-      map['created_by'] = Variable<int>(createdBy);
-    }
-    if (!nullToAbsent || updatedBy != null) {
-      map['updated_by'] = Variable<int>(updatedBy);
-    }
-    if (!nullToAbsent || createdAt != null) {
-      map['created_at'] = Variable<DateTime>(createdAt);
-    }
-    if (!nullToAbsent || updatedAt != null) {
-      map['updated_at'] = Variable<DateTime>(updatedAt);
-    }
-    map['status'] = Variable<int>(status);
-    map['is_sync_dirty'] = Variable<bool>(isSyncDirty);
-    if (!nullToAbsent || lastSyncedAt != null) {
-      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt);
-    }
-    if (!nullToAbsent || deletedAt != null) {
-      map['deleted_at'] = Variable<DateTime>(deletedAt);
-    }
-    return map;
-  }
-
-  PekerjaanNotarisLocalsCompanion toCompanion(bool nullToAbsent) {
-    return PekerjaanNotarisLocalsCompanion(
-      id: Value(id),
-      uuid: Value(uuid),
-      nama: Value(nama),
-      createdBy: createdBy == null && nullToAbsent
-          ? const Value.absent()
-          : Value(createdBy),
-      updatedBy: updatedBy == null && nullToAbsent
-          ? const Value.absent()
-          : Value(updatedBy),
-      createdAt: createdAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(createdAt),
-      updatedAt: updatedAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(updatedAt),
-      status: Value(status),
-      isSyncDirty: Value(isSyncDirty),
-      lastSyncedAt: lastSyncedAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(lastSyncedAt),
-      deletedAt: deletedAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(deletedAt),
-    );
-  }
-
-  factory PekerjaanNotarisLocal.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return PekerjaanNotarisLocal(
-      id: serializer.fromJson<int>(json['id']),
-      uuid: serializer.fromJson<String>(json['uuid']),
-      nama: serializer.fromJson<String>(json['nama']),
-      createdBy: serializer.fromJson<int?>(json['createdBy']),
-      updatedBy: serializer.fromJson<int?>(json['updatedBy']),
-      createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
-      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
-      status: serializer.fromJson<int>(json['status']),
-      isSyncDirty: serializer.fromJson<bool>(json['isSyncDirty']),
-      lastSyncedAt: serializer.fromJson<DateTime?>(json['lastSyncedAt']),
-      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<int>(id),
-      'uuid': serializer.toJson<String>(uuid),
-      'nama': serializer.toJson<String>(nama),
-      'createdBy': serializer.toJson<int?>(createdBy),
-      'updatedBy': serializer.toJson<int?>(updatedBy),
-      'createdAt': serializer.toJson<DateTime?>(createdAt),
-      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
-      'status': serializer.toJson<int>(status),
-      'isSyncDirty': serializer.toJson<bool>(isSyncDirty),
-      'lastSyncedAt': serializer.toJson<DateTime?>(lastSyncedAt),
-      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
-    };
-  }
-
-  PekerjaanNotarisLocal copyWith({
-    int? id,
-    String? uuid,
-    String? nama,
-    Value<int?> createdBy = const Value.absent(),
-    Value<int?> updatedBy = const Value.absent(),
-    Value<DateTime?> createdAt = const Value.absent(),
-    Value<DateTime?> updatedAt = const Value.absent(),
-    int? status,
-    bool? isSyncDirty,
-    Value<DateTime?> lastSyncedAt = const Value.absent(),
-    Value<DateTime?> deletedAt = const Value.absent(),
-  }) => PekerjaanNotarisLocal(
-    id: id ?? this.id,
-    uuid: uuid ?? this.uuid,
-    nama: nama ?? this.nama,
-    createdBy: createdBy.present ? createdBy.value : this.createdBy,
-    updatedBy: updatedBy.present ? updatedBy.value : this.updatedBy,
-    createdAt: createdAt.present ? createdAt.value : this.createdAt,
-    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
-    status: status ?? this.status,
-    isSyncDirty: isSyncDirty ?? this.isSyncDirty,
-    lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
-    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
-  );
-  PekerjaanNotarisLocal copyWithCompanion(
-    PekerjaanNotarisLocalsCompanion data,
-  ) {
-    return PekerjaanNotarisLocal(
-      id: data.id.present ? data.id.value : this.id,
-      uuid: data.uuid.present ? data.uuid.value : this.uuid,
-      nama: data.nama.present ? data.nama.value : this.nama,
-      createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
-      updatedBy: data.updatedBy.present ? data.updatedBy.value : this.updatedBy,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
-      status: data.status.present ? data.status.value : this.status,
-      isSyncDirty: data.isSyncDirty.present
-          ? data.isSyncDirty.value
-          : this.isSyncDirty,
-      lastSyncedAt: data.lastSyncedAt.present
-          ? data.lastSyncedAt.value
-          : this.lastSyncedAt,
-      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('PekerjaanNotarisLocal(')
-          ..write('id: $id, ')
-          ..write('uuid: $uuid, ')
-          ..write('nama: $nama, ')
-          ..write('createdBy: $createdBy, ')
-          ..write('updatedBy: $updatedBy, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt, ')
-          ..write('status: $status, ')
-          ..write('isSyncDirty: $isSyncDirty, ')
-          ..write('lastSyncedAt: $lastSyncedAt, ')
-          ..write('deletedAt: $deletedAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    id,
-    uuid,
-    nama,
-    createdBy,
-    updatedBy,
-    createdAt,
-    updatedAt,
-    status,
-    isSyncDirty,
-    lastSyncedAt,
-    deletedAt,
-  );
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is PekerjaanNotarisLocal &&
-          other.id == this.id &&
-          other.uuid == this.uuid &&
-          other.nama == this.nama &&
-          other.createdBy == this.createdBy &&
-          other.updatedBy == this.updatedBy &&
-          other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt &&
-          other.status == this.status &&
-          other.isSyncDirty == this.isSyncDirty &&
-          other.lastSyncedAt == this.lastSyncedAt &&
-          other.deletedAt == this.deletedAt);
-}
-
-class PekerjaanNotarisLocalsCompanion
-    extends UpdateCompanion<PekerjaanNotarisLocal> {
-  final Value<int> id;
-  final Value<String> uuid;
-  final Value<String> nama;
-  final Value<int?> createdBy;
-  final Value<int?> updatedBy;
-  final Value<DateTime?> createdAt;
-  final Value<DateTime?> updatedAt;
-  final Value<int> status;
-  final Value<bool> isSyncDirty;
-  final Value<DateTime?> lastSyncedAt;
-  final Value<DateTime?> deletedAt;
-  const PekerjaanNotarisLocalsCompanion({
-    this.id = const Value.absent(),
-    this.uuid = const Value.absent(),
-    this.nama = const Value.absent(),
-    this.createdBy = const Value.absent(),
-    this.updatedBy = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.updatedAt = const Value.absent(),
-    this.status = const Value.absent(),
-    this.isSyncDirty = const Value.absent(),
-    this.lastSyncedAt = const Value.absent(),
-    this.deletedAt = const Value.absent(),
-  });
-  PekerjaanNotarisLocalsCompanion.insert({
-    this.id = const Value.absent(),
-    required String uuid,
-    required String nama,
-    this.createdBy = const Value.absent(),
-    this.updatedBy = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.updatedAt = const Value.absent(),
-    this.status = const Value.absent(),
-    this.isSyncDirty = const Value.absent(),
-    this.lastSyncedAt = const Value.absent(),
-    this.deletedAt = const Value.absent(),
-  }) : uuid = Value(uuid),
-       nama = Value(nama);
-  static Insertable<PekerjaanNotarisLocal> custom({
-    Expression<int>? id,
-    Expression<String>? uuid,
-    Expression<String>? nama,
-    Expression<int>? createdBy,
-    Expression<int>? updatedBy,
-    Expression<DateTime>? createdAt,
-    Expression<DateTime>? updatedAt,
-    Expression<int>? status,
-    Expression<bool>? isSyncDirty,
-    Expression<DateTime>? lastSyncedAt,
-    Expression<DateTime>? deletedAt,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (uuid != null) 'uuid': uuid,
-      if (nama != null) 'nama': nama,
-      if (createdBy != null) 'created_by': createdBy,
-      if (updatedBy != null) 'updated_by': updatedBy,
-      if (createdAt != null) 'created_at': createdAt,
-      if (updatedAt != null) 'updated_at': updatedAt,
-      if (status != null) 'status': status,
-      if (isSyncDirty != null) 'is_sync_dirty': isSyncDirty,
-      if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
-      if (deletedAt != null) 'deleted_at': deletedAt,
-    });
-  }
-
-  PekerjaanNotarisLocalsCompanion copyWith({
-    Value<int>? id,
-    Value<String>? uuid,
-    Value<String>? nama,
-    Value<int?>? createdBy,
-    Value<int?>? updatedBy,
-    Value<DateTime?>? createdAt,
-    Value<DateTime?>? updatedAt,
-    Value<int>? status,
-    Value<bool>? isSyncDirty,
-    Value<DateTime?>? lastSyncedAt,
-    Value<DateTime?>? deletedAt,
-  }) {
-    return PekerjaanNotarisLocalsCompanion(
-      id: id ?? this.id,
-      uuid: uuid ?? this.uuid,
-      nama: nama ?? this.nama,
-      createdBy: createdBy ?? this.createdBy,
-      updatedBy: updatedBy ?? this.updatedBy,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      status: status ?? this.status,
-      isSyncDirty: isSyncDirty ?? this.isSyncDirty,
-      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
-      deletedAt: deletedAt ?? this.deletedAt,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<int>(id.value);
-    }
-    if (uuid.present) {
-      map['uuid'] = Variable<String>(uuid.value);
-    }
-    if (nama.present) {
-      map['nama'] = Variable<String>(nama.value);
-    }
-    if (createdBy.present) {
-      map['created_by'] = Variable<int>(createdBy.value);
-    }
-    if (updatedBy.present) {
-      map['updated_by'] = Variable<int>(updatedBy.value);
-    }
-    if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
-    }
-    if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
-    }
-    if (status.present) {
-      map['status'] = Variable<int>(status.value);
-    }
-    if (isSyncDirty.present) {
-      map['is_sync_dirty'] = Variable<bool>(isSyncDirty.value);
-    }
-    if (lastSyncedAt.present) {
-      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt.value);
-    }
-    if (deletedAt.present) {
-      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('PekerjaanNotarisLocalsCompanion(')
-          ..write('id: $id, ')
-          ..write('uuid: $uuid, ')
-          ..write('nama: $nama, ')
           ..write('createdBy: $createdBy, ')
           ..write('updatedBy: $updatedBy, ')
           ..write('createdAt: $createdAt, ')
@@ -7545,663 +9893,6 @@ class PekerjaanNotarisAtributLocalsCompanion
   }
 }
 
-class $PekerjaanPpatLocalsTable extends PekerjaanPpatLocals
-    with TableInfo<$PekerjaanPpatLocalsTable, PekerjaanPpatLocal> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $PekerjaanPpatLocalsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
-    'id',
-    aliasedName,
-    false,
-    hasAutoIncrement: true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'PRIMARY KEY AUTOINCREMENT',
-    ),
-  );
-  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
-  @override
-  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
-    'uuid',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
-  );
-  static const VerificationMeta _namaMeta = const VerificationMeta('nama');
-  @override
-  late final GeneratedColumn<String> nama = GeneratedColumn<String>(
-    'nama',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _createdByMeta = const VerificationMeta(
-    'createdBy',
-  );
-  @override
-  late final GeneratedColumn<int> createdBy = GeneratedColumn<int>(
-    'created_by',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _updatedByMeta = const VerificationMeta(
-    'updatedBy',
-  );
-  @override
-  late final GeneratedColumn<int> updatedBy = GeneratedColumn<int>(
-    'updated_by',
-    aliasedName,
-    true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-    'created_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
-    'updatedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-    'updated_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _statusMeta = const VerificationMeta('status');
-  @override
-  late final GeneratedColumn<int> status = GeneratedColumn<int>(
-    'status',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultValue: const Constant(1),
-  );
-  static const VerificationMeta _isSyncDirtyMeta = const VerificationMeta(
-    'isSyncDirty',
-  );
-  @override
-  late final GeneratedColumn<bool> isSyncDirty = GeneratedColumn<bool>(
-    'is_sync_dirty',
-    aliasedName,
-    false,
-    type: DriftSqlType.bool,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'CHECK ("is_sync_dirty" IN (0, 1))',
-    ),
-    defaultValue: const Constant(true),
-  );
-  static const VerificationMeta _lastSyncedAtMeta = const VerificationMeta(
-    'lastSyncedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> lastSyncedAt = GeneratedColumn<DateTime>(
-    'last_synced_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
-  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
-    'deletedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
-    'deleted_at',
-    aliasedName,
-    true,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: false,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    uuid,
-    nama,
-    createdBy,
-    updatedBy,
-    createdAt,
-    updatedAt,
-    status,
-    isSyncDirty,
-    lastSyncedAt,
-    deletedAt,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'pekerjaan_ppat';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<PekerjaanPpatLocal> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    }
-    if (data.containsKey('uuid')) {
-      context.handle(
-        _uuidMeta,
-        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_uuidMeta);
-    }
-    if (data.containsKey('nama')) {
-      context.handle(
-        _namaMeta,
-        nama.isAcceptableOrUnknown(data['nama']!, _namaMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_namaMeta);
-    }
-    if (data.containsKey('created_by')) {
-      context.handle(
-        _createdByMeta,
-        createdBy.isAcceptableOrUnknown(data['created_by']!, _createdByMeta),
-      );
-    }
-    if (data.containsKey('updated_by')) {
-      context.handle(
-        _updatedByMeta,
-        updatedBy.isAcceptableOrUnknown(data['updated_by']!, _updatedByMeta),
-      );
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
-      );
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(
-        _updatedAtMeta,
-        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
-      );
-    }
-    if (data.containsKey('status')) {
-      context.handle(
-        _statusMeta,
-        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
-      );
-    }
-    if (data.containsKey('is_sync_dirty')) {
-      context.handle(
-        _isSyncDirtyMeta,
-        isSyncDirty.isAcceptableOrUnknown(
-          data['is_sync_dirty']!,
-          _isSyncDirtyMeta,
-        ),
-      );
-    }
-    if (data.containsKey('last_synced_at')) {
-      context.handle(
-        _lastSyncedAtMeta,
-        lastSyncedAt.isAcceptableOrUnknown(
-          data['last_synced_at']!,
-          _lastSyncedAtMeta,
-        ),
-      );
-    }
-    if (data.containsKey('deleted_at')) {
-      context.handle(
-        _deletedAtMeta,
-        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
-      );
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  PekerjaanPpatLocal map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return PekerjaanPpatLocal(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}id'],
-      )!,
-      uuid: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}uuid'],
-      )!,
-      nama: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}nama'],
-      )!,
-      createdBy: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}created_by'],
-      ),
-      updatedBy: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}updated_by'],
-      ),
-      createdAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}created_at'],
-      ),
-      updatedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}updated_at'],
-      ),
-      status: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}status'],
-      )!,
-      isSyncDirty: attachedDatabase.typeMapping.read(
-        DriftSqlType.bool,
-        data['${effectivePrefix}is_sync_dirty'],
-      )!,
-      lastSyncedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}last_synced_at'],
-      ),
-      deletedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}deleted_at'],
-      ),
-    );
-  }
-
-  @override
-  $PekerjaanPpatLocalsTable createAlias(String alias) {
-    return $PekerjaanPpatLocalsTable(attachedDatabase, alias);
-  }
-}
-
-class PekerjaanPpatLocal extends DataClass
-    implements Insertable<PekerjaanPpatLocal> {
-  final int id;
-  final String uuid;
-  final String nama;
-  final int? createdBy;
-  final int? updatedBy;
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
-  final int status;
-  final bool isSyncDirty;
-  final DateTime? lastSyncedAt;
-  final DateTime? deletedAt;
-  const PekerjaanPpatLocal({
-    required this.id,
-    required this.uuid,
-    required this.nama,
-    this.createdBy,
-    this.updatedBy,
-    this.createdAt,
-    this.updatedAt,
-    required this.status,
-    required this.isSyncDirty,
-    this.lastSyncedAt,
-    this.deletedAt,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
-    map['uuid'] = Variable<String>(uuid);
-    map['nama'] = Variable<String>(nama);
-    if (!nullToAbsent || createdBy != null) {
-      map['created_by'] = Variable<int>(createdBy);
-    }
-    if (!nullToAbsent || updatedBy != null) {
-      map['updated_by'] = Variable<int>(updatedBy);
-    }
-    if (!nullToAbsent || createdAt != null) {
-      map['created_at'] = Variable<DateTime>(createdAt);
-    }
-    if (!nullToAbsent || updatedAt != null) {
-      map['updated_at'] = Variable<DateTime>(updatedAt);
-    }
-    map['status'] = Variable<int>(status);
-    map['is_sync_dirty'] = Variable<bool>(isSyncDirty);
-    if (!nullToAbsent || lastSyncedAt != null) {
-      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt);
-    }
-    if (!nullToAbsent || deletedAt != null) {
-      map['deleted_at'] = Variable<DateTime>(deletedAt);
-    }
-    return map;
-  }
-
-  PekerjaanPpatLocalsCompanion toCompanion(bool nullToAbsent) {
-    return PekerjaanPpatLocalsCompanion(
-      id: Value(id),
-      uuid: Value(uuid),
-      nama: Value(nama),
-      createdBy: createdBy == null && nullToAbsent
-          ? const Value.absent()
-          : Value(createdBy),
-      updatedBy: updatedBy == null && nullToAbsent
-          ? const Value.absent()
-          : Value(updatedBy),
-      createdAt: createdAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(createdAt),
-      updatedAt: updatedAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(updatedAt),
-      status: Value(status),
-      isSyncDirty: Value(isSyncDirty),
-      lastSyncedAt: lastSyncedAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(lastSyncedAt),
-      deletedAt: deletedAt == null && nullToAbsent
-          ? const Value.absent()
-          : Value(deletedAt),
-    );
-  }
-
-  factory PekerjaanPpatLocal.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return PekerjaanPpatLocal(
-      id: serializer.fromJson<int>(json['id']),
-      uuid: serializer.fromJson<String>(json['uuid']),
-      nama: serializer.fromJson<String>(json['nama']),
-      createdBy: serializer.fromJson<int?>(json['createdBy']),
-      updatedBy: serializer.fromJson<int?>(json['updatedBy']),
-      createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
-      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
-      status: serializer.fromJson<int>(json['status']),
-      isSyncDirty: serializer.fromJson<bool>(json['isSyncDirty']),
-      lastSyncedAt: serializer.fromJson<DateTime?>(json['lastSyncedAt']),
-      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<int>(id),
-      'uuid': serializer.toJson<String>(uuid),
-      'nama': serializer.toJson<String>(nama),
-      'createdBy': serializer.toJson<int?>(createdBy),
-      'updatedBy': serializer.toJson<int?>(updatedBy),
-      'createdAt': serializer.toJson<DateTime?>(createdAt),
-      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
-      'status': serializer.toJson<int>(status),
-      'isSyncDirty': serializer.toJson<bool>(isSyncDirty),
-      'lastSyncedAt': serializer.toJson<DateTime?>(lastSyncedAt),
-      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
-    };
-  }
-
-  PekerjaanPpatLocal copyWith({
-    int? id,
-    String? uuid,
-    String? nama,
-    Value<int?> createdBy = const Value.absent(),
-    Value<int?> updatedBy = const Value.absent(),
-    Value<DateTime?> createdAt = const Value.absent(),
-    Value<DateTime?> updatedAt = const Value.absent(),
-    int? status,
-    bool? isSyncDirty,
-    Value<DateTime?> lastSyncedAt = const Value.absent(),
-    Value<DateTime?> deletedAt = const Value.absent(),
-  }) => PekerjaanPpatLocal(
-    id: id ?? this.id,
-    uuid: uuid ?? this.uuid,
-    nama: nama ?? this.nama,
-    createdBy: createdBy.present ? createdBy.value : this.createdBy,
-    updatedBy: updatedBy.present ? updatedBy.value : this.updatedBy,
-    createdAt: createdAt.present ? createdAt.value : this.createdAt,
-    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
-    status: status ?? this.status,
-    isSyncDirty: isSyncDirty ?? this.isSyncDirty,
-    lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
-    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
-  );
-  PekerjaanPpatLocal copyWithCompanion(PekerjaanPpatLocalsCompanion data) {
-    return PekerjaanPpatLocal(
-      id: data.id.present ? data.id.value : this.id,
-      uuid: data.uuid.present ? data.uuid.value : this.uuid,
-      nama: data.nama.present ? data.nama.value : this.nama,
-      createdBy: data.createdBy.present ? data.createdBy.value : this.createdBy,
-      updatedBy: data.updatedBy.present ? data.updatedBy.value : this.updatedBy,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
-      status: data.status.present ? data.status.value : this.status,
-      isSyncDirty: data.isSyncDirty.present
-          ? data.isSyncDirty.value
-          : this.isSyncDirty,
-      lastSyncedAt: data.lastSyncedAt.present
-          ? data.lastSyncedAt.value
-          : this.lastSyncedAt,
-      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('PekerjaanPpatLocal(')
-          ..write('id: $id, ')
-          ..write('uuid: $uuid, ')
-          ..write('nama: $nama, ')
-          ..write('createdBy: $createdBy, ')
-          ..write('updatedBy: $updatedBy, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt, ')
-          ..write('status: $status, ')
-          ..write('isSyncDirty: $isSyncDirty, ')
-          ..write('lastSyncedAt: $lastSyncedAt, ')
-          ..write('deletedAt: $deletedAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(
-    id,
-    uuid,
-    nama,
-    createdBy,
-    updatedBy,
-    createdAt,
-    updatedAt,
-    status,
-    isSyncDirty,
-    lastSyncedAt,
-    deletedAt,
-  );
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is PekerjaanPpatLocal &&
-          other.id == this.id &&
-          other.uuid == this.uuid &&
-          other.nama == this.nama &&
-          other.createdBy == this.createdBy &&
-          other.updatedBy == this.updatedBy &&
-          other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt &&
-          other.status == this.status &&
-          other.isSyncDirty == this.isSyncDirty &&
-          other.lastSyncedAt == this.lastSyncedAt &&
-          other.deletedAt == this.deletedAt);
-}
-
-class PekerjaanPpatLocalsCompanion extends UpdateCompanion<PekerjaanPpatLocal> {
-  final Value<int> id;
-  final Value<String> uuid;
-  final Value<String> nama;
-  final Value<int?> createdBy;
-  final Value<int?> updatedBy;
-  final Value<DateTime?> createdAt;
-  final Value<DateTime?> updatedAt;
-  final Value<int> status;
-  final Value<bool> isSyncDirty;
-  final Value<DateTime?> lastSyncedAt;
-  final Value<DateTime?> deletedAt;
-  const PekerjaanPpatLocalsCompanion({
-    this.id = const Value.absent(),
-    this.uuid = const Value.absent(),
-    this.nama = const Value.absent(),
-    this.createdBy = const Value.absent(),
-    this.updatedBy = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.updatedAt = const Value.absent(),
-    this.status = const Value.absent(),
-    this.isSyncDirty = const Value.absent(),
-    this.lastSyncedAt = const Value.absent(),
-    this.deletedAt = const Value.absent(),
-  });
-  PekerjaanPpatLocalsCompanion.insert({
-    this.id = const Value.absent(),
-    required String uuid,
-    required String nama,
-    this.createdBy = const Value.absent(),
-    this.updatedBy = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.updatedAt = const Value.absent(),
-    this.status = const Value.absent(),
-    this.isSyncDirty = const Value.absent(),
-    this.lastSyncedAt = const Value.absent(),
-    this.deletedAt = const Value.absent(),
-  }) : uuid = Value(uuid),
-       nama = Value(nama);
-  static Insertable<PekerjaanPpatLocal> custom({
-    Expression<int>? id,
-    Expression<String>? uuid,
-    Expression<String>? nama,
-    Expression<int>? createdBy,
-    Expression<int>? updatedBy,
-    Expression<DateTime>? createdAt,
-    Expression<DateTime>? updatedAt,
-    Expression<int>? status,
-    Expression<bool>? isSyncDirty,
-    Expression<DateTime>? lastSyncedAt,
-    Expression<DateTime>? deletedAt,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (uuid != null) 'uuid': uuid,
-      if (nama != null) 'nama': nama,
-      if (createdBy != null) 'created_by': createdBy,
-      if (updatedBy != null) 'updated_by': updatedBy,
-      if (createdAt != null) 'created_at': createdAt,
-      if (updatedAt != null) 'updated_at': updatedAt,
-      if (status != null) 'status': status,
-      if (isSyncDirty != null) 'is_sync_dirty': isSyncDirty,
-      if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
-      if (deletedAt != null) 'deleted_at': deletedAt,
-    });
-  }
-
-  PekerjaanPpatLocalsCompanion copyWith({
-    Value<int>? id,
-    Value<String>? uuid,
-    Value<String>? nama,
-    Value<int?>? createdBy,
-    Value<int?>? updatedBy,
-    Value<DateTime?>? createdAt,
-    Value<DateTime?>? updatedAt,
-    Value<int>? status,
-    Value<bool>? isSyncDirty,
-    Value<DateTime?>? lastSyncedAt,
-    Value<DateTime?>? deletedAt,
-  }) {
-    return PekerjaanPpatLocalsCompanion(
-      id: id ?? this.id,
-      uuid: uuid ?? this.uuid,
-      nama: nama ?? this.nama,
-      createdBy: createdBy ?? this.createdBy,
-      updatedBy: updatedBy ?? this.updatedBy,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-      status: status ?? this.status,
-      isSyncDirty: isSyncDirty ?? this.isSyncDirty,
-      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
-      deletedAt: deletedAt ?? this.deletedAt,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<int>(id.value);
-    }
-    if (uuid.present) {
-      map['uuid'] = Variable<String>(uuid.value);
-    }
-    if (nama.present) {
-      map['nama'] = Variable<String>(nama.value);
-    }
-    if (createdBy.present) {
-      map['created_by'] = Variable<int>(createdBy.value);
-    }
-    if (updatedBy.present) {
-      map['updated_by'] = Variable<int>(updatedBy.value);
-    }
-    if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
-    }
-    if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
-    }
-    if (status.present) {
-      map['status'] = Variable<int>(status.value);
-    }
-    if (isSyncDirty.present) {
-      map['is_sync_dirty'] = Variable<bool>(isSyncDirty.value);
-    }
-    if (lastSyncedAt.present) {
-      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt.value);
-    }
-    if (deletedAt.present) {
-      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('PekerjaanPpatLocalsCompanion(')
-          ..write('id: $id, ')
-          ..write('uuid: $uuid, ')
-          ..write('nama: $nama, ')
-          ..write('createdBy: $createdBy, ')
-          ..write('updatedBy: $updatedBy, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt, ')
-          ..write('status: $status, ')
-          ..write('isSyncDirty: $isSyncDirty, ')
-          ..write('lastSyncedAt: $lastSyncedAt, ')
-          ..write('deletedAt: $deletedAt')
-          ..write(')'))
-        .toString();
-  }
-}
-
 class $PekerjaanPpatHargaLocalsTable extends PekerjaanPpatHargaLocals
     with TableInfo<$PekerjaanPpatHargaLocalsTable, PekerjaanPpatHargaLocal> {
   @override
@@ -10587,22 +12278,25 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $JenisKelaminsTable jenisKelamins = $JenisKelaminsTable(this);
   late final $PemohonsTable pemohons = $PemohonsTable(this);
   late final $TransaksisTable transaksis = $TransaksisTable(this);
+  late final $PekerjaanNotarisLocalsTable pekerjaanNotarisLocals =
+      $PekerjaanNotarisLocalsTable(this);
+  late final $PekerjaanPpatLocalsTable pekerjaanPpatLocals =
+      $PekerjaanPpatLocalsTable(this);
+  late final $TransaksiDetailsTable transaksiDetails = $TransaksiDetailsTable(
+    this,
+  );
   late final $PekerjaanKategorisTable pekerjaanKategoris =
       $PekerjaanKategorisTable(this);
   late final $PengeluaranJenisTable pengeluaranJenis = $PengeluaranJenisTable(
     this,
   );
   late final $PetugasLocalsTable petugasLocals = $PetugasLocalsTable(this);
-  late final $PekerjaanNotarisLocalsTable pekerjaanNotarisLocals =
-      $PekerjaanNotarisLocalsTable(this);
   late final $PekerjaanNotarisHargaLocalsTable pekerjaanNotarisHargaLocals =
       $PekerjaanNotarisHargaLocalsTable(this);
   late final $PekerjaanNotarisProsesLocalsTable pekerjaanNotarisProsesLocals =
       $PekerjaanNotarisProsesLocalsTable(this);
   late final $PekerjaanNotarisAtributLocalsTable pekerjaanNotarisAtributLocals =
       $PekerjaanNotarisAtributLocalsTable(this);
-  late final $PekerjaanPpatLocalsTable pekerjaanPpatLocals =
-      $PekerjaanPpatLocalsTable(this);
   late final $PekerjaanPpatHargaLocalsTable pekerjaanPpatHargaLocals =
       $PekerjaanPpatHargaLocalsTable(this);
   late final $PekerjaanPpatProsesLocalsTable pekerjaanPpatProsesLocals =
@@ -10618,14 +12312,15 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     jenisKelamins,
     pemohons,
     transaksis,
+    pekerjaanNotarisLocals,
+    pekerjaanPpatLocals,
+    transaksiDetails,
     pekerjaanKategoris,
     pengeluaranJenis,
     petugasLocals,
-    pekerjaanNotarisLocals,
     pekerjaanNotarisHargaLocals,
     pekerjaanNotarisProsesLocals,
     pekerjaanNotarisAtributLocals,
-    pekerjaanPpatLocals,
     pekerjaanPpatHargaLocals,
     pekerjaanPpatProsesLocals,
     pekerjaanPpatAtributLocals,
@@ -11654,6 +13349,18 @@ typedef $$TransaksisTableCreateCompanionBuilder = TransaksisCompanion Function({
   required double total,
   Value<int?> pemohonId,
   Value<String?> pemohonUuid,
+  Value<int?> petugasId,
+  Value<String?> petugasUuid,
+  Value<String> jenisTransaksi,
+  Value<String> statusTransaksi,
+  Value<DateTime?> tanggalTransaksi,
+  Value<DateTime?> tanggalJatuhTempo,
+  Value<double> diskon,
+  Value<double> pembayaranSekarang,
+  Value<String> metodePembayaran,
+  Value<int> jumlahMaterai,
+  Value<String?> catatan,
+  Value<DateTime?> createdAt,
   Value<bool> isSyncDirty,
   Value<DateTime?> lastSyncedAt,
   Value<DateTime?> updatedAt,
@@ -11666,11 +13373,48 @@ typedef $$TransaksisTableUpdateCompanionBuilder = TransaksisCompanion Function({
   Value<double> total,
   Value<int?> pemohonId,
   Value<String?> pemohonUuid,
+  Value<int?> petugasId,
+  Value<String?> petugasUuid,
+  Value<String> jenisTransaksi,
+  Value<String> statusTransaksi,
+  Value<DateTime?> tanggalTransaksi,
+  Value<DateTime?> tanggalJatuhTempo,
+  Value<double> diskon,
+  Value<double> pembayaranSekarang,
+  Value<String> metodePembayaran,
+  Value<int> jumlahMaterai,
+  Value<String?> catatan,
+  Value<DateTime?> createdAt,
   Value<bool> isSyncDirty,
   Value<DateTime?> lastSyncedAt,
   Value<DateTime?> updatedAt,
   Value<DateTime?> deletedAt,
 });
+
+final class $$TransaksisTableReferences
+    extends BaseReferences<_$AppDatabase, $TransaksisTable, Transaksi> {
+  $$TransaksisTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$TransaksiDetailsTable, List<TransaksiDetail>>
+  _transaksiDetailsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.transaksiDetails,
+    aliasName: 'transaksis__id__transaksi_details__transaksi_id',
+  );
+
+  $$TransaksiDetailsTableProcessedTableManager get transaksiDetailsRefs {
+    final manager = $$TransaksiDetailsTableTableManager(
+      $_db,
+      $_db.transaksiDetails,
+    ).filter((f) => f.transaksiId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _transaksiDetailsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
 
 class $$TransaksisTableFilterComposer
     extends Composer<_$AppDatabase, $TransaksisTable> {
@@ -11711,6 +13455,66 @@ class $$TransaksisTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<int> get petugasId => $composableBuilder(
+    column: $table.petugasId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get petugasUuid => $composableBuilder(
+    column: $table.petugasUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get jenisTransaksi => $composableBuilder(
+    column: $table.jenisTransaksi,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get statusTransaksi => $composableBuilder(
+    column: $table.statusTransaksi,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get tanggalTransaksi => $composableBuilder(
+    column: $table.tanggalTransaksi,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get tanggalJatuhTempo => $composableBuilder(
+    column: $table.tanggalJatuhTempo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get diskon => $composableBuilder(
+    column: $table.diskon,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get pembayaranSekarang => $composableBuilder(
+    column: $table.pembayaranSekarang,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get metodePembayaran => $composableBuilder(
+    column: $table.metodePembayaran,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get jumlahMaterai => $composableBuilder(
+    column: $table.jumlahMaterai,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get catatan => $composableBuilder(
+    column: $table.catatan,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<bool> get isSyncDirty => $composableBuilder(
     column: $table.isSyncDirty,
     builder: (column) => ColumnFilters(column),
@@ -11730,6 +13534,31 @@ class $$TransaksisTableFilterComposer
     column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> transaksiDetailsRefs(
+    Expression<bool> Function($$TransaksiDetailsTableFilterComposer f) f,
+  ) {
+    final $$TransaksiDetailsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.transaksiDetails,
+      getReferencedColumn: (t) => t.transaksiId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksiDetailsTableFilterComposer(
+            $db: $db,
+            $table: $db.transaksiDetails,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$TransaksisTableOrderingComposer
@@ -11768,6 +13597,66 @@ class $$TransaksisTableOrderingComposer
 
   ColumnOrderings<String> get pemohonUuid => $composableBuilder(
     column: $table.pemohonUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get petugasId => $composableBuilder(
+    column: $table.petugasId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get petugasUuid => $composableBuilder(
+    column: $table.petugasUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get jenisTransaksi => $composableBuilder(
+    column: $table.jenisTransaksi,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get statusTransaksi => $composableBuilder(
+    column: $table.statusTransaksi,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get tanggalTransaksi => $composableBuilder(
+    column: $table.tanggalTransaksi,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get tanggalJatuhTempo => $composableBuilder(
+    column: $table.tanggalJatuhTempo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get diskon => $composableBuilder(
+    column: $table.diskon,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get pembayaranSekarang => $composableBuilder(
+    column: $table.pembayaranSekarang,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get metodePembayaran => $composableBuilder(
+    column: $table.metodePembayaran,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get jumlahMaterai => $composableBuilder(
+    column: $table.jumlahMaterai,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get catatan => $composableBuilder(
+    column: $table.catatan,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -11821,6 +13710,58 @@ class $$TransaksisTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get petugasId =>
+      $composableBuilder(column: $table.petugasId, builder: (column) => column);
+
+  GeneratedColumn<String> get petugasUuid => $composableBuilder(
+    column: $table.petugasUuid,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get jenisTransaksi => $composableBuilder(
+    column: $table.jenisTransaksi,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get statusTransaksi => $composableBuilder(
+    column: $table.statusTransaksi,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get tanggalTransaksi => $composableBuilder(
+    column: $table.tanggalTransaksi,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get tanggalJatuhTempo => $composableBuilder(
+    column: $table.tanggalJatuhTempo,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get diskon =>
+      $composableBuilder(column: $table.diskon, builder: (column) => column);
+
+  GeneratedColumn<double> get pembayaranSekarang => $composableBuilder(
+    column: $table.pembayaranSekarang,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get metodePembayaran => $composableBuilder(
+    column: $table.metodePembayaran,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get jumlahMaterai => $composableBuilder(
+    column: $table.jumlahMaterai,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get catatan =>
+      $composableBuilder(column: $table.catatan, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
   GeneratedColumn<bool> get isSyncDirty => $composableBuilder(
     column: $table.isSyncDirty,
     builder: (column) => column,
@@ -11836,6 +13777,31 @@ class $$TransaksisTableAnnotationComposer
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  Expression<T> transaksiDetailsRefs<T extends Object>(
+    Expression<T> Function($$TransaksiDetailsTableAnnotationComposer a) f,
+  ) {
+    final $$TransaksiDetailsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.transaksiDetails,
+      getReferencedColumn: (t) => t.transaksiId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksiDetailsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.transaksiDetails,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$TransaksisTableTableManager
@@ -11849,12 +13815,9 @@ class $$TransaksisTableTableManager
           $$TransaksisTableAnnotationComposer,
           $$TransaksisTableCreateCompanionBuilder,
           $$TransaksisTableUpdateCompanionBuilder,
-          (
-            Transaksi,
-            BaseReferences<_$AppDatabase, $TransaksisTable, Transaksi>,
-          ),
+          (Transaksi, $$TransaksisTableReferences),
           Transaksi,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool transaksiDetailsRefs})
         > {
   $$TransaksisTableTableManager(_$AppDatabase db, $TransaksisTable table)
     : super(
@@ -11875,6 +13838,18 @@ class $$TransaksisTableTableManager
                 Value<double> total = const Value.absent(),
                 Value<int?> pemohonId = const Value.absent(),
                 Value<String?> pemohonUuid = const Value.absent(),
+                Value<int?> petugasId = const Value.absent(),
+                Value<String?> petugasUuid = const Value.absent(),
+                Value<String> jenisTransaksi = const Value.absent(),
+                Value<String> statusTransaksi = const Value.absent(),
+                Value<DateTime?> tanggalTransaksi = const Value.absent(),
+                Value<DateTime?> tanggalJatuhTempo = const Value.absent(),
+                Value<double> diskon = const Value.absent(),
+                Value<double> pembayaranSekarang = const Value.absent(),
+                Value<String> metodePembayaran = const Value.absent(),
+                Value<int> jumlahMaterai = const Value.absent(),
+                Value<String?> catatan = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
                 Value<bool> isSyncDirty = const Value.absent(),
                 Value<DateTime?> lastSyncedAt = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
@@ -11886,6 +13861,18 @@ class $$TransaksisTableTableManager
                 total: total,
                 pemohonId: pemohonId,
                 pemohonUuid: pemohonUuid,
+                petugasId: petugasId,
+                petugasUuid: petugasUuid,
+                jenisTransaksi: jenisTransaksi,
+                statusTransaksi: statusTransaksi,
+                tanggalTransaksi: tanggalTransaksi,
+                tanggalJatuhTempo: tanggalJatuhTempo,
+                diskon: diskon,
+                pembayaranSekarang: pembayaranSekarang,
+                metodePembayaran: metodePembayaran,
+                jumlahMaterai: jumlahMaterai,
+                catatan: catatan,
+                createdAt: createdAt,
                 isSyncDirty: isSyncDirty,
                 lastSyncedAt: lastSyncedAt,
                 updatedAt: updatedAt,
@@ -11899,6 +13886,18 @@ class $$TransaksisTableTableManager
                 required double total,
                 Value<int?> pemohonId = const Value.absent(),
                 Value<String?> pemohonUuid = const Value.absent(),
+                Value<int?> petugasId = const Value.absent(),
+                Value<String?> petugasUuid = const Value.absent(),
+                Value<String> jenisTransaksi = const Value.absent(),
+                Value<String> statusTransaksi = const Value.absent(),
+                Value<DateTime?> tanggalTransaksi = const Value.absent(),
+                Value<DateTime?> tanggalJatuhTempo = const Value.absent(),
+                Value<double> diskon = const Value.absent(),
+                Value<double> pembayaranSekarang = const Value.absent(),
+                Value<String> metodePembayaran = const Value.absent(),
+                Value<int> jumlahMaterai = const Value.absent(),
+                Value<String?> catatan = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
                 Value<bool> isSyncDirty = const Value.absent(),
                 Value<DateTime?> lastSyncedAt = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
@@ -11910,6 +13909,18 @@ class $$TransaksisTableTableManager
                 total: total,
                 pemohonId: pemohonId,
                 pemohonUuid: pemohonUuid,
+                petugasId: petugasId,
+                petugasUuid: petugasUuid,
+                jenisTransaksi: jenisTransaksi,
+                statusTransaksi: statusTransaksi,
+                tanggalTransaksi: tanggalTransaksi,
+                tanggalJatuhTempo: tanggalJatuhTempo,
+                diskon: diskon,
+                pembayaranSekarang: pembayaranSekarang,
+                metodePembayaran: metodePembayaran,
+                jumlahMaterai: jumlahMaterai,
+                catatan: catatan,
+                createdAt: createdAt,
                 isSyncDirty: isSyncDirty,
                 lastSyncedAt: lastSyncedAt,
                 updatedAt: updatedAt,
@@ -11919,15 +13930,44 @@ class $$TransaksisTableTableManager
               .map(
                 (e) => (
                   e.readTable<$TransaksisTable, Transaksi>(table),
-                  BaseReferences<_$AppDatabase, $TransaksisTable, Transaksi>(
-                    db,
-                    table,
-                    e,
-                  ),
+                  $$TransaksisTableReferences(db, table, e),
                 ),
               )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({transaksiDetailsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (transaksiDetailsRefs) db.transaksiDetails,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (transaksiDetailsRefs)
+                    await $_getPrefetchedData<
+                      Transaksi,
+                      $TransaksisTable,
+                      TransaksiDetail
+                    >(
+                      currentTable: table,
+                      referencedTable: $$TransaksisTableReferences
+                          ._transaksiDetailsRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$TransaksisTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).transaksiDetailsRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where(
+                            (e) => e.transaksiId == item.id,
+                          ),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
         ),
       );
 }
@@ -11942,9 +13982,2338 @@ typedef $$TransaksisTableProcessedTableManager =
       $$TransaksisTableAnnotationComposer,
       $$TransaksisTableCreateCompanionBuilder,
       $$TransaksisTableUpdateCompanionBuilder,
-      (Transaksi, BaseReferences<_$AppDatabase, $TransaksisTable, Transaksi>),
+      (Transaksi, $$TransaksisTableReferences),
       Transaksi,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool transaksiDetailsRefs})
+    >;
+typedef $$PekerjaanNotarisLocalsTableCreateCompanionBuilder =
+    PekerjaanNotarisLocalsCompanion Function({
+      Value<int> id,
+      required String uuid,
+      required String nama,
+      Value<int?> createdBy,
+      Value<int?> updatedBy,
+      Value<DateTime?> createdAt,
+      Value<DateTime?> updatedAt,
+      Value<int> status,
+      Value<bool> isSyncDirty,
+      Value<DateTime?> lastSyncedAt,
+      Value<DateTime?> deletedAt,
+    });
+typedef $$PekerjaanNotarisLocalsTableUpdateCompanionBuilder =
+    PekerjaanNotarisLocalsCompanion Function({
+      Value<int> id,
+      Value<String> uuid,
+      Value<String> nama,
+      Value<int?> createdBy,
+      Value<int?> updatedBy,
+      Value<DateTime?> createdAt,
+      Value<DateTime?> updatedAt,
+      Value<int> status,
+      Value<bool> isSyncDirty,
+      Value<DateTime?> lastSyncedAt,
+      Value<DateTime?> deletedAt,
+    });
+
+final class $$PekerjaanNotarisLocalsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $PekerjaanNotarisLocalsTable,
+          PekerjaanNotarisLocal
+        > {
+  $$PekerjaanNotarisLocalsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$TransaksiDetailsTable, List<TransaksiDetail>>
+  _transaksiDetailsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.transaksiDetails,
+    aliasName: 'pekerjaan_notaris__id__transaksi_details__pekerjaan_notaris_id',
+  );
+
+  $$TransaksiDetailsTableProcessedTableManager get transaksiDetailsRefs {
+    final manager =
+        $$TransaksiDetailsTableTableManager($_db, $_db.transaksiDetails).filter(
+          (f) => f.pekerjaanNotarisId.id.sqlEquals($_itemColumn<int>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _transaksiDetailsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $PekerjaanNotarisHargaLocalsTable,
+    List<PekerjaanNotarisHargaLocal>
+  >
+  _pekerjaanNotarisHargaLocalsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.pekerjaanNotarisHargaLocals,
+    aliasName:
+        'pekerjaan_notaris__id__pekerjaan_notaris_harga__pekerjaan_notaris_id',
+  );
+
+  $$PekerjaanNotarisHargaLocalsTableProcessedTableManager
+  get pekerjaanNotarisHargaLocalsRefs {
+    final manager =
+        $$PekerjaanNotarisHargaLocalsTableTableManager(
+          $_db,
+          $_db.pekerjaanNotarisHargaLocals,
+        ).filter(
+          (f) => f.pekerjaanNotarisId.id.sqlEquals($_itemColumn<int>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _pekerjaanNotarisHargaLocalsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $PekerjaanNotarisProsesLocalsTable,
+    List<PekerjaanNotarisProsesLocal>
+  >
+  _pekerjaanNotarisProsesLocalsRefsTable(
+    _$AppDatabase db,
+  ) => MultiTypedResultKey.fromTable(
+    db.pekerjaanNotarisProsesLocals,
+    aliasName:
+        'pekerjaan_notaris__id__pekerjaan_notaris_proses__pekerjaan_notaris_id',
+  );
+
+  $$PekerjaanNotarisProsesLocalsTableProcessedTableManager
+  get pekerjaanNotarisProsesLocalsRefs {
+    final manager =
+        $$PekerjaanNotarisProsesLocalsTableTableManager(
+          $_db,
+          $_db.pekerjaanNotarisProsesLocals,
+        ).filter(
+          (f) => f.pekerjaanNotarisId.id.sqlEquals($_itemColumn<int>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _pekerjaanNotarisProsesLocalsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $PekerjaanNotarisAtributLocalsTable,
+    List<PekerjaanNotarisAtributLocal>
+  >
+  _pekerjaanNotarisAtributLocalsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.pekerjaanNotarisAtributLocals,
+        aliasName: 'pekerjaan_notaris__id__pekerjaan_notaris_atributs__pekerjaan_notaris_id',
+      );
+
+  $$PekerjaanNotarisAtributLocalsTableProcessedTableManager
+  get pekerjaanNotarisAtributLocalsRefs {
+    final manager =
+        $$PekerjaanNotarisAtributLocalsTableTableManager(
+          $_db,
+          $_db.pekerjaanNotarisAtributLocals,
+        ).filter(
+          (f) => f.pekerjaanNotarisId.id.sqlEquals($_itemColumn<int>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _pekerjaanNotarisAtributLocalsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$PekerjaanNotarisLocalsTableFilterComposer
+    extends Composer<_$AppDatabase, $PekerjaanNotarisLocalsTable> {
+  $$PekerjaanNotarisLocalsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nama => $composableBuilder(
+    column: $table.nama,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdBy => $composableBuilder(
+    column: $table.createdBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedBy => $composableBuilder(
+    column: $table.updatedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSyncDirty => $composableBuilder(
+    column: $table.isSyncDirty,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> transaksiDetailsRefs(
+    Expression<bool> Function($$TransaksiDetailsTableFilterComposer f) f,
+  ) {
+    final $$TransaksiDetailsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.transaksiDetails,
+      getReferencedColumn: (t) => t.pekerjaanNotarisId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksiDetailsTableFilterComposer(
+            $db: $db,
+            $table: $db.transaksiDetails,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> pekerjaanNotarisHargaLocalsRefs(
+    Expression<bool> Function(
+      $$PekerjaanNotarisHargaLocalsTableFilterComposer f,
+    )
+    f,
+  ) {
+    final $$PekerjaanNotarisHargaLocalsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pekerjaanNotarisHargaLocals,
+          getReferencedColumn: (t) => t.pekerjaanNotarisId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanNotarisHargaLocalsTableFilterComposer(
+                $db: $db,
+                $table: $db.pekerjaanNotarisHargaLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> pekerjaanNotarisProsesLocalsRefs(
+    Expression<bool> Function(
+      $$PekerjaanNotarisProsesLocalsTableFilterComposer f,
+    )
+    f,
+  ) {
+    final $$PekerjaanNotarisProsesLocalsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pekerjaanNotarisProsesLocals,
+          getReferencedColumn: (t) => t.pekerjaanNotarisId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanNotarisProsesLocalsTableFilterComposer(
+                $db: $db,
+                $table: $db.pekerjaanNotarisProsesLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> pekerjaanNotarisAtributLocalsRefs(
+    Expression<bool> Function(
+      $$PekerjaanNotarisAtributLocalsTableFilterComposer f,
+    )
+    f,
+  ) {
+    final $$PekerjaanNotarisAtributLocalsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pekerjaanNotarisAtributLocals,
+          getReferencedColumn: (t) => t.pekerjaanNotarisId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanNotarisAtributLocalsTableFilterComposer(
+                $db: $db,
+                $table: $db.pekerjaanNotarisAtributLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$PekerjaanNotarisLocalsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PekerjaanNotarisLocalsTable> {
+  $$PekerjaanNotarisLocalsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nama => $composableBuilder(
+    column: $table.nama,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdBy => $composableBuilder(
+    column: $table.createdBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedBy => $composableBuilder(
+    column: $table.updatedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSyncDirty => $composableBuilder(
+    column: $table.isSyncDirty,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PekerjaanNotarisLocalsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PekerjaanNotarisLocalsTable> {
+  $$PekerjaanNotarisLocalsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<String> get nama =>
+      $composableBuilder(column: $table.nama, builder: (column) => column);
+
+  GeneratedColumn<int> get createdBy =>
+      $composableBuilder(column: $table.createdBy, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedBy =>
+      $composableBuilder(column: $table.updatedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSyncDirty => $composableBuilder(
+    column: $table.isSyncDirty,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  Expression<T> transaksiDetailsRefs<T extends Object>(
+    Expression<T> Function($$TransaksiDetailsTableAnnotationComposer a) f,
+  ) {
+    final $$TransaksiDetailsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.transaksiDetails,
+      getReferencedColumn: (t) => t.pekerjaanNotarisId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksiDetailsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.transaksiDetails,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> pekerjaanNotarisHargaLocalsRefs<T extends Object>(
+    Expression<T> Function(
+      $$PekerjaanNotarisHargaLocalsTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$PekerjaanNotarisHargaLocalsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pekerjaanNotarisHargaLocals,
+          getReferencedColumn: (t) => t.pekerjaanNotarisId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanNotarisHargaLocalsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.pekerjaanNotarisHargaLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> pekerjaanNotarisProsesLocalsRefs<T extends Object>(
+    Expression<T> Function(
+      $$PekerjaanNotarisProsesLocalsTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$PekerjaanNotarisProsesLocalsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pekerjaanNotarisProsesLocals,
+          getReferencedColumn: (t) => t.pekerjaanNotarisId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanNotarisProsesLocalsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.pekerjaanNotarisProsesLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> pekerjaanNotarisAtributLocalsRefs<T extends Object>(
+    Expression<T> Function(
+      $$PekerjaanNotarisAtributLocalsTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$PekerjaanNotarisAtributLocalsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pekerjaanNotarisAtributLocals,
+          getReferencedColumn: (t) => t.pekerjaanNotarisId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanNotarisAtributLocalsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.pekerjaanNotarisAtributLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$PekerjaanNotarisLocalsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PekerjaanNotarisLocalsTable,
+          PekerjaanNotarisLocal,
+          $$PekerjaanNotarisLocalsTableFilterComposer,
+          $$PekerjaanNotarisLocalsTableOrderingComposer,
+          $$PekerjaanNotarisLocalsTableAnnotationComposer,
+          $$PekerjaanNotarisLocalsTableCreateCompanionBuilder,
+          $$PekerjaanNotarisLocalsTableUpdateCompanionBuilder,
+          (PekerjaanNotarisLocal, $$PekerjaanNotarisLocalsTableReferences),
+          PekerjaanNotarisLocal,
+          PrefetchHooks Function({
+            bool transaksiDetailsRefs,
+            bool pekerjaanNotarisHargaLocalsRefs,
+            bool pekerjaanNotarisProsesLocalsRefs,
+            bool pekerjaanNotarisAtributLocalsRefs,
+          })
+        > {
+  $$PekerjaanNotarisLocalsTableTableManager(
+    _$AppDatabase db,
+    $PekerjaanNotarisLocalsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PekerjaanNotarisLocalsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$PekerjaanNotarisLocalsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PekerjaanNotarisLocalsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> uuid = const Value.absent(),
+                Value<String> nama = const Value.absent(),
+                Value<int?> createdBy = const Value.absent(),
+                Value<int?> updatedBy = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<int> status = const Value.absent(),
+                Value<bool> isSyncDirty = const Value.absent(),
+                Value<DateTime?> lastSyncedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+              }) => PekerjaanNotarisLocalsCompanion(
+                id: id,
+                uuid: uuid,
+                nama: nama,
+                createdBy: createdBy,
+                updatedBy: updatedBy,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                status: status,
+                isSyncDirty: isSyncDirty,
+                lastSyncedAt: lastSyncedAt,
+                deletedAt: deletedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String uuid,
+                required String nama,
+                Value<int?> createdBy = const Value.absent(),
+                Value<int?> updatedBy = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<int> status = const Value.absent(),
+                Value<bool> isSyncDirty = const Value.absent(),
+                Value<DateTime?> lastSyncedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+              }) => PekerjaanNotarisLocalsCompanion.insert(
+                id: id,
+                uuid: uuid,
+                nama: nama,
+                createdBy: createdBy,
+                updatedBy: updatedBy,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                status: status,
+                isSyncDirty: isSyncDirty,
+                lastSyncedAt: lastSyncedAt,
+                deletedAt: deletedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<
+                    $PekerjaanNotarisLocalsTable,
+                    PekerjaanNotarisLocal
+                  >(table),
+                  $$PekerjaanNotarisLocalsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                transaksiDetailsRefs = false,
+                pekerjaanNotarisHargaLocalsRefs = false,
+                pekerjaanNotarisProsesLocalsRefs = false,
+                pekerjaanNotarisAtributLocalsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (transaksiDetailsRefs) db.transaksiDetails,
+                    if (pekerjaanNotarisHargaLocalsRefs)
+                      db.pekerjaanNotarisHargaLocals,
+                    if (pekerjaanNotarisProsesLocalsRefs)
+                      db.pekerjaanNotarisProsesLocals,
+                    if (pekerjaanNotarisAtributLocalsRefs)
+                      db.pekerjaanNotarisAtributLocals,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (transaksiDetailsRefs)
+                        await $_getPrefetchedData<
+                          PekerjaanNotarisLocal,
+                          $PekerjaanNotarisLocalsTable,
+                          TransaksiDetail
+                        >(
+                          currentTable: table,
+                          referencedTable:
+                              $$PekerjaanNotarisLocalsTableReferences
+                                  ._transaksiDetailsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PekerjaanNotarisLocalsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).transaksiDetailsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.pekerjaanNotarisId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (pekerjaanNotarisHargaLocalsRefs)
+                        await $_getPrefetchedData<
+                          PekerjaanNotarisLocal,
+                          $PekerjaanNotarisLocalsTable,
+                          PekerjaanNotarisHargaLocal
+                        >(
+                          currentTable: table,
+                          referencedTable:
+                              $$PekerjaanNotarisLocalsTableReferences
+                                  ._pekerjaanNotarisHargaLocalsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PekerjaanNotarisLocalsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).pekerjaanNotarisHargaLocalsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.pekerjaanNotarisId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (pekerjaanNotarisProsesLocalsRefs)
+                        await $_getPrefetchedData<
+                          PekerjaanNotarisLocal,
+                          $PekerjaanNotarisLocalsTable,
+                          PekerjaanNotarisProsesLocal
+                        >(
+                          currentTable: table,
+                          referencedTable:
+                              $$PekerjaanNotarisLocalsTableReferences
+                                  ._pekerjaanNotarisProsesLocalsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PekerjaanNotarisLocalsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).pekerjaanNotarisProsesLocalsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.pekerjaanNotarisId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (pekerjaanNotarisAtributLocalsRefs)
+                        await $_getPrefetchedData<
+                          PekerjaanNotarisLocal,
+                          $PekerjaanNotarisLocalsTable,
+                          PekerjaanNotarisAtributLocal
+                        >(
+                          currentTable: table,
+                          referencedTable:
+                              $$PekerjaanNotarisLocalsTableReferences
+                                  ._pekerjaanNotarisAtributLocalsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PekerjaanNotarisLocalsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).pekerjaanNotarisAtributLocalsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.pekerjaanNotarisId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$PekerjaanNotarisLocalsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PekerjaanNotarisLocalsTable,
+      PekerjaanNotarisLocal,
+      $$PekerjaanNotarisLocalsTableFilterComposer,
+      $$PekerjaanNotarisLocalsTableOrderingComposer,
+      $$PekerjaanNotarisLocalsTableAnnotationComposer,
+      $$PekerjaanNotarisLocalsTableCreateCompanionBuilder,
+      $$PekerjaanNotarisLocalsTableUpdateCompanionBuilder,
+      (PekerjaanNotarisLocal, $$PekerjaanNotarisLocalsTableReferences),
+      PekerjaanNotarisLocal,
+      PrefetchHooks Function({
+        bool transaksiDetailsRefs,
+        bool pekerjaanNotarisHargaLocalsRefs,
+        bool pekerjaanNotarisProsesLocalsRefs,
+        bool pekerjaanNotarisAtributLocalsRefs,
+      })
+    >;
+typedef $$PekerjaanPpatLocalsTableCreateCompanionBuilder =
+    PekerjaanPpatLocalsCompanion Function({
+      Value<int> id,
+      required String uuid,
+      required String nama,
+      Value<int?> createdBy,
+      Value<int?> updatedBy,
+      Value<DateTime?> createdAt,
+      Value<DateTime?> updatedAt,
+      Value<int> status,
+      Value<bool> isSyncDirty,
+      Value<DateTime?> lastSyncedAt,
+      Value<DateTime?> deletedAt,
+    });
+typedef $$PekerjaanPpatLocalsTableUpdateCompanionBuilder =
+    PekerjaanPpatLocalsCompanion Function({
+      Value<int> id,
+      Value<String> uuid,
+      Value<String> nama,
+      Value<int?> createdBy,
+      Value<int?> updatedBy,
+      Value<DateTime?> createdAt,
+      Value<DateTime?> updatedAt,
+      Value<int> status,
+      Value<bool> isSyncDirty,
+      Value<DateTime?> lastSyncedAt,
+      Value<DateTime?> deletedAt,
+    });
+
+final class $$PekerjaanPpatLocalsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $PekerjaanPpatLocalsTable,
+          PekerjaanPpatLocal
+        > {
+  $$PekerjaanPpatLocalsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$TransaksiDetailsTable, List<TransaksiDetail>>
+  _transaksiDetailsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.transaksiDetails,
+    aliasName: 'pekerjaan_ppat__id__transaksi_details__pekerjaan_ppat_id',
+  );
+
+  $$TransaksiDetailsTableProcessedTableManager get transaksiDetailsRefs {
+    final manager = $$TransaksiDetailsTableTableManager(
+      $_db,
+      $_db.transaksiDetails,
+    ).filter((f) => f.pekerjaanPpatId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _transaksiDetailsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $PekerjaanPpatHargaLocalsTable,
+    List<PekerjaanPpatHargaLocal>
+  >
+  _pekerjaanPpatHargaLocalsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.pekerjaanPpatHargaLocals,
+        aliasName:
+            'pekerjaan_ppat__id__pekerjaan_ppat_harga__pekerjaan_ppat_id',
+      );
+
+  $$PekerjaanPpatHargaLocalsTableProcessedTableManager
+  get pekerjaanPpatHargaLocalsRefs {
+    final manager = $$PekerjaanPpatHargaLocalsTableTableManager(
+      $_db,
+      $_db.pekerjaanPpatHargaLocals,
+    ).filter((f) => f.pekerjaanPpatId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _pekerjaanPpatHargaLocalsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $PekerjaanPpatProsesLocalsTable,
+    List<PekerjaanPpatProsesLocal>
+  >
+  _pekerjaanPpatProsesLocalsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.pekerjaanPpatProsesLocals,
+        aliasName:
+            'pekerjaan_ppat__id__pekerjaan_ppat_proses__pekerjaan_ppat_id',
+      );
+
+  $$PekerjaanPpatProsesLocalsTableProcessedTableManager
+  get pekerjaanPpatProsesLocalsRefs {
+    final manager = $$PekerjaanPpatProsesLocalsTableTableManager(
+      $_db,
+      $_db.pekerjaanPpatProsesLocals,
+    ).filter((f) => f.pekerjaanPpatId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _pekerjaanPpatProsesLocalsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $PekerjaanPpatAtributLocalsTable,
+    List<PekerjaanPpatAtributLocal>
+  >
+  _pekerjaanPpatAtributLocalsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.pekerjaanPpatAtributLocals,
+        aliasName:
+            'pekerjaan_ppat__id__pekerjaan_ppat_atributs__pekerjaan_ppat_id',
+      );
+
+  $$PekerjaanPpatAtributLocalsTableProcessedTableManager
+  get pekerjaanPpatAtributLocalsRefs {
+    final manager = $$PekerjaanPpatAtributLocalsTableTableManager(
+      $_db,
+      $_db.pekerjaanPpatAtributLocals,
+    ).filter((f) => f.pekerjaanPpatId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _pekerjaanPpatAtributLocalsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$PekerjaanPpatLocalsTableFilterComposer
+    extends Composer<_$AppDatabase, $PekerjaanPpatLocalsTable> {
+  $$PekerjaanPpatLocalsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nama => $composableBuilder(
+    column: $table.nama,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get createdBy => $composableBuilder(
+    column: $table.createdBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedBy => $composableBuilder(
+    column: $table.updatedBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSyncDirty => $composableBuilder(
+    column: $table.isSyncDirty,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> transaksiDetailsRefs(
+    Expression<bool> Function($$TransaksiDetailsTableFilterComposer f) f,
+  ) {
+    final $$TransaksiDetailsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.transaksiDetails,
+      getReferencedColumn: (t) => t.pekerjaanPpatId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksiDetailsTableFilterComposer(
+            $db: $db,
+            $table: $db.transaksiDetails,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> pekerjaanPpatHargaLocalsRefs(
+    Expression<bool> Function($$PekerjaanPpatHargaLocalsTableFilterComposer f)
+    f,
+  ) {
+    final $$PekerjaanPpatHargaLocalsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pekerjaanPpatHargaLocals,
+          getReferencedColumn: (t) => t.pekerjaanPpatId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanPpatHargaLocalsTableFilterComposer(
+                $db: $db,
+                $table: $db.pekerjaanPpatHargaLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> pekerjaanPpatProsesLocalsRefs(
+    Expression<bool> Function($$PekerjaanPpatProsesLocalsTableFilterComposer f)
+    f,
+  ) {
+    final $$PekerjaanPpatProsesLocalsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pekerjaanPpatProsesLocals,
+          getReferencedColumn: (t) => t.pekerjaanPpatId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanPpatProsesLocalsTableFilterComposer(
+                $db: $db,
+                $table: $db.pekerjaanPpatProsesLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> pekerjaanPpatAtributLocalsRefs(
+    Expression<bool> Function($$PekerjaanPpatAtributLocalsTableFilterComposer f)
+    f,
+  ) {
+    final $$PekerjaanPpatAtributLocalsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pekerjaanPpatAtributLocals,
+          getReferencedColumn: (t) => t.pekerjaanPpatId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanPpatAtributLocalsTableFilterComposer(
+                $db: $db,
+                $table: $db.pekerjaanPpatAtributLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$PekerjaanPpatLocalsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PekerjaanPpatLocalsTable> {
+  $$PekerjaanPpatLocalsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nama => $composableBuilder(
+    column: $table.nama,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get createdBy => $composableBuilder(
+    column: $table.createdBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedBy => $composableBuilder(
+    column: $table.updatedBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSyncDirty => $composableBuilder(
+    column: $table.isSyncDirty,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PekerjaanPpatLocalsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PekerjaanPpatLocalsTable> {
+  $$PekerjaanPpatLocalsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<String> get nama =>
+      $composableBuilder(column: $table.nama, builder: (column) => column);
+
+  GeneratedColumn<int> get createdBy =>
+      $composableBuilder(column: $table.createdBy, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedBy =>
+      $composableBuilder(column: $table.updatedBy, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSyncDirty => $composableBuilder(
+    column: $table.isSyncDirty,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  Expression<T> transaksiDetailsRefs<T extends Object>(
+    Expression<T> Function($$TransaksiDetailsTableAnnotationComposer a) f,
+  ) {
+    final $$TransaksiDetailsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.transaksiDetails,
+      getReferencedColumn: (t) => t.pekerjaanPpatId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksiDetailsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.transaksiDetails,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> pekerjaanPpatHargaLocalsRefs<T extends Object>(
+    Expression<T> Function($$PekerjaanPpatHargaLocalsTableAnnotationComposer a)
+    f,
+  ) {
+    final $$PekerjaanPpatHargaLocalsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pekerjaanPpatHargaLocals,
+          getReferencedColumn: (t) => t.pekerjaanPpatId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanPpatHargaLocalsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.pekerjaanPpatHargaLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> pekerjaanPpatProsesLocalsRefs<T extends Object>(
+    Expression<T> Function($$PekerjaanPpatProsesLocalsTableAnnotationComposer a)
+    f,
+  ) {
+    final $$PekerjaanPpatProsesLocalsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pekerjaanPpatProsesLocals,
+          getReferencedColumn: (t) => t.pekerjaanPpatId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanPpatProsesLocalsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.pekerjaanPpatProsesLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> pekerjaanPpatAtributLocalsRefs<T extends Object>(
+    Expression<T> Function(
+      $$PekerjaanPpatAtributLocalsTableAnnotationComposer a,
+    )
+    f,
+  ) {
+    final $$PekerjaanPpatAtributLocalsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.pekerjaanPpatAtributLocals,
+          getReferencedColumn: (t) => t.pekerjaanPpatId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanPpatAtributLocalsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.pekerjaanPpatAtributLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$PekerjaanPpatLocalsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PekerjaanPpatLocalsTable,
+          PekerjaanPpatLocal,
+          $$PekerjaanPpatLocalsTableFilterComposer,
+          $$PekerjaanPpatLocalsTableOrderingComposer,
+          $$PekerjaanPpatLocalsTableAnnotationComposer,
+          $$PekerjaanPpatLocalsTableCreateCompanionBuilder,
+          $$PekerjaanPpatLocalsTableUpdateCompanionBuilder,
+          (PekerjaanPpatLocal, $$PekerjaanPpatLocalsTableReferences),
+          PekerjaanPpatLocal,
+          PrefetchHooks Function({
+            bool transaksiDetailsRefs,
+            bool pekerjaanPpatHargaLocalsRefs,
+            bool pekerjaanPpatProsesLocalsRefs,
+            bool pekerjaanPpatAtributLocalsRefs,
+          })
+        > {
+  $$PekerjaanPpatLocalsTableTableManager(
+    _$AppDatabase db,
+    $PekerjaanPpatLocalsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PekerjaanPpatLocalsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PekerjaanPpatLocalsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PekerjaanPpatLocalsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> uuid = const Value.absent(),
+                Value<String> nama = const Value.absent(),
+                Value<int?> createdBy = const Value.absent(),
+                Value<int?> updatedBy = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<int> status = const Value.absent(),
+                Value<bool> isSyncDirty = const Value.absent(),
+                Value<DateTime?> lastSyncedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+              }) => PekerjaanPpatLocalsCompanion(
+                id: id,
+                uuid: uuid,
+                nama: nama,
+                createdBy: createdBy,
+                updatedBy: updatedBy,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                status: status,
+                isSyncDirty: isSyncDirty,
+                lastSyncedAt: lastSyncedAt,
+                deletedAt: deletedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String uuid,
+                required String nama,
+                Value<int?> createdBy = const Value.absent(),
+                Value<int?> updatedBy = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<int> status = const Value.absent(),
+                Value<bool> isSyncDirty = const Value.absent(),
+                Value<DateTime?> lastSyncedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+              }) => PekerjaanPpatLocalsCompanion.insert(
+                id: id,
+                uuid: uuid,
+                nama: nama,
+                createdBy: createdBy,
+                updatedBy: updatedBy,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                status: status,
+                isSyncDirty: isSyncDirty,
+                lastSyncedAt: lastSyncedAt,
+                deletedAt: deletedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PekerjaanPpatLocalsTable, PekerjaanPpatLocal>(
+                    table,
+                  ),
+                  $$PekerjaanPpatLocalsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                transaksiDetailsRefs = false,
+                pekerjaanPpatHargaLocalsRefs = false,
+                pekerjaanPpatProsesLocalsRefs = false,
+                pekerjaanPpatAtributLocalsRefs = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (transaksiDetailsRefs) db.transaksiDetails,
+                    if (pekerjaanPpatHargaLocalsRefs)
+                      db.pekerjaanPpatHargaLocals,
+                    if (pekerjaanPpatProsesLocalsRefs)
+                      db.pekerjaanPpatProsesLocals,
+                    if (pekerjaanPpatAtributLocalsRefs)
+                      db.pekerjaanPpatAtributLocals,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (transaksiDetailsRefs)
+                        await $_getPrefetchedData<
+                          PekerjaanPpatLocal,
+                          $PekerjaanPpatLocalsTable,
+                          TransaksiDetail
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PekerjaanPpatLocalsTableReferences
+                              ._transaksiDetailsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PekerjaanPpatLocalsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).transaksiDetailsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.pekerjaanPpatId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (pekerjaanPpatHargaLocalsRefs)
+                        await $_getPrefetchedData<
+                          PekerjaanPpatLocal,
+                          $PekerjaanPpatLocalsTable,
+                          PekerjaanPpatHargaLocal
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PekerjaanPpatLocalsTableReferences
+                              ._pekerjaanPpatHargaLocalsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PekerjaanPpatLocalsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).pekerjaanPpatHargaLocalsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.pekerjaanPpatId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (pekerjaanPpatProsesLocalsRefs)
+                        await $_getPrefetchedData<
+                          PekerjaanPpatLocal,
+                          $PekerjaanPpatLocalsTable,
+                          PekerjaanPpatProsesLocal
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PekerjaanPpatLocalsTableReferences
+                              ._pekerjaanPpatProsesLocalsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PekerjaanPpatLocalsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).pekerjaanPpatProsesLocalsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.pekerjaanPpatId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (pekerjaanPpatAtributLocalsRefs)
+                        await $_getPrefetchedData<
+                          PekerjaanPpatLocal,
+                          $PekerjaanPpatLocalsTable,
+                          PekerjaanPpatAtributLocal
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PekerjaanPpatLocalsTableReferences
+                              ._pekerjaanPpatAtributLocalsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PekerjaanPpatLocalsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).pekerjaanPpatAtributLocalsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.pekerjaanPpatId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$PekerjaanPpatLocalsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PekerjaanPpatLocalsTable,
+      PekerjaanPpatLocal,
+      $$PekerjaanPpatLocalsTableFilterComposer,
+      $$PekerjaanPpatLocalsTableOrderingComposer,
+      $$PekerjaanPpatLocalsTableAnnotationComposer,
+      $$PekerjaanPpatLocalsTableCreateCompanionBuilder,
+      $$PekerjaanPpatLocalsTableUpdateCompanionBuilder,
+      (PekerjaanPpatLocal, $$PekerjaanPpatLocalsTableReferences),
+      PekerjaanPpatLocal,
+      PrefetchHooks Function({
+        bool transaksiDetailsRefs,
+        bool pekerjaanPpatHargaLocalsRefs,
+        bool pekerjaanPpatProsesLocalsRefs,
+        bool pekerjaanPpatAtributLocalsRefs,
+      })
+    >;
+typedef $$TransaksiDetailsTableCreateCompanionBuilder =
+    TransaksiDetailsCompanion Function({
+      Value<int> id,
+      required String uuid,
+      required int transaksiId,
+      required String jenisPekerjaan,
+      Value<int?> pekerjaanNotarisId,
+      Value<int?> pekerjaanPpatId,
+      required String namaPekerjaanSnapshot,
+      Value<String?> kategoriSnapshot,
+      Value<String?> estimasiWaktuSnapshot,
+      Value<double> biayaLayanan,
+      Value<double> biayaLainnya,
+      Value<double> totalSnapshot,
+      Value<DateTime?> createdAt,
+      Value<DateTime?> updatedAt,
+      Value<int> status,
+      Value<bool> isSyncDirty,
+      Value<DateTime?> lastSyncedAt,
+      Value<DateTime?> deletedAt,
+    });
+typedef $$TransaksiDetailsTableUpdateCompanionBuilder =
+    TransaksiDetailsCompanion Function({
+      Value<int> id,
+      Value<String> uuid,
+      Value<int> transaksiId,
+      Value<String> jenisPekerjaan,
+      Value<int?> pekerjaanNotarisId,
+      Value<int?> pekerjaanPpatId,
+      Value<String> namaPekerjaanSnapshot,
+      Value<String?> kategoriSnapshot,
+      Value<String?> estimasiWaktuSnapshot,
+      Value<double> biayaLayanan,
+      Value<double> biayaLainnya,
+      Value<double> totalSnapshot,
+      Value<DateTime?> createdAt,
+      Value<DateTime?> updatedAt,
+      Value<int> status,
+      Value<bool> isSyncDirty,
+      Value<DateTime?> lastSyncedAt,
+      Value<DateTime?> deletedAt,
+    });
+
+final class $$TransaksiDetailsTableReferences
+    extends
+        BaseReferences<_$AppDatabase, $TransaksiDetailsTable, TransaksiDetail> {
+  $$TransaksiDetailsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $TransaksisTable _transaksiIdTable(_$AppDatabase db) => db.transaksis
+      .createAlias('transaksi_details__transaksi_id__transaksis__id');
+
+  $$TransaksisTableProcessedTableManager get transaksiId {
+    final $_column = $_itemColumn<int>('transaksi_id')!;
+
+    final manager = $$TransaksisTableTableManager(
+      $_db,
+      $_db.transaksis,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_transaksiIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $PekerjaanNotarisLocalsTable _pekerjaanNotarisIdTable(
+    _$AppDatabase db,
+  ) => db.pekerjaanNotarisLocals.createAlias(
+    'transaksi_details__pekerjaan_notaris_id__pekerjaan_notaris__id',
+  );
+
+  $$PekerjaanNotarisLocalsTableProcessedTableManager? get pekerjaanNotarisId {
+    final $_column = $_itemColumn<int>('pekerjaan_notaris_id');
+    if ($_column == null) return null;
+    final manager = $$PekerjaanNotarisLocalsTableTableManager(
+      $_db,
+      $_db.pekerjaanNotarisLocals,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_pekerjaanNotarisIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $PekerjaanPpatLocalsTable _pekerjaanPpatIdTable(_$AppDatabase db) => db
+      .pekerjaanPpatLocals
+      .createAlias('transaksi_details__pekerjaan_ppat_id__pekerjaan_ppat__id');
+
+  $$PekerjaanPpatLocalsTableProcessedTableManager? get pekerjaanPpatId {
+    final $_column = $_itemColumn<int>('pekerjaan_ppat_id');
+    if ($_column == null) return null;
+    final manager = $$PekerjaanPpatLocalsTableTableManager(
+      $_db,
+      $_db.pekerjaanPpatLocals,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_pekerjaanPpatIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$TransaksiDetailsTableFilterComposer
+    extends Composer<_$AppDatabase, $TransaksiDetailsTable> {
+  $$TransaksiDetailsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get jenisPekerjaan => $composableBuilder(
+    column: $table.jenisPekerjaan,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get namaPekerjaanSnapshot => $composableBuilder(
+    column: $table.namaPekerjaanSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kategoriSnapshot => $composableBuilder(
+    column: $table.kategoriSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get estimasiWaktuSnapshot => $composableBuilder(
+    column: $table.estimasiWaktuSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get biayaLayanan => $composableBuilder(
+    column: $table.biayaLayanan,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get biayaLainnya => $composableBuilder(
+    column: $table.biayaLainnya,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get totalSnapshot => $composableBuilder(
+    column: $table.totalSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSyncDirty => $composableBuilder(
+    column: $table.isSyncDirty,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$TransaksisTableFilterComposer get transaksiId {
+    final $$TransaksisTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.transaksiId,
+      referencedTable: $db.transaksis,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksisTableFilterComposer(
+            $db: $db,
+            $table: $db.transaksis,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$PekerjaanNotarisLocalsTableFilterComposer get pekerjaanNotarisId {
+    final $$PekerjaanNotarisLocalsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.pekerjaanNotarisId,
+          referencedTable: $db.pekerjaanNotarisLocals,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanNotarisLocalsTableFilterComposer(
+                $db: $db,
+                $table: $db.pekerjaanNotarisLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  $$PekerjaanPpatLocalsTableFilterComposer get pekerjaanPpatId {
+    final $$PekerjaanPpatLocalsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.pekerjaanPpatId,
+      referencedTable: $db.pekerjaanPpatLocals,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PekerjaanPpatLocalsTableFilterComposer(
+            $db: $db,
+            $table: $db.pekerjaanPpatLocals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$TransaksiDetailsTableOrderingComposer
+    extends Composer<_$AppDatabase, $TransaksiDetailsTable> {
+  $$TransaksiDetailsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get jenisPekerjaan => $composableBuilder(
+    column: $table.jenisPekerjaan,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get namaPekerjaanSnapshot => $composableBuilder(
+    column: $table.namaPekerjaanSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kategoriSnapshot => $composableBuilder(
+    column: $table.kategoriSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get estimasiWaktuSnapshot => $composableBuilder(
+    column: $table.estimasiWaktuSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get biayaLayanan => $composableBuilder(
+    column: $table.biayaLayanan,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get biayaLainnya => $composableBuilder(
+    column: $table.biayaLainnya,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get totalSnapshot => $composableBuilder(
+    column: $table.totalSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSyncDirty => $composableBuilder(
+    column: $table.isSyncDirty,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$TransaksisTableOrderingComposer get transaksiId {
+    final $$TransaksisTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.transaksiId,
+      referencedTable: $db.transaksis,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksisTableOrderingComposer(
+            $db: $db,
+            $table: $db.transaksis,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$PekerjaanNotarisLocalsTableOrderingComposer get pekerjaanNotarisId {
+    final $$PekerjaanNotarisLocalsTableOrderingComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.pekerjaanNotarisId,
+          referencedTable: $db.pekerjaanNotarisLocals,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanNotarisLocalsTableOrderingComposer(
+                $db: $db,
+                $table: $db.pekerjaanNotarisLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  $$PekerjaanPpatLocalsTableOrderingComposer get pekerjaanPpatId {
+    final $$PekerjaanPpatLocalsTableOrderingComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.pekerjaanPpatId,
+          referencedTable: $db.pekerjaanPpatLocals,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanPpatLocalsTableOrderingComposer(
+                $db: $db,
+                $table: $db.pekerjaanPpatLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$TransaksiDetailsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TransaksiDetailsTable> {
+  $$TransaksiDetailsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<String> get jenisPekerjaan => $composableBuilder(
+    column: $table.jenisPekerjaan,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get namaPekerjaanSnapshot => $composableBuilder(
+    column: $table.namaPekerjaanSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get kategoriSnapshot => $composableBuilder(
+    column: $table.kategoriSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get estimasiWaktuSnapshot => $composableBuilder(
+    column: $table.estimasiWaktuSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get biayaLayanan => $composableBuilder(
+    column: $table.biayaLayanan,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get biayaLainnya => $composableBuilder(
+    column: $table.biayaLainnya,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get totalSnapshot => $composableBuilder(
+    column: $table.totalSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSyncDirty => $composableBuilder(
+    column: $table.isSyncDirty,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  $$TransaksisTableAnnotationComposer get transaksiId {
+    final $$TransaksisTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.transaksiId,
+      referencedTable: $db.transaksis,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$TransaksisTableAnnotationComposer(
+            $db: $db,
+            $table: $db.transaksis,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$PekerjaanNotarisLocalsTableAnnotationComposer get pekerjaanNotarisId {
+    final $$PekerjaanNotarisLocalsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.pekerjaanNotarisId,
+          referencedTable: $db.pekerjaanNotarisLocals,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanNotarisLocalsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.pekerjaanNotarisLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+
+  $$PekerjaanPpatLocalsTableAnnotationComposer get pekerjaanPpatId {
+    final $$PekerjaanPpatLocalsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.pekerjaanPpatId,
+          referencedTable: $db.pekerjaanPpatLocals,
+          getReferencedColumn: (t) => t.id,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PekerjaanPpatLocalsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.pekerjaanPpatLocals,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return composer;
+  }
+}
+
+class $$TransaksiDetailsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TransaksiDetailsTable,
+          TransaksiDetail,
+          $$TransaksiDetailsTableFilterComposer,
+          $$TransaksiDetailsTableOrderingComposer,
+          $$TransaksiDetailsTableAnnotationComposer,
+          $$TransaksiDetailsTableCreateCompanionBuilder,
+          $$TransaksiDetailsTableUpdateCompanionBuilder,
+          (TransaksiDetail, $$TransaksiDetailsTableReferences),
+          TransaksiDetail,
+          PrefetchHooks Function({
+            bool transaksiId,
+            bool pekerjaanNotarisId,
+            bool pekerjaanPpatId,
+          })
+        > {
+  $$TransaksiDetailsTableTableManager(
+    _$AppDatabase db,
+    $TransaksiDetailsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TransaksiDetailsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TransaksiDetailsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TransaksiDetailsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> uuid = const Value.absent(),
+                Value<int> transaksiId = const Value.absent(),
+                Value<String> jenisPekerjaan = const Value.absent(),
+                Value<int?> pekerjaanNotarisId = const Value.absent(),
+                Value<int?> pekerjaanPpatId = const Value.absent(),
+                Value<String> namaPekerjaanSnapshot = const Value.absent(),
+                Value<String?> kategoriSnapshot = const Value.absent(),
+                Value<String?> estimasiWaktuSnapshot = const Value.absent(),
+                Value<double> biayaLayanan = const Value.absent(),
+                Value<double> biayaLainnya = const Value.absent(),
+                Value<double> totalSnapshot = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<int> status = const Value.absent(),
+                Value<bool> isSyncDirty = const Value.absent(),
+                Value<DateTime?> lastSyncedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+              }) => TransaksiDetailsCompanion(
+                id: id,
+                uuid: uuid,
+                transaksiId: transaksiId,
+                jenisPekerjaan: jenisPekerjaan,
+                pekerjaanNotarisId: pekerjaanNotarisId,
+                pekerjaanPpatId: pekerjaanPpatId,
+                namaPekerjaanSnapshot: namaPekerjaanSnapshot,
+                kategoriSnapshot: kategoriSnapshot,
+                estimasiWaktuSnapshot: estimasiWaktuSnapshot,
+                biayaLayanan: biayaLayanan,
+                biayaLainnya: biayaLainnya,
+                totalSnapshot: totalSnapshot,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                status: status,
+                isSyncDirty: isSyncDirty,
+                lastSyncedAt: lastSyncedAt,
+                deletedAt: deletedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String uuid,
+                required int transaksiId,
+                required String jenisPekerjaan,
+                Value<int?> pekerjaanNotarisId = const Value.absent(),
+                Value<int?> pekerjaanPpatId = const Value.absent(),
+                required String namaPekerjaanSnapshot,
+                Value<String?> kategoriSnapshot = const Value.absent(),
+                Value<String?> estimasiWaktuSnapshot = const Value.absent(),
+                Value<double> biayaLayanan = const Value.absent(),
+                Value<double> biayaLainnya = const Value.absent(),
+                Value<double> totalSnapshot = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<int> status = const Value.absent(),
+                Value<bool> isSyncDirty = const Value.absent(),
+                Value<DateTime?> lastSyncedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+              }) => TransaksiDetailsCompanion.insert(
+                id: id,
+                uuid: uuid,
+                transaksiId: transaksiId,
+                jenisPekerjaan: jenisPekerjaan,
+                pekerjaanNotarisId: pekerjaanNotarisId,
+                pekerjaanPpatId: pekerjaanPpatId,
+                namaPekerjaanSnapshot: namaPekerjaanSnapshot,
+                kategoriSnapshot: kategoriSnapshot,
+                estimasiWaktuSnapshot: estimasiWaktuSnapshot,
+                biayaLayanan: biayaLayanan,
+                biayaLainnya: biayaLainnya,
+                totalSnapshot: totalSnapshot,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                status: status,
+                isSyncDirty: isSyncDirty,
+                lastSyncedAt: lastSyncedAt,
+                deletedAt: deletedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$TransaksiDetailsTable, TransaksiDetail>(table),
+                  $$TransaksiDetailsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({
+                transaksiId = false,
+                pekerjaanNotarisId = false,
+                pekerjaanPpatId = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (transaksiId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.transaksiId,
+                            referencedTable: $$TransaksiDetailsTableReferences
+                                ._transaksiIdTable(db),
+                            referencedColumn: $$TransaksiDetailsTableReferences
+                                ._transaksiIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (pekerjaanNotarisId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.pekerjaanNotarisId,
+                            referencedTable: $$TransaksiDetailsTableReferences
+                                ._pekerjaanNotarisIdTable(db),
+                            referencedColumn: $$TransaksiDetailsTableReferences
+                                ._pekerjaanNotarisIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+                        if (pekerjaanPpatId) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.pekerjaanPpatId,
+                            referencedTable: $$TransaksiDetailsTableReferences
+                                ._pekerjaanPpatIdTable(db),
+                            referencedColumn: $$TransaksiDetailsTableReferences
+                                ._pekerjaanPpatIdTable(db)
+                                .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$TransaksiDetailsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TransaksiDetailsTable,
+      TransaksiDetail,
+      $$TransaksiDetailsTableFilterComposer,
+      $$TransaksiDetailsTableOrderingComposer,
+      $$TransaksiDetailsTableAnnotationComposer,
+      $$TransaksiDetailsTableCreateCompanionBuilder,
+      $$TransaksiDetailsTableUpdateCompanionBuilder,
+      (TransaksiDetail, $$TransaksiDetailsTableReferences),
+      TransaksiDetail,
+      PrefetchHooks Function({
+        bool transaksiId,
+        bool pekerjaanNotarisId,
+        bool pekerjaanPpatId,
+      })
     >;
 typedef $$PekerjaanKategorisTableCreateCompanionBuilder =
     PekerjaanKategorisCompanion Function({
@@ -13434,703 +17803,6 @@ typedef $$PetugasLocalsTableProcessedTableManager =
       (PetugasLocal, $$PetugasLocalsTableReferences),
       PetugasLocal,
       PrefetchHooks Function({bool jenisKelamin})
-    >;
-typedef $$PekerjaanNotarisLocalsTableCreateCompanionBuilder =
-    PekerjaanNotarisLocalsCompanion Function({
-      Value<int> id,
-      required String uuid,
-      required String nama,
-      Value<int?> createdBy,
-      Value<int?> updatedBy,
-      Value<DateTime?> createdAt,
-      Value<DateTime?> updatedAt,
-      Value<int> status,
-      Value<bool> isSyncDirty,
-      Value<DateTime?> lastSyncedAt,
-      Value<DateTime?> deletedAt,
-    });
-typedef $$PekerjaanNotarisLocalsTableUpdateCompanionBuilder =
-    PekerjaanNotarisLocalsCompanion Function({
-      Value<int> id,
-      Value<String> uuid,
-      Value<String> nama,
-      Value<int?> createdBy,
-      Value<int?> updatedBy,
-      Value<DateTime?> createdAt,
-      Value<DateTime?> updatedAt,
-      Value<int> status,
-      Value<bool> isSyncDirty,
-      Value<DateTime?> lastSyncedAt,
-      Value<DateTime?> deletedAt,
-    });
-
-final class $$PekerjaanNotarisLocalsTableReferences
-    extends
-        BaseReferences<
-          _$AppDatabase,
-          $PekerjaanNotarisLocalsTable,
-          PekerjaanNotarisLocal
-        > {
-  $$PekerjaanNotarisLocalsTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
-
-  static MultiTypedResultKey<
-    $PekerjaanNotarisHargaLocalsTable,
-    List<PekerjaanNotarisHargaLocal>
-  >
-  _pekerjaanNotarisHargaLocalsRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
-    db.pekerjaanNotarisHargaLocals,
-    aliasName:
-        'pekerjaan_notaris__id__pekerjaan_notaris_harga__pekerjaan_notaris_id',
-  );
-
-  $$PekerjaanNotarisHargaLocalsTableProcessedTableManager
-  get pekerjaanNotarisHargaLocalsRefs {
-    final manager =
-        $$PekerjaanNotarisHargaLocalsTableTableManager(
-          $_db,
-          $_db.pekerjaanNotarisHargaLocals,
-        ).filter(
-          (f) => f.pekerjaanNotarisId.id.sqlEquals($_itemColumn<int>('id')!),
-        );
-
-    final cache = $_typedResult.readTableOrNull(
-      _pekerjaanNotarisHargaLocalsRefsTable($_db),
-    );
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<
-    $PekerjaanNotarisProsesLocalsTable,
-    List<PekerjaanNotarisProsesLocal>
-  >
-  _pekerjaanNotarisProsesLocalsRefsTable(
-    _$AppDatabase db,
-  ) => MultiTypedResultKey.fromTable(
-    db.pekerjaanNotarisProsesLocals,
-    aliasName:
-        'pekerjaan_notaris__id__pekerjaan_notaris_proses__pekerjaan_notaris_id',
-  );
-
-  $$PekerjaanNotarisProsesLocalsTableProcessedTableManager
-  get pekerjaanNotarisProsesLocalsRefs {
-    final manager =
-        $$PekerjaanNotarisProsesLocalsTableTableManager(
-          $_db,
-          $_db.pekerjaanNotarisProsesLocals,
-        ).filter(
-          (f) => f.pekerjaanNotarisId.id.sqlEquals($_itemColumn<int>('id')!),
-        );
-
-    final cache = $_typedResult.readTableOrNull(
-      _pekerjaanNotarisProsesLocalsRefsTable($_db),
-    );
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<
-    $PekerjaanNotarisAtributLocalsTable,
-    List<PekerjaanNotarisAtributLocal>
-  >
-  _pekerjaanNotarisAtributLocalsRefsTable(_$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.pekerjaanNotarisAtributLocals,
-        aliasName: 'pekerjaan_notaris__id__pekerjaan_notaris_atributs__pekerjaan_notaris_id',
-      );
-
-  $$PekerjaanNotarisAtributLocalsTableProcessedTableManager
-  get pekerjaanNotarisAtributLocalsRefs {
-    final manager =
-        $$PekerjaanNotarisAtributLocalsTableTableManager(
-          $_db,
-          $_db.pekerjaanNotarisAtributLocals,
-        ).filter(
-          (f) => f.pekerjaanNotarisId.id.sqlEquals($_itemColumn<int>('id')!),
-        );
-
-    final cache = $_typedResult.readTableOrNull(
-      _pekerjaanNotarisAtributLocalsRefsTable($_db),
-    );
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-}
-
-class $$PekerjaanNotarisLocalsTableFilterComposer
-    extends Composer<_$AppDatabase, $PekerjaanNotarisLocalsTable> {
-  $$PekerjaanNotarisLocalsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get uuid => $composableBuilder(
-    column: $table.uuid,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get nama => $composableBuilder(
-    column: $table.nama,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get createdBy => $composableBuilder(
-    column: $table.createdBy,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get updatedBy => $composableBuilder(
-    column: $table.updatedBy,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get status => $composableBuilder(
-    column: $table.status,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get isSyncDirty => $composableBuilder(
-    column: $table.isSyncDirty,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get lastSyncedAt => $composableBuilder(
-    column: $table.lastSyncedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
-    column: $table.deletedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  Expression<bool> pekerjaanNotarisHargaLocalsRefs(
-    Expression<bool> Function(
-      $$PekerjaanNotarisHargaLocalsTableFilterComposer f,
-    )
-    f,
-  ) {
-    final $$PekerjaanNotarisHargaLocalsTableFilterComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.pekerjaanNotarisHargaLocals,
-          getReferencedColumn: (t) => t.pekerjaanNotarisId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$PekerjaanNotarisHargaLocalsTableFilterComposer(
-                $db: $db,
-                $table: $db.pekerjaanNotarisHargaLocals,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-
-  Expression<bool> pekerjaanNotarisProsesLocalsRefs(
-    Expression<bool> Function(
-      $$PekerjaanNotarisProsesLocalsTableFilterComposer f,
-    )
-    f,
-  ) {
-    final $$PekerjaanNotarisProsesLocalsTableFilterComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.pekerjaanNotarisProsesLocals,
-          getReferencedColumn: (t) => t.pekerjaanNotarisId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$PekerjaanNotarisProsesLocalsTableFilterComposer(
-                $db: $db,
-                $table: $db.pekerjaanNotarisProsesLocals,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-
-  Expression<bool> pekerjaanNotarisAtributLocalsRefs(
-    Expression<bool> Function(
-      $$PekerjaanNotarisAtributLocalsTableFilterComposer f,
-    )
-    f,
-  ) {
-    final $$PekerjaanNotarisAtributLocalsTableFilterComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.pekerjaanNotarisAtributLocals,
-          getReferencedColumn: (t) => t.pekerjaanNotarisId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$PekerjaanNotarisAtributLocalsTableFilterComposer(
-                $db: $db,
-                $table: $db.pekerjaanNotarisAtributLocals,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-}
-
-class $$PekerjaanNotarisLocalsTableOrderingComposer
-    extends Composer<_$AppDatabase, $PekerjaanNotarisLocalsTable> {
-  $$PekerjaanNotarisLocalsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get uuid => $composableBuilder(
-    column: $table.uuid,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get nama => $composableBuilder(
-    column: $table.nama,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get createdBy => $composableBuilder(
-    column: $table.createdBy,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get updatedBy => $composableBuilder(
-    column: $table.updatedBy,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get status => $composableBuilder(
-    column: $table.status,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get isSyncDirty => $composableBuilder(
-    column: $table.isSyncDirty,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get lastSyncedAt => $composableBuilder(
-    column: $table.lastSyncedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
-    column: $table.deletedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$PekerjaanNotarisLocalsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $PekerjaanNotarisLocalsTable> {
-  $$PekerjaanNotarisLocalsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<String> get uuid =>
-      $composableBuilder(column: $table.uuid, builder: (column) => column);
-
-  GeneratedColumn<String> get nama =>
-      $composableBuilder(column: $table.nama, builder: (column) => column);
-
-  GeneratedColumn<int> get createdBy =>
-      $composableBuilder(column: $table.createdBy, builder: (column) => column);
-
-  GeneratedColumn<int> get updatedBy =>
-      $composableBuilder(column: $table.updatedBy, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
-
-  GeneratedColumn<int> get status =>
-      $composableBuilder(column: $table.status, builder: (column) => column);
-
-  GeneratedColumn<bool> get isSyncDirty => $composableBuilder(
-    column: $table.isSyncDirty,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<DateTime> get lastSyncedAt => $composableBuilder(
-    column: $table.lastSyncedAt,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<DateTime> get deletedAt =>
-      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
-
-  Expression<T> pekerjaanNotarisHargaLocalsRefs<T extends Object>(
-    Expression<T> Function(
-      $$PekerjaanNotarisHargaLocalsTableAnnotationComposer a,
-    )
-    f,
-  ) {
-    final $$PekerjaanNotarisHargaLocalsTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.pekerjaanNotarisHargaLocals,
-          getReferencedColumn: (t) => t.pekerjaanNotarisId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$PekerjaanNotarisHargaLocalsTableAnnotationComposer(
-                $db: $db,
-                $table: $db.pekerjaanNotarisHargaLocals,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-
-  Expression<T> pekerjaanNotarisProsesLocalsRefs<T extends Object>(
-    Expression<T> Function(
-      $$PekerjaanNotarisProsesLocalsTableAnnotationComposer a,
-    )
-    f,
-  ) {
-    final $$PekerjaanNotarisProsesLocalsTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.pekerjaanNotarisProsesLocals,
-          getReferencedColumn: (t) => t.pekerjaanNotarisId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$PekerjaanNotarisProsesLocalsTableAnnotationComposer(
-                $db: $db,
-                $table: $db.pekerjaanNotarisProsesLocals,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-
-  Expression<T> pekerjaanNotarisAtributLocalsRefs<T extends Object>(
-    Expression<T> Function(
-      $$PekerjaanNotarisAtributLocalsTableAnnotationComposer a,
-    )
-    f,
-  ) {
-    final $$PekerjaanNotarisAtributLocalsTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.pekerjaanNotarisAtributLocals,
-          getReferencedColumn: (t) => t.pekerjaanNotarisId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$PekerjaanNotarisAtributLocalsTableAnnotationComposer(
-                $db: $db,
-                $table: $db.pekerjaanNotarisAtributLocals,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-}
-
-class $$PekerjaanNotarisLocalsTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $PekerjaanNotarisLocalsTable,
-          PekerjaanNotarisLocal,
-          $$PekerjaanNotarisLocalsTableFilterComposer,
-          $$PekerjaanNotarisLocalsTableOrderingComposer,
-          $$PekerjaanNotarisLocalsTableAnnotationComposer,
-          $$PekerjaanNotarisLocalsTableCreateCompanionBuilder,
-          $$PekerjaanNotarisLocalsTableUpdateCompanionBuilder,
-          (PekerjaanNotarisLocal, $$PekerjaanNotarisLocalsTableReferences),
-          PekerjaanNotarisLocal,
-          PrefetchHooks Function({
-            bool pekerjaanNotarisHargaLocalsRefs,
-            bool pekerjaanNotarisProsesLocalsRefs,
-            bool pekerjaanNotarisAtributLocalsRefs,
-          })
-        > {
-  $$PekerjaanNotarisLocalsTableTableManager(
-    _$AppDatabase db,
-    $PekerjaanNotarisLocalsTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$PekerjaanNotarisLocalsTableFilterComposer(
-                $db: db,
-                $table: table,
-              ),
-          createOrderingComposer: () =>
-              $$PekerjaanNotarisLocalsTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
-          createComputedFieldComposer: () =>
-              $$PekerjaanNotarisLocalsTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                Value<String> uuid = const Value.absent(),
-                Value<String> nama = const Value.absent(),
-                Value<int?> createdBy = const Value.absent(),
-                Value<int?> updatedBy = const Value.absent(),
-                Value<DateTime?> createdAt = const Value.absent(),
-                Value<DateTime?> updatedAt = const Value.absent(),
-                Value<int> status = const Value.absent(),
-                Value<bool> isSyncDirty = const Value.absent(),
-                Value<DateTime?> lastSyncedAt = const Value.absent(),
-                Value<DateTime?> deletedAt = const Value.absent(),
-              }) => PekerjaanNotarisLocalsCompanion(
-                id: id,
-                uuid: uuid,
-                nama: nama,
-                createdBy: createdBy,
-                updatedBy: updatedBy,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-                status: status,
-                isSyncDirty: isSyncDirty,
-                lastSyncedAt: lastSyncedAt,
-                deletedAt: deletedAt,
-              ),
-          createCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                required String uuid,
-                required String nama,
-                Value<int?> createdBy = const Value.absent(),
-                Value<int?> updatedBy = const Value.absent(),
-                Value<DateTime?> createdAt = const Value.absent(),
-                Value<DateTime?> updatedAt = const Value.absent(),
-                Value<int> status = const Value.absent(),
-                Value<bool> isSyncDirty = const Value.absent(),
-                Value<DateTime?> lastSyncedAt = const Value.absent(),
-                Value<DateTime?> deletedAt = const Value.absent(),
-              }) => PekerjaanNotarisLocalsCompanion.insert(
-                id: id,
-                uuid: uuid,
-                nama: nama,
-                createdBy: createdBy,
-                updatedBy: updatedBy,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-                status: status,
-                isSyncDirty: isSyncDirty,
-                lastSyncedAt: lastSyncedAt,
-                deletedAt: deletedAt,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<
-                    $PekerjaanNotarisLocalsTable,
-                    PekerjaanNotarisLocal
-                  >(table),
-                  $$PekerjaanNotarisLocalsTableReferences(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback:
-              ({
-                pekerjaanNotarisHargaLocalsRefs = false,
-                pekerjaanNotarisProsesLocalsRefs = false,
-                pekerjaanNotarisAtributLocalsRefs = false,
-              }) {
-                return PrefetchHooks(
-                  db: db,
-                  explicitlyWatchedTables: [
-                    if (pekerjaanNotarisHargaLocalsRefs)
-                      db.pekerjaanNotarisHargaLocals,
-                    if (pekerjaanNotarisProsesLocalsRefs)
-                      db.pekerjaanNotarisProsesLocals,
-                    if (pekerjaanNotarisAtributLocalsRefs)
-                      db.pekerjaanNotarisAtributLocals,
-                  ],
-                  addJoins: null,
-                  getPrefetchedDataCallback: (items) async {
-                    return [
-                      if (pekerjaanNotarisHargaLocalsRefs)
-                        await $_getPrefetchedData<
-                          PekerjaanNotarisLocal,
-                          $PekerjaanNotarisLocalsTable,
-                          PekerjaanNotarisHargaLocal
-                        >(
-                          currentTable: table,
-                          referencedTable:
-                              $$PekerjaanNotarisLocalsTableReferences
-                                  ._pekerjaanNotarisHargaLocalsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$PekerjaanNotarisLocalsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).pekerjaanNotarisHargaLocalsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.pekerjaanNotarisId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (pekerjaanNotarisProsesLocalsRefs)
-                        await $_getPrefetchedData<
-                          PekerjaanNotarisLocal,
-                          $PekerjaanNotarisLocalsTable,
-                          PekerjaanNotarisProsesLocal
-                        >(
-                          currentTable: table,
-                          referencedTable:
-                              $$PekerjaanNotarisLocalsTableReferences
-                                  ._pekerjaanNotarisProsesLocalsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$PekerjaanNotarisLocalsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).pekerjaanNotarisProsesLocalsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.pekerjaanNotarisId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (pekerjaanNotarisAtributLocalsRefs)
-                        await $_getPrefetchedData<
-                          PekerjaanNotarisLocal,
-                          $PekerjaanNotarisLocalsTable,
-                          PekerjaanNotarisAtributLocal
-                        >(
-                          currentTable: table,
-                          referencedTable:
-                              $$PekerjaanNotarisLocalsTableReferences
-                                  ._pekerjaanNotarisAtributLocalsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$PekerjaanNotarisLocalsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).pekerjaanNotarisAtributLocalsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.pekerjaanNotarisId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                    ];
-                  },
-                );
-              },
-        ),
-      );
-}
-
-typedef $$PekerjaanNotarisLocalsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $PekerjaanNotarisLocalsTable,
-      PekerjaanNotarisLocal,
-      $$PekerjaanNotarisLocalsTableFilterComposer,
-      $$PekerjaanNotarisLocalsTableOrderingComposer,
-      $$PekerjaanNotarisLocalsTableAnnotationComposer,
-      $$PekerjaanNotarisLocalsTableCreateCompanionBuilder,
-      $$PekerjaanNotarisLocalsTableUpdateCompanionBuilder,
-      (PekerjaanNotarisLocal, $$PekerjaanNotarisLocalsTableReferences),
-      PekerjaanNotarisLocal,
-      PrefetchHooks Function({
-        bool pekerjaanNotarisHargaLocalsRefs,
-        bool pekerjaanNotarisProsesLocalsRefs,
-        bool pekerjaanNotarisAtributLocalsRefs,
-      })
     >;
 typedef $$PekerjaanNotarisHargaLocalsTableCreateCompanionBuilder =
     PekerjaanNotarisHargaLocalsCompanion Function({
@@ -15984,676 +19656,6 @@ typedef $$PekerjaanNotarisAtributLocalsTableProcessedTableManager =
         bool prosesPekerjaanNotarisId,
       })
     >;
-typedef $$PekerjaanPpatLocalsTableCreateCompanionBuilder =
-    PekerjaanPpatLocalsCompanion Function({
-      Value<int> id,
-      required String uuid,
-      required String nama,
-      Value<int?> createdBy,
-      Value<int?> updatedBy,
-      Value<DateTime?> createdAt,
-      Value<DateTime?> updatedAt,
-      Value<int> status,
-      Value<bool> isSyncDirty,
-      Value<DateTime?> lastSyncedAt,
-      Value<DateTime?> deletedAt,
-    });
-typedef $$PekerjaanPpatLocalsTableUpdateCompanionBuilder =
-    PekerjaanPpatLocalsCompanion Function({
-      Value<int> id,
-      Value<String> uuid,
-      Value<String> nama,
-      Value<int?> createdBy,
-      Value<int?> updatedBy,
-      Value<DateTime?> createdAt,
-      Value<DateTime?> updatedAt,
-      Value<int> status,
-      Value<bool> isSyncDirty,
-      Value<DateTime?> lastSyncedAt,
-      Value<DateTime?> deletedAt,
-    });
-
-final class $$PekerjaanPpatLocalsTableReferences
-    extends
-        BaseReferences<
-          _$AppDatabase,
-          $PekerjaanPpatLocalsTable,
-          PekerjaanPpatLocal
-        > {
-  $$PekerjaanPpatLocalsTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
-
-  static MultiTypedResultKey<
-    $PekerjaanPpatHargaLocalsTable,
-    List<PekerjaanPpatHargaLocal>
-  >
-  _pekerjaanPpatHargaLocalsRefsTable(_$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.pekerjaanPpatHargaLocals,
-        aliasName:
-            'pekerjaan_ppat__id__pekerjaan_ppat_harga__pekerjaan_ppat_id',
-      );
-
-  $$PekerjaanPpatHargaLocalsTableProcessedTableManager
-  get pekerjaanPpatHargaLocalsRefs {
-    final manager = $$PekerjaanPpatHargaLocalsTableTableManager(
-      $_db,
-      $_db.pekerjaanPpatHargaLocals,
-    ).filter((f) => f.pekerjaanPpatId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(
-      _pekerjaanPpatHargaLocalsRefsTable($_db),
-    );
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<
-    $PekerjaanPpatProsesLocalsTable,
-    List<PekerjaanPpatProsesLocal>
-  >
-  _pekerjaanPpatProsesLocalsRefsTable(_$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.pekerjaanPpatProsesLocals,
-        aliasName:
-            'pekerjaan_ppat__id__pekerjaan_ppat_proses__pekerjaan_ppat_id',
-      );
-
-  $$PekerjaanPpatProsesLocalsTableProcessedTableManager
-  get pekerjaanPpatProsesLocalsRefs {
-    final manager = $$PekerjaanPpatProsesLocalsTableTableManager(
-      $_db,
-      $_db.pekerjaanPpatProsesLocals,
-    ).filter((f) => f.pekerjaanPpatId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(
-      _pekerjaanPpatProsesLocalsRefsTable($_db),
-    );
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-
-  static MultiTypedResultKey<
-    $PekerjaanPpatAtributLocalsTable,
-    List<PekerjaanPpatAtributLocal>
-  >
-  _pekerjaanPpatAtributLocalsRefsTable(_$AppDatabase db) =>
-      MultiTypedResultKey.fromTable(
-        db.pekerjaanPpatAtributLocals,
-        aliasName:
-            'pekerjaan_ppat__id__pekerjaan_ppat_atributs__pekerjaan_ppat_id',
-      );
-
-  $$PekerjaanPpatAtributLocalsTableProcessedTableManager
-  get pekerjaanPpatAtributLocalsRefs {
-    final manager = $$PekerjaanPpatAtributLocalsTableTableManager(
-      $_db,
-      $_db.pekerjaanPpatAtributLocals,
-    ).filter((f) => f.pekerjaanPpatId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(
-      _pekerjaanPpatAtributLocalsRefsTable($_db),
-    );
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
-}
-
-class $$PekerjaanPpatLocalsTableFilterComposer
-    extends Composer<_$AppDatabase, $PekerjaanPpatLocalsTable> {
-  $$PekerjaanPpatLocalsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get uuid => $composableBuilder(
-    column: $table.uuid,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get nama => $composableBuilder(
-    column: $table.nama,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get createdBy => $composableBuilder(
-    column: $table.createdBy,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get updatedBy => $composableBuilder(
-    column: $table.updatedBy,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<int> get status => $composableBuilder(
-    column: $table.status,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<bool> get isSyncDirty => $composableBuilder(
-    column: $table.isSyncDirty,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get lastSyncedAt => $composableBuilder(
-    column: $table.lastSyncedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
-    column: $table.deletedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  Expression<bool> pekerjaanPpatHargaLocalsRefs(
-    Expression<bool> Function($$PekerjaanPpatHargaLocalsTableFilterComposer f)
-    f,
-  ) {
-    final $$PekerjaanPpatHargaLocalsTableFilterComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.pekerjaanPpatHargaLocals,
-          getReferencedColumn: (t) => t.pekerjaanPpatId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$PekerjaanPpatHargaLocalsTableFilterComposer(
-                $db: $db,
-                $table: $db.pekerjaanPpatHargaLocals,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-
-  Expression<bool> pekerjaanPpatProsesLocalsRefs(
-    Expression<bool> Function($$PekerjaanPpatProsesLocalsTableFilterComposer f)
-    f,
-  ) {
-    final $$PekerjaanPpatProsesLocalsTableFilterComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.pekerjaanPpatProsesLocals,
-          getReferencedColumn: (t) => t.pekerjaanPpatId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$PekerjaanPpatProsesLocalsTableFilterComposer(
-                $db: $db,
-                $table: $db.pekerjaanPpatProsesLocals,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-
-  Expression<bool> pekerjaanPpatAtributLocalsRefs(
-    Expression<bool> Function($$PekerjaanPpatAtributLocalsTableFilterComposer f)
-    f,
-  ) {
-    final $$PekerjaanPpatAtributLocalsTableFilterComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.pekerjaanPpatAtributLocals,
-          getReferencedColumn: (t) => t.pekerjaanPpatId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$PekerjaanPpatAtributLocalsTableFilterComposer(
-                $db: $db,
-                $table: $db.pekerjaanPpatAtributLocals,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-}
-
-class $$PekerjaanPpatLocalsTableOrderingComposer
-    extends Composer<_$AppDatabase, $PekerjaanPpatLocalsTable> {
-  $$PekerjaanPpatLocalsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get uuid => $composableBuilder(
-    column: $table.uuid,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get nama => $composableBuilder(
-    column: $table.nama,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get createdBy => $composableBuilder(
-    column: $table.createdBy,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get updatedBy => $composableBuilder(
-    column: $table.updatedBy,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<int> get status => $composableBuilder(
-    column: $table.status,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<bool> get isSyncDirty => $composableBuilder(
-    column: $table.isSyncDirty,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get lastSyncedAt => $composableBuilder(
-    column: $table.lastSyncedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
-    column: $table.deletedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-}
-
-class $$PekerjaanPpatLocalsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $PekerjaanPpatLocalsTable> {
-  $$PekerjaanPpatLocalsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<String> get uuid =>
-      $composableBuilder(column: $table.uuid, builder: (column) => column);
-
-  GeneratedColumn<String> get nama =>
-      $composableBuilder(column: $table.nama, builder: (column) => column);
-
-  GeneratedColumn<int> get createdBy =>
-      $composableBuilder(column: $table.createdBy, builder: (column) => column);
-
-  GeneratedColumn<int> get updatedBy =>
-      $composableBuilder(column: $table.updatedBy, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
-
-  GeneratedColumn<int> get status =>
-      $composableBuilder(column: $table.status, builder: (column) => column);
-
-  GeneratedColumn<bool> get isSyncDirty => $composableBuilder(
-    column: $table.isSyncDirty,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<DateTime> get lastSyncedAt => $composableBuilder(
-    column: $table.lastSyncedAt,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<DateTime> get deletedAt =>
-      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
-
-  Expression<T> pekerjaanPpatHargaLocalsRefs<T extends Object>(
-    Expression<T> Function($$PekerjaanPpatHargaLocalsTableAnnotationComposer a)
-    f,
-  ) {
-    final $$PekerjaanPpatHargaLocalsTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.pekerjaanPpatHargaLocals,
-          getReferencedColumn: (t) => t.pekerjaanPpatId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$PekerjaanPpatHargaLocalsTableAnnotationComposer(
-                $db: $db,
-                $table: $db.pekerjaanPpatHargaLocals,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-
-  Expression<T> pekerjaanPpatProsesLocalsRefs<T extends Object>(
-    Expression<T> Function($$PekerjaanPpatProsesLocalsTableAnnotationComposer a)
-    f,
-  ) {
-    final $$PekerjaanPpatProsesLocalsTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.pekerjaanPpatProsesLocals,
-          getReferencedColumn: (t) => t.pekerjaanPpatId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$PekerjaanPpatProsesLocalsTableAnnotationComposer(
-                $db: $db,
-                $table: $db.pekerjaanPpatProsesLocals,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-
-  Expression<T> pekerjaanPpatAtributLocalsRefs<T extends Object>(
-    Expression<T> Function(
-      $$PekerjaanPpatAtributLocalsTableAnnotationComposer a,
-    )
-    f,
-  ) {
-    final $$PekerjaanPpatAtributLocalsTableAnnotationComposer composer =
-        $composerBuilder(
-          composer: this,
-          getCurrentColumn: (t) => t.id,
-          referencedTable: $db.pekerjaanPpatAtributLocals,
-          getReferencedColumn: (t) => t.pekerjaanPpatId,
-          builder:
-              (
-                joinBuilder, {
-                $addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer,
-              }) => $$PekerjaanPpatAtributLocalsTableAnnotationComposer(
-                $db: $db,
-                $table: $db.pekerjaanPpatAtributLocals,
-                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-                joinBuilder: joinBuilder,
-                $removeJoinBuilderFromRootComposer:
-                    $removeJoinBuilderFromRootComposer,
-              ),
-        );
-    return f(composer);
-  }
-}
-
-class $$PekerjaanPpatLocalsTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $PekerjaanPpatLocalsTable,
-          PekerjaanPpatLocal,
-          $$PekerjaanPpatLocalsTableFilterComposer,
-          $$PekerjaanPpatLocalsTableOrderingComposer,
-          $$PekerjaanPpatLocalsTableAnnotationComposer,
-          $$PekerjaanPpatLocalsTableCreateCompanionBuilder,
-          $$PekerjaanPpatLocalsTableUpdateCompanionBuilder,
-          (PekerjaanPpatLocal, $$PekerjaanPpatLocalsTableReferences),
-          PekerjaanPpatLocal,
-          PrefetchHooks Function({
-            bool pekerjaanPpatHargaLocalsRefs,
-            bool pekerjaanPpatProsesLocalsRefs,
-            bool pekerjaanPpatAtributLocalsRefs,
-          })
-        > {
-  $$PekerjaanPpatLocalsTableTableManager(
-    _$AppDatabase db,
-    $PekerjaanPpatLocalsTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$PekerjaanPpatLocalsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$PekerjaanPpatLocalsTableOrderingComposer(
-                $db: db,
-                $table: table,
-              ),
-          createComputedFieldComposer: () =>
-              $$PekerjaanPpatLocalsTableAnnotationComposer(
-                $db: db,
-                $table: table,
-              ),
-          updateCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                Value<String> uuid = const Value.absent(),
-                Value<String> nama = const Value.absent(),
-                Value<int?> createdBy = const Value.absent(),
-                Value<int?> updatedBy = const Value.absent(),
-                Value<DateTime?> createdAt = const Value.absent(),
-                Value<DateTime?> updatedAt = const Value.absent(),
-                Value<int> status = const Value.absent(),
-                Value<bool> isSyncDirty = const Value.absent(),
-                Value<DateTime?> lastSyncedAt = const Value.absent(),
-                Value<DateTime?> deletedAt = const Value.absent(),
-              }) => PekerjaanPpatLocalsCompanion(
-                id: id,
-                uuid: uuid,
-                nama: nama,
-                createdBy: createdBy,
-                updatedBy: updatedBy,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-                status: status,
-                isSyncDirty: isSyncDirty,
-                lastSyncedAt: lastSyncedAt,
-                deletedAt: deletedAt,
-              ),
-          createCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                required String uuid,
-                required String nama,
-                Value<int?> createdBy = const Value.absent(),
-                Value<int?> updatedBy = const Value.absent(),
-                Value<DateTime?> createdAt = const Value.absent(),
-                Value<DateTime?> updatedAt = const Value.absent(),
-                Value<int> status = const Value.absent(),
-                Value<bool> isSyncDirty = const Value.absent(),
-                Value<DateTime?> lastSyncedAt = const Value.absent(),
-                Value<DateTime?> deletedAt = const Value.absent(),
-              }) => PekerjaanPpatLocalsCompanion.insert(
-                id: id,
-                uuid: uuid,
-                nama: nama,
-                createdBy: createdBy,
-                updatedBy: updatedBy,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-                status: status,
-                isSyncDirty: isSyncDirty,
-                lastSyncedAt: lastSyncedAt,
-                deletedAt: deletedAt,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable<$PekerjaanPpatLocalsTable, PekerjaanPpatLocal>(
-                    table,
-                  ),
-                  $$PekerjaanPpatLocalsTableReferences(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback:
-              ({
-                pekerjaanPpatHargaLocalsRefs = false,
-                pekerjaanPpatProsesLocalsRefs = false,
-                pekerjaanPpatAtributLocalsRefs = false,
-              }) {
-                return PrefetchHooks(
-                  db: db,
-                  explicitlyWatchedTables: [
-                    if (pekerjaanPpatHargaLocalsRefs)
-                      db.pekerjaanPpatHargaLocals,
-                    if (pekerjaanPpatProsesLocalsRefs)
-                      db.pekerjaanPpatProsesLocals,
-                    if (pekerjaanPpatAtributLocalsRefs)
-                      db.pekerjaanPpatAtributLocals,
-                  ],
-                  addJoins: null,
-                  getPrefetchedDataCallback: (items) async {
-                    return [
-                      if (pekerjaanPpatHargaLocalsRefs)
-                        await $_getPrefetchedData<
-                          PekerjaanPpatLocal,
-                          $PekerjaanPpatLocalsTable,
-                          PekerjaanPpatHargaLocal
-                        >(
-                          currentTable: table,
-                          referencedTable: $$PekerjaanPpatLocalsTableReferences
-                              ._pekerjaanPpatHargaLocalsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$PekerjaanPpatLocalsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).pekerjaanPpatHargaLocalsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.pekerjaanPpatId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (pekerjaanPpatProsesLocalsRefs)
-                        await $_getPrefetchedData<
-                          PekerjaanPpatLocal,
-                          $PekerjaanPpatLocalsTable,
-                          PekerjaanPpatProsesLocal
-                        >(
-                          currentTable: table,
-                          referencedTable: $$PekerjaanPpatLocalsTableReferences
-                              ._pekerjaanPpatProsesLocalsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$PekerjaanPpatLocalsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).pekerjaanPpatProsesLocalsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.pekerjaanPpatId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                      if (pekerjaanPpatAtributLocalsRefs)
-                        await $_getPrefetchedData<
-                          PekerjaanPpatLocal,
-                          $PekerjaanPpatLocalsTable,
-                          PekerjaanPpatAtributLocal
-                        >(
-                          currentTable: table,
-                          referencedTable: $$PekerjaanPpatLocalsTableReferences
-                              ._pekerjaanPpatAtributLocalsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$PekerjaanPpatLocalsTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).pekerjaanPpatAtributLocalsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.pekerjaanPpatId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                    ];
-                  },
-                );
-              },
-        ),
-      );
-}
-
-typedef $$PekerjaanPpatLocalsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $PekerjaanPpatLocalsTable,
-      PekerjaanPpatLocal,
-      $$PekerjaanPpatLocalsTableFilterComposer,
-      $$PekerjaanPpatLocalsTableOrderingComposer,
-      $$PekerjaanPpatLocalsTableAnnotationComposer,
-      $$PekerjaanPpatLocalsTableCreateCompanionBuilder,
-      $$PekerjaanPpatLocalsTableUpdateCompanionBuilder,
-      (PekerjaanPpatLocal, $$PekerjaanPpatLocalsTableReferences),
-      PekerjaanPpatLocal,
-      PrefetchHooks Function({
-        bool pekerjaanPpatHargaLocalsRefs,
-        bool pekerjaanPpatProsesLocalsRefs,
-        bool pekerjaanPpatAtributLocalsRefs,
-      })
-    >;
 typedef $$PekerjaanPpatHargaLocalsTableCreateCompanionBuilder =
     PekerjaanPpatHargaLocalsCompanion Function({
       Value<int> id,
@@ -18485,17 +21487,21 @@ class $AppDatabaseManager {
       $$PemohonsTableTableManager(_db, _db.pemohons);
   $$TransaksisTableTableManager get transaksis =>
       $$TransaksisTableTableManager(_db, _db.transaksis);
+  $$PekerjaanNotarisLocalsTableTableManager get pekerjaanNotarisLocals =>
+      $$PekerjaanNotarisLocalsTableTableManager(
+        _db,
+        _db.pekerjaanNotarisLocals,
+      );
+  $$PekerjaanPpatLocalsTableTableManager get pekerjaanPpatLocals =>
+      $$PekerjaanPpatLocalsTableTableManager(_db, _db.pekerjaanPpatLocals);
+  $$TransaksiDetailsTableTableManager get transaksiDetails =>
+      $$TransaksiDetailsTableTableManager(_db, _db.transaksiDetails);
   $$PekerjaanKategorisTableTableManager get pekerjaanKategoris =>
       $$PekerjaanKategorisTableTableManager(_db, _db.pekerjaanKategoris);
   $$PengeluaranJenisTableTableManager get pengeluaranJenis =>
       $$PengeluaranJenisTableTableManager(_db, _db.pengeluaranJenis);
   $$PetugasLocalsTableTableManager get petugasLocals =>
       $$PetugasLocalsTableTableManager(_db, _db.petugasLocals);
-  $$PekerjaanNotarisLocalsTableTableManager get pekerjaanNotarisLocals =>
-      $$PekerjaanNotarisLocalsTableTableManager(
-        _db,
-        _db.pekerjaanNotarisLocals,
-      );
   $$PekerjaanNotarisHargaLocalsTableTableManager
   get pekerjaanNotarisHargaLocals =>
       $$PekerjaanNotarisHargaLocalsTableTableManager(
@@ -18514,8 +21520,6 @@ class $AppDatabaseManager {
         _db,
         _db.pekerjaanNotarisAtributLocals,
       );
-  $$PekerjaanPpatLocalsTableTableManager get pekerjaanPpatLocals =>
-      $$PekerjaanPpatLocalsTableTableManager(_db, _db.pekerjaanPpatLocals);
   $$PekerjaanPpatHargaLocalsTableTableManager get pekerjaanPpatHargaLocals =>
       $$PekerjaanPpatHargaLocalsTableTableManager(
         _db,

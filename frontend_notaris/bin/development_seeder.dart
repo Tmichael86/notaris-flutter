@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:flutter/widgets.dart';
 
 import 'package:frontend_notaris/database/app_database.dart';
@@ -10,10 +11,17 @@ Future<void> main() async {
 
   try {
     await DevelopmentSeeder.seedIfEmpty(database);
-    print('Development SQLite seed completed successfully.');
+    developer.log(
+      'Development SQLite seed completed successfully.',
+      name: 'DevelopmentSeeder',
+    );
   } catch (error, stackTrace) {
-    print('Development SQLite seed failed: $error');
-    print(stackTrace);
+    developer.log(
+      'Development SQLite seed failed',
+      name: 'DevelopmentSeeder',
+      error: error,
+      stackTrace: stackTrace,
+    );
     rethrow;
   } finally {
     await database.close();
