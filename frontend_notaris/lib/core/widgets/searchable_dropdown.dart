@@ -21,7 +21,7 @@ class SearchableDropdown<T> extends StatefulWidget {
     required this.items,
     required this.onChanged,
     this.label = '',
-    this.hint = 'Pilih...',
+    this.hint = '',
     this.itemLabel,
     this.enabled = true,
   });
@@ -119,7 +119,9 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
 
   @override
   Widget build(BuildContext context) {
-    final selectedText = widget.value == null ? null : _label(widget.value as T);
+    final selectedText = widget.value == null
+        ? null
+        : _label(widget.value as T);
 
     return CompositedTransformTarget(
       link: _layerLink,
@@ -128,9 +130,11 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
         child: InputDecorator(
           decoration: InputDecoration(
             labelText: widget.label.isEmpty ? null : widget.label,
-            hintText: widget.hint,
             border: const OutlineInputBorder(),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 8,
+            ),
             enabled: widget.enabled,
           ),
           isEmpty: selectedText == null,
@@ -141,13 +145,11 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
                   selectedText ?? widget.hint,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: selectedText == null ? Colors.grey.shade600 : Colors.black87,
+                    color: selectedText == null
+                        ? Colors.grey.shade600
+                        : Colors.black87,
                   ),
                 ),
-              ),
-              Icon(
-                _overlayEntry != null ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-                color: Colors.grey.shade700,
               ),
             ],
           ),
@@ -244,7 +246,10 @@ class _DropdownMenuState<T> extends State<_DropdownMenu<T>> {
                         onTap: () => widget.onSelected(item),
                         child: Container(
                           constraints: const BoxConstraints(minHeight: 44),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
                           child: Row(
                             children: [
                               Expanded(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../core/theme/app_colors.dart';
 import '../core/widgets/loading_overlay.dart';
 import '../core/widgets/searchable_dropdown.dart';
@@ -95,8 +96,9 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
           (x.noTelp ?? '').toLowerCase().contains(q);
     }).toList();
 
-    final pageCount =
-        filtered.isEmpty ? 1 : ((filtered.length - 1) ~/ _pageSize) + 1;
+    final pageCount = filtered.isEmpty
+        ? 1
+        : ((filtered.length - 1) ~/ _pageSize) + 1;
     if (_page > pageCount) _page = pageCount;
 
     final start = (_page - 1) * _pageSize;
@@ -198,8 +200,9 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
                 ),
                 Text('Halaman $_page / $pageCount'),
                 IconButton(
-                  onPressed:
-                      _page < pageCount ? () => setState(() => _page++) : null,
+                  onPressed: _page < pageCount
+                      ? () => setState(() => _page++)
+                      : null,
                   icon: const Icon(Icons.chevron_right),
                 ),
               ],
@@ -210,148 +213,268 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
     );
   }
 
-  void _showForm({PetugasLocal? item}) {
-    final nik = TextEditingController(text: item?.nik ?? '');
-    final nama = TextEditingController(text: item?.nama ?? '');
-    final tempat = TextEditingController(text: item?.tempatLahir ?? '');
-    final telp = TextEditingController(text: item?.noTelp ?? '');
-    final email = TextEditingController(text: item?.email ?? '');
-    final alamat = TextEditingController(text: item?.alamat ?? '');
-    final userId =
-        TextEditingController(text: item?.userId?.toString() ?? '');
+  Future<void> _showForm({PetugasLocal? item}) async {
+    String nik = item?.nik ?? '';
+    String nama = item?.nama ?? '';
+    String tempat = item?.tempatLahir ?? '';
+    String telp = item?.noTelp ?? '';
+    String email = item?.email ?? '';
+    String alamat = item?.alamat ?? '';
+    String userId = item?.userId?.toString() ?? '';
 
     DateTime? tanggal = item?.tanggalLahir;
     int? genderId = item?.jenisKelamin;
     final gs = ref.read(jenisKelaminProvider).valueOrNull ?? <JenisKelamin>[];
 
-    showDialog<void>(
+    String? namaError;
+    String? emailError;
+    String? userIdError;
+    bool saving = false;
+
+    final saved = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(item == null ? 'Tambah Petugas' : 'Edit Petugas'),
-          content: SizedBox(
-            width: 760,
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  _row(
-                    _field('NIK', nik, type: TextInputType.number),
-                    _field('Nama *', nama),
-                  ),
-                  const SizedBox(height: 12),
-                  _row(
-                    SearchableDropdown<JenisKelamin>(
-                      label: 'Jenis Kelamin',
-                      hint: 'Pilih jenis kelamin',
-                      value: _genderObject(genderId, gs),
-                      items: gs,
-                      itemLabel: (x) => x.nama,
-                      onChanged: (v) => setDialogState(() => genderId = v?.id),
+        builder: (context, setDialogState) {
+          Future<void> savePetugas() async {
+            final normalizedNama = nama.trim();
+            final normalizedEmail = email.trim();
+            final normalizedUserId = userId.trim();
+
+            setDialogState(() {
+              namaError = normalizedNama.isEmpty
+                  ? 'Nama petugas wajib diisi.'
+                  : null;
+              emailError = normalizedEmail.isEmpty
+                  ? 'Email wajib diisi.'
+                  : null;
+              userIdError =
+                  normalizedUserId.isNotEmpty &&
+                      int.tryParse(normalizedUserId) == null
+                  ? 'User ID harus berupa angka.'
+                  : null;
+            });
+
+            if (namaError != null ||
+                emailError != null ||
+                userIdError != null) {
+              return;
+            }
+
+            setDialogState(() => saving = true);
+
+            try {
+              final c = ref.read(petugasControllerProvider.notifier);
+              final uid = normalizedUserId.isEmpty
+                  ? null
+                  : int.parse(normalizedUserId);
+
+              if (item == null) {
+                await c.create(
+                  nama: normalizedNama,
+                  nik: nik,
+                  alamat: alamat,
+                  tempatLahir: tempat,
+                  tanggalLahir: tanggal,
+                  jenisKelamin: genderId,
+                  noTelp: telp,
+                  email: normalizedEmail,
+                  userId: uid,
+                );
+              } else {
+                final ok = await c.updatePetugas(
+                  id: item.id,
+                  nama: normalizedNama,
+                  nik: nik,
+                  alamat: alamat,
+                  tempatLahir: tempat,
+                  tanggalLahir: tanggal,
+                  jenisKelamin: genderId,
+                  noTelp: telp,
+                  email: normalizedEmail,
+                  userId: uid,
+                );
+
+                if (!ok) {
+                  throw StateError('Petugas tidak ditemukan.');
+                }
+              }
+
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext, true);
+              }
+            } catch (error) {
+              if (dialogContext.mounted) {
+                setDialogState(() => saving = false);
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  SnackBar(content: Text('Gagal menyimpan petugas: $error')),
+                );
+              }
+            }
+          }
+
+          return AlertDialog(
+            title: Text(item == null ? 'Tambah Petugas' : 'Edit Petugas'),
+            content: SizedBox(
+              width: 760,
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    _row(
+                      _textField(
+                        'NIK',
+                        nik,
+                        onChanged: (v) => nik = v,
+                        type: TextInputType.number,
+                        enabled: !saving,
+                      ),
+                      _textField(
+                        'Nama *',
+                        nama,
+                        onChanged: (v) {
+                          nama = v;
+                          if (namaError != null) {
+                            setDialogState(() => namaError = null);
+                          }
+                        },
+                        errorText: namaError,
+                        enabled: !saving,
+                      ),
                     ),
-                    _field('Tempat Lahir', tempat),
-                  ),
-                  const SizedBox(height: 12),
-                  _row(
-                    _dateField(
-                      tanggal,
-                      (v) => setDialogState(() => tanggal = v),
+                    const SizedBox(height: 12),
+                    _row(
+                      SearchableDropdown<JenisKelamin>(
+                        label: 'Jenis Kelamin',
+                        value: _genderObject(genderId, gs),
+                        items: gs,
+                        itemLabel: (x) => x.nama,
+                        onChanged: (v) {
+                          if (saving) return;
+                          setDialogState(() {
+                            genderId = v?.id;
+                          });
+                        },
+                      ),
+                      _textField(
+                        'Tempat Lahir',
+                        tempat,
+                        onChanged: (v) => tempat = v,
+                        enabled: !saving,
+                      ),
                     ),
-                    _field('Telp', telp, type: TextInputType.phone),
-                  ),
-                  const SizedBox(height: 12),
-                  _row(
-                    _field('Email *', email, type: TextInputType.emailAddress),
-                    _field(
-                      'User ID',
-                      userId,
-                      type: TextInputType.number,
-                      helper: 'Opsional. Master User belum tersedia di SQLite.',
+                    const SizedBox(height: 12),
+                    _row(
+                      _dateField(
+                        tanggal,
+                        (v) => setDialogState(() => tanggal = v),
+                      ),
+                      _textField(
+                        'Telp',
+                        telp,
+                        onChanged: (v) => telp = v,
+                        type: TextInputType.phone,
+                        enabled: !saving,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  _field('Alamat', alamat, maxLines: 4),
-                ],
+                    const SizedBox(height: 12),
+                    _row(
+                      _textField(
+                        'Email *',
+                        email,
+                        onChanged: (v) {
+                          email = v;
+                          if (emailError != null) {
+                            setDialogState(() => emailError = null);
+                          }
+                        },
+                        errorText: emailError,
+                        type: TextInputType.emailAddress,
+                        enabled: !saving,
+                      ),
+                      _textField(
+                        'User ID',
+                        userId,
+                        onChanged: (v) {
+                          userId = v;
+                          if (userIdError != null) {
+                            setDialogState(() => userIdError = null);
+                          }
+                        },
+                        errorText: userIdError,
+                        type: TextInputType.number,
+                        helper:
+                            'Opsional. Master User belum tersedia di SQLite.',
+                        enabled: !saving,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _textField(
+                      'Alamat',
+                      alamat,
+                      onChanged: (v) => alamat = v,
+                      maxLines: 4,
+                      enabled: !saving,
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Batal'),
-            ),
-            FilledButton.icon(
-              onPressed: () async {
-                if (nama.text.trim().isEmpty || email.text.trim().isEmpty) {
-                  _message('Nama dan email wajib diisi.');
-                  return;
-                }
-
-                setState(() => _loading = true);
-
-                try {
-                  final c = ref.read(petugasControllerProvider.notifier);
-                  final uid = int.tryParse(userId.text.trim());
-
-                  if (item == null) {
-                    await c.create(
-                      nama: nama.text,
-                      nik: nik.text,
-                      alamat: alamat.text,
-                      tempatLahir: tempat.text,
-                      tanggalLahir: tanggal,
-                      jenisKelamin: genderId,
-                      noTelp: telp.text,
-                      email: email.text,
-                      userId: uid,
-                    );
-                  } else {
-                    final ok = await c.updatePetugas(
-                      id: item.id,
-                      nama: nama.text,
-                      nik: nik.text,
-                      alamat: alamat.text,
-                      tempatLahir: tempat.text,
-                      tanggalLahir: tanggal,
-                      jenisKelamin: genderId,
-                      noTelp: telp.text,
-                      email: email.text,
-                      userId: uid,
-                    );
-                    if (!ok) throw StateError('Petugas tidak ditemukan.');
-                  }
-
-                  if (dialogContext.mounted) Navigator.pop(dialogContext);
-
-                  _message(
-                    item == null
-                        ? 'Petugas berhasil ditambahkan.'
-                        : 'Petugas berhasil diperbarui.',
-                  );
-                } catch (e) {
-                  _message('Gagal menyimpan petugas: $e');
-                } finally {
-                  if (mounted) setState(() => _loading = false);
-                }
-              },
-              icon: const Icon(Icons.save_outlined),
-              label: const Text('Simpan'),
-            ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: saving
+                    ? null
+                    : () => Navigator.pop(dialogContext, false),
+                child: const Text('Batal'),
+              ),
+              FilledButton.icon(
+                onPressed: saving ? null : savePetugas,
+                icon: saving
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined),
+                label: Text(saving ? 'Menyimpan...' : 'Simpan'),
+              ),
+            ],
+          );
+        },
       ),
-    ).whenComplete(() {
-      for (final controller in [
-        nik,
-        nama,
-        tempat,
-        telp,
-        email,
-        alamat,
-        userId,
-      ]) {
-        controller.dispose();
-      }
-    });
+    );
+
+    if (saved != true || !mounted) return;
+
+    _message(
+      item == null
+          ? 'Petugas berhasil ditambahkan.'
+          : 'Petugas berhasil diperbarui.',
+    );
+  }
+
+  Widget _textField(
+    String label,
+    String value, {
+    required ValueChanged<String> onChanged,
+    TextInputType? type,
+    int maxLines = 1,
+    String? helper,
+    String? errorText,
+    bool enabled = true,
+  }) {
+    return TextFormField(
+      key: ValueKey('petugas-$label'),
+      initialValue: value,
+      onChanged: onChanged,
+      keyboardType: type,
+      maxLines: maxLines,
+      enabled: enabled,
+      decoration: InputDecoration(
+        labelText: label,
+        helperText: helper,
+        errorText: errorText,
+        border: const OutlineInputBorder(),
+      ),
+    );
   }
 
   Widget _row(Widget a, Widget b) {
@@ -368,29 +491,7 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
     );
   }
 
-  Widget _field(
-    String label,
-    TextEditingController c, {
-    TextInputType? type,
-    int maxLines = 1,
-    String? helper,
-  }) {
-    return TextField(
-      controller: c,
-      keyboardType: type,
-      maxLines: maxLines,
-      decoration: InputDecoration(
-        labelText: label,
-        helperText: helper,
-        border: const OutlineInputBorder(),
-      ),
-    );
-  }
-
-  Widget _dateField(
-    DateTime? value,
-    ValueChanged<DateTime?> onChanged,
-  ) {
+  Widget _dateField(DateTime? value, ValueChanged<DateTime?> onChanged) {
     return InkWell(
       onTap: () async {
         final picked = await showDatePicker(
@@ -417,7 +518,9 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Hapus Petugas'),
-        content: Text('Hapus petugas "${item.nama}"? Data akan di-soft delete.'),
+        content: Text(
+          'Hapus petugas "${item.nama}"? Data akan di-soft delete.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -439,9 +542,7 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
       final ok = await ref
           .read(petugasControllerProvider.notifier)
           .delete(item.id);
-      _message(
-        ok ? 'Petugas berhasil dihapus.' : 'Petugas tidak ditemukan.',
-      );
+      _message(ok ? 'Petugas berhasil dihapus.' : 'Petugas tidak ditemukan.');
     } catch (e) {
       _message('Gagal menghapus petugas: $e');
     } finally {
@@ -457,9 +558,9 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
 
   static JenisKelamin? _genderObject(int? id, List<JenisKelamin> items) {
     return items.cast<JenisKelamin?>().firstWhere(
-          (x) => x?.id == id,
-          orElse: () => null,
-        );
+      (x) => x?.id == id,
+      orElse: () => null,
+    );
   }
 
   static String _gender(int? id, List<JenisKelamin> items) =>

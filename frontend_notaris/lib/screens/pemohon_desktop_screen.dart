@@ -236,7 +236,6 @@ void _showForm({Pemohon? item}) {
                   _row(
                     SearchableDropdown<JenisKelamin>(
                       label: 'Jenis Kelamin',
-                      hint: 'Pilih jenis kelamin',
                       value: _genderObject(genderId, gs),
                       items: gs,
                       itemLabel: (x) => x.nama,

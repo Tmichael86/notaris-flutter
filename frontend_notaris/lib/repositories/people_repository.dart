@@ -1,4 +1,3 @@
-
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -18,6 +17,7 @@ class JenisKelaminRepository {
 
 class PetugasRepository {
   PetugasRepository(this.db);
+
   final AppDatabase db;
   static const _uuid = Uuid();
 
@@ -38,25 +38,31 @@ class PetugasRepository {
     String? noTelp,
     required String email,
     int? userId,
-  }) {
+  }) async {
+    final normalizedNama = _requiredText(nama, 'Nama petugas');
+    final normalizedEmail = _requiredText(email, 'Email');
+
     final now = DateTime.now();
-    return db.into(db.petugasLocals).insert(
-      PetugasLocalsCompanion.insert(
-        uuid: _uuid.v4(),
-        nama: nama,
-        nik: Value(_text(nik)),
-        alamat: Value(_text(alamat)),
-        tempatLahir: Value(_text(tempatLahir)),
-        tanggalLahir: Value(tanggalLahir),
-        jenisKelamin: Value(jenisKelamin),
-        noTelp: Value(_text(noTelp)),
-        email: email,
-        userId: Value(userId),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        isSyncDirty: const Value(true),
-      ),
-    );
+
+    return db
+        .into(db.petugasLocals)
+        .insert(
+          PetugasLocalsCompanion.insert(
+            uuid: _uuid.v4(),
+            nama: normalizedNama,
+            nik: Value(_text(nik)),
+            alamat: Value(_text(alamat)),
+            tempatLahir: Value(_text(tempatLahir)),
+            tanggalLahir: Value(tanggalLahir),
+            jenisKelamin: Value(jenisKelamin),
+            noTelp: Value(_text(noTelp)),
+            email: normalizedEmail,
+            userId: Value(userId),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            isSyncDirty: const Value(true),
+          ),
+        );
   }
 
   Future<bool> update({
@@ -71,43 +77,67 @@ class PetugasRepository {
     required String email,
     int? userId,
   }) async {
-    final affected = await (db.update(db.petugasLocals)
-          ..where((t) => t.id.equals(id) & t.deletedAt.isNull()))
-        .write(
-      PetugasLocalsCompanion(
-        nama: Value(nama),
-        nik: Value(_text(nik)),
-        alamat: Value(_text(alamat)),
-        tempatLahir: Value(_text(tempatLahir)),
-        tanggalLahir: Value(tanggalLahir),
-        jenisKelamin: Value(jenisKelamin),
-        noTelp: Value(_text(noTelp)),
-        email: Value(email),
-        userId: Value(userId),
-        updatedAt: Value(DateTime.now()),
-        isSyncDirty: const Value(true),
-      ),
-    );
+    final normalizedNama = _requiredText(nama, 'Nama petugas');
+    final normalizedEmail = _requiredText(email, 'Email');
+    final now = DateTime.now();
+
+    final affected =
+        await (db.update(db.petugasLocals)..where(
+              (t) =>
+                  t.id.equals(id) & t.status.equals(1) & t.deletedAt.isNull(),
+            ))
+            .write(
+              PetugasLocalsCompanion(
+                nama: Value(normalizedNama),
+                nik: Value(_text(nik)),
+                alamat: Value(_text(alamat)),
+                tempatLahir: Value(_text(tempatLahir)),
+                tanggalLahir: Value(tanggalLahir),
+                jenisKelamin: Value(jenisKelamin),
+                noTelp: Value(_text(noTelp)),
+                email: Value(normalizedEmail),
+                userId: Value(userId),
+                updatedAt: Value(now),
+                isSyncDirty: const Value(true),
+              ),
+            );
+
     return affected > 0;
   }
 
   Future<bool> delete(int id) async {
-    final affected = await (db.update(db.petugasLocals)
-          ..where((t) => t.id.equals(id) & t.deletedAt.isNull()))
-        .write(
-      PetugasLocalsCompanion(
-        status: const Value(0),
-        deletedAt: Value(DateTime.now()),
-        updatedAt: Value(DateTime.now()),
-        isSyncDirty: const Value(true),
-      ),
-    );
+    final now = DateTime.now();
+
+    final affected =
+        await (db.update(db.petugasLocals)..where(
+              (t) =>
+                  t.id.equals(id) & t.status.equals(1) & t.deletedAt.isNull(),
+            ))
+            .write(
+              PetugasLocalsCompanion(
+                status: const Value(0),
+                deletedAt: Value(now),
+                updatedAt: Value(now),
+                isSyncDirty: const Value(true),
+              ),
+            );
+
     return affected > 0;
   }
 
+  static String _requiredText(String value, String label) {
+    final normalized = value.trim();
+
+    if (normalized.isEmpty) {
+      throw ArgumentError('$label wajib diisi.');
+    }
+
+    return normalized;
+  }
+
   static String? _text(String? value) {
-    final text = value?.trim() ?? '';
-    return text.isEmpty ? null : text;
+    final normalized = value?.trim() ?? '';
+    return normalized.isEmpty ? null : normalized;
   }
 }
 
@@ -131,19 +161,21 @@ class PemohonRepository {
     String? nik,
   }) {
     final now = DateTime.now();
-    return db.into(db.pemohons).insert(
-      PemohonsCompanion.insert(
-        uuid: _uuid.v4(),
-        nama: nama,
-        alamat: Value(_text(alamat)),
-        jenisKelamin: Value(jenisKelamin),
-        noTelp: Value(_text(noTelp)),
-        nik: Value(_text(nik)),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        isSyncDirty: const Value(true),
-      ),
-    );
+    return db
+        .into(db.pemohons)
+        .insert(
+          PemohonsCompanion.insert(
+            uuid: _uuid.v4(),
+            nama: nama,
+            alamat: Value(_text(alamat)),
+            jenisKelamin: Value(jenisKelamin),
+            noTelp: Value(_text(noTelp)),
+            nik: Value(_text(nik)),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            isSyncDirty: const Value(true),
+          ),
+        );
   }
 
   Future<bool> update({
@@ -154,33 +186,35 @@ class PemohonRepository {
     String? noTelp,
     String? nik,
   }) async {
-    final affected = await (db.update(db.pemohons)
-          ..where((t) => t.id.equals(id) & t.deletedAt.isNull()))
-        .write(
-      PemohonsCompanion(
-        nama: Value(nama),
-        alamat: Value(_text(alamat)),
-        jenisKelamin: Value(jenisKelamin),
-        noTelp: Value(_text(noTelp)),
-        nik: Value(_text(nik)),
-        updatedAt: Value(DateTime.now()),
-        isSyncDirty: const Value(true),
-      ),
-    );
+    final affected =
+        await (db.update(
+          db.pemohons,
+        )..where((t) => t.id.equals(id) & t.deletedAt.isNull())).write(
+          PemohonsCompanion(
+            nama: Value(nama),
+            alamat: Value(_text(alamat)),
+            jenisKelamin: Value(jenisKelamin),
+            noTelp: Value(_text(noTelp)),
+            nik: Value(_text(nik)),
+            updatedAt: Value(DateTime.now()),
+            isSyncDirty: const Value(true),
+          ),
+        );
     return affected > 0;
   }
 
   Future<bool> delete(int id) async {
-    final affected = await (db.update(db.pemohons)
-          ..where((t) => t.id.equals(id) & t.deletedAt.isNull()))
-        .write(
-      PemohonsCompanion(
-        status: const Value(0),
-        deletedAt: Value(DateTime.now()),
-        updatedAt: Value(DateTime.now()),
-        isSyncDirty: const Value(true),
-      ),
-    );
+    final affected =
+        await (db.update(
+          db.pemohons,
+        )..where((t) => t.id.equals(id) & t.deletedAt.isNull())).write(
+          PemohonsCompanion(
+            status: const Value(0),
+            deletedAt: Value(DateTime.now()),
+            updatedAt: Value(DateTime.now()),
+            isSyncDirty: const Value(true),
+          ),
+        );
     return affected > 0;
   }
 
