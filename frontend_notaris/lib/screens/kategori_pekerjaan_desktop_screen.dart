@@ -74,10 +74,7 @@ class _KategoriPekerjaanDesktopScreenState
                 const SizedBox(width: 14),
                 Text(
                   'Master  |  Kategori Pekerjaan',
-                  style: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: 13,
-                  ),
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
                 ),
               ],
             ],
@@ -108,10 +105,7 @@ class _KategoriPekerjaanDesktopScreenState
     final start = (_page - 1) * _limit;
     final rows = start >= filtered.length
         ? <PekerjaanKategori>[]
-        : filtered.sublist(
-            start,
-            (start + _limit).clamp(0, filtered.length),
-          );
+        : filtered.sublist(start, (start + _limit).clamp(0, filtered.length));
 
     return Container(
       width: double.infinity,
@@ -266,10 +260,7 @@ class _KategoriPekerjaanDesktopScreenState
             color: AppColors.primaryConfirm,
             borderRadius: BorderRadius.circular(6),
           ),
-          child: Text(
-            '$_page',
-            style: const TextStyle(color: Colors.white),
-          ),
+          child: Text('$_page', style: const TextStyle(color: Colors.white)),
         ),
         OutlinedButton(
           onPressed: _page < pages ? () => setState(() => _page++) : null,
@@ -281,85 +272,136 @@ class _KategoriPekerjaanDesktopScreenState
     return mobile
         ? Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(text),
-              const SizedBox(height: 10),
-              buttons,
-            ],
+            children: [Text(text), const SizedBox(height: 10), buttons],
           )
-        : Row(
-            children: [
-              Text(text),
-              const Spacer(),
-              buttons,
-            ],
-          );
+        : Row(children: [Text(text), const Spacer(), buttons]);
   }
 
   Future<void> _form({PekerjaanKategori? item}) async {
-    final controller = TextEditingController(text: item?.nama ?? '');
+    String namaInput = item?.nama ?? '';
 
-    await showDialog<void>(
+    String? validationError;
+    bool saving = false;
+
+    Future<void> saveCategory(
+      BuildContext dialogContext,
+      StateSetter setDialogState,
+    ) async {
+      final nama = namaInput.trim();
+
+      if (nama.isEmpty) {
+        setDialogState(() {
+          validationError = 'Nama kategori wajib diisi.';
+        });
+        return;
+      }
+
+      setDialogState(() {
+        saving = true;
+        validationError = null;
+      });
+
+      try {
+        final c = ref.read(pekerjaanKategoriControllerProvider.notifier);
+
+        if (item == null) {
+          await c.create(nama: nama);
+        } else {
+          final updated = await c.updateCategory(id: item.id, nama: nama);
+
+          if (!updated) {
+            throw StateError('Kategori pekerjaan tidak ditemukan.');
+          }
+        }
+
+        if (dialogContext.mounted) {
+          Navigator.pop(dialogContext, true);
+        }
+      } on ArgumentError catch (error) {
+        if (dialogContext.mounted) {
+          setDialogState(() {
+            validationError = error.message.toString();
+            saving = false;
+          });
+        }
+      } catch (error) {
+        if (dialogContext.mounted) {
+          setDialogState(() {
+            validationError = 'Gagal menyimpan data. Silakan coba lagi.';
+            saving = false;
+          });
+        }
+      }
+    }
+
+    final saved = await showDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          item == null
-              ? 'Tambah Kategori Pekerjaan'
-              : 'Edit Kategori Pekerjaan',
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(
+            item == null
+                ? 'Tambah Kategori Pekerjaan'
+                : 'Edit Kategori Pekerjaan',
+          ),
+          content: SizedBox(
+            width: 480,
+            child: TextField(
+              autofocus: true,
+              enabled: !saving,
+              onChanged: (value) {
+                namaInput = value;
+
+                if (validationError != null) {
+                  setDialogState(() => validationError = null);
+                }
+              },
+              decoration: _decoration('Nama Kategori')
+                  .copyWith(errorText: validationError),
+              onSubmitted: saving
+                  ? null
+                  : (_) => saveCategory(dialogContext, setDialogState),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving
+                  ? null
+                  : () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton.icon(
+              onPressed: saving
+                  ? null
+                  : () => saveCategory(dialogContext, setDialogState),
+              icon: saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.save_outlined, size: 18),
+              label: Text(
+                saving
+                    ? 'Menyimpan...'
+                    : item == null
+                    ? 'Simpan'
+                    : 'Simpan Perubahan',
+              ),
+            ),
+          ],
         ),
-        content: SizedBox(
-          width: 480,
-          child: TextField(
-            controller: controller,
-            autofocus: true,
-            decoration: _decoration('Nama Kategori'),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () async {
-              final nama = controller.text.trim();
-              if (nama.isEmpty) {
-                _validation(dialogContext, 'Nama kategori wajib diisi.');
-                return;
-              }
-
-              Navigator.pop(dialogContext);
-
-              await _process(
-                item == null ? 'Menyimpan data...' : 'Mengubah data...',
-                () async {
-                  final c =
-                      ref.read(pekerjaanKategoriControllerProvider.notifier);
-                  if (item == null) {
-                    await c.create(nama: nama);
-                  } else {
-                    final ok = await c.updateCategory(
-                      id: item.id,
-                      nama: nama,
-                    );
-
-                    if (!ok) {
-                      throw StateError(
-                        'Kategori pekerjaan tidak ditemukan.',
-                      );
-                    }
-                  }
-                },
-              );
-            },
-            icon: const Icon(Icons.save_outlined, size: 18),
-            label: Text(item == null ? 'Simpan' : 'Simpan Perubahan'),
-          ),
-        ],
       ),
     );
 
-    controller.dispose();
+    if (saved != true || !mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          item == null ? 'Data berhasil disimpan.' : 'Data berhasil diubah.',
+        ),
+      ),
+    );
   }
 
   Future<void> _delete(PekerjaanKategori item) async {
@@ -395,10 +437,7 @@ class _KategoriPekerjaanDesktopScreenState
     });
   }
 
-  Future<void> _process(
-    String message,
-    Future<void> Function() action,
-  ) async {
+  Future<void> _process(String message, Future<void> Function() action) async {
     if (_busy || !mounted) return;
 
     setState(() => _busy = true);
@@ -407,9 +446,7 @@ class _KategoriPekerjaanDesktopScreenState
       await action();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message.replaceFirst('...', ' berhasil.')),
-          ),
+          SnackBar(content: Text(message.replaceFirst('...', ' berhasil.'))),
         );
       }
     } catch (e) {
@@ -424,10 +461,6 @@ class _KategoriPekerjaanDesktopScreenState
     } finally {
       if (mounted) setState(() => _busy = false);
     }
-  }
-
-  void _validation(BuildContext ctx, String message) {
-    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _formatDate(DateTime? value) {
