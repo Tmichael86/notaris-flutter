@@ -141,8 +141,10 @@ class PetugasRepository {
   }
 }
 
+
 class PemohonRepository {
   PemohonRepository(this.db);
+
   final AppDatabase db;
   static const _uuid = Uuid();
 
@@ -160,13 +162,13 @@ class PemohonRepository {
     String? noTelp,
     String? nik,
   }) {
+    final normalizedNama = _requiredText(nama);
     final now = DateTime.now();
-    return db
-        .into(db.pemohons)
-        .insert(
+
+    return db.into(db.pemohons).insert(
           PemohonsCompanion.insert(
             uuid: _uuid.v4(),
-            nama: nama,
+            nama: normalizedNama,
             alamat: Value(_text(alamat)),
             jenisKelamin: Value(jenisKelamin),
             noTelp: Value(_text(noTelp)),
@@ -186,40 +188,66 @@ class PemohonRepository {
     String? noTelp,
     String? nik,
   }) async {
-    final affected =
-        await (db.update(
-          db.pemohons,
-        )..where((t) => t.id.equals(id) & t.deletedAt.isNull())).write(
-          PemohonsCompanion(
-            nama: Value(nama),
-            alamat: Value(_text(alamat)),
-            jenisKelamin: Value(jenisKelamin),
-            noTelp: Value(_text(noTelp)),
-            nik: Value(_text(nik)),
-            updatedAt: Value(DateTime.now()),
-            isSyncDirty: const Value(true),
-          ),
-        );
+    final normalizedNama = _requiredText(nama);
+    final now = DateTime.now();
+
+    final affected = await (db.update(db.pemohons)
+          ..where(
+            (t) =>
+                t.id.equals(id) &
+                t.status.equals(1) &
+                t.deletedAt.isNull(),
+          ))
+        .write(
+      PemohonsCompanion(
+        nama: Value(normalizedNama),
+        alamat: Value(_text(alamat)),
+        jenisKelamin: Value(jenisKelamin),
+        noTelp: Value(_text(noTelp)),
+        nik: Value(_text(nik)),
+        updatedAt: Value(now),
+        isSyncDirty: const Value(true),
+      ),
+    );
+
     return affected > 0;
   }
 
   Future<bool> delete(int id) async {
-    final affected =
-        await (db.update(
-          db.pemohons,
-        )..where((t) => t.id.equals(id) & t.deletedAt.isNull())).write(
-          PemohonsCompanion(
-            status: const Value(0),
-            deletedAt: Value(DateTime.now()),
-            updatedAt: Value(DateTime.now()),
-            isSyncDirty: const Value(true),
-          ),
-        );
+    final now = DateTime.now();
+
+    final affected = await (db.update(db.pemohons)
+          ..where(
+            (t) =>
+                t.id.equals(id) &
+                t.status.equals(1) &
+                t.deletedAt.isNull(),
+          ))
+        .write(
+      PemohonsCompanion(
+        status: const Value(0),
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+        isSyncDirty: const Value(true),
+      ),
+    );
+
     return affected > 0;
   }
 
+  static String _requiredText(String value) {
+    final normalized = value.trim();
+
+    if (normalized.isEmpty) {
+      throw ArgumentError('Nama pemohon wajib diisi.');
+    }
+
+    return normalized;
+  }
+
   static String? _text(String? value) {
-    final text = value?.trim() ?? '';
-    return text.isEmpty ? null : text;
+    final normalized = value?.trim() ?? '';
+    return normalized.isEmpty ? null : normalized;
   }
 }
+
