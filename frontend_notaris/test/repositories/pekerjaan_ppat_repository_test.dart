@@ -142,10 +142,7 @@ void main() {
           nama: 'Akta Jual Beli PPAT',
           harga: validInput().harga,
           proses: const [
-            PekerjaanProsesInput(
-              nama: 'Pemeriksaan Dokumen',
-              detail: '   ',
-            ),
+            PekerjaanProsesInput(nama: 'Pemeriksaan Dokumen', detail: '   '),
           ],
         ),
       ),
@@ -204,10 +201,7 @@ void main() {
       input: validInput(nama: 'Pekerjaan PPAT Pertama'),
     );
     final secondId = await repository.createAggregate(
-      input: validInput(
-        nama: 'Pekerjaan PPAT Kedua',
-        harga: '2500000',
-      ),
+      input: validInput(nama: 'Pekerjaan PPAT Kedua', harga: '2500000'),
     );
     final second = (await repository.getAggregate(secondId))!;
 
