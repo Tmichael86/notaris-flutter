@@ -21,7 +21,11 @@ var DB *gorm.DB
 func ConnectDB(cfg config.Config) error {
 	query := url.Values{}
 	query.Set("sslmode", cfg.DBSSLMode)
-	query.Set("TimeZone", "Asia/Jakarta")
+
+	// Do not force a TimeZone through the URL query. The URL parser/driver path
+	// can pass the escaped slash literally (Asia%2FJakarta) to PostgreSQL.
+	// Use the server/session default until timezone handling is configured
+	// explicitly and tested against the deployed PostgreSQL driver.
 
 	dsnURL := url.URL{
 		Scheme:   "postgres",
