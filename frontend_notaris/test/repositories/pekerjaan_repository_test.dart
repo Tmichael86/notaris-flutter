@@ -127,10 +127,7 @@ void main() {
           nama: 'Akta Jual Beli',
           harga: validInput().harga,
           proses: const [
-            PekerjaanProsesInput(
-              nama: '   ',
-              detail: 'Detail proses',
-            ),
+            PekerjaanProsesInput(nama: '   ', detail: 'Detail proses'),
           ],
         ),
       ),
@@ -145,10 +142,7 @@ void main() {
           nama: 'Akta Jual Beli',
           harga: validInput().harga,
           proses: const [
-            PekerjaanProsesInput(
-              nama: 'Pemeriksaan Dokumen',
-              detail: '   ',
-            ),
+            PekerjaanProsesInput(nama: 'Pemeriksaan Dokumen', detail: '   '),
           ],
         ),
       ),

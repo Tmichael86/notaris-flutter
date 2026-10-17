@@ -22,10 +22,7 @@ class PekerjaanAtributInput {
   final int? id;
   final String? atribut;
 
-  const PekerjaanAtributInput({
-    this.id,
-    this.atribut,
-  });
+  const PekerjaanAtributInput({this.id, this.atribut});
 }
 
 class PekerjaanProsesInput {
@@ -100,10 +97,7 @@ class PekerjaanAtributData {
   final int id;
   final String? atribut;
 
-  const PekerjaanAtributData({
-    required this.id,
-    required this.atribut,
-  });
+  const PekerjaanAtributData({required this.id, required this.atribut});
 }
 
 class PekerjaanNotarisRepository {
@@ -160,7 +154,6 @@ class PekerjaanNotarisRepository {
     );
   }
 
-
   Future<int> create({
     required String uuid,
     required String nama,
@@ -198,8 +191,8 @@ class PekerjaanNotarisRepository {
     );
   }
 
-  Future<bool> delete(int id) => dao.softDeletePekerjaanNotaris(id, DateTime.now());
-
+  Future<bool> delete(int id) =>
+      dao.softDeletePekerjaanNotaris(id, DateTime.now());
 
   PekerjaanAggregateInput _validateAndNormalizeInput(
     PekerjaanAggregateInput input,
@@ -262,11 +255,7 @@ class PekerjaanNotarisRepository {
       );
     }).toList();
 
-    return PekerjaanAggregateInput(
-      nama: nama,
-      harga: harga,
-      proses: proses,
-    );
+    return PekerjaanAggregateInput(nama: nama, harga: harga, proses: proses);
   }
 
   Future<void> _validateChildOwnership({
@@ -418,10 +407,7 @@ class PekerjaanNotarisRepository {
       final parent = await dao.getPekerjaanNotarisById(id);
       if (parent == null || parent.status != 1) return false;
 
-      await _validateChildOwnership(
-        pekerjaanId: id,
-        input: input,
-      );
+      await _validateChildOwnership(pekerjaanId: id, input: input);
 
       final updated = await dao.updatePekerjaanNotaris(
         id,
@@ -489,7 +475,8 @@ class PekerjaanNotarisRepository {
       }
 
       for (final proses in input.proses) {
-        final prosesId = proses.id ??
+        final prosesId =
+            proses.id ??
             await dao.insertProsesNotaris(
               PekerjaanNotarisProsesLocalsCompanion.insert(
                 uuid: _uuid.v4(),
@@ -680,7 +667,8 @@ class PekerjaanPpatRepository {
     );
   }
 
-  Future<bool> delete(int id) => dao.softDeletePekerjaanPpat(id, DateTime.now());
+  Future<bool> delete(int id) =>
+      dao.softDeletePekerjaanPpat(id, DateTime.now());
 
   Future<int> createAggregate({
     required PekerjaanAggregateInput input,
@@ -827,7 +815,8 @@ class PekerjaanPpatRepository {
       }
 
       for (final proses in input.proses) {
-        final prosesId = proses.id ??
+        final prosesId =
+            proses.id ??
             await dao.insertProsesPpat(
               PekerjaanPpatProsesLocalsCompanion.insert(
                 uuid: _uuid.v4(),
