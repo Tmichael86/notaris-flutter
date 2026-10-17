@@ -13,9 +13,12 @@ import (
 
 func main() {
 	cfg := config.LoadConfig()
-	database.ConnectDB(cfg)
+	if err := database.ConnectDB(cfg); err != nil {
+		log.Fatalf("Failed to initialize PostgreSQL: %v", err)
+	}
 
 	healthController := controllers.NewHealthController()
+	pemohonController := controllers.NewPemohonController()
 	groupController := controllers.NewGroupController()
 	userController := controllers.NewUserController()
 	authService := services.NewAuthService(cfg)
@@ -28,6 +31,7 @@ func main() {
 	r := routes.SetupRouter(
 		cfg,
 		healthController,
+		pemohonController,
 		groupController,
 		userController,
 		authController,
@@ -37,7 +41,7 @@ func main() {
 	)
 
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
-	fmt.Printf(" Server running on port %s\n", cfg.Port)
+	fmt.Printf("Server running on port %s\n", cfg.Port)
 	if err := r.Run(serverAddr); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}

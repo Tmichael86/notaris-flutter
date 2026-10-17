@@ -12,6 +12,7 @@ import (
 func SetupRouter(
 	cfg config.Config,
 	healthController *controllers.HealthController,
+	pemohonController *controllers.PemohonController,
 	groupController *controllers.GroupController,
 	userController *controllers.UserController,
 	authController *controllers.AuthController,
@@ -32,6 +33,14 @@ func SetupRouter(
 			auth.GET("/me", middleware.JWTAuth(cfg), meController.Me)
 			auth.GET("/me/sidebar-access", middleware.JWTAuth(cfg), meController.SidebarAccess)
 		}
+
+		// Read-only first server-data slice. Local SQLite remains the Flutter
+		// source of truth; this endpoint only verifies authenticated reads.
+		v1.GET("/pemohon",
+			middleware.JWTAuth(cfg),
+			middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionRead),
+			pemohonController.GetAll,
+		)
 
 		users := v1.Group("/users")
 		{
@@ -58,12 +67,8 @@ func SetupRouter(
 			sidebars.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "sidebars", middleware.PermissionRead), sidebarController.GetByID)
 		}
 
-		// CRUD routes for petugas, pekerjaan, kategori pekerjaan, jenis pengeluaran,
-		// and pemohon are deferred until their controllers and supporting layers exist.
-
-		// Sync endpoints remain disabled until authentication, authorization,
-		// and conflict handling are implemented for the local-first sync contract.
-
+		// Other master CRUD endpoints and local-first sync remain disabled until
+		// their API contracts, authorization, and conflict rules are defined.
 	}
 
 	return r
