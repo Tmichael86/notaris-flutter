@@ -200,12 +200,144 @@ class PekerjaanNotarisRepository {
 
   Future<bool> delete(int id) => dao.softDeletePekerjaanNotaris(id, DateTime.now());
 
+
+  PekerjaanAggregateInput _validateAndNormalizeInput(
+    PekerjaanAggregateInput input,
+  ) {
+    final nama = input.nama.trim();
+    if (nama.isEmpty) {
+      throw ArgumentError('Nama pekerjaan wajib diisi.');
+    }
+    if (input.harga.isEmpty) {
+      throw ArgumentError('Minimal satu harga pekerjaan harus diisi.');
+    }
+    if (input.proses.isEmpty) {
+      throw ArgumentError('Minimal satu proses pekerjaan harus diisi.');
+    }
+
+    final kategoriIds = <int>{};
+    final harga = input.harga.map((item) {
+      final normalizedHarga = item.harga.replaceAll(RegExp(r'[.,\s]'), '');
+      final nominal = int.tryParse(normalizedHarga);
+      if (nominal == null || nominal <= 0) {
+        throw ArgumentError('Harga harus berupa angka lebih dari nol.');
+      }
+      if (!kategoriIds.add(item.kategoriPekerjaanId)) {
+        throw ArgumentError(
+          'Kategori pekerjaan tidak boleh digunakan dua kali.',
+        );
+      }
+      final estimasiWaktu = item.estimasiWaktu.trim();
+      if (estimasiWaktu.isEmpty) {
+        throw ArgumentError('Estimasi waktu wajib diisi.');
+      }
+      return PekerjaanHargaInput(
+        id: item.id,
+        harga: nominal.toString(),
+        kategoriPekerjaanId: item.kategoriPekerjaanId,
+        estimasiWaktu: estimasiWaktu,
+      );
+    }).toList();
+
+    final proses = input.proses.map((item) {
+      final namaProses = item.nama.trim();
+      final detail = item.detail.trim();
+      if (namaProses.isEmpty) {
+        throw ArgumentError('Nama proses wajib diisi.');
+      }
+      if (detail.isEmpty) {
+        throw ArgumentError('Detail proses wajib diisi.');
+      }
+      return PekerjaanProsesInput(
+        id: item.id,
+        nama: namaProses,
+        detail: detail,
+        atribut: item.atribut.map((atribut) {
+          final value = atribut.atribut?.trim();
+          return PekerjaanAtributInput(
+            id: atribut.id,
+            atribut: value == null || value.isEmpty ? null : value,
+          );
+        }).toList(),
+      );
+    }).toList();
+
+    return PekerjaanAggregateInput(
+      nama: nama,
+      harga: harga,
+      proses: proses,
+    );
+  }
+
+  Future<void> _validateChildOwnership({
+    required int pekerjaanId,
+    required PekerjaanAggregateInput input,
+  }) async {
+    final existingHarga = await dao.getHargaNotaris(pekerjaanId);
+    final existingProses = await dao.getProsesNotaris(pekerjaanId);
+    final hargaIds = existingHarga.map((item) => item.id).toSet();
+    final prosesIds = existingProses.map((item) => item.id).toSet();
+    final incomingHargaIds = <int>{};
+    final incomingProsesIds = <int>{};
+
+    for (final item in input.harga) {
+      final childId = item.id;
+      if (childId == null) continue;
+      if (!incomingHargaIds.add(childId)) {
+        throw ArgumentError('ID harga tidak boleh duplikat.');
+      }
+      if (!hargaIds.contains(childId)) {
+        throw ArgumentError(
+          'Harga bukan milik pekerjaan yang sedang diperbarui.',
+        );
+      }
+    }
+
+    for (final item in input.proses) {
+      final prosesId = item.id;
+      if (prosesId == null) {
+        if (item.atribut.any((atribut) => atribut.id != null)) {
+          throw ArgumentError(
+            'Atribut dari proses baru tidak boleh memakai ID lama.',
+          );
+        }
+        continue;
+      }
+
+      if (!incomingProsesIds.add(prosesId)) {
+        throw ArgumentError('ID proses tidak boleh duplikat.');
+      }
+      if (!prosesIds.contains(prosesId)) {
+        throw ArgumentError(
+          'Proses bukan milik pekerjaan yang sedang diperbarui.',
+        );
+      }
+
+      final existingAtribut = await dao.getAtributNotaris(prosesId);
+      final atributIds = existingAtribut.map((item) => item.id).toSet();
+      final incomingAtributIds = <int>{};
+      for (final atribut in item.atribut) {
+        final atributId = atribut.id;
+        if (atributId == null) continue;
+        if (!incomingAtributIds.add(atributId)) {
+          throw ArgumentError('ID atribut tidak boleh duplikat.');
+        }
+        if (!atributIds.contains(atributId)) {
+          throw ArgumentError(
+            'Atribut bukan milik proses yang sedang diperbarui.',
+          );
+        }
+      }
+    }
+  }
+
   /// Creates a complete Notaris aggregate atomically:
   /// pekerjaan -> harga + proses -> atribut.
   Future<int> createAggregate({
     required PekerjaanAggregateInput input,
     int? createdBy,
   }) async {
+    input = _validateAndNormalizeInput(input);
     final now = DateTime.now();
 
     return dao.attachedDatabase.transaction(() async {
@@ -279,11 +411,17 @@ class PekerjaanNotarisRepository {
     required PekerjaanAggregateInput input,
     int? updatedBy,
   }) async {
+    input = _validateAndNormalizeInput(input);
     final now = DateTime.now();
 
     return dao.attachedDatabase.transaction(() async {
       final parent = await dao.getPekerjaanNotarisById(id);
-      if (parent == null) return false;
+      if (parent == null || parent.status != 1) return false;
+
+      await _validateChildOwnership(
+        pekerjaanId: id,
+        input: input,
+      );
 
       final updated = await dao.updatePekerjaanNotaris(
         id,
