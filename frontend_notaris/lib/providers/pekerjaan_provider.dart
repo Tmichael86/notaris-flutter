@@ -1,51 +1,60 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../services/kategori_pekerjaan_api_service.dart';
+import 'authenticated_api_provider.dart';
 import '../database/app_database.dart';
 import '../repositories/pekerjaan_repository.dart';
 import '../repositories/pekerjaan_kategori_repository.dart';
 import '../repositories/pengeluaran_jenis_repository.dart';
 import 'database_provider.dart';
 
-final pekerjaanNotarisRepositoryProvider =
-    Provider<PekerjaanNotarisRepository>((ref) {
-  final database = ref.watch(appDatabaseProvider);
-  return PekerjaanNotarisRepository(database.pekerjaanDao);
-});
+final pekerjaanNotarisRepositoryProvider = Provider<PekerjaanNotarisRepository>(
+  (ref) {
+    final database = ref.watch(appDatabaseProvider);
+    return PekerjaanNotarisRepository(database.pekerjaanDao);
+  },
+);
 
-final pekerjaanPpatRepositoryProvider =
-    Provider<PekerjaanPpatRepository>((ref) {
+final pekerjaanPpatRepositoryProvider = Provider<PekerjaanPpatRepository>((
+  ref,
+) {
   final database = ref.watch(appDatabaseProvider);
   return PekerjaanPpatRepository(database.pekerjaanDao);
 });
 
 final pekerjaanNotarisProvider =
     StreamProvider.autoDispose<List<PekerjaanNotarisLocal>>((ref) {
-  final repository = ref.watch(pekerjaanNotarisRepositoryProvider);
-  return repository.watchAll();
-});
+      final repository = ref.watch(pekerjaanNotarisRepositoryProvider);
+      return repository.watchAll();
+    });
 
 final pekerjaanPpatProvider =
     StreamProvider.autoDispose<List<PekerjaanPpatLocal>>((ref) {
-  final repository = ref.watch(pekerjaanPpatRepositoryProvider);
-  return repository.watchAll();
-});
+      final repository = ref.watch(pekerjaanPpatRepositoryProvider);
+      return repository.watchAll();
+    });
 
 final pekerjaanKategoriRepositoryProvider =
     Provider<PekerjaanKategoriRepository>((ref) {
-  final database = ref.watch(appDatabaseProvider);
-  return PekerjaanKategoriRepository(database);
-});
+      final database = ref.watch(appDatabaseProvider);
+      return PekerjaanKategoriRepository(database);
+    });
 
 final pekerjaanKategoriProvider =
     StreamProvider.autoDispose<List<PekerjaanKategori>>((ref) {
-  final repository = ref.watch(pekerjaanKategoriRepositoryProvider);
-  return repository.watchAll();
-});
+      final repository = ref.watch(pekerjaanKategoriRepositoryProvider);
+      return repository.watchAll();
+    });
 
 final pekerjaanKategoriControllerProvider =
     AsyncNotifierProvider<PekerjaanKategoriController, void>(
-  PekerjaanKategoriController.new,
-);
+      PekerjaanKategoriController.new,
+    );
+
+final kategoriPekerjaanApiServiceProvider =
+    Provider<KategoriPekerjaanApiService>(
+      (ref) => KategoriPekerjaanApiService(ref.watch(authenticatedDioProvider)),
+    );
 
 class PekerjaanKategoriController extends AsyncNotifier<void> {
   PekerjaanKategoriRepository get _repository =>
@@ -99,22 +108,23 @@ class PekerjaanKategoriController extends AsyncNotifier<void> {
   }
 }
 
-final pengeluaranJenisRepositoryProvider =
-    Provider<PengeluaranJenisRepository>((ref) {
-  final database = ref.watch(appDatabaseProvider);
-  return PengeluaranJenisRepository(database);
-});
+final pengeluaranJenisRepositoryProvider = Provider<PengeluaranJenisRepository>(
+  (ref) {
+    final database = ref.watch(appDatabaseProvider);
+    return PengeluaranJenisRepository(database);
+  },
+);
 
 final pengeluaranJenisProvider =
     StreamProvider.autoDispose<List<PengeluaranJenisData>>((ref) {
-  final repository = ref.watch(pengeluaranJenisRepositoryProvider);
-  return repository.watchAll();
-});
+      final repository = ref.watch(pengeluaranJenisRepositoryProvider);
+      return repository.watchAll();
+    });
 
 final pengeluaranJenisControllerProvider =
     AsyncNotifierProvider<PengeluaranJenisController, void>(
-  PengeluaranJenisController.new,
-);
+      PengeluaranJenisController.new,
+    );
 
 class PengeluaranJenisController extends AsyncNotifier<void> {
   PengeluaranJenisRepository get _repository =>
@@ -170,25 +180,25 @@ class PengeluaranJenisController extends AsyncNotifier<void> {
 
 final pekerjaanNotarisAggregateProvider = FutureProvider.autoDispose
     .family<PekerjaanAggregateData?, int>((ref, id) {
-  final repository = ref.watch(pekerjaanNotarisRepositoryProvider);
-  return repository.getAggregate(id);
-});
+      final repository = ref.watch(pekerjaanNotarisRepositoryProvider);
+      return repository.getAggregate(id);
+    });
 
 final pekerjaanPpatAggregateProvider = FutureProvider.autoDispose
     .family<PekerjaanAggregateData?, int>((ref, id) {
-  final repository = ref.watch(pekerjaanPpatRepositoryProvider);
-  return repository.getAggregate(id);
-});
+      final repository = ref.watch(pekerjaanPpatRepositoryProvider);
+      return repository.getAggregate(id);
+    });
 
 final pekerjaanNotarisControllerProvider =
     AsyncNotifierProvider<PekerjaanNotarisController, void>(
-  PekerjaanNotarisController.new,
-);
+      PekerjaanNotarisController.new,
+    );
 
 final pekerjaanPpatControllerProvider =
     AsyncNotifierProvider<PekerjaanPpatController, void>(
-  PekerjaanPpatController.new,
-);
+      PekerjaanPpatController.new,
+    );
 
 class PekerjaanNotarisController extends AsyncNotifier<void> {
   PekerjaanNotarisRepository get _repository =>
