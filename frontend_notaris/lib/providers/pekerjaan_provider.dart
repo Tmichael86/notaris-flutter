@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/kategori_pekerjaan_api_service.dart';
 import '../services/jenis_pengeluaran_api_service.dart';
+import '../services/petugas_api_service.dart';
 import 'authenticated_api_provider.dart';
 import '../database/app_database.dart';
 import '../repositories/pekerjaan_repository.dart';
@@ -59,6 +60,10 @@ final kategoriPekerjaanApiServiceProvider =
 
 final jenisPengeluaranApiServiceProvider = Provider<JenisPengeluaranApiService>(
   (ref) => JenisPengeluaranApiService(ref.watch(authenticatedDioProvider)),
+);
+
+final petugasApiServiceProvider = Provider<PetugasApiService>(
+  (ref) => PetugasApiService(ref.watch(authenticatedDioProvider)),
 );
 
 class PekerjaanKategoriController extends AsyncNotifier<void> {
