@@ -46,10 +46,12 @@ void main() {
 
     test('getAll throws FormatException for an invalid envelope', () async {
       final service = _service(
-        _FakeAdapter((_) => _jsonResponse({
-          'success': false,
-          'data': {'items': []},
-        })),
+        _FakeAdapter(
+          (_) => _jsonResponse({
+            'success': false,
+            'data': {'items': []},
+          }),
+        ),
       );
 
       await expectLater(service.getAll(), throwsA(isA<FormatException>()));
@@ -57,10 +59,12 @@ void main() {
 
     test('getAll throws FormatException when items is not a list', () async {
       final service = _service(
-        _FakeAdapter((_) => _jsonResponse({
-          'success': true,
-          'data': {'items': 'not-a-list'},
-        })),
+        _FakeAdapter(
+          (_) => _jsonResponse({
+            'success': true,
+            'data': {'items': 'not-a-list'},
+          }),
+        ),
       );
 
       await expectLater(service.getAll(), throwsA(isA<FormatException>()));
@@ -70,7 +74,7 @@ void main() {
       final adapter = _FakeAdapter((request) {
         expect(request.method, 'POST');
         expect(request.path, '/kategori-pekerjaan');
-        expect(request.data, {'nama': 'Akta Hibah'});
+        expect(_requestJson(request), {'nama': 'Akta Hibah'});
 
         return _jsonResponse({
           'success': true,
@@ -88,10 +92,12 @@ void main() {
 
     test('create throws FormatException for an invalid record envelope', () async {
       final service = _service(
-        _FakeAdapter((_) => _jsonResponse({
-          'success': true,
-          'data': {},
-        }, statusCode: 201)),
+        _FakeAdapter(
+          (_) => _jsonResponse({
+            'success': true,
+            'data': {},
+          }, statusCode: 201),
+        ),
       );
 
       await expectLater(
@@ -104,7 +110,7 @@ void main() {
       final adapter = _FakeAdapter((request) {
         expect(request.method, 'PUT');
         expect(request.path, '/kategori-pekerjaan/21');
-        expect(request.data, {'nama': 'Perjanjian'});
+        expect(_requestJson(request), {'nama': 'Perjanjian'});
 
         return _jsonResponse({
           'success': true,
@@ -132,13 +138,18 @@ void main() {
 
     test('deactivate throws FormatException when success is false', () async {
       final service = _service(
-        _FakeAdapter((_) => _jsonResponse({
-          'success': false,
-          'message': 'Could not deactivate',
-        })),
+        _FakeAdapter(
+          (_) => _jsonResponse({
+            'success': false,
+            'message': 'Could not deactivate',
+          }),
+        ),
       );
 
-      await expectLater(service.deactivate(5), throwsA(isA<FormatException>()));
+      await expectLater(
+        service.deactivate(5),
+        throwsA(isA<FormatException>()),
+      );
     });
   });
 
@@ -190,6 +201,12 @@ KategoriPekerjaanApiService _service(_FakeAdapter adapter) {
   return KategoriPekerjaanApiService(dio);
 }
 
+dynamic _requestJson(RequestOptions request) {
+  final data = request.data;
+  if (data is String) return jsonDecode(data);
+  return data;
+}
+
 ResponseBody _jsonResponse(
   Map<String, dynamic> payload, {
   int statusCode = 200,
@@ -207,7 +224,6 @@ class _FakeAdapter implements HttpClientAdapter {
   _FakeAdapter(this.respond);
 
   final ResponseBody Function(RequestOptions request) respond;
-  RequestOptions? lastRequest;
 
   @override
   Future<ResponseBody> fetch(
@@ -215,7 +231,6 @@ class _FakeAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
-    lastRequest = options;
     return respond(options);
   }
 
