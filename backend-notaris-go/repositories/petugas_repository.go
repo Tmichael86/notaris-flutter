@@ -67,17 +67,17 @@ func (r *PetugasRepository) Create(ctx context.Context, item *models.Petugas, us
 func (r *PetugasRepository) Update(ctx context.Context, id uint, input *models.Petugas, userID uint) (*models.Petugas, error) {
 	now := time.Now()
 	updates := map[string]interface{}{
-		"nik": input.NIK,
-		"nama": input.Nama,
-		"alamat": input.Alamat,
-		"tempat_lahir": input.TempatLahir,
+		"nik":           input.NIK,
+		"nama":          input.Nama,
+		"alamat":        input.Alamat,
+		"tempat_lahir":  input.TempatLahir,
 		"tanggal_lahir": input.TanggalLahir,
 		"jenis_kelamin": input.JenisKelamin,
-		"no_telp": input.NoTelp,
-		"email": input.Email,
-		"user_id": input.UserID,
-		"updated_by": userID,
-		"updated_at": now,
+		"no_telp":       input.NoTelp,
+		"email":         input.Email,
+		"user_id":       input.UserID,
+		"updated_by":    userID,
+		"updated_at":    now,
 	}
 	result := r.db.WithContext(ctx).Model(&models.Petugas{}).Where("id = ? AND status = ?", id, 1).Updates(updates)
 	if result.Error != nil {
