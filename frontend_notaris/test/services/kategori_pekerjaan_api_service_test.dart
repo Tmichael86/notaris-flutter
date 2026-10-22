@@ -90,21 +90,22 @@ void main() {
       expect(result.status, 1);
     });
 
-    test('create throws FormatException for an invalid record envelope', () async {
-      final service = _service(
-        _FakeAdapter(
-          (_) => _jsonResponse({
-            'success': true,
-            'data': {},
-          }, statusCode: 201),
-        ),
-      );
+    test(
+      'create throws FormatException for an invalid record envelope',
+      () async {
+        final service = _service(
+          _FakeAdapter(
+            (_) =>
+                _jsonResponse({'success': true, 'data': {}}, statusCode: 201),
+          ),
+        );
 
-      await expectLater(
-        service.create(nama: 'Akta Hibah'),
-        throwsA(isA<FormatException>()),
-      );
-    });
+        await expectLater(
+          service.create(nama: 'Akta Hibah'),
+          throwsA(isA<FormatException>()),
+        );
+      },
+    );
 
     test('update sends the ID and trimmed name', () async {
       final adapter = _FakeAdapter((request) {
@@ -146,10 +147,7 @@ void main() {
         ),
       );
 
-      await expectLater(
-        service.deactivate(5),
-        throwsA(isA<FormatException>()),
-      );
+      await expectLater(service.deactivate(5), throwsA(isA<FormatException>()));
     });
   });
 
