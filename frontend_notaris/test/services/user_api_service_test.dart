@@ -50,9 +50,7 @@ void main() {
 
     test('getAll rejects an invalid response envelope', () async {
       final service = _service(
-        _FakeAdapter(
-          (_) => _jsonResponse({'success': false, 'data': []}),
-        ),
+        _FakeAdapter((_) => _jsonResponse({'success': false, 'data': []})),
       );
 
       await expectLater(service.getAll(), throwsA(isA<FormatException>()));
@@ -168,10 +166,7 @@ void main() {
         ),
       );
 
-      await expectLater(
-        service.deactivate(5),
-        throwsA(isA<FormatException>()),
-      );
+      await expectLater(service.deactivate(5), throwsA(isA<FormatException>()));
     });
   });
 

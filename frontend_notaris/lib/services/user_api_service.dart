@@ -175,8 +175,14 @@ class UserApiModel {
     final email = json['email']?.toString().trim() ?? '';
     final nama = json['nama']?.toString().trim() ?? '';
 
-    if (id <= 0 || groupId <= 0 || username.isEmpty || email.isEmpty || nama.isEmpty) {
-      throw const FormatException('ID, group, username, email, atau nama user tidak valid.');
+    if (id <= 0 ||
+        groupId <= 0 ||
+        username.isEmpty ||
+        email.isEmpty ||
+        nama.isEmpty) {
+      throw const FormatException(
+        'ID, group, username, email, atau nama user tidak valid.',
+      );
     }
 
     return UserApiModel(
