@@ -4,6 +4,7 @@ import '../services/kategori_pekerjaan_api_service.dart';
 import '../services/jenis_pengeluaran_api_service.dart';
 import '../services/petugas_api_service.dart';
 import '../services/pemohon_api_service.dart';
+import '../services/user_api_service.dart';
 import 'authenticated_api_provider.dart';
 import '../database/app_database.dart';
 import '../repositories/pekerjaan_repository.dart';
@@ -69,6 +70,10 @@ final petugasApiServiceProvider = Provider<PetugasApiService>(
 
 final pemohonApiServiceProvider = Provider<PemohonApiService>(
   (ref) => PemohonApiService(ref.watch(authenticatedDioProvider)),
+);
+
+final userApiServiceProvider = Provider<UserApiService>(
+  (ref) => UserApiService(ref.watch(authenticatedDioProvider)),
 );
 
 class PekerjaanKategoriController extends AsyncNotifier<void> {
