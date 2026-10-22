@@ -24,7 +24,9 @@ class PemohonApiService {
 
     return items
         .whereType<Map>()
-        .map((item) => PemohonApiModel.fromJson(Map<String, dynamic>.from(item)))
+        .map(
+          (item) => PemohonApiModel.fromJson(Map<String, dynamic>.from(item)),
+        )
         .toList();
   }
 

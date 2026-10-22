@@ -46,24 +46,28 @@ void main() {
 
     test('getAll rejects an invalid response envelope', () async {
       final service = _service(
-        _FakeAdapter((_) => _jsonResponse({
-          'success': false,
-          'data': {'items': []},
-        })),
+        _FakeAdapter(
+          (_) => _jsonResponse({
+            'success': false,
+            'data': {'items': []},
+          }),
+        ),
       );
 
       await expectLater(service.getAll(), throwsA(isA<FormatException>()));
     });
 
     test('getById requests a record and parses it', () async {
-      final service = _service(_FakeAdapter((request) {
-        expect(request.method, 'GET');
-        expect(request.path, '/pemohon/12');
-        return _jsonResponse({
-          'success': true,
-          'data': {'id': 12, 'nama': 'Pemohon Detail'},
-        });
-      }));
+      final service = _service(
+        _FakeAdapter((request) {
+          expect(request.method, 'GET');
+          expect(request.path, '/pemohon/12');
+          return _jsonResponse({
+            'success': true,
+            'data': {'id': 12, 'nama': 'Pemohon Detail'},
+          });
+        }),
+      );
 
       final result = await service.getById(12);
 
@@ -72,21 +76,23 @@ void main() {
     });
 
     test('create trims text and normalizes optional blanks to null', () async {
-      final service = _service(_FakeAdapter((request) {
-        expect(request.method, 'POST');
-        expect(request.path, '/pemohon');
-        expect(_requestJson(request), {
-          'nama': 'Pemohon Baru',
-          'alamat': 'Kediri',
-          'jenis_kelamin': 2,
-          'no_telp': null,
-          'nik': null,
-        });
-        return _jsonResponse({
-          'success': true,
-          'data': {'id': 20, 'nama': 'Pemohon Baru', 'alamat': 'Kediri'},
-        }, statusCode: 201);
-      }));
+      final service = _service(
+        _FakeAdapter((request) {
+          expect(request.method, 'POST');
+          expect(request.path, '/pemohon');
+          expect(_requestJson(request), {
+            'nama': 'Pemohon Baru',
+            'alamat': 'Kediri',
+            'jenis_kelamin': 2,
+            'no_telp': null,
+            'nik': null,
+          });
+          return _jsonResponse({
+            'success': true,
+            'data': {'id': 20, 'nama': 'Pemohon Baru', 'alamat': 'Kediri'},
+          }, statusCode: 201);
+        }),
+      );
 
       final result = await service.create(
         nama: ' Pemohon Baru ',
@@ -102,21 +108,23 @@ void main() {
     });
 
     test('update sends ID and payload to the matching endpoint', () async {
-      final service = _service(_FakeAdapter((request) {
-        expect(request.method, 'PUT');
-        expect(request.path, '/pemohon/21');
-        expect(_requestJson(request), {
-          'nama': 'Pemohon Update',
-          'alamat': null,
-          'jenis_kelamin': null,
-          'no_telp': '081234567890',
-          'nik': '1234567890123456',
-        });
-        return _jsonResponse({
-          'success': true,
-          'data': {'id': 21, 'nama': 'Pemohon Update'},
-        });
-      }));
+      final service = _service(
+        _FakeAdapter((request) {
+          expect(request.method, 'PUT');
+          expect(request.path, '/pemohon/21');
+          expect(_requestJson(request), {
+            'nama': 'Pemohon Update',
+            'alamat': null,
+            'jenis_kelamin': null,
+            'no_telp': '081234567890',
+            'nik': '1234567890123456',
+          });
+          return _jsonResponse({
+            'success': true,
+            'data': {'id': 21, 'nama': 'Pemohon Update'},
+          });
+        }),
+      );
 
       final result = await service.update(
         id: 21,
@@ -130,18 +138,23 @@ void main() {
     });
 
     test('deactivate accepts a successful response', () async {
-      final service = _service(_FakeAdapter((request) {
-        expect(request.method, 'DELETE');
-        expect(request.path, '/pemohon/5');
-        return _jsonResponse({'success': true, 'message': 'Deactivated'});
-      }));
+      final service = _service(
+        _FakeAdapter((request) {
+          expect(request.method, 'DELETE');
+          expect(request.path, '/pemohon/5');
+          return _jsonResponse({'success': true, 'message': 'Deactivated'});
+        }),
+      );
 
       await expectLater(service.deactivate(5), completes);
     });
 
     test('deactivate rejects a failed response', () async {
-      final service = _service(_FakeAdapter((_) =>
-          _jsonResponse({'success': false, 'message': 'Failed'})));
+      final service = _service(
+        _FakeAdapter(
+          (_) => _jsonResponse({'success': false, 'message': 'Failed'}),
+        ),
+      );
 
       await expectLater(service.deactivate(5), throwsA(isA<FormatException>()));
     });
