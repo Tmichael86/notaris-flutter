@@ -90,22 +90,22 @@ void main() {
       expect(result.status, 1);
     });
 
-    test('create throws FormatException for an invalid record envelope',
-        () async {
-      final service = _service(
-        _FakeAdapter(
-          (_) => _jsonResponse(
-            {'success': true, 'data': {}},
-            statusCode: 201,
+    test(
+      'create throws FormatException for an invalid record envelope',
+      () async {
+        final service = _service(
+          _FakeAdapter(
+            (_) =>
+                _jsonResponse({'success': true, 'data': {}}, statusCode: 201),
           ),
-        ),
-      );
+        );
 
-      await expectLater(
-        service.create(nama: 'Operasional'),
-        throwsA(isA<FormatException>()),
-      );
-    });
+        await expectLater(
+          service.create(nama: 'Operasional'),
+          throwsA(isA<FormatException>()),
+        );
+      },
+    );
 
     test('update sends the ID and trimmed name', () async {
       final adapter = _FakeAdapter((request) {
@@ -126,19 +126,19 @@ void main() {
       expect(result.nama, 'Pemeliharaan');
     });
 
-    test('update throws FormatException for an invalid record envelope',
-        () async {
-      final service = _service(
-        _FakeAdapter(
-          (_) => _jsonResponse({'success': true, 'data': {}}),
-        ),
-      );
+    test(
+      'update throws FormatException for an invalid record envelope',
+      () async {
+        final service = _service(
+          _FakeAdapter((_) => _jsonResponse({'success': true, 'data': {}})),
+        );
 
-      await expectLater(
-        service.update(id: 21, nama: 'Pemeliharaan'),
-        throwsA(isA<FormatException>()),
-      );
-    });
+        await expectLater(
+          service.update(id: 21, nama: 'Pemeliharaan'),
+          throwsA(isA<FormatException>()),
+        );
+      },
+    );
 
     test('deactivate sends DELETE and accepts a successful response', () async {
       final adapter = _FakeAdapter((request) {
@@ -161,10 +161,7 @@ void main() {
         ),
       );
 
-      await expectLater(
-        service.deactivate(5),
-        throwsA(isA<FormatException>()),
-      );
+      await expectLater(service.deactivate(5), throwsA(isA<FormatException>()));
     });
   });
 

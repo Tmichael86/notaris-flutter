@@ -57,10 +57,9 @@ final kategoriPekerjaanApiServiceProvider =
       (ref) => KategoriPekerjaanApiService(ref.watch(authenticatedDioProvider)),
     );
 
-final jenisPengeluaranApiServiceProvider =
-    Provider<JenisPengeluaranApiService>(
-      (ref) => JenisPengeluaranApiService(ref.watch(authenticatedDioProvider)),
-    );
+final jenisPengeluaranApiServiceProvider = Provider<JenisPengeluaranApiService>(
+  (ref) => JenisPengeluaranApiService(ref.watch(authenticatedDioProvider)),
+);
 
 class PekerjaanKategoriController extends AsyncNotifier<void> {
   PekerjaanKategoriRepository get _repository =>
