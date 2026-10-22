@@ -18,6 +18,7 @@ func main() {
 	}
 	healthController := controllers.NewHealthController()
 	pemohonController := controllers.NewPemohonController()
+	petugasController := controllers.NewPetugasController()
 	kategoriPekerjaanController := controllers.NewSimpleMasterController("pekerjaan_kategori", "kategori pekerjaan")
 	jenisPengeluaranController := controllers.NewSimpleMasterController("pengeluaran_jenis", "jenis pengeluaran")
 	groupController := controllers.NewGroupController()
@@ -29,7 +30,7 @@ func main() {
 	sidebarController := controllers.NewSidebarController()
 	sidebarAccessController := controllers.NewSidebarAccessController(sidebarService)
 
-	r := routes.SetupRouter(cfg, healthController, pemohonController, kategoriPekerjaanController, jenisPengeluaranController,
+	r := routes.SetupRouter(cfg, healthController, pemohonController, petugasController, kategoriPekerjaanController, jenisPengeluaranController,
 		groupController, userController, authController, meController, sidebarController, sidebarAccessController)
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
 	fmt.Printf("Server running on port %s\n", cfg.Port)
