@@ -5,6 +5,7 @@ import (
 	"backend-notaris-go/controllers"
 	"backend-notaris-go/middleware"
 	"backend-notaris-go/repositories"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -33,7 +34,14 @@ func SetupRouter(
 			auth.GET("/me", middleware.JWTAuth(cfg), meController.Me)
 			auth.GET("/me/sidebar-access", middleware.JWTAuth(cfg), meController.SidebarAccess)
 		}
-		v1.GET("/pemohon", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionRead), pemohonController.GetAll)
+		pemohon := v1.Group("/pemohon")
+		{
+			pemohon.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionRead), pemohonController.GetAll)
+			pemohon.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionRead), pemohonController.GetByID)
+			pemohon.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionCreate), pemohonController.Create)
+			pemohon.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionUpdate), pemohonController.Update)
+			pemohon.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionDelete), pemohonController.Delete)
+		}
 
 		petugas := v1.Group("/petugas")
 		{
@@ -79,7 +87,7 @@ func SetupRouter(
 		sidebars := v1.Group("/sidebars")
 		{
 			sidebars.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "sidebars", middleware.PermissionRead), sidebarController.GetAll)
-			sidebars.GET("tree", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "sidebars", middleware.PermissionRead), sidebarController.GetTree)
+			sidebars.GET("/tree", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "sidebars", middleware.PermissionRead), sidebarController.GetTree)
 			sidebars.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "sidebars", middleware.PermissionRead), sidebarController.GetByID)
 		}
 	}
