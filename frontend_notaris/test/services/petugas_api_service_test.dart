@@ -74,11 +74,7 @@ void main() {
         expect(request.path, '/petugas/12');
         return _jsonResponse({
           'success': true,
-          'data': {
-            'id': 12,
-            'nama': 'Petugas Dua',
-            'email': 'dua@example.com',
-          },
+          'data': {'id': 12, 'nama': 'Petugas Dua', 'email': 'dua@example.com'},
         });
       });
 
@@ -147,11 +143,9 @@ void main() {
         });
       });
 
-      final result = await _service(adapter).update(
-        id: 21,
-        nama: ' Petugas Update ',
-        email: 'update@example.com',
-      );
+      final result = await _service(
+        adapter,
+      ).update(id: 21, nama: ' Petugas Update ', email: 'update@example.com');
 
       expect(result.id, 21);
       expect(result.nama, 'Petugas Update');
@@ -231,11 +225,8 @@ void main() {
         throwsA(isA<FormatException>()),
       );
       expect(
-        () => PetugasApiModel.fromJson({
-          'id': 1,
-          'nama': 'Petugas',
-          'email': '',
-        }),
+        () =>
+            PetugasApiModel.fromJson({'id': 1, 'nama': 'Petugas', 'email': ''}),
         throwsA(isA<FormatException>()),
       );
     });

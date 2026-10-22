@@ -25,9 +25,7 @@ class PetugasApiService {
     return items
         .whereType<Map>()
         .map(
-          (item) => PetugasApiModel.fromJson(
-            Map<String, dynamic>.from(item),
-          ),
+          (item) => PetugasApiModel.fromJson(Map<String, dynamic>.from(item)),
         )
         .toList();
   }
@@ -192,9 +190,7 @@ class PetugasApiModel {
     final email = json['email']?.toString().trim() ?? '';
 
     if (id <= 0 || nama.isEmpty || email.isEmpty) {
-      throw const FormatException(
-        'ID, nama, atau email petugas tidak valid.',
-      );
+      throw const FormatException('ID, nama, atau email petugas tidak valid.');
     }
 
     return PetugasApiModel(
@@ -225,8 +221,14 @@ class PetugasApiModel {
 
   static int? _parseNullableInt(dynamic value) {
     if (value == null) return null;
-    if (value is String && value.trim().isEmpty) return null;
-    return int.tryParse(value.toString());
+
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+
+    final text = value.toString().trim();
+    if (text.isEmpty) return null;
+
+    return int.tryParse(text);
   }
 
   static String? _parseNullableText(dynamic value) {
