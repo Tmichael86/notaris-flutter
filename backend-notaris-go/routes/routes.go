@@ -5,7 +5,6 @@ import (
 	"backend-notaris-go/controllers"
 	"backend-notaris-go/middleware"
 	"backend-notaris-go/repositories"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,6 +12,8 @@ func SetupRouter(
 	cfg config.Config,
 	healthController *controllers.HealthController,
 	pemohonController *controllers.PemohonController,
+	kategoriPekerjaanController *controllers.SimpleMasterController,
+	jenisPengeluaranController *controllers.SimpleMasterController,
 	groupController *controllers.GroupController,
 	userController *controllers.UserController,
 	authController *controllers.AuthController,
@@ -22,26 +23,33 @@ func SetupRouter(
 ) *gin.Engine {
 	r := gin.Default()
 	sidebarAccessRepository := repositories.NewSidebarAccessRepository()
-
 	v1 := r.Group("/api/v1")
 	{
 		v1.GET("/health", healthController.Check)
-
 		auth := v1.Group("/auth")
 		{
 			auth.POST("/login", authController.Login)
 			auth.GET("/me", middleware.JWTAuth(cfg), meController.Me)
 			auth.GET("/me/sidebar-access", middleware.JWTAuth(cfg), meController.SidebarAccess)
 		}
+		v1.GET("/pemohon", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionRead), pemohonController.GetAll)
 
-		// Read-only first server-data slice. Local SQLite remains the Flutter
-		// source of truth; this endpoint only verifies authenticated reads.
-		v1.GET("/pemohon",
-			middleware.JWTAuth(cfg),
-			middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionRead),
-			pemohonController.GetAll,
-		)
-
+		masterRoutes := []struct {
+			path       string
+			sidebarKey string
+			controller *controllers.SimpleMasterController
+		}{
+			{"/kategori-pekerjaan", "kategori_pekerjaan", kategoriPekerjaanController},
+			{"/jenis-pengeluaran", "jenis_pengeluaran", jenisPengeluaranController},
+		}
+		for _, master := range masterRoutes {
+			group := v1.Group(master.path)
+			group.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionRead), master.controller.GetAll)
+			group.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionRead), master.controller.GetByID)
+			group.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionCreate), master.controller.Create)
+			group.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionUpdate), master.controller.Update)
+			group.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionDelete), master.controller.Delete)
+		}
 		users := v1.Group("/users")
 		{
 			users.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "users", middleware.PermissionRead), userController.GetAll)
@@ -49,7 +57,6 @@ func SetupRouter(
 			users.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "users", middleware.PermissionUpdate), userController.Update)
 			users.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "users", middleware.PermissionDelete), userController.Delete)
 		}
-
 		groups := v1.Group("/groups")
 		{
 			groups.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "groups", middleware.PermissionRead), groupController.GetAll)
@@ -59,17 +66,12 @@ func SetupRouter(
 			groups.GET("/:id/sidebar-access", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "groups", middleware.PermissionRead), sidebarAccessController.GetByGroup)
 			groups.PUT("/:id/sidebar-access", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "groups", middleware.PermissionUpdate), sidebarAccessController.Replace)
 		}
-
 		sidebars := v1.Group("/sidebars")
 		{
 			sidebars.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "sidebars", middleware.PermissionRead), sidebarController.GetAll)
 			sidebars.GET("tree", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "sidebars", middleware.PermissionRead), sidebarController.GetTree)
 			sidebars.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "sidebars", middleware.PermissionRead), sidebarController.GetByID)
 		}
-
-		// Other master CRUD endpoints and local-first sync remain disabled until
-		// their API contracts, authorization, and conflict rules are defined.
 	}
-
 	return r
 }

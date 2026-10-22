@@ -16,9 +16,10 @@ func main() {
 	if err := database.ConnectDB(cfg); err != nil {
 		log.Fatalf("Failed to initialize PostgreSQL: %v", err)
 	}
-
 	healthController := controllers.NewHealthController()
 	pemohonController := controllers.NewPemohonController()
+	kategoriPekerjaanController := controllers.NewSimpleMasterController("pekerjaan_kategori", "kategori pekerjaan")
+	jenisPengeluaranController := controllers.NewSimpleMasterController("pengeluaran_jenis", "jenis pengeluaran")
 	groupController := controllers.NewGroupController()
 	userController := controllers.NewUserController()
 	authService := services.NewAuthService(cfg)
@@ -28,18 +29,8 @@ func main() {
 	sidebarController := controllers.NewSidebarController()
 	sidebarAccessController := controllers.NewSidebarAccessController(sidebarService)
 
-	r := routes.SetupRouter(
-		cfg,
-		healthController,
-		pemohonController,
-		groupController,
-		userController,
-		authController,
-		meController,
-		sidebarController,
-		sidebarAccessController,
-	)
-
+	r := routes.SetupRouter(cfg, healthController, pemohonController, kategoriPekerjaanController, jenisPengeluaranController,
+		groupController, userController, authController, meController, sidebarController, sidebarAccessController)
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
 	fmt.Printf("Server running on port %s\n", cfg.Port)
 	if err := r.Run(serverAddr); err != nil {
