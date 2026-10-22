@@ -12,6 +12,7 @@ func SetupRouter(
 	cfg config.Config,
 	healthController *controllers.HealthController,
 	pemohonController *controllers.PemohonController,
+	petugasController *controllers.PetugasController,
 	kategoriPekerjaanController *controllers.SimpleMasterController,
 	jenisPengeluaranController *controllers.SimpleMasterController,
 	groupController *controllers.GroupController,
@@ -33,6 +34,15 @@ func SetupRouter(
 			auth.GET("/me/sidebar-access", middleware.JWTAuth(cfg), meController.SidebarAccess)
 		}
 		v1.GET("/pemohon", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionRead), pemohonController.GetAll)
+
+		petugas := v1.Group("/petugas")
+		{
+			petugas.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), petugasController.GetAll)
+			petugas.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), petugasController.GetByID)
+			petugas.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionCreate), petugasController.Create)
+			petugas.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionUpdate), petugasController.Update)
+			petugas.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionDelete), petugasController.Delete)
+		}
 
 		masterRoutes := []struct {
 			path       string
