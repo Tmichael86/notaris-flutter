@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'app_providers.dart';
 import '../models/auth_session.dart';
 import '../services/auth_service.dart';
 
@@ -29,7 +30,9 @@ class AuthState {
       );
 }
 
-final authServiceProvider = Provider<AuthService>((ref) => AuthService());
+final authServiceProvider = Provider<AuthService>((ref) {
+  return AuthService(dio: ref.watch(dioProvider));
+});
 
 final authControllerProvider =
     StateNotifierProvider<AuthController, AuthState>((ref) {

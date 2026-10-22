@@ -1,35 +1,41 @@
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../database/app_database.dart';
 import '../services/sync_service.dart';
+import 'database_provider.dart';
 
-// Provider Database Singleton
-final databaseProvider = Provider<AppDatabase>((ref) {
-  final db = AppDatabase();
-  ref.onDispose(() => db.close());
-  return db;
-});
-
-// Provider Dio HTTP Client
+/// Satu konfigurasi Dio untuk komunikasi HTTP aplikasi.
 final dioProvider = Provider<Dio>((ref) {
   return Dio(
     BaseOptions(
+      baseUrl: const String.fromEnvironment(
+        'API_BASE_URL',
+        defaultValue: 'http://127.0.0.1:8080/api/v1',
+      ),
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
+      sendTimeout: const Duration(seconds: 10),
+      headers: const {
+        'Accept': 'application/json',
+      },
     ),
   );
 });
 
-// Provider Sync Engine Service
+/// Service sinkronisasi menggunakan database dan HTTP client bersama.
 final syncServiceProvider = Provider<SyncService>((ref) {
-  final db = ref.watch(databaseProvider);
-  final dio = ref.watch(dioProvider);
-  return SyncService(db: db, dio: dio);
+  return SyncService(
+    db: ref.watch(appDatabaseProvider),
+    dio: ref.watch(dioProvider),
+  );
 });
 
-// Stream Provider untuk Data Pemohon (Real-time dari SQLite)
+/// Stream data Pemohon dari SQLite lokal.
 final pemohonListProvider = StreamProvider<List<Pemohon>>((ref) {
-  final db = ref.watch(databaseProvider);
+  final db = ref.watch(appDatabaseProvider);
+
   return (db.select(db.pemohons)
         ..where((tbl) => tbl.deletedAt.isNull()))
       .watch();
