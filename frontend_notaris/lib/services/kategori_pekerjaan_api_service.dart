@@ -34,6 +34,24 @@ class KategoriPekerjaanApiService {
         .toList();
   }
 
+  Future<List<KategoriPekerjaanApiModel>> getAllPages({
+    int pageSize = 100,
+  }) async {
+    if (pageSize < 1 || pageSize > 100) {
+      throw ArgumentError.value(pageSize, 'pageSize', 'Must be between 1 and 100.');
+    }
+
+    final all = <KategoriPekerjaanApiModel>[];
+    var page = 1;
+
+    while (true) {
+      final items = await getAll(page: page, pageSize: pageSize);
+      all.addAll(items);
+      if (items.length < pageSize) return all;
+      page++;
+    }
+  }
+
   Future<KategoriPekerjaanApiModel> create({required String nama}) async {
     final response = await _dio.post<Map<String, dynamic>>(
       '/kategori-pekerjaan',
