@@ -93,6 +93,7 @@ class KategoriPekerjaanApiModel {
   const KategoriPekerjaanApiModel({
     required this.id,
     required this.nama,
+    this.uuid = '',
     this.createdAt,
     this.updatedAt,
     this.status = 1,
@@ -100,6 +101,7 @@ class KategoriPekerjaanApiModel {
 
   final int id;
   final String nama;
+  final String uuid;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final int status;
@@ -117,6 +119,7 @@ class KategoriPekerjaanApiModel {
     return KategoriPekerjaanApiModel(
       id: id,
       nama: nama,
+      uuid: json['uuid']?.toString().trim() ?? '',
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
       updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? ''),
       status: _parseInt(json['status'], fallback: 1),
