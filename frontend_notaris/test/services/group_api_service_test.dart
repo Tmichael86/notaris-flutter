@@ -83,8 +83,8 @@ void main() {
         _FakeAdapter((_) => fail('No request should be sent')),
       );
 
-      expect(
-        () => service.create(groupNama: 'Staff', groupJenis: 'admin'),
+      await expectLater(
+        service.create(groupNama: 'Staff', groupJenis: 'admin'),
         throwsArgumentError,
       );
     });
