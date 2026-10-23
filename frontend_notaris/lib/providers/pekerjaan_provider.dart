@@ -5,6 +5,8 @@ import '../services/jenis_pengeluaran_api_service.dart';
 import '../services/petugas_api_service.dart';
 import '../services/pemohon_api_service.dart';
 import '../services/user_api_service.dart';
+import '../services/group_api_service.dart';
+import '../services/group_sidebar_access_api_service.dart';
 import 'authenticated_api_provider.dart';
 import '../database/app_database.dart';
 import '../repositories/pekerjaan_repository.dart';
@@ -75,6 +77,15 @@ final pemohonApiServiceProvider = Provider<PemohonApiService>(
 final userApiServiceProvider = Provider<UserApiService>(
   (ref) => UserApiService(ref.watch(authenticatedDioProvider)),
 );
+
+final groupApiServiceProvider = Provider<GroupApiService>(
+  (ref) => GroupApiService(ref.watch(authenticatedDioProvider)),
+);
+
+final groupSidebarAccessApiServiceProvider =
+    Provider<GroupSidebarAccessApiService>(
+      (ref) => GroupSidebarAccessApiService(ref.watch(authenticatedDioProvider)),
+    );
 
 class PekerjaanKategoriController extends AsyncNotifier<void> {
   PekerjaanKategoriRepository get _repository =>
