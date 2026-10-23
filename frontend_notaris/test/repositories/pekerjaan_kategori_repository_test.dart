@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -36,12 +37,19 @@ void main() {
   });
 
   test('cloud refresh does not overwrite a locally dirty category', () async {
-    final id = await repository.create(nama: 'Nama Lokal');
+    const sharedUuid = '11111111-1111-4111-8111-111111111111';
+    final id = await database.into(database.pekerjaanKategoris).insert(
+      const PekerjaanKategorisCompanion.insert(
+        uuid: sharedUuid,
+        nama: 'Nama Lokal',
+        isSyncDirty: Value(true),
+      ),
+    );
 
     await repository.syncFromCloud([
       const KategoriPekerjaanApiModel(
         id: 102,
-        uuid: '11111111-1111-4111-8111-111111111111',
+        uuid: sharedUuid,
         nama: 'Nama Cloud',
       ),
       const KategoriPekerjaanApiModel(
