@@ -80,6 +80,23 @@ class _KategoriPekerjaanDesktopScreenState
             ],
           ),
         ),
+        OutlinedButton.icon(
+          onPressed: _busy
+              ? null
+              : () => _process(
+                    'Sinkronisasi cloud...',
+                    () => ref
+                        .read(pekerjaanKategoriControllerProvider.notifier)
+                        .refreshFromCloud(),
+                  ),
+          icon: const Icon(Icons.sync, size: 18),
+          label: Text(mobile ? 'Sync' : 'Sinkronkan'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.primaryConfirm,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          ),
+        ),
+        const SizedBox(width: 8),
         ElevatedButton.icon(
           onPressed: _busy ? null : () => _form(),
           icon: const Icon(Icons.add, size: 18),
