@@ -16,7 +16,9 @@ class SidebarApiService {
 
     return data
         .whereType<Map>()
-        .map((item) => SidebarApiModel.fromJson(Map<String, dynamic>.from(item)))
+        .map(
+          (item) => SidebarApiModel.fromJson(Map<String, dynamic>.from(item)),
+        )
         .toList();
   }
 
@@ -26,15 +28,16 @@ class SidebarApiService {
     final data = envelope['data'];
 
     if (envelope['success'] != true || data is! List) {
-      throw const FormatException('Format response struktur sidebar tidak valid.');
+      throw const FormatException(
+        'Format response struktur sidebar tidak valid.',
+      );
     }
 
     return data
         .whereType<Map>()
         .map(
-          (item) => SidebarTreeApiModel.fromJson(
-            Map<String, dynamic>.from(item),
-          ),
+          (item) =>
+              SidebarTreeApiModel.fromJson(Map<String, dynamic>.from(item)),
         )
         .toList();
   }
@@ -59,10 +62,7 @@ class SidebarApiService {
 }
 
 class SidebarTreeApiModel {
-  const SidebarTreeApiModel({
-    required this.sidebar,
-    this.childs = const [],
-  });
+  const SidebarTreeApiModel({required this.sidebar, this.childs = const []});
 
   final SidebarApiModel sidebar;
   final List<SidebarApiModel> childs;
@@ -71,7 +71,8 @@ class SidebarTreeApiModel {
     final sidebarJson = _asMap(json['sidebar']);
     final childrenJson = json['childs'];
 
-    if (sidebarJson.isEmpty || (childrenJson != null && childrenJson is! List)) {
+    if (sidebarJson.isEmpty ||
+        (childrenJson != null && childrenJson is! List)) {
       throw const FormatException('Struktur sidebar tidak valid.');
     }
 
@@ -79,9 +80,8 @@ class SidebarTreeApiModel {
         ? childrenJson
               .whereType<Map>()
               .map(
-                (item) => SidebarApiModel.fromJson(
-                  Map<String, dynamic>.from(item),
-                ),
+                (item) =>
+                    SidebarApiModel.fromJson(Map<String, dynamic>.from(item)),
               )
               .toList()
         : <SidebarApiModel>[];

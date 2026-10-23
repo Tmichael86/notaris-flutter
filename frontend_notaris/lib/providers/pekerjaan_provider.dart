@@ -88,6 +88,10 @@ final groupSidebarAccessApiServiceProvider =
       (ref) =>
           GroupSidebarAccessApiService(ref.watch(authenticatedDioProvider)),
     );
+  
+  final sidebarApiServiceProvider = Provider<SidebarApiService>(
+  (ref) => SidebarApiService(ref.watch(authenticatedDioProvider)),
+);
 
 class PekerjaanKategoriController extends AsyncNotifier<void> {
   PekerjaanKategoriRepository get _repository =>
