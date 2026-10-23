@@ -136,10 +136,7 @@ void main() {
         _FakeAdapter((_) => _jsonResponse({'success': false})),
       );
 
-      await expectLater(
-        service.deactivate(4),
-        throwsA(isA<FormatException>()),
-      );
+      await expectLater(service.deactivate(4), throwsA(isA<FormatException>()));
     });
   });
 

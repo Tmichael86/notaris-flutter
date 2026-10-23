@@ -21,9 +21,8 @@ class GroupSidebarAccessApiService {
     return data
         .whereType<Map>()
         .map(
-          (item) => GroupSidebarAccessModel.fromJson(
-            Map<String, dynamic>.from(item),
-          ),
+          (item) =>
+              GroupSidebarAccessModel.fromJson(Map<String, dynamic>.from(item)),
         )
         .toList();
   }
@@ -46,16 +45,12 @@ class GroupSidebarAccessApiService {
 
     final response = await _dio.put<Map<String, dynamic>>(
       '/groups/$groupId/sidebar-access',
-      data: {
-        'access': access.map((item) => item.toJson()).toList(),
-      },
+      data: {'access': access.map((item) => item.toJson()).toList()},
     );
     final envelope = _asMap(response.data);
 
     if (envelope['success'] != true) {
-      throw const FormatException(
-        'Server gagal menyimpan hak akses sidebar.',
-      );
+      throw const FormatException('Server gagal menyimpan hak akses sidebar.');
     }
   }
 

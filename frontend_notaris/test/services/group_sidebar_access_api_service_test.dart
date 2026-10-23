@@ -52,10 +52,7 @@ void main() {
         _FakeAdapter((_) => _jsonResponse({'success': false, 'data': []})),
       );
 
-      await expectLater(
-        service.getByGroup(2),
-        throwsA(isA<FormatException>()),
-      );
+      await expectLater(service.getByGroup(2), throwsA(isA<FormatException>()));
     });
 
     test('replaceForGroup sends permissions in expected shape', () async {
@@ -95,38 +92,42 @@ void main() {
       );
     });
 
-    test('replaceForGroup rejects duplicate sidebar IDs before request', () async {
-      final service = _service(
-        _FakeAdapter((_) => fail('No request should be sent')),
-      );
+    test(
+      'replaceForGroup rejects duplicate sidebar IDs before request',
+      () async {
+        final service = _service(
+          _FakeAdapter((_) => fail('No request should be sent')),
+        );
 
-      await expectLater(
-        service.replaceForGroup(
-          groupId: 2,
-          access: [
-            const GroupSidebarAccessInput(sidebarId: 5),
-            const GroupSidebarAccessInput(sidebarId: 5),
-          ],
-        ),
-        throwsArgumentError,
-      );
-    });
+        await expectLater(
+          service.replaceForGroup(
+            groupId: 2,
+            access: [
+              const GroupSidebarAccessInput(sidebarId: 5),
+              const GroupSidebarAccessInput(sidebarId: 5),
+            ],
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
 
-    test('replaceForGroup rejects invalid permission flags before request', () async {
-      final service = _service(
-        _FakeAdapter((_) => fail('No request should be sent')),
-      );
+    test(
+      'replaceForGroup rejects invalid permission flags before request',
+      () async {
+        final service = _service(
+          _FakeAdapter((_) => fail('No request should be sent')),
+        );
 
-      await expectLater(
-        service.replaceForGroup(
-          groupId: 2,
-          access: [
-            const GroupSidebarAccessInput(sidebarId: 5, read: 2),
-          ],
-        ),
-        throwsArgumentError,
-      );
-    });
+        await expectLater(
+          service.replaceForGroup(
+            groupId: 2,
+            access: [const GroupSidebarAccessInput(sidebarId: 5, read: 2)],
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
 
     test('replaceForGroup rejects failed response', () async {
       final service = _service(
