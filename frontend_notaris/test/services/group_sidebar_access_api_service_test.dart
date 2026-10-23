@@ -95,13 +95,13 @@ void main() {
       );
     });
 
-    test('replaceForGroup rejects duplicate sidebar IDs before request', () {
+    test('replaceForGroup rejects duplicate sidebar IDs before request', () async {
       final service = _service(
         _FakeAdapter((_) => fail('No request should be sent')),
       );
 
-      expect(
-        () => service.replaceForGroup(
+      await expectLater(
+        service.replaceForGroup(
           groupId: 2,
           access: [
             const GroupSidebarAccessInput(sidebarId: 5),
@@ -112,13 +112,13 @@ void main() {
       );
     });
 
-    test('replaceForGroup rejects invalid permission flags before request', () {
+    test('replaceForGroup rejects invalid permission flags before request', () async {
       final service = _service(
         _FakeAdapter((_) => fail('No request should be sent')),
       );
 
-      expect(
-        () => service.replaceForGroup(
+      await expectLater(
+        service.replaceForGroup(
           groupId: 2,
           access: [
             const GroupSidebarAccessInput(sidebarId: 5, read: 2),
