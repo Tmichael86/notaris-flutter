@@ -143,6 +143,19 @@ class PekerjaanKategoriController extends AsyncNotifier<void> {
       rethrow;
     }
   }
+
+  Future<void> refreshFromCloud() async {
+    state = const AsyncLoading();
+    try {
+      final api = ref.read(kategoriPekerjaanApiServiceProvider);
+      final remote = await api.getAllPages();
+      await _repository.syncFromCloud(remote);
+      state = const AsyncData(null);
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      rethrow;
+    }
+  }
 }
 
 final pengeluaranJenisRepositoryProvider = Provider<PengeluaranJenisRepository>(
