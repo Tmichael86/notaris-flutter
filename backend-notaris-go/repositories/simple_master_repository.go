@@ -16,6 +16,7 @@ var ErrDuplicateMasterName = errors.New("active master name already exists")
 
 type SimpleMasterRecord struct {
 	ID        uint64     `gorm:"column:id" json:"id"`
+	UUID      string     `gorm:"column:uuid;default:gen_random_uuid()" json:"uuid"`
 	Nama      string     `gorm:"column:nama" json:"nama"`
 	CreatedBy *uint      `gorm:"column:created_by" json:"created_by"`
 	UpdatedBy *uint      `gorm:"column:updated_by" json:"updated_by"`
@@ -45,7 +46,7 @@ func (r *SimpleMasterRepository) FindActive(ctx context.Context, page, pageSize 
 		return nil, 0, err
 	}
 	err := r.db.WithContext(ctx).Table(r.table).
-		Select("id, nama, created_by, updated_by, created_at, updated_at, status").
+		Select("id, uuid, nama, created_by, updated_by, created_at, updated_at, status").
 		Where("status = ?", 1).Order("nama ASC, id ASC").
 		Limit(pageSize).Offset((page - 1) * pageSize).Find(&items).Error
 	return items, total, err
