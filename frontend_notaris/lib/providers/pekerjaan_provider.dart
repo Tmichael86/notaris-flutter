@@ -144,6 +144,20 @@ class PekerjaanKategoriController extends AsyncNotifier<void> {
     }
   }
 
+  Future<void> synchronize() async {
+    state = const AsyncLoading();
+    try {
+      final api = ref.read(kategoriPekerjaanApiServiceProvider);
+      await _repository.syncToCloud(api);
+      final remote = await api.getAllPages();
+      await _repository.syncFromCloud(remote);
+      state = const AsyncData(null);
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      rethrow;
+    }
+  }
+
   Future<void> refreshFromCloud() async {
     state = const AsyncLoading();
     try {
