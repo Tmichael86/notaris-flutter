@@ -63,6 +63,8 @@ func SetupRouter(
 		for _, master := range masterRoutes {
 			group := v1.Group(master.path)
 			group.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionRead), master.controller.GetAll)
+			group.PUT("/sync/:uuid", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionUpdate), master.controller.SyncUpsert)
+			group.DELETE("/sync/:uuid", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionDelete), master.controller.SyncDeactivate)
 			group.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionRead), master.controller.GetByID)
 			group.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionCreate), master.controller.Create)
 			group.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionUpdate), master.controller.Update)
