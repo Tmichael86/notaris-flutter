@@ -87,7 +87,7 @@ class _KategoriPekerjaanDesktopScreenState
                     'Sinkronisasi cloud...',
                     () => ref
                         .read(pekerjaanKategoriControllerProvider.notifier)
-                        .refreshFromCloud(),
+                        .synchronize(),
                   ),
           icon: const Icon(Icons.sync, size: 18),
           label: Text(mobile ? 'Sync' : 'Sinkronkan'),
