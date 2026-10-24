@@ -75,6 +75,40 @@ class PekerjaanKategoriRepository {
     });
   }
 
+  /// Pushes dirty local categories in deterministic order. A row is marked clean
+  /// only after the API confirms its upsert/deactivation.
+  Future<int> syncToCloud(KategoriPekerjaanApiService api) async {
+    final dirtyRows = await (database.select(
+      database.pekerjaanKategoris,
+    )..where((t) => t.isSyncDirty.equals(true))).get();
+    var synced = 0;
+
+    for (final row in dirtyRows) {
+      if (row.uuid.trim().isEmpty) {
+        throw StateError('Kategori lokal ${row.id} tidak memiliki UUID.');
+      }
+
+      if (row.status == 0 || row.deletedAt != null) {
+        await api.syncDeactivate(uuid: row.uuid);
+      } else {
+        await api.syncUpsert(uuid: row.uuid, nama: row.nama);
+      }
+
+      final now = DateTime.now();
+      await (database.update(database.pekerjaanKategoris)
+            ..where((t) => t.uuid.equals(row.uuid) & t.isSyncDirty.equals(true)))
+          .write(
+        PekerjaanKategorisCompanion(
+          isSyncDirty: const Value(false),
+          lastSyncedAt: Value(now),
+        ),
+      );
+      synced++;
+    }
+
+    return synced;
+  }
+
   Future<int> create({required String nama, int? createdBy}) async {
     final normalizedNama = _normalizeNama(nama);
     await _validateNama(normalizedNama);
