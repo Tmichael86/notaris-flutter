@@ -88,8 +88,8 @@ final groupSidebarAccessApiServiceProvider =
       (ref) =>
           GroupSidebarAccessApiService(ref.watch(authenticatedDioProvider)),
     );
-  
-  final sidebarApiServiceProvider = Provider<SidebarApiService>(
+
+final sidebarApiServiceProvider = Provider<SidebarApiService>(
   (ref) => SidebarApiService(ref.watch(authenticatedDioProvider)),
 );
 
@@ -138,6 +138,33 @@ class PekerjaanKategoriController extends AsyncNotifier<void> {
       final deleted = await _repository.delete(id);
       state = const AsyncData(null);
       return deleted;
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<void> synchronize() async {
+    state = const AsyncLoading();
+    try {
+      final api = ref.read(kategoriPekerjaanApiServiceProvider);
+      await _repository.syncToCloud(api);
+      final remote = await api.getAllPages();
+      await _repository.syncFromCloud(remote);
+      state = const AsyncData(null);
+    } catch (error, stackTrace) {
+      state = AsyncError(error, stackTrace);
+      rethrow;
+    }
+  }
+
+  Future<void> refreshFromCloud() async {
+    state = const AsyncLoading();
+    try {
+      final api = ref.read(kategoriPekerjaanApiServiceProvider);
+      final remote = await api.getAllPages();
+      await _repository.syncFromCloud(remote);
+      state = const AsyncData(null);
     } catch (error, stackTrace) {
       state = AsyncError(error, stackTrace);
       rethrow;

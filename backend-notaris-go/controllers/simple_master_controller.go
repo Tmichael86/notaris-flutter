@@ -22,6 +22,7 @@ func NewSimpleMasterController(tableName, resource string) *SimpleMasterControll
 }
 
 type simpleMasterRequest struct {
+	UUID string `json:"uuid"`
 	Nama string `json:"nama"`
 }
 
@@ -84,7 +85,13 @@ func (c *SimpleMasterController) Create(ctx *gin.Context) {
 		response.Error(ctx, http.StatusUnauthorized, "User tidak terautentikasi", nil)
 		return
 	}
-	item, err := c.repository.Create(ctx.Request.Context(), req.Nama, userID)
+	var item *repositories.SimpleMasterRecord
+	var err error
+	if strings.TrimSpace(req.UUID) != "" {
+		item, err = c.repository.UpsertByUUID(ctx.Request.Context(), strings.TrimSpace(req.UUID), req.Nama, userID)
+	} else {
+		item, err = c.repository.Create(ctx.Request.Context(), req.Nama, userID)
+	}
 	if errors.Is(err, repositories.ErrDuplicateMasterName) {
 		response.Error(ctx, http.StatusConflict, "Nama "+c.resource+" sudah digunakan", gin.H{"nama": "Nama harus unik di antara data aktif"})
 		return
@@ -159,4 +166,65 @@ func (c *SimpleMasterController) Delete(ctx *gin.Context) {
 func parsePositiveID(ctx *gin.Context) (uint64, bool) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	return id, err == nil && id > 0
+}
+
+// SyncUpsert creates or updates a record using the stable client UUID.
+func (c *SimpleMasterController) SyncUpsert(ctx *gin.Context) {
+	uuid := strings.TrimSpace(ctx.Param("uuid"))
+	if uuid == "" {
+		response.Error(ctx, http.StatusBadRequest, "UUID tidak valid", nil)
+		return
+	}
+	var req simpleMasterRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		response.Error(ctx, http.StatusBadRequest, "JSON request tidak valid", nil)
+		return
+	}
+	req.Nama = strings.TrimSpace(req.Nama)
+	if req.Nama == "" {
+		response.Error(ctx, http.StatusUnprocessableEntity, "Validasi data gagal", gin.H{"nama": "Nama wajib diisi"})
+		return
+	}
+	userID, ok := getAuthenticatedUserID(ctx)
+	if !ok {
+		response.Error(ctx, http.StatusUnauthorized, "User tidak terautentikasi", nil)
+		return
+	}
+	item, err := c.repository.UpsertByUUID(ctx.Request.Context(), uuid, req.Nama, userID)
+	if errors.Is(err, repositories.ErrDuplicateMasterName) {
+		response.Error(ctx, http.StatusConflict, "Nama "+c.resource+" sudah digunakan", gin.H{"nama": "Nama harus unik di antara data aktif"})
+		return
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		response.Error(ctx, http.StatusConflict, "Data nonaktif tidak dapat disinkronkan ulang", nil)
+		return
+	}
+	if err != nil {
+		response.Error(ctx, http.StatusInternalServerError, "Gagal menyinkronkan data "+c.resource, nil)
+		return
+	}
+	response.Success(ctx, "Data "+c.resource+" berhasil disinkronkan", item)
+}
+
+func (c *SimpleMasterController) SyncDeactivate(ctx *gin.Context) {
+	uuid := strings.TrimSpace(ctx.Param("uuid"))
+	if uuid == "" {
+		response.Error(ctx, http.StatusBadRequest, "UUID tidak valid", nil)
+		return
+	}
+	userID, ok := getAuthenticatedUserID(ctx)
+	if !ok {
+		response.Error(ctx, http.StatusUnauthorized, "User tidak terautentikasi", nil)
+		return
+	}
+	err := c.repository.DeactivateByUUID(ctx.Request.Context(), uuid, userID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		response.Error(ctx, http.StatusNotFound, "Data "+c.resource+" tidak ditemukan", nil)
+		return
+	}
+	if err != nil {
+		response.Error(ctx, http.StatusInternalServerError, "Gagal menyinkronkan penghapusan "+c.resource, nil)
+		return
+	}
+	response.Success(ctx, "Data "+c.resource+" berhasil dinonaktifkan", nil)
 }
