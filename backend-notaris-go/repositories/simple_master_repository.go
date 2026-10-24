@@ -121,15 +121,25 @@ func (r *SimpleMasterRepository) UpsertByUUID(ctx context.Context, uuid, nama st
 }
 
 func (r *SimpleMasterRepository) DeactivateByUUID(ctx context.Context, uuid string, userID uint) error {
-	result := r.db.WithContext(ctx).Table(r.table).Where("uuid = ? AND status = ?", uuid, 1).
+	db := r.db.WithContext(ctx)
+	result := db.Table(r.table).Where("uuid = ? AND status = ?", uuid, 1).
 		Updates(map[string]interface{}{"status": 0, "updated_by": userID, "updated_at": time.Now()})
 	if result.Error != nil {
 		return result.Error
 	}
-	if result.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
+	if result.RowsAffected > 0 {
+		return nil
 	}
-	return nil
+
+	// Treat a retry for an already-inactive UUID as success.
+	var exists int64
+	if err := db.Table(r.table).Where("uuid = ?", uuid).Count(&exists).Error; err != nil {
+		return err
+	}
+	if exists > 0 {
+		return nil
+	}
+	return gorm.ErrRecordNotFound
 }
 
 func (r *SimpleMasterRepository) Create(ctx context.Context, nama string, userID uint) (*SimpleMasterRecord, error) {
