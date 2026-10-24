@@ -61,6 +61,77 @@ func (r *SimpleMasterRepository) FindActiveByID(ctx context.Context, id uint64) 
 	return &item, nil
 }
 
+func (r *SimpleMasterRepository) FindActiveByUUID(ctx context.Context, uuid string) (*SimpleMasterRecord, error) {
+	var item SimpleMasterRecord
+	err := r.db.WithContext(ctx).Table(r.table).Where("uuid = ? AND status = ?", uuid, 1).Take(&item).Error
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+// UpsertByUUID makes retries safe: a previously accepted local UUID updates the
+// same cloud record instead of creating a duplicate.
+func (r *SimpleMasterRepository) UpsertByUUID(ctx context.Context, uuid, nama string, userID uint) (*SimpleMasterRecord, error) {
+	var item SimpleMasterRecord
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var current SimpleMasterRecord
+		findErr := tx.Table(r.table).Clauses(clause.Locking{Strength: "UPDATE"}).Where("uuid = ?", uuid).Take(&current).Error
+		if findErr != nil && !errors.Is(findErr, gorm.ErrRecordNotFound) {
+			return findErr
+		}
+		if errors.Is(findErr, gorm.ErrRecordNotFound) {
+			if err := lockMasterName(tx, r.table, nama); err != nil {
+				return err
+			}
+			var count int64
+			if err := tx.Table(r.table).Where("status = ? AND lower(btrim(nama)) = lower(btrim(?))", 1, nama).Count(&count).Error; err != nil {
+				return err
+			}
+			if count > 0 {
+				return ErrDuplicateMasterName
+			}
+			now := time.Now()
+			item = SimpleMasterRecord{UUID: uuid, Nama: nama, CreatedBy: &userID, CreatedAt: &now, Status: 1}
+			return tx.Table(r.table).Create(&item).Error
+		}
+		if current.Status != 1 {
+			return gorm.ErrRecordNotFound
+		}
+		if err := lockMasterName(tx, r.table, nama); err != nil {
+			return err
+		}
+		var count int64
+		if err := tx.Table(r.table).Where("status = ? AND lower(btrim(nama)) = lower(btrim(?)) AND uuid <> ?", 1, nama, uuid).Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return ErrDuplicateMasterName
+		}
+		now := time.Now()
+		if err := tx.Table(r.table).Where("uuid = ? AND status = ?", uuid, 1).Updates(map[string]interface{}{"nama": nama, "updated_by": userID, "updated_at": now}).Error; err != nil {
+			return err
+		}
+		return tx.Table(r.table).Where("uuid = ?", uuid).Take(&item).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+func (r *SimpleMasterRepository) DeactivateByUUID(ctx context.Context, uuid string, userID uint) error {
+	result := r.db.WithContext(ctx).Table(r.table).Where("uuid = ? AND status = ?", uuid, 1).
+		Updates(map[string]interface{}{"status": 0, "updated_by": userID, "updated_at": time.Now()})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
 func (r *SimpleMasterRepository) Create(ctx context.Context, nama string, userID uint) (*SimpleMasterRecord, error) {
 	var item SimpleMasterRecord
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
