@@ -38,7 +38,11 @@ class KategoriPekerjaanApiService {
     int pageSize = 100,
   }) async {
     if (pageSize < 1 || pageSize > 100) {
-      throw ArgumentError.value(pageSize, 'pageSize', 'Must be between 1 and 100.');
+      throw ArgumentError.value(
+        pageSize,
+        'pageSize',
+        'Must be between 1 and 100.',
+      );
     }
 
     final all = <KategoriPekerjaanApiModel>[];

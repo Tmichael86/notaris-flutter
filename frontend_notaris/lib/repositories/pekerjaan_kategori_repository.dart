@@ -55,21 +55,23 @@ class PekerjaanKategoriRepository {
         );
 
         if (existing == null) {
-          await database.into(database.pekerjaanKategoris).insert(
-            PekerjaanKategorisCompanion.insert(
-              uuid: remote.uuid,
-              nama: remote.nama,
-              createdAt: Value(createdAt),
-              updatedAt: Value(updatedAt),
-              status: Value(remote.status),
-              isSyncDirty: const Value(false),
-              lastSyncedAt: Value(now),
-            ),
-          );
+          await database
+              .into(database.pekerjaanKategoris)
+              .insert(
+                PekerjaanKategorisCompanion.insert(
+                  uuid: remote.uuid,
+                  nama: remote.nama,
+                  createdAt: Value(createdAt),
+                  updatedAt: Value(updatedAt),
+                  status: Value(remote.status),
+                  isSyncDirty: const Value(false),
+                  lastSyncedAt: Value(now),
+                ),
+              );
         } else {
-          await (database.update(database.pekerjaanKategoris)
-                ..where((t) => t.uuid.equals(remote.uuid)))
-              .write(companion);
+          await (database.update(
+            database.pekerjaanKategoris,
+          )..where((t) => t.uuid.equals(remote.uuid))).write(companion);
         }
       }
     });
@@ -95,14 +97,15 @@ class PekerjaanKategoriRepository {
       }
 
       final now = DateTime.now();
-      await (database.update(database.pekerjaanKategoris)
-            ..where((t) => t.uuid.equals(row.uuid) & t.isSyncDirty.equals(true)))
+      await (database.update(
+            database.pekerjaanKategoris,
+          )..where((t) => t.uuid.equals(row.uuid) & t.isSyncDirty.equals(true)))
           .write(
-        PekerjaanKategorisCompanion(
-          isSyncDirty: const Value(false),
-          lastSyncedAt: Value(now),
-        ),
-      );
+            PekerjaanKategorisCompanion(
+              isSyncDirty: const Value(false),
+              lastSyncedAt: Value(now),
+            ),
+          );
       synced++;
     }
 

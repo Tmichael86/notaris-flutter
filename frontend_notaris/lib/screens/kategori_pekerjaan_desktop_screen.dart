@@ -84,11 +84,11 @@ class _KategoriPekerjaanDesktopScreenState
           onPressed: _busy
               ? null
               : () => _process(
-                    'Sinkronisasi cloud...',
-                    () => ref
-                        .read(pekerjaanKategoriControllerProvider.notifier)
-                        .synchronize(),
-                  ),
+                  'Sinkronisasi cloud...',
+                  () => ref
+                      .read(pekerjaanKategoriControllerProvider.notifier)
+                      .synchronize(),
+                ),
           icon: const Icon(Icons.sync, size: 18),
           label: Text(mobile ? 'Sync' : 'Sinkronkan'),
           style: OutlinedButton.styleFrom(

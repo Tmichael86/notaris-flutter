@@ -88,8 +88,8 @@ final groupSidebarAccessApiServiceProvider =
       (ref) =>
           GroupSidebarAccessApiService(ref.watch(authenticatedDioProvider)),
     );
-  
-  final sidebarApiServiceProvider = Provider<SidebarApiService>(
+
+final sidebarApiServiceProvider = Provider<SidebarApiService>(
   (ref) => SidebarApiService(ref.watch(authenticatedDioProvider)),
 );
 
