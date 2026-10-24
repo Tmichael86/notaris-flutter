@@ -52,6 +52,29 @@ class KategoriPekerjaanApiService {
     }
   }
 
+  Future<KategoriPekerjaanApiModel> syncUpsert({
+    required String uuid,
+    required String nama,
+  }) async {
+    final response = await _dio.put<Map<String, dynamic>>(
+      '/kategori-pekerjaan/sync/$uuid',
+      data: {'nama': nama.trim()},
+    );
+    return _parseRecord(response.data);
+  }
+
+  Future<void> syncDeactivate({required String uuid}) async {
+    final response = await _dio.delete<Map<String, dynamic>>(
+      '/kategori-pekerjaan/sync/$uuid',
+    );
+    final envelope = _asMap(response.data);
+    if (envelope['success'] != true) {
+      throw const FormatException(
+        'Server gagal menyinkronkan penghapusan kategori pekerjaan.',
+      );
+    }
+  }
+
   Future<KategoriPekerjaanApiModel> create({required String nama}) async {
     final response = await _dio.post<Map<String, dynamic>>(
       '/kategori-pekerjaan',
