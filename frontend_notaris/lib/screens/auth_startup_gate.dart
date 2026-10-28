@@ -52,6 +52,23 @@ class _AuthenticatedShellState extends ConsumerState<_AuthenticatedShell>
     WidgetsBinding.instance.addObserver(this);
     _sessionSyncController = SessionSyncController(
       synchronize: () => ref.read(syncCoordinatorProvider).synchronizeNow(),
+      onInitialSyncResult: (error) {
+        if (!mounted) return;
+        final succeeded = error == null;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              succeeded
+                  ? 'Sinkronisasi awal berhasil.'
+                  : 'Sinkronisasi awal gagal. ${error.toString()}',
+            ),
+            backgroundColor: succeeded
+                ? Colors.green.shade700
+                : Colors.orange.shade800,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      },
     );
     // Wait until the first frame is complete before sync updates Riverpod state.
     WidgetsBinding.instance.addPostFrameCallback((_) {
