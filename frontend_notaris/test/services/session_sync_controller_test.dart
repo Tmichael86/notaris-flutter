@@ -57,6 +57,7 @@ void main() {
           syncCount++;
         },
         interval: const Duration(hours: 1),
+        resumeCooldown: Duration.zero,
       );
 
       controller.start();
@@ -65,6 +66,33 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(syncCount, 2);
+      controller.dispose();
+    });
+
+    test('ignores repeated resume triggers during the cooldown', () async {
+      var syncCount = 0;
+      var currentTime = DateTime(2026, 10, 28, 15);
+      final controller = SessionSyncController(
+        synchronize: () async {
+          syncCount++;
+        },
+        interval: const Duration(hours: 1),
+        resumeCooldown: const Duration(seconds: 60),
+        clock: () => currentTime,
+      );
+
+      controller.start();
+      await Future<void>.delayed(Duration.zero);
+      controller.onAppResumed();
+      controller.onAppResumed();
+      await Future<void>.delayed(Duration.zero);
+      expect(syncCount, 1);
+
+      currentTime = currentTime.add(const Duration(seconds: 61));
+      controller.onAppResumed();
+      await Future<void>.delayed(Duration.zero);
+      expect(syncCount, 2);
+
       controller.dispose();
     });
 
@@ -97,6 +125,7 @@ void main() {
           if (syncCount == 1) throw StateError('offline');
         },
         interval: const Duration(hours: 1),
+        resumeCooldown: Duration.zero,
       );
 
       controller.start();
