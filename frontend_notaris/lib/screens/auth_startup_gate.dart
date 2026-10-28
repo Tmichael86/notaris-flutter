@@ -6,7 +6,7 @@ import '../core/widgets/app_shell.dart';
 import '../models/auth_session.dart';
 import '../providers/auth_provider.dart';
 import '../providers/pekerjaan_provider.dart';
-import '../services/periodic_sync_runner.dart';
+import '../services/session_sync_controller.dart';
 import 'login_desktop_screen.dart';
 
 class AuthStartupGate extends ConsumerWidget {
@@ -42,21 +42,31 @@ class _AuthenticatedShell extends ConsumerStatefulWidget {
       _AuthenticatedShellState();
 }
 
-class _AuthenticatedShellState extends ConsumerState<_AuthenticatedShell> {
-  late final PeriodicSyncRunner _syncRunner;
+class _AuthenticatedShellState extends ConsumerState<_AuthenticatedShell>
+    with WidgetsBindingObserver {
+  late final SessionSyncController _sessionSyncController;
 
   @override
   void initState() {
     super.initState();
-    _syncRunner = PeriodicSyncRunner(
-      onTick: () => ref.read(syncCoordinatorProvider).synchronizeNow(),
+    WidgetsBinding.instance.addObserver(this);
+    _sessionSyncController = SessionSyncController(
+      synchronize: () => ref.read(syncCoordinatorProvider).synchronizeNow(),
     );
-    _syncRunner.start();
+    _sessionSyncController.start();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _sessionSyncController.onAppResumed();
+    }
   }
 
   @override
   void dispose() {
-    _syncRunner.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    _sessionSyncController.dispose();
     super.dispose();
   }
 
