@@ -19,6 +19,37 @@ void main() {
       controller.dispose();
     });
 
+    test('reports the initial sync result on success', () async {
+      Object? reportedError = Object();
+      final controller = SessionSyncController(
+        synchronize: () async {},
+        onInitialSyncResult: (error) => reportedError = error,
+        interval: const Duration(hours: 1),
+      );
+
+      controller.start();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(reportedError, isNull);
+      controller.dispose();
+    });
+
+    test('reports the initial sync error on failure', () async {
+      Object? reportedError;
+      final failure = StateError('offline');
+      final controller = SessionSyncController(
+        synchronize: () async => throw failure,
+        onInitialSyncResult: (error) => reportedError = error,
+        interval: const Duration(hours: 1),
+      );
+
+      controller.start();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(reportedError, same(failure));
+      controller.dispose();
+    });
+
     test('triggers another sync when the app resumes', () async {
       var syncCount = 0;
       final controller = SessionSyncController(
