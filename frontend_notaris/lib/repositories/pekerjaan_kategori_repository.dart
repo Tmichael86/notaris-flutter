@@ -97,9 +97,14 @@ class PekerjaanKategoriRepository {
       }
 
       final now = DateTime.now();
-      await (database.update(
-            database.pekerjaanKategoris,
-          )..where((t) => t.uuid.equals(row.uuid) & t.isSyncDirty.equals(true)))
+      // Do not clear a newer edit made while the network request was in flight.
+      await (database.update(database.pekerjaanKategoris)..where(
+            (t) =>
+                t.uuid.equals(row.uuid) &
+                t.isSyncDirty.equals(true) &
+                t.updatedAt.equals(row.updatedAt) &
+                t.status.equals(row.status),
+          ))
           .write(
             PekerjaanKategorisCompanion(
               isSyncDirty: const Value(false),
