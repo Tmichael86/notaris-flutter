@@ -53,7 +53,10 @@ class _AuthenticatedShellState extends ConsumerState<_AuthenticatedShell>
     _sessionSyncController = SessionSyncController(
       synchronize: () => ref.read(syncCoordinatorProvider).synchronizeNow(),
     );
-    _sessionSyncController.start();
+    // Wait until the first frame is complete before sync updates Riverpod state.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _sessionSyncController.start();
+    });
   }
 
   @override
