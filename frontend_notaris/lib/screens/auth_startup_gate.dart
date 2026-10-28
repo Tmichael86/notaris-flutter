@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_colors.dart';
 import '../core/widgets/app_shell.dart';
 import '../providers/auth_provider.dart';
+import '../providers/pekerjaan_provider.dart';
+import '../services/periodic_sync_runner.dart';
 import 'login_desktop_screen.dart';
 
 class AuthStartupGate extends ConsumerWidget {
@@ -20,12 +22,52 @@ class AuthStartupGate extends ConsumerWidget {
       case AuthStatus.unauthenticated:
         return LoginDesktopScreen(errorMessage: auth.errorMessage);
       case AuthStatus.authenticated:
-        final session = auth.session!;
-        return AppShell(
-          session: session,
+        return _AuthenticatedShell(
+          session: auth.session!,
           onLogout: () => ref.read(authControllerProvider.notifier).logout(),
         );
     }
+  }
+}
+
+class _AuthenticatedShell extends ConsumerStatefulWidget {
+  const _AuthenticatedShell({
+    required this.session,
+    required this.onLogout,
+  });
+
+  final dynamic session;
+  final Future<void> Function() onLogout;
+
+  @override
+  ConsumerState<_AuthenticatedShell> createState() =>
+      _AuthenticatedShellState();
+}
+
+class _AuthenticatedShellState extends ConsumerState<_AuthenticatedShell> {
+  late final PeriodicSyncRunner _syncRunner;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncRunner = PeriodicSyncRunner(
+      onTick: () => ref.read(syncCoordinatorProvider).synchronizeNow(),
+    );
+    _syncRunner.start();
+  }
+
+  @override
+  void dispose() {
+    _syncRunner.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AppShell(
+      session: widget.session,
+      onLogout: widget.onLogout,
+    );
   }
 }
 
