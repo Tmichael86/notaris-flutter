@@ -102,7 +102,7 @@ class PekerjaanKategoriRepository {
             (t) =>
                 t.uuid.equals(row.uuid) &
                 t.isSyncDirty.equals(true) &
-                t.updatedAt.equals(row.updatedAt) &
+                t.updatedAt.equalsNullable(row.updatedAt) &
                 t.status.equals(row.status),
           ))
           .write(
