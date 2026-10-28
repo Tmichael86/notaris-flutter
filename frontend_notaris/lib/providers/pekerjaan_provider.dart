@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../services/kategori_pekerjaan_api_service.dart';
@@ -52,6 +53,107 @@ final pekerjaanKategoriProvider =
       final repository = ref.watch(pekerjaanKategoriRepositoryProvider);
       return repository.watchAll();
     });
+
+enum SyncStatus { idle, syncing, pending, success, failed }
+
+enum SyncFailureKind {
+  offline, timeout, unauthorized, forbidden, conflict, validation, server, unknown,
+}
+
+class SyncFailure implements Exception {
+  const SyncFailure(this.kind, this.userMessage, {this.cause});
+
+  final SyncFailureKind kind;
+  final String userMessage;
+  final Object? cause;
+
+  @override
+  String toString() => userMessage;
+}
+
+/// Single-flight coordinator for category push/pull. Future sync triggers should
+/// call this provider instead of invoking repository sync methods directly.
+class SyncCoordinator {
+  SyncCoordinator({
+    required Future<void> Function() runSync,
+    required void Function(SyncStatus) onStatusChanged,
+  }) : _runSync = runSync, _onStatusChanged = onStatusChanged;
+
+  final Future<void> Function() _runSync;
+  final void Function(SyncStatus) _onStatusChanged;
+  Future<void>? _inFlight;
+
+  Future<void> synchronizeNow() {
+    final current = _inFlight;
+    if (current != null) return current;
+    final operation = _run();
+    _inFlight = operation;
+    return operation;
+  }
+
+  Future<void> _run() async {
+    _onStatusChanged(SyncStatus.syncing);
+    try {
+      await _runSync();
+      _onStatusChanged(SyncStatus.success);
+    } catch (error) {
+      final failure = mapSyncFailure(error);
+      final canRetry = failure.kind == SyncFailureKind.offline ||
+          failure.kind == SyncFailureKind.timeout ||
+          failure.kind == SyncFailureKind.server;
+      _onStatusChanged(canRetry ? SyncStatus.pending : SyncStatus.failed);
+      throw failure;
+    } finally {
+      _inFlight = null;
+    }
+  }
+
+  static SyncFailure mapSyncFailure(Object error) {
+    if (error is SyncFailure) return error;
+    if (error is DioException) {
+      if (error.type == DioExceptionType.connectionError) {
+        return SyncFailure(SyncFailureKind.offline,
+          'Server tidak dapat dijangkau. Data tetap tersimpan di perangkat.', cause: error);
+      }
+      if (error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.sendTimeout ||
+          error.type == DioExceptionType.receiveTimeout) {
+        return SyncFailure(SyncFailureKind.timeout,
+          'Koneksi terlalu lama. Perubahan tetap tersimpan dan menunggu sinkronisasi.', cause: error);
+      }
+      final code = error.response?.statusCode;
+      if (code == 401) return SyncFailure(SyncFailureKind.unauthorized,
+        'Sesi login berakhir. Silakan login kembali untuk menyinkronkan data.', cause: error);
+      if (code == 403) return SyncFailure(SyncFailureKind.forbidden,
+        'Akun tidak memiliki izin untuk menyinkronkan perubahan ini.', cause: error);
+      if (code == 409) return SyncFailure(SyncFailureKind.conflict,
+        'Perubahan bertentangan dengan data di server. Data lokal tetap tersimpan.', cause: error);
+      if (code == 400 || code == 422) return SyncFailure(SyncFailureKind.validation,
+        'Data belum dapat disinkronkan. Periksa kembali data yang dimasukkan.', cause: error);
+      if (code != null && code >= 500) return SyncFailure(SyncFailureKind.server,
+        'Server sedang bermasalah. Perubahan menunggu untuk disinkronkan.', cause: error);
+    }
+    return SyncFailure(SyncFailureKind.unknown,
+      'Sinkronisasi belum selesai. Data lokal tetap tersimpan.', cause: error);
+  }
+}
+
+final syncStatusProvider = StateProvider<SyncStatus>((ref) => SyncStatus.idle);
+
+final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
+  return SyncCoordinator(
+    runSync: () async {
+      final repository = ref.read(pekerjaanKategoriRepositoryProvider);
+      final api = ref.read(kategoriPekerjaanApiServiceProvider);
+      await repository.syncToCloud(api);
+      final remote = await api.getAllPages();
+      await repository.syncFromCloud(remote);
+    },
+    onStatusChanged: (status) {
+      ref.read(syncStatusProvider.notifier).state = status;
+    },
+  );
+});
 
 final pekerjaanKategoriControllerProvider =
     AsyncNotifierProvider<PekerjaanKategoriController, void>(
@@ -147,10 +249,7 @@ class PekerjaanKategoriController extends AsyncNotifier<void> {
   Future<void> synchronize() async {
     state = const AsyncLoading();
     try {
-      final api = ref.read(kategoriPekerjaanApiServiceProvider);
-      await _repository.syncToCloud(api);
-      final remote = await api.getAllPages();
-      await _repository.syncFromCloud(remote);
+      await ref.read(syncCoordinatorProvider).synchronizeNow();
       state = const AsyncData(null);
     } catch (error, stackTrace) {
       state = AsyncError(error, stackTrace);
