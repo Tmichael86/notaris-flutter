@@ -57,7 +57,14 @@ final pekerjaanKategoriProvider =
 enum SyncStatus { idle, syncing, pending, success, failed }
 
 enum SyncFailureKind {
-  offline, timeout, unauthorized, forbidden, conflict, validation, server, unknown,
+  offline,
+  timeout,
+  unauthorized,
+  forbidden,
+  conflict,
+  validation,
+  server,
+  unknown,
 }
 
 class SyncFailure implements Exception {
@@ -75,9 +82,9 @@ class SyncFailure implements Exception {
 /// call this provider instead of invoking repository sync methods directly.
 class SyncCoordinator {
   SyncCoordinator({
-    required Future<void> Function() runSync,
-    required void Function(SyncStatus) onStatusChanged,
-  }) : _runSync = runSync, _onStatusChanged = onStatusChanged;
+    required this._runSync,
+    required this._onStatusChanged,
+  });
 
   final Future<void> Function() _runSync;
   final void Function(SyncStatus) _onStatusChanged;
@@ -98,7 +105,8 @@ class SyncCoordinator {
       _onStatusChanged(SyncStatus.success);
     } catch (error) {
       final failure = mapSyncFailure(error);
-      final canRetry = failure.kind == SyncFailureKind.offline ||
+      final canRetry =
+          failure.kind == SyncFailureKind.offline ||
           failure.kind == SyncFailureKind.timeout ||
           failure.kind == SyncFailureKind.server;
       _onStatusChanged(canRetry ? SyncStatus.pending : SyncStatus.failed);
@@ -108,33 +116,71 @@ class SyncCoordinator {
     }
   }
 
-  static SyncFailure mapSyncFailure(Object error) {
+static SyncFailure mapSyncFailure(Object error) {
     if (error is SyncFailure) return error;
+
     if (error is DioException) {
       if (error.type == DioExceptionType.connectionError) {
-        return SyncFailure(SyncFailureKind.offline,
-          'Server tidak dapat dijangkau. Data tetap tersimpan di perangkat.', cause: error);
+        return SyncFailure(
+          SyncFailureKind.offline,
+          'Server tidak dapat dijangkau. Data tetap tersimpan di perangkat.',
+          cause: error,
+        );
       }
+
       if (error.type == DioExceptionType.connectionTimeout ||
           error.type == DioExceptionType.sendTimeout ||
           error.type == DioExceptionType.receiveTimeout) {
-        return SyncFailure(SyncFailureKind.timeout,
-          'Koneksi terlalu lama. Perubahan tetap tersimpan dan menunggu sinkronisasi.', cause: error);
+        return SyncFailure(
+          SyncFailureKind.timeout,
+          'Koneksi terlalu lama. Perubahan tetap tersimpan dan menunggu sinkronisasi.',
+          cause: error,
+        );
       }
+
       final code = error.response?.statusCode;
-      if (code == 401) return SyncFailure(SyncFailureKind.unauthorized,
-        'Sesi login berakhir. Silakan login kembali untuk menyinkronkan data.', cause: error);
-      if (code == 403) return SyncFailure(SyncFailureKind.forbidden,
-        'Akun tidak memiliki izin untuk menyinkronkan perubahan ini.', cause: error);
-      if (code == 409) return SyncFailure(SyncFailureKind.conflict,
-        'Perubahan bertentangan dengan data di server. Data lokal tetap tersimpan.', cause: error);
-      if (code == 400 || code == 422) return SyncFailure(SyncFailureKind.validation,
-        'Data belum dapat disinkronkan. Periksa kembali data yang dimasukkan.', cause: error);
-      if (code != null && code >= 500) return SyncFailure(SyncFailureKind.server,
-        'Server sedang bermasalah. Perubahan menunggu untuk disinkronkan.', cause: error);
+      if (code == 401) {
+        return SyncFailure(
+          SyncFailureKind.unauthorized,
+          'Sesi login berakhir. Silakan login kembali untuk menyinkronkan data.',
+          cause: error,
+        );
+      }
+      if (code == 403) {
+        return SyncFailure(
+          SyncFailureKind.forbidden,
+          'Akun tidak memiliki izin untuk menyinkronkan perubahan ini.',
+          cause: error,
+        );
+      }
+      if (code == 409) {
+        return SyncFailure(
+          SyncFailureKind.conflict,
+          'Perubahan bertentangan dengan data di server. Data lokal tetap tersimpan.',
+          cause: error,
+        );
+      }
+      if (code == 400 || code == 422) {
+        return SyncFailure(
+          SyncFailureKind.validation,
+          'Data belum dapat disinkronkan. Periksa kembali data yang dimasukkan.',
+          cause: error,
+        );
+      }
+      if (code != null && code >= 500) {
+        return SyncFailure(
+          SyncFailureKind.server,
+          'Server sedang bermasalah. Perubahan menunggu untuk disinkronkan.',
+          cause: error,
+        );
+      }
     }
-    return SyncFailure(SyncFailureKind.unknown,
-      'Sinkronisasi belum selesai. Data lokal tetap tersimpan.', cause: error);
+
+    return SyncFailure(
+      SyncFailureKind.unknown,
+      'Sinkronisasi belum selesai. Data lokal tetap tersimpan.',
+      cause: error,
+    );
   }
 }
 
