@@ -8,18 +8,25 @@ class SessionSyncController {
     required Future<void> Function() synchronize,
     this.onInitialSyncResult,
     Duration interval = const Duration(minutes: 5),
+    this.resumeCooldown = const Duration(seconds: 60),
+    DateTime Function()? clock,
   }) : _synchronize = synchronize,
-       _periodicRunner = PeriodicSyncRunner(
-         onTick: synchronize,
-         interval: interval,
-       );
+       _clock = clock ?? DateTime.now {
+    _periodicRunner = PeriodicSyncRunner(
+      onTick: _runPeriodicSafely,
+      interval: interval,
+    );
+  }
 
   final Future<void> Function() _synchronize;
   final void Function(Object? error)? onInitialSyncResult;
-  final PeriodicSyncRunner _periodicRunner;
+  final Duration resumeCooldown;
+  final DateTime Function() _clock;
+  late final PeriodicSyncRunner _periodicRunner;
 
   bool _started = false;
   bool _disposed = false;
+  DateTime? _lastSyncAttemptAt;
 
   void start() {
     if (_started || _disposed) return;
@@ -32,19 +39,35 @@ class SessionSyncController {
 
   void onAppResumed() {
     if (!_started || _disposed) return;
+
+    final lastAttempt = _lastSyncAttemptAt;
+    if (lastAttempt != null &&
+        _clock().difference(lastAttempt) < resumeCooldown) {
+      return;
+    }
+
     unawaited(_runSafely());
   }
 
   Future<void> _runInitialSafely() async {
+    _lastSyncAttemptAt = _clock();
     try {
       await _synchronize();
-      onInitialSyncResult?.call(null);
+      if (!_disposed) onInitialSyncResult?.call(null);
     } catch (error) {
-      onInitialSyncResult?.call(error);
+      if (!_disposed) onInitialSyncResult?.call(error);
     }
   }
 
+  Future<void> _runPeriodicSafely() async {
+    if (_disposed) return;
+    _lastSyncAttemptAt = _clock();
+    await _runSafely();
+  }
+
   Future<void> _runSafely() async {
+    if (_disposed) return;
+    _lastSyncAttemptAt = _clock();
     try {
       await _synchronize();
     } catch (_) {
