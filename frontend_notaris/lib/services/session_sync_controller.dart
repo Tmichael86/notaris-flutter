@@ -6,7 +6,7 @@ import 'periodic_sync_runner.dart';
 class SessionSyncController {
   SessionSyncController({
     required Future<void> Function() synchronize,
-    this.interval = const Duration(minutes: 5),
+    Duration interval = const Duration(minutes: 5),
   }) : _synchronize = synchronize,
        _periodicRunner = PeriodicSyncRunner(
          onTick: synchronize,
@@ -15,7 +15,6 @@ class SessionSyncController {
 
   final Future<void> Function() _synchronize;
   final PeriodicSyncRunner _periodicRunner;
-  final Duration interval;
 
   bool _started = false;
   bool _disposed = false;
