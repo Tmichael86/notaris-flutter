@@ -99,8 +99,8 @@ class SyncCoordinator {
   }
 
   Future<void> _run() async {
-    _onStatusChanged(SyncStatus.syncing);
     try {
+      _onStatusChanged(SyncStatus.syncing);
       await _runSync();
       _onStatusChanged(SyncStatus.success);
     } catch (error) {
