@@ -82,9 +82,10 @@ class SyncFailure implements Exception {
 /// call this provider instead of invoking repository sync methods directly.
 class SyncCoordinator {
   SyncCoordinator({
-    required this._runSync,
-    required this._onStatusChanged,
-  });
+    required Future<void> Function() runSync,
+    required void Function(SyncStatus) onStatusChanged,
+  }) : _runSync = runSync,
+       _onStatusChanged = onStatusChanged;
 
   final Future<void> Function() _runSync;
   final void Function(SyncStatus) _onStatusChanged;
