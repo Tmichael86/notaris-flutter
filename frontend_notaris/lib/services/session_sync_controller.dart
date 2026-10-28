@@ -5,13 +5,12 @@ import 'periodic_sync_runner.dart';
 /// Coordinates sync triggers for an authenticated app session.
 class SessionSyncController {
   SessionSyncController({
-    required Future<void> Function() synchronize,
+    required this._synchronize,
     this.onInitialSyncResult,
     Duration interval = const Duration(minutes: 5),
     this.resumeCooldown = const Duration(seconds: 60),
     DateTime Function()? clock,
-  }) : _synchronize = synchronize,
-       _clock = clock ?? DateTime.now {
+  }) : _clock = clock ?? DateTime.now {
     _periodicRunner = PeriodicSyncRunner(
       onTick: _runPeriodicSafely,
       interval: interval,
