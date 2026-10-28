@@ -32,10 +32,7 @@ class AuthStartupGate extends ConsumerWidget {
 }
 
 class _AuthenticatedShell extends ConsumerStatefulWidget {
-  const _AuthenticatedShell({
-    required this.session,
-    required this.onLogout,
-  });
+  const _AuthenticatedShell({required this.session, required this.onLogout});
 
   final AuthSession session;
   final VoidCallback onLogout;
@@ -65,10 +62,7 @@ class _AuthenticatedShellState extends ConsumerState<_AuthenticatedShell> {
 
   @override
   Widget build(BuildContext context) {
-    return AppShell(
-      session: widget.session,
-      onLogout: widget.onLogout,
-    );
+    return AppShell(session: widget.session, onLogout: widget.onLogout);
   }
 }
 

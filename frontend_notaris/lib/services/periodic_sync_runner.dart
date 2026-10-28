@@ -6,9 +6,9 @@ import 'dart:async';
 /// User-configurable settings can be introduced during hardening.
 class PeriodicSyncRunner {
   PeriodicSyncRunner({
-    required Future<void> Function() onTick,
+    required this._onTick,
     this.interval = const Duration(minutes: 5),
-  }) : _onTick = onTick;
+  });
 
   final Future<void> Function() _onTick;
   final Duration interval;
