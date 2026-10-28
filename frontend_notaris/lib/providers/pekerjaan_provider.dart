@@ -82,10 +82,9 @@ class SyncFailure implements Exception {
 /// call this provider instead of invoking repository sync methods directly.
 class SyncCoordinator {
   SyncCoordinator({
-    required Future<void> Function() runSync,
-    required void Function(SyncStatus) onStatusChanged,
-  }) : _runSync = runSync,
-       _onStatusChanged = onStatusChanged;
+    required this._runSync,
+    required this._onStatusChanged,
+  });
 
   final Future<void> Function() _runSync;
   final void Function(SyncStatus) _onStatusChanged;
@@ -117,7 +116,7 @@ class SyncCoordinator {
     }
   }
 
-static SyncFailure mapSyncFailure(Object error) {
+  static SyncFailure mapSyncFailure(Object error) {
     if (error is SyncFailure) return error;
 
     if (error is DioException) {

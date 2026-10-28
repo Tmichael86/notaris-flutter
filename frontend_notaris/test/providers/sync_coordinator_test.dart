@@ -85,10 +85,7 @@ void main() {
       final failure = SyncCoordinator.mapSyncFailure(
         DioException(
           requestOptions: request,
-          response: Response<dynamic>(
-            requestOptions: request,
-            statusCode: 401,
-          ),
+          response: Response<dynamic>(requestOptions: request, statusCode: 401),
         ),
       );
 
@@ -101,10 +98,7 @@ void main() {
       final failure = SyncCoordinator.mapSyncFailure(
         DioException(
           requestOptions: request,
-          response: Response<dynamic>(
-            requestOptions: request,
-            statusCode: 503,
-          ),
+          response: Response<dynamic>(requestOptions: request, statusCode: 503),
         ),
       );
 
@@ -117,7 +111,10 @@ void main() {
         'Conflict detected',
       );
 
-      expect(identical(SyncCoordinator.mapSyncFailure(original), original), isTrue);
+      expect(
+        identical(SyncCoordinator.mapSyncFailure(original), original),
+        isTrue,
+      );
     });
   });
 }
