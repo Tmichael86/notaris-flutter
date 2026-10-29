@@ -34,6 +34,7 @@ type pemohonRequest struct {
 var (
 	pemohonNIKPattern   = regexp.MustCompile(`^[0-9]{16}$`)
 	pemohonPhonePattern = regexp.MustCompile(`^[0-9+(). -]+$`)
+	pemohonUUIDPattern  = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 )
 
 func (c *PemohonController) GetAll(ctx *gin.Context) {
@@ -187,6 +188,121 @@ func (c *PemohonController) Delete(ctx *gin.Context) {
 		response.Error(ctx, http.StatusInternalServerError, "Gagal menonaktifkan data pemohon", nil)
 		return
 	}
+	response.Success(ctx, "Data pemohon berhasil dinonaktifkan", nil)
+}
+
+func (c *PemohonController) SyncUpsert(ctx *gin.Context) {
+	uuid := strings.TrimSpace(ctx.Param("uuid"))
+	if !pemohonUUIDPattern.MatchString(uuid) {
+		response.Error(ctx, http.StatusBadRequest, "UUID pemohon tidak valid", nil)
+		return
+	}
+
+	input, ok := bindAndValidatePemohon(ctx)
+	if !ok {
+		return
+	}
+
+	if input.JenisKelamin != nil {
+		exists, err := c.repository.JenisKelaminExists(
+			ctx.Request.Context(),
+			*input.JenisKelamin,
+		)
+		if err != nil {
+			response.Error(
+				ctx,
+				http.StatusInternalServerError,
+				"Gagal memvalidasi jenis kelamin",
+				nil,
+			)
+			return
+		}
+		if !exists {
+			response.Error(
+				ctx,
+				http.StatusUnprocessableEntity,
+				"Validasi data gagal",
+				gin.H{"jenis_kelamin": "Jenis kelamin tidak ditemukan"},
+			)
+			return
+		}
+	}
+
+	userID, ok := getAuthenticatedUserID(ctx)
+	if !ok {
+		response.Error(ctx, http.StatusUnauthorized, "User tidak terautentikasi", nil)
+		return
+	}
+
+	item, err := c.repository.UpsertByUUID(
+		ctx.Request.Context(),
+		uuid,
+		toPemohonModel(input),
+		userID,
+	)
+	if errors.Is(err, repositories.ErrDuplicatePemohonNIK) {
+		response.Error(
+			ctx,
+			http.StatusConflict,
+			"NIK pemohon sudah digunakan",
+			gin.H{"nik": "NIK harus unik di antara data aktif"},
+		)
+		return
+	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		response.Error(
+			ctx,
+			http.StatusNotFound,
+			"Pemohon tidak ditemukan atau sudah dinonaktifkan",
+			nil,
+		)
+		return
+	}
+	if err != nil {
+		response.Error(
+			ctx,
+			http.StatusInternalServerError,
+			"Gagal menyinkronkan data pemohon",
+			nil,
+		)
+		return
+	}
+
+	response.Success(ctx, "Data pemohon berhasil disinkronkan", item)
+}
+
+func (c *PemohonController) SyncDeactivate(ctx *gin.Context) {
+	uuid := strings.TrimSpace(ctx.Param("uuid"))
+	if !pemohonUUIDPattern.MatchString(uuid) {
+		response.Error(ctx, http.StatusBadRequest, "UUID pemohon tidak valid", nil)
+		return
+	}
+
+	userID, ok := getAuthenticatedUserID(ctx)
+	if !ok {
+		response.Error(ctx, http.StatusUnauthorized, "User tidak terautentikasi", nil)
+		return
+	}
+
+	err := c.repository.DeactivateByUUID(
+		ctx.Request.Context(),
+		uuid,
+		userID,
+	)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		response.Error(ctx, http.StatusNotFound, "Pemohon tidak ditemukan", nil)
+		return
+	}
+	if err != nil {
+		response.Error(
+			ctx,
+			http.StatusInternalServerError,
+			"Gagal menonaktifkan data pemohon melalui sinkronisasi",
+			nil,
+		)
+		return
+	}
+
 	response.Success(ctx, "Data pemohon berhasil dinonaktifkan", nil)
 }
 

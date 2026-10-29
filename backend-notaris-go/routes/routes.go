@@ -41,6 +41,8 @@ func SetupRouter(
 			pemohon.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionCreate), pemohonController.Create)
 			pemohon.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionUpdate), pemohonController.Update)
 			pemohon.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionDelete), pemohonController.Delete)
+			pemohon.PUT("/sync/:uuid",middleware.JWTAuth(cfg),middleware.RequirePermission(sidebarAccessRepository,"pemohon",middleware.PermissionUpdate,),pemohonController.SyncUpsert,)
+			pemohon.DELETE("/sync/:uuid",middleware.JWTAuth(cfg),middleware.RequirePermission(sidebarAccessRepository,"pemohon",middleware.PermissionDelete,),pemohonController.SyncDeactivate,)
 		}
 
 		petugas := v1.Group("/petugas")
