@@ -34,12 +34,56 @@ class JenisPengeluaranApiService {
         .toList();
   }
 
+  Future<List<JenisPengeluaranApiModel>> getAllPages({
+    int pageSize = 100,
+  }) async {
+    if (pageSize < 1 || pageSize > 100) {
+      throw ArgumentError.value(
+        pageSize,
+        'pageSize',
+        'Must be between 1 and 100.',
+      );
+    }
+
+    final all = <JenisPengeluaranApiModel>[];
+    var page = 1;
+
+    while (true) {
+      final items = await getAll(page: page, pageSize: pageSize);
+      all.addAll(items);
+      if (items.length < pageSize) return all;
+      page++;
+    }
+  }
+
+  Future<JenisPengeluaranApiModel> syncUpsert({
+    required String uuid,
+    required String nama,
+  }) async {
+    final response = await _dio.put<Map<String, dynamic>>(
+      '/jenis-pengeluaran/sync/$uuid',
+      data: {'nama': nama.trim()},
+    );
+    return _parseRecord(response.data);
+  }
+
+  Future<void> syncDeactivate({required String uuid}) async {
+    final response = await _dio.delete<Map<String, dynamic>>(
+      '/jenis-pengeluaran/sync/$uuid',
+    );
+    final envelope = _asMap(response.data);
+    if (envelope['success'] != true) {
+      throw const FormatException(
+        'Server gagal menyinkronkan penghapusan jenis pengeluaran.',
+      );
+    }
+  }
+
   Future<JenisPengeluaranApiModel> create({required String nama}) async {
     final response = await _dio.post<Map<String, dynamic>>(
       '/jenis-pengeluaran',
       data: {'nama': nama.trim()},
     );
-
     return _parseRecord(response.data);
   }
 
@@ -51,7 +95,6 @@ class JenisPengeluaranApiService {
       '/jenis-pengeluaran/$id',
       data: {'nama': nama.trim()},
     );
-
     return _parseRecord(response.data);
   }
 
@@ -59,9 +102,7 @@ class JenisPengeluaranApiService {
     final response = await _dio.delete<Map<String, dynamic>>(
       '/jenis-pengeluaran/$id',
     );
-
     final envelope = _asMap(response.data);
-
     if (envelope['success'] != true) {
       throw const FormatException(
         'Server gagal menonaktifkan jenis pengeluaran.',
@@ -72,11 +113,11 @@ class JenisPengeluaranApiService {
   JenisPengeluaranApiModel _parseRecord(dynamic responseData) {
     final envelope = _asMap(responseData);
     final data = _asMap(envelope['data']);
-
     if (envelope['success'] != true || data.isEmpty) {
-      throw const FormatException('Format data jenis pengeluaran tidak valid.');
+      throw const FormatException(
+        'Format data jenis pengeluaran tidak valid.',
+      );
     }
-
     return JenisPengeluaranApiModel.fromJson(data);
   }
 
@@ -91,6 +132,7 @@ class JenisPengeluaranApiModel {
   const JenisPengeluaranApiModel({
     required this.id,
     required this.nama,
+    this.uuid = '',
     this.createdAt,
     this.updatedAt,
     this.status = 1,
@@ -98,6 +140,7 @@ class JenisPengeluaranApiModel {
 
   final int id;
   final String nama;
+  final String uuid;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final int status;
@@ -115,6 +158,7 @@ class JenisPengeluaranApiModel {
     return JenisPengeluaranApiModel(
       id: id,
       nama: nama,
+      uuid: json['uuid']?.toString().trim() ?? '',
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
       updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? ''),
       status: _parseInt(json['status'], fallback: 1),
