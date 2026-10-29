@@ -1,7 +1,8 @@
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
-import '../database/app_database.dart';\nimport '../services/pemohon_api_service.dart';
+import '../database/app_database.dart';
+import '../services/pemohon_api_service.dart';
 
 class JenisKelaminRepository {
   JenisKelaminRepository(this.db);
