@@ -26,7 +26,8 @@ func NewPemohonController() *PemohonController {
 type pemohonRequest struct {
 	Nama         string  `json:"nama"`
 	Alamat       *string `json:"alamat"`
-	JenisKelamin *int    `json:"jenis_kelamin"`\n\tJenisKelaminNama *string `json:"jenis_kelamin_nama"`
+	JenisKelamin *int    `json:"jenis_kelamin"`
+\tJenisKelaminNama *string `json:"jenis_kelamin_nama"`
 	NoTelp       *string `json:"no_telp"`
 	NIK          *string `json:"nik"`
 }
