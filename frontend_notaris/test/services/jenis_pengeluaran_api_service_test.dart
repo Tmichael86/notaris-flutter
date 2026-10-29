@@ -48,35 +48,37 @@ void main() {
 
     test('getAllPages retrieves every page and parses UUID', () async {
       var calls = 0;
-      final service = _service(_FakeAdapter((request) {
-        calls++;
-        final page = request.queryParameters['page'];
-        expect(request.path, '/jenis-pengeluaran');
-        if (page == 1) {
+      final service = _service(
+        _FakeAdapter((request) {
+          calls++;
+          final page = request.queryParameters['page'];
+          expect(request.path, '/jenis-pengeluaran');
+          if (page == 1) {
+            return _jsonResponse({
+              'success': true,
+              'data': {
+                'items': [
+                  {'id': 1, 'uuid': 'expense-uuid-1', 'nama': 'Operasional'},
+                ],
+              },
+            });
+          }
           return _jsonResponse({
             'success': true,
             'data': {
-              'items': [
-                {'id': 1, 'uuid': 'expense-uuid-1', 'nama': 'Operasional'},
-              ],
+              'items': page == 2
+                  ? [
+                      {
+                        'id': 2,
+                        'uuid': 'expense-uuid-2',
+                        'nama': 'Transportasi',
+                      },
+                    ]
+                  : [],
             },
           });
-        }
-        return _jsonResponse({
-          'success': true,
-          'data': {
-            'items': page == 2
-                ? [
-                    {
-                      'id': 2,
-                      'uuid': 'expense-uuid-2',
-                      'nama': 'Transportasi',
-                    },
-                  ]
-                : [],
-          },
-        });
-      }));
+        }),
+      );
 
       final result = await service.getAllPages(pageSize: 1);
 
@@ -88,19 +90,17 @@ void main() {
     });
 
     test('syncUpsert uses UUID endpoint and parses response UUID', () async {
-      final service = _service(_FakeAdapter((request) {
-        expect(request.method, 'PUT');
-        expect(request.path, '/jenis-pengeluaran/sync/expense-uuid');
-        expect(_requestJson(request), {'nama': 'Operasional'});
-        return _jsonResponse({
-          'success': true,
-          'data': {
-            'id': 9,
-            'uuid': 'expense-uuid',
-            'nama': 'Operasional',
-          },
-        });
-      }));
+      final service = _service(
+        _FakeAdapter((request) {
+          expect(request.method, 'PUT');
+          expect(request.path, '/jenis-pengeluaran/sync/expense-uuid');
+          expect(_requestJson(request), {'nama': 'Operasional'});
+          return _jsonResponse({
+            'success': true,
+            'data': {'id': 9, 'uuid': 'expense-uuid', 'nama': 'Operasional'},
+          });
+        }),
+      );
 
       final result = await service.syncUpsert(
         uuid: 'expense-uuid',
@@ -112,11 +112,13 @@ void main() {
     });
 
     test('syncDeactivate uses UUID endpoint', () async {
-      final service = _service(_FakeAdapter((request) {
-        expect(request.method, 'DELETE');
-        expect(request.path, '/jenis-pengeluaran/sync/expense-uuid');
-        return _jsonResponse({'success': true});
-      }));
+      final service = _service(
+        _FakeAdapter((request) {
+          expect(request.method, 'DELETE');
+          expect(request.path, '/jenis-pengeluaran/sync/expense-uuid');
+          return _jsonResponse({'success': true});
+        }),
+      );
 
       await expectLater(
         service.syncDeactivate(uuid: 'expense-uuid'),

@@ -19,9 +19,7 @@ class PengeluaranJenisRepository {
   }
 
   /// Merge cloud rows by stable UUID without overwriting unsynced local edits.
-  Future<void> syncFromCloud(
-    List<JenisPengeluaranApiModel> remoteItems,
-  ) async {
+  Future<void> syncFromCloud(List<JenisPengeluaranApiModel> remoteItems) async {
     final now = DateTime.now();
 
     await database.transaction(() async {
@@ -52,7 +50,9 @@ class PengeluaranJenisRepository {
         );
 
         if (existing == null) {
-          await database.into(database.pengeluaranJenis).insert(
+          await database
+              .into(database.pengeluaranJenis)
+              .insert(
                 PengeluaranJenisCompanion.insert(
                   uuid: remote.uuid,
                   nama: remote.nama,
@@ -64,9 +64,9 @@ class PengeluaranJenisRepository {
                 ),
               );
         } else {
-          await (database.update(database.pengeluaranJenis)
-                ..where((t) => t.uuid.equals(remote.uuid)))
-              .write(companion);
+          await (database.update(
+            database.pengeluaranJenis,
+          )..where((t) => t.uuid.equals(remote.uuid))).write(companion);
         }
       }
     });
@@ -75,15 +75,18 @@ class PengeluaranJenisRepository {
   /// Push dirty rows and clear dirty state only if the row has not changed
   /// while the network request was in flight.
   Future<int> syncToCloud(JenisPengeluaranApiService api) async {
-    final dirtyRows = await (database.select(database.pengeluaranJenis)
-          ..where((t) => t.isSyncDirty.equals(true))
-          ..orderBy([(t) => OrderingTerm.asc(t.id)]))
-        .get();
+    final dirtyRows =
+        await (database.select(database.pengeluaranJenis)
+              ..where((t) => t.isSyncDirty.equals(true))
+              ..orderBy([(t) => OrderingTerm.asc(t.id)]))
+            .get();
     var synced = 0;
 
     for (final row in dirtyRows) {
       if (row.uuid.trim().isEmpty) {
-        throw StateError('Jenis pengeluaran lokal ${row.id} tidak memiliki UUID.');
+        throw StateError(
+          'Jenis pengeluaran lokal ${row.id} tidak memiliki UUID.',
+        );
       }
 
       if (row.status == 0 || row.deletedAt != null) {
@@ -93,20 +96,19 @@ class PengeluaranJenisRepository {
       }
 
       final now = DateTime.now();
-      await (database.update(database.pengeluaranJenis)
-            ..where(
-              (t) =>
-                  t.uuid.equals(row.uuid) &
-                  t.isSyncDirty.equals(true) &
-                  t.updatedAt.equalsNullable(row.updatedAt) &
-                  t.status.equals(row.status),
-            ))
+      await (database.update(database.pengeluaranJenis)..where(
+            (t) =>
+                t.uuid.equals(row.uuid) &
+                t.isSyncDirty.equals(true) &
+                t.updatedAt.equalsNullable(row.updatedAt) &
+                t.status.equals(row.status),
+          ))
           .write(
-        PengeluaranJenisCompanion(
-          isSyncDirty: const Value(false),
-          lastSyncedAt: Value(now),
-        ),
-      );
+            PengeluaranJenisCompanion(
+              isSyncDirty: const Value(false),
+              lastSyncedAt: Value(now),
+            ),
+          );
       synced++;
     }
 

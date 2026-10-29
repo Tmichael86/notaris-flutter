@@ -114,9 +114,7 @@ class JenisPengeluaranApiService {
     final envelope = _asMap(responseData);
     final data = _asMap(envelope['data']);
     if (envelope['success'] != true || data.isEmpty) {
-      throw const FormatException(
-        'Format data jenis pengeluaran tidak valid.',
-      );
+      throw const FormatException('Format data jenis pengeluaran tidak valid.');
     }
     return JenisPengeluaranApiModel.fromJson(data);
   }
