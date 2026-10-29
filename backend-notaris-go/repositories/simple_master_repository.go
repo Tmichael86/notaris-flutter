@@ -16,6 +16,7 @@ var ErrDuplicateMasterName = errors.New("active master name already exists")
 
 type SimpleMasterRecord struct {
 	ID        uint64     `gorm:"column:id" json:"id"`
+	UUID      string     `gorm:"column:uuid;default:gen_random_uuid()" json:"uuid"`
 	Nama      string     `gorm:"column:nama" json:"nama"`
 	CreatedBy *uint      `gorm:"column:created_by" json:"created_by"`
 	UpdatedBy *uint      `gorm:"column:updated_by" json:"updated_by"`
@@ -45,7 +46,7 @@ func (r *SimpleMasterRepository) FindActive(ctx context.Context, page, pageSize 
 		return nil, 0, err
 	}
 	err := r.db.WithContext(ctx).Table(r.table).
-		Select("id, nama, created_by, updated_by, created_at, updated_at, status").
+		Select("id, uuid, nama, created_by, updated_by, created_at, updated_at, status").
 		Where("status = ?", 1).Order("nama ASC, id ASC").
 		Limit(pageSize).Offset((page - 1) * pageSize).Find(&items).Error
 	return items, total, err
@@ -58,6 +59,87 @@ func (r *SimpleMasterRepository) FindActiveByID(ctx context.Context, id uint64) 
 		return nil, err
 	}
 	return &item, nil
+}
+
+func (r *SimpleMasterRepository) FindActiveByUUID(ctx context.Context, uuid string) (*SimpleMasterRecord, error) {
+	var item SimpleMasterRecord
+	err := r.db.WithContext(ctx).Table(r.table).Where("uuid = ? AND status = ?", uuid, 1).Take(&item).Error
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+// UpsertByUUID makes retries safe: a previously accepted local UUID updates the
+// same cloud record instead of creating a duplicate.
+func (r *SimpleMasterRepository) UpsertByUUID(ctx context.Context, uuid, nama string, userID uint) (*SimpleMasterRecord, error) {
+	var item SimpleMasterRecord
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var current SimpleMasterRecord
+		findErr := tx.Table(r.table).Clauses(clause.Locking{Strength: "UPDATE"}).Where("uuid = ?", uuid).Take(&current).Error
+		if findErr != nil && !errors.Is(findErr, gorm.ErrRecordNotFound) {
+			return findErr
+		}
+		if errors.Is(findErr, gorm.ErrRecordNotFound) {
+			if err := lockMasterName(tx, r.table, nama); err != nil {
+				return err
+			}
+			var count int64
+			if err := tx.Table(r.table).Where("status = ? AND lower(btrim(nama)) = lower(btrim(?))", 1, nama).Count(&count).Error; err != nil {
+				return err
+			}
+			if count > 0 {
+				return ErrDuplicateMasterName
+			}
+			now := time.Now()
+			item = SimpleMasterRecord{UUID: uuid, Nama: nama, CreatedBy: &userID, CreatedAt: &now, Status: 1}
+			return tx.Table(r.table).Create(&item).Error
+		}
+		if current.Status != 1 {
+			return gorm.ErrRecordNotFound
+		}
+		if err := lockMasterName(tx, r.table, nama); err != nil {
+			return err
+		}
+		var count int64
+		if err := tx.Table(r.table).Where("status = ? AND lower(btrim(nama)) = lower(btrim(?)) AND uuid <> ?", 1, nama, uuid).Count(&count).Error; err != nil {
+			return err
+		}
+		if count > 0 {
+			return ErrDuplicateMasterName
+		}
+		now := time.Now()
+		if err := tx.Table(r.table).Where("uuid = ? AND status = ?", uuid, 1).Updates(map[string]interface{}{"nama": nama, "updated_by": userID, "updated_at": now}).Error; err != nil {
+			return err
+		}
+		return tx.Table(r.table).Where("uuid = ?", uuid).Take(&item).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+func (r *SimpleMasterRepository) DeactivateByUUID(ctx context.Context, uuid string, userID uint) error {
+	db := r.db.WithContext(ctx)
+	result := db.Table(r.table).Where("uuid = ? AND status = ?", uuid, 1).
+		Updates(map[string]interface{}{"status": 0, "updated_by": userID, "updated_at": time.Now()})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected > 0 {
+		return nil
+	}
+
+	// Treat a retry for an already-inactive UUID as success.
+	var exists int64
+	if err := db.Table(r.table).Where("uuid = ?", uuid).Count(&exists).Error; err != nil {
+		return err
+	}
+	if exists > 0 {
+		return nil
+	}
+	return gorm.ErrRecordNotFound
 }
 
 func (r *SimpleMasterRepository) Create(ctx context.Context, nama string, userID uint) (*SimpleMasterRecord, error) {

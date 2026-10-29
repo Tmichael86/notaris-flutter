@@ -35,7 +35,7 @@ func (r *PemohonRepository) FindActive(ctx context.Context, page, pageSize int) 
 
 	err := r.db.WithContext(ctx).
 		Model(&models.Pemohon{}).
-		Select("pemohon.id, pemohon.nama, pemohon.alamat, pemohon.jenis_kelamin, jenis_kelamin.nama AS jenis_kelamin_nama, pemohon.no_telp, pemohon.nik, pemohon.created_by, pemohon.updated_by, pemohon.created_at, pemohon.updated_at, pemohon.status").
+		Select("pemohon.id, pemohon.uuid, pemohon.nama, pemohon.alamat, pemohon.jenis_kelamin, jenis_kelamin.nama AS jenis_kelamin_nama, pemohon.no_telp, pemohon.nik, pemohon.created_by, pemohon.updated_by, pemohon.created_at, pemohon.updated_at, pemohon.status, pemohon.is_dirty, pemohon.last_synced_at, pemohon.deleted_at").
 		Joins("LEFT JOIN jenis_kelamin ON jenis_kelamin.id = pemohon.jenis_kelamin").
 		Where("pemohon.status = ?", 1).
 		Order("pemohon.nama ASC, pemohon.id ASC").
@@ -52,7 +52,7 @@ func (r *PemohonRepository) FindActiveByID(ctx context.Context, id uint64) (*mod
 	var item models.Pemohon
 	err := r.db.WithContext(ctx).
 		Model(&models.Pemohon{}).
-		Select("pemohon.id, pemohon.nama, pemohon.alamat, pemohon.jenis_kelamin, jenis_kelamin.nama AS jenis_kelamin_nama, pemohon.no_telp, pemohon.nik, pemohon.created_by, pemohon.updated_by, pemohon.created_at, pemohon.updated_at, pemohon.status").
+		Select("pemohon.id, pemohon.uuid, pemohon.nama, pemohon.alamat, pemohon.jenis_kelamin, jenis_kelamin.nama AS jenis_kelamin_nama, pemohon.no_telp, pemohon.nik, pemohon.created_by, pemohon.updated_by, pemohon.created_at, pemohon.updated_at, pemohon.status, pemohon.is_dirty, pemohon.last_synced_at, pemohon.deleted_at").
 		Joins("LEFT JOIN jenis_kelamin ON jenis_kelamin.id = pemohon.jenis_kelamin").
 		Where("pemohon.id = ? AND pemohon.status = ?", id, 1).
 		Take(&item).Error
@@ -66,6 +66,179 @@ func (r *PemohonRepository) JenisKelaminExists(ctx context.Context, id int) (boo
 	var count int64
 	err := r.db.WithContext(ctx).Table("jenis_kelamin").Where("id = ?", id).Count(&count).Error
 	return count > 0, err
+}
+
+func (r *PemohonRepository) UpsertByUUID(
+	ctx context.Context,
+	uuid string,
+	input *models.Pemohon,
+	userID uint,
+) (*models.Pemohon, error) {
+	var item models.Pemohon
+
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Serialize requests for the same UUID, including first-time inserts.
+		if err := tx.Exec(
+			"SELECT pg_advisory_xact_lock(hashtext(?))",
+			"pemohon:uuid:"+uuid,
+		).Error; err != nil {
+			return err
+		}
+
+		var current models.Pemohon
+		findErr := tx.Table("pemohon").
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("uuid = ?", uuid).
+			Take(&current).Error
+
+		if findErr != nil && !errors.Is(findErr, gorm.ErrRecordNotFound) {
+			return findErr
+		}
+
+		// Never silently resurrect a previously deactivated record.
+		if findErr == nil && current.Status != 1 {
+			return gorm.ErrRecordNotFound
+		}
+
+		if input.NIK != nil && strings.TrimSpace(*input.NIK) != "" {
+			if err := lockPemohonNIK(tx, *input.NIK); err != nil {
+				return err
+			}
+
+			query := tx.Table("pemohon").
+				Where(
+					"status = ? AND regexp_replace(nik, '[^0-9]', '', 'g') = ?",
+					1,
+					*input.NIK,
+				)
+
+			if findErr == nil {
+				query = query.Where("uuid <> ?", uuid)
+			}
+
+			var count int64
+			if err := query.Count(&count).Error; err != nil {
+				return err
+			}
+			if count > 0 {
+				return ErrDuplicatePemohonNIK
+			}
+		}
+
+		now := time.Now()
+
+		if errors.Is(findErr, gorm.ErrRecordNotFound) {
+			item = models.Pemohon{
+				UUID:         uuid,
+				Nama:         input.Nama,
+				Alamat:       input.Alamat,
+				JenisKelamin: input.JenisKelamin,
+				NoTelp:       input.NoTelp,
+				NIK:          input.NIK,
+				CreatedBy:    &userID,
+				CreatedAt:    &now,
+				UpdatedAt:    &now,
+				Status:       1,
+				IsDirty:      false,
+				LastSyncedAt: &now,
+			}
+
+			return tx.Table("pemohon").Create(&item).Error
+		}
+
+		updates := map[string]interface{}{
+			"nama":           input.Nama,
+			"alamat":         input.Alamat,
+			"jenis_kelamin":  input.JenisKelamin,
+			"no_telp":        input.NoTelp,
+			"nik":            input.NIK,
+			"updated_by":     userID,
+			"updated_at":     now,
+			"is_dirty":       false,
+			"last_synced_at": now,
+		}
+
+		if err := tx.Table("pemohon").
+			Where("uuid = ? AND status = ?", uuid, 1).
+			Updates(updates).Error; err != nil {
+			return err
+		}
+
+		return tx.Table("pemohon").
+			Where("uuid = ?", uuid).
+			Take(&item).Error
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return r.FindActiveByUUID(ctx, uuid)
+}
+
+func (r *PemohonRepository) FindActiveByUUID(
+	ctx context.Context,
+	uuid string,
+) (*models.Pemohon, error) {
+	var item models.Pemohon
+
+	err := r.db.WithContext(ctx).
+		Model(&models.Pemohon{}).
+		Select("pemohon.id, pemohon.uuid, pemohon.nama, pemohon.alamat, pemohon.jenis_kelamin, jenis_kelamin.nama AS jenis_kelamin_nama, pemohon.no_telp, pemohon.nik, pemohon.created_by, pemohon.updated_by, pemohon.created_at, pemohon.updated_at, pemohon.status, pemohon.is_dirty, pemohon.last_synced_at, pemohon.deleted_at").
+		Joins("LEFT JOIN jenis_kelamin ON jenis_kelamin.id = pemohon.jenis_kelamin").
+		Where("pemohon.uuid = ? AND pemohon.status = ?", uuid, 1).
+		Take(&item).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &item, nil
+}
+
+func (r *PemohonRepository) DeactivateByUUID(
+	ctx context.Context,
+	uuid string,
+	userID uint,
+) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(
+			"SELECT pg_advisory_xact_lock(hashtext(?))",
+			"pemohon:uuid:"+uuid,
+		).Error; err != nil {
+			return err
+		}
+
+		var current models.Pemohon
+		err := tx.Table("pemohon").
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("uuid = ?", uuid).
+			Take(&current).Error
+
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return gorm.ErrRecordNotFound
+		}
+		if err != nil {
+			return err
+		}
+
+		// A repeated delete for an existing inactive record is successful.
+		if current.Status != 1 {
+			return nil
+		}
+
+		now := time.Now()
+		return tx.Table("pemohon").
+			Where("uuid = ? AND status = ?", uuid, 1).
+			Updates(map[string]interface{}{
+				"status":         0,
+				"updated_by":     userID,
+				"updated_at":     now,
+				"deleted_at":     now,
+				"is_dirty":       false,
+				"last_synced_at": now,
+			}).Error
+	})
 }
 
 func (r *PemohonRepository) Create(ctx context.Context, item *models.Pemohon, userID uint) (*models.Pemohon, error) {

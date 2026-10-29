@@ -4,6 +4,10 @@ import "time"
 
 type Pemohon struct {
 	ID               uint       `gorm:"primaryKey;column:id" json:"id"`
+	UUID             string     `gorm:"column:uuid;default:gen_random_uuid()" json:"uuid"`
+	IsDirty          bool       `gorm:"column:is_dirty" json:"is_dirty"`
+	LastSyncedAt     *time.Time `gorm:"column:last_synced_at" json:"last_synced_at"`
+	DeletedAt        *time.Time `gorm:"column:deleted_at" json:"deleted_at"`
 	Nama             string     `gorm:"column:nama" json:"nama"`
 	Alamat           *string    `gorm:"column:alamat" json:"alamat"`
 	JenisKelamin     *int       `gorm:"column:jenis_kelamin" json:"jenis_kelamin"`

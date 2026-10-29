@@ -80,6 +80,23 @@ class _KategoriPekerjaanDesktopScreenState
             ],
           ),
         ),
+        OutlinedButton.icon(
+          onPressed: _busy
+              ? null
+              : () => _process(
+                  'Sinkronisasi cloud...',
+                  () => ref
+                      .read(pekerjaanKategoriControllerProvider.notifier)
+                      .synchronize(),
+                ),
+          icon: const Icon(Icons.sync, size: 18),
+          label: Text(mobile ? 'Sync' : 'Sinkronkan'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.primaryConfirm,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          ),
+        ),
+        const SizedBox(width: 8),
         ElevatedButton.icon(
           onPressed: _busy ? null : () => _form(),
           icon: const Icon(Icons.add, size: 18),
@@ -451,10 +468,17 @@ class _KategoriPekerjaanDesktopScreenState
       }
     } catch (e) {
       if (mounted) {
+        final isSyncFailure = e is SyncFailure;
+        final message = isSyncFailure
+            ? e.userMessage
+            : 'Operasi belum berhasil. Data lokal tetap tersimpan.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal: $e'),
-            backgroundColor: Colors.red.shade700,
+            content: Text(message),
+            backgroundColor: isSyncFailure
+                ? Colors.orange.shade800
+                : Colors.red.shade700,
+            duration: const Duration(seconds: 4),
           ),
         );
       }

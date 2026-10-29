@@ -36,11 +36,42 @@ func SetupRouter(
 		}
 		pemohon := v1.Group("/pemohon")
 		{
-			pemohon.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionRead), pemohonController.GetAll)
-			pemohon.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionRead), pemohonController.GetByID)
-			pemohon.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionCreate), pemohonController.Create)
-			pemohon.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionUpdate), pemohonController.Update)
-			pemohon.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionDelete), pemohonController.Delete)
+			pemohon.PUT(
+				"/sync/:uuid",
+				middleware.JWTAuth(cfg),
+				middleware.RequirePermission(
+					sidebarAccessRepository,
+					"pemohon",
+					middleware.PermissionUpdate,
+				),
+				pemohonController.SyncUpsert,
+			)
+			pemohon.DELETE(
+				"/sync/:uuid",
+				middleware.JWTAuth(cfg),
+				middleware.RequirePermission(
+					sidebarAccessRepository,
+					"pemohon",
+					middleware.PermissionDelete,
+				),
+				pemohonController.SyncDeactivate,
+			)
+
+			pemohon.GET("", middleware.JWTAuth(cfg),
+				middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionRead),
+				pemohonController.GetAll)
+			pemohon.GET("/:id", middleware.JWTAuth(cfg),
+				middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionRead),
+				pemohonController.GetByID)
+			pemohon.POST("", middleware.JWTAuth(cfg),
+				middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionCreate),
+				pemohonController.Create)
+			pemohon.PUT("/:id", middleware.JWTAuth(cfg),
+				middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionUpdate),
+				pemohonController.Update)
+			pemohon.DELETE("/:id", middleware.JWTAuth(cfg),
+				middleware.RequirePermission(sidebarAccessRepository, "pemohon", middleware.PermissionDelete),
+				pemohonController.Delete)
 		}
 
 		petugas := v1.Group("/petugas")
@@ -63,6 +94,8 @@ func SetupRouter(
 		for _, master := range masterRoutes {
 			group := v1.Group(master.path)
 			group.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionRead), master.controller.GetAll)
+			group.PUT("/sync/:uuid", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionUpdate), master.controller.SyncUpsert)
+			group.DELETE("/sync/:uuid", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionDelete), master.controller.SyncDeactivate)
 			group.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionRead), master.controller.GetByID)
 			group.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionCreate), master.controller.Create)
 			group.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionUpdate), master.controller.Update)
