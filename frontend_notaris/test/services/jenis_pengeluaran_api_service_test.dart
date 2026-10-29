@@ -19,6 +19,7 @@ void main() {
             'items': [
               {
                 'id': 7,
+                'uuid': 'expense-uuid-7',
                 'nama': 'Operasional',
                 'created_at': '2026-10-01T08:00:00Z',
                 'updated_at': '2026-10-02T09:30:00Z',
@@ -37,11 +38,85 @@ void main() {
       expect(result, hasLength(2));
       expect(result[0].id, 7);
       expect(result[0].nama, 'Operasional');
+      expect(result[0].uuid, 'expense-uuid-7');
       expect(result[0].createdAt, DateTime.utc(2026, 10, 1, 8));
       expect(result[0].updatedAt, DateTime.utc(2026, 10, 2, 9, 30));
       expect(result[0].status, 1);
       expect(result[1].id, 8);
       expect(result[1].status, 0);
+    });
+
+    test('getAllPages retrieves every page and parses UUID', () async {
+      var calls = 0;
+      final service = _service(_FakeAdapter((request) {
+        calls++;
+        final page = request.queryParameters['page'];
+        expect(request.path, '/jenis-pengeluaran');
+        if (page == 1) {
+          return _jsonResponse({
+            'success': true,
+            'data': {
+              'items': [
+                {'id': 1, 'uuid': 'expense-uuid-1', 'nama': 'Operasional'},
+              ],
+            },
+          });
+        }
+        return _jsonResponse({
+          'success': true,
+          'data': {
+            'items': [
+              {'id': 2, 'uuid': 'expense-uuid-2', 'nama': 'Transportasi'},
+            ],
+          },
+        });
+      }));
+
+      final result = await service.getAllPages(pageSize: 1);
+
+      expect(calls, 3);
+      expect(result.map((item) => item.uuid), [
+        'expense-uuid-1',
+        'expense-uuid-2',
+        '',
+      ]);
+    });
+
+    test('syncUpsert uses UUID endpoint and parses response UUID', () async {
+      final service = _service(_FakeAdapter((request) {
+        expect(request.method, 'PUT');
+        expect(request.path, '/jenis-pengeluaran/sync/expense-uuid');
+        expect(_requestJson(request), {'nama': 'Operasional'});
+        return _jsonResponse({
+          'success': true,
+          'data': {
+            'id': 9,
+            'uuid': 'expense-uuid',
+            'nama': 'Operasional',
+          },
+        });
+      }));
+
+      final result = await service.syncUpsert(
+        uuid: 'expense-uuid',
+        nama: ' Operasional ',
+      );
+
+      expect(result.uuid, 'expense-uuid');
+      expect(result.nama, 'Operasional');
+    });
+
+    test('syncDeactivate uses UUID endpoint', () async {
+      final service = _service(_FakeAdapter((request) {
+        expect(request.method, 'DELETE');
+        expect(request.path, '/jenis-pengeluaran/sync/expense-uuid');
+        return _jsonResponse({'success': true});
+      }));
+
+      await expectLater(
+        service.syncDeactivate(uuid: 'expense-uuid'),
+        completes,
+      );
     });
 
     test('getAll throws FormatException for an invalid envelope', () async {
