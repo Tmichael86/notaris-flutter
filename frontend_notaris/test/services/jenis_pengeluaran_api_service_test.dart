@@ -65,9 +65,15 @@ void main() {
         return _jsonResponse({
           'success': true,
           'data': {
-            'items': [
-              {'id': 2, 'uuid': 'expense-uuid-2', 'nama': 'Transportasi'},
-            ],
+            'items': page == 2
+                ? [
+                    {
+                      'id': 2,
+                      'uuid': 'expense-uuid-2',
+                      'nama': 'Transportasi',
+                    },
+                  ]
+                : [],
           },
         });
       }));
@@ -78,7 +84,6 @@ void main() {
       expect(result.map((item) => item.uuid), [
         'expense-uuid-1',
         'expense-uuid-2',
-        '',
       ]);
     });
 
