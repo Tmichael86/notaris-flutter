@@ -17,7 +17,10 @@ class PemohonDesktopScreen extends ConsumerStatefulWidget {
 }
 
 class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
-  final _search = TextEditingController(), _hScroll = ScrollController();
+  final _search = TextEditingController();
+  final _hScroll = ScrollController();
+  final _vScroll = ScrollController();
+  final _vScroll = ScrollController();
   static const _pageSize = 10;
   int _page = 1;
   bool _loading = false;
@@ -44,7 +47,7 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
               children: [
                 _header(),
                 const SizedBox(height: 20),
-                _table(items, gs),
+                Expanded(child: _table(items, gs)),
               ],
             ),
           ),
@@ -152,13 +155,21 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
 
             const SizedBox(height: 16),
 
-            Scrollbar(
-              controller: _hScroll,
-              thumbVisibility: true,
-              child: SingleChildScrollView(
-                controller: _hScroll,
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
+            Expanded(
+              child: Scrollbar(
+                controller: _vScroll,
+                thumbVisibility: true,
+                notificationPredicate: (n) => n.metrics.axis == Axis.vertical,
+                child: SingleChildScrollView(
+                  controller: _vScroll,
+                  child: Scrollbar(
+                    controller: _hScroll,
+                    thumbVisibility: true,
+                    notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
+                    child: SingleChildScrollView(
+                      controller: _hScroll,
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
                   columnSpacing: 28,
                   columns: const [
                     DataColumn(label: Text('No')),
@@ -205,6 +216,9 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
                         ],
                       ),
                   ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -533,6 +547,7 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
   void dispose() {
     _search.dispose();
     _hScroll.dispose();
+    _vScroll.dispose();
     super.dispose();
   }
 }
