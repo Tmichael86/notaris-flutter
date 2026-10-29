@@ -186,11 +186,22 @@ final syncStatusProvider = StateProvider<SyncStatus>((ref) => SyncStatus.idle);
 final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
   return SyncCoordinator(
     runSync: () async {
-      final repository = ref.read(pekerjaanKategoriRepositoryProvider);
-      final api = ref.read(kategoriPekerjaanApiServiceProvider);
-      await repository.syncToCloud(api);
-      final remote = await api.getAllPages();
-      await repository.syncFromCloud(remote);
+      final kategoriRepository = ref.read(pekerjaanKategoriRepositoryProvider);
+      final kategoriApi = ref.read(kategoriPekerjaanApiServiceProvider);
+      final pengeluaranRepository = ref.read(
+        pengeluaranJenisRepositoryProvider,
+      );
+      final pengeluaranApi = ref.read(jenisPengeluaranApiServiceProvider);
+
+      // Push local changes first, then pull the authoritative cloud snapshot.
+      await kategoriRepository.syncToCloud(kategoriApi);
+      await pengeluaranRepository.syncToCloud(pengeluaranApi);
+
+      final remoteKategori = await kategoriApi.getAllPages();
+      await kategoriRepository.syncFromCloud(remoteKategori);
+
+      final remotePengeluaran = await pengeluaranApi.getAllPages();
+      await pengeluaranRepository.syncFromCloud(remotePengeluaran);
     },
     onStatusChanged: (status) {
       ref.read(syncStatusProvider.notifier).state = status;
