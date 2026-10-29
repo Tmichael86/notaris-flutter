@@ -20,7 +20,6 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
   final _search = TextEditingController();
   final _hScroll = ScrollController();
   final _vScroll = ScrollController();
-  final _vScroll = ScrollController();
   static const _pageSize = 10;
   int _page = 1;
   bool _loading = false;
