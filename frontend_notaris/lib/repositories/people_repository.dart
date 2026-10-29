@@ -327,6 +327,17 @@ class PemohonRepository {
 
   Future<void> syncFromCloud(List<PemohonApiModel> remoteItems) async {
     await db.transaction(() async {
+      // Jenis kelamin is local reference data today. Ensure the baseline rows
+      // exist before resolving cloud labels to device-local auto-increment IDs.
+      await _ensureGenderReference(
+        uuid: 'dev-jenis-kelamin-laki-laki',
+        nama: 'Laki-laki',
+      );
+      await _ensureGenderReference(
+        uuid: 'dev-jenis-kelamin-perempuan',
+        nama: 'Perempuan',
+      );
+
       final genders = await db.select(db.jenisKelamins).get();
       final localByGenderName = <String, int>{
         for (final gender in genders)
@@ -337,57 +348,57 @@ class PemohonRepository {
         final item = remoteItems[i];
 
         try {
-          // Pindahkan isi loop syncFromCloud yang sekarang
-          // ke sini, tanpa mengubah logika sinkronisasinya.
-          for (final item in remoteItems) {
-              final uuid = item.uuid;
-              if (uuid == null || uuid.trim().isEmpty) {
-                throw const FormatException(
-                  'Data Pemohon cloud tidak memiliki UUID valid.',
-                );
-              }
+          final uuid = item.uuid;
+          if (uuid == null || uuid.trim().isEmpty) {
+            throw const FormatException(
+              'Data Pemohon cloud tidak memiliki UUID valid.',
+            );
+          }
 
-              final existing = await (db.select(
-                db.pemohons,
-              )..where((t) => t.uuid.equals(uuid))).getSingleOrNull();
+          final existing = await (db.select(
+            db.pemohons,
+          )..where((t) => t.uuid.equals(uuid))).getSingleOrNull();
 
-              if (existing?.isSyncDirty == true) continue;
+          // Never overwrite a local edit that has not reached the server.
+          if (existing?.isSyncDirty == true) continue;
 
-              int? localGenderId;
-              final genderName = item.jenisKelaminNama?.trim();
-              if (genderName != null && genderName.isNotEmpty) {
-                localGenderId = localByGenderName[genderName.toLowerCase()];
-                if (localGenderId == null) {
-                  throw StateError(
-                    'Jenis kelamin "$genderName" belum tersedia di cache lokal.',
-                  );
-                }
-              }
-
-              final values = PemohonsCompanion(
-                uuid: Value(uuid),
-                nama: Value(item.nama),
-                alamat: Value(item.alamat),
-                jenisKelamin: Value(localGenderId),
-                noTelp: Value(item.noTelp),
-                nik: Value(item.nik),
-                createdBy: Value(item.createdBy),
-                updatedBy: Value(item.updatedBy),
-                createdAt: Value(item.createdAt),
-                updatedAt: Value(item.updatedAt),
-                status: Value(item.status),
-                isSyncDirty: const Value(false),
-                lastSyncedAt: Value(DateTime.now()),
-                deletedAt: const Value(null),
+          int? localGenderId;
+          final genderName = item.jenisKelaminNama?.trim();
+          if (genderName != null && genderName.isNotEmpty) {
+            localGenderId = localByGenderName[genderName.toLowerCase()];
+            if (localGenderId == null) {
+              throw StateError(
+                'Jenis kelamin "$genderName" belum tersedia di cache lokal.',
               );
-
-              if (existing == null) {
-                await db.into(db.pemohons).insert(values);
-              } else {
-                await (db.update(db.pemohons)..where((t) => t.id.equals(existing.id)))
-                    .write(values.copyWith(id: Value(existing.id)));
-              }
             }
+          }
+
+          final values = PemohonsCompanion(
+            uuid: Value(uuid),
+            nama: Value(item.nama),
+            alamat: Value(item.alamat),
+            jenisKelamin: Value(localGenderId),
+            noTelp: Value(item.noTelp),
+            nik: Value(item.nik),
+            createdBy: Value(item.createdBy),
+            updatedBy: Value(item.updatedBy),
+            createdAt: Value(item.createdAt),
+            updatedAt: Value(item.updatedAt),
+            status: Value(item.status),
+            isSyncDirty: const Value(false),
+            lastSyncedAt: Value(DateTime.now()),
+            deletedAt: const Value(null),
+          );
+
+          if (existing == null) {
+            await db.into(db.pemohons).insert(values);
+          } else {
+            await (db.update(
+              db.pemohons,
+            )..where((t) => t.id.equals(existing.id))).write(
+              values.copyWith(id: Value(existing.id)),
+            );
+          }
         } catch (error, stackTrace) {
           debugPrint(
             '[SYNC][PEMOHON] Gagal pada indeks $i '
@@ -398,6 +409,40 @@ class PemohonRepository {
         }
       }
     });
+  }
+
+  Future<void> _ensureGenderReference({
+    required String uuid,
+    required String nama,
+  }) async {
+    final normalizedName = nama.trim().toLowerCase();
+    final genders = await db.select(db.jenisKelamins).get();
+
+    // Reuse the local ID by label; IDs are device-local and must not be copied
+    // from the cloud database.
+    if (genders.any(
+      (gender) => gender.nama.trim().toLowerCase() == normalizedName,
+    )) {
+      return;
+    }
+
+    final uuidConflict = genders.where((gender) => gender.uuid == uuid);
+    if (uuidConflict.isNotEmpty) {
+      throw StateError(
+        'UUID referensi jenis kelamin "$uuid" sudah digunakan oleh label lain.',
+      );
+    }
+
+    final now = DateTime.now();
+    await db.into(db.jenisKelamins).insert(
+      JenisKelaminsCompanion.insert(
+        uuid: uuid,
+        nama: nama,
+        createdAt: Value(now),
+        updatedAt: Value(now),
+        isSyncDirty: const Value(false),
+      ),
+    );
   }
 
   static String _requiredText(String value) {
