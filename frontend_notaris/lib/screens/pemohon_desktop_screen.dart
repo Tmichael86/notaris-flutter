@@ -7,6 +7,7 @@ import '../core/widgets/loading_overlay.dart';
 import '../core/widgets/searchable_dropdown.dart';
 import '../database/app_database.dart';
 import '../providers/people_provider.dart';
+import '../providers/pekerjaan_provider.dart';
 
 class PemohonDesktopScreen extends ConsumerStatefulWidget {
   const PemohonDesktopScreen({super.key});
@@ -17,7 +18,7 @@ class PemohonDesktopScreen extends ConsumerStatefulWidget {
 
 class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
   final _search = TextEditingController(), _hScroll = ScrollController();
-  static const _pageSize = 5;
+  static const _pageSize = 10;
   int _page = 1;
   bool _loading = false;
 
@@ -70,8 +71,23 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
           ],
         ),
       ),
+      OutlinedButton.icon(
+        onPressed: _loading
+            ? null
+            : () => _process(
+                'Sinkronisasi cloud...',
+                () => ref.read(syncCoordinatorProvider).synchronizeNow(),
+              ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
+        icon: const Icon(Icons.sync, size: 18),
+        label: const Text('Sinkronkan'),
+      ),
+      const SizedBox(width: 8),
       FilledButton.icon(
-        onPressed: _showForm,
+        onPressed: _loading ? null : _showForm,
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
@@ -447,6 +463,41 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
       _message(ok ? 'Pemohon berhasil dihapus.' : 'Pemohon tidak ditemukan.');
     } catch (e) {
       _message('Gagal menghapus pemohon: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _process(
+    String message,
+    Future<void> Function() action,
+  ) async {
+    if (_loading || !mounted) return;
+
+    setState(() => _loading = true);
+
+    try {
+      await action();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(message.replaceFirst('...', ' berhasil.')),
+            ),
+          );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text('Gagal sinkronisasi: $error'),
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
