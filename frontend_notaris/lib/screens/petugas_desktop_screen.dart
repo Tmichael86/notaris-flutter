@@ -18,7 +18,8 @@ class PetugasDesktopScreen extends ConsumerStatefulWidget {
 class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
   final _search = TextEditingController();
   final _hScroll = ScrollController();
-  static const _pageSize = 5;
+  final _vScroll = ScrollController();
+  static const _pageSize = 10;
   int _page = 1;
   bool _loading = false;
 
@@ -44,7 +45,7 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
               children: [
                 _header(),
                 const SizedBox(height: 20),
-                _table(items, gs),
+                Expanded(child: _table(items, gs)),
               ],
             ),
           ),
@@ -133,13 +134,21 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            Scrollbar(
-              controller: _hScroll,
-              thumbVisibility: true,
-              child: SingleChildScrollView(
-                controller: _hScroll,
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
+            Expanded(
+              child: Scrollbar(
+                controller: _vScroll,
+                thumbVisibility: true,
+                notificationPredicate: (n) => n.metrics.axis == Axis.vertical,
+                child: SingleChildScrollView(
+                  controller: _vScroll,
+                  child: Scrollbar(
+                    controller: _hScroll,
+                    thumbVisibility: true,
+                    notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
+                    child: SingleChildScrollView(
+                      controller: _hScroll,
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
                   columnSpacing: 28,
                   columns: const [
                     DataColumn(label: Text('No')),
@@ -182,6 +191,9 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
                         ],
                       ),
                   ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -583,6 +595,7 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
   void dispose() {
     _search.dispose();
     _hScroll.dispose();
+    _vScroll.dispose();
     super.dispose();
   }
 }
