@@ -32,9 +32,11 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
     return LoadingOverlay(
       isLoading: _loading,
       message: 'Memproses data...',
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: data.when(
+      child: SizedBox(
+        height: (MediaQuery.sizeOf(context).height - 210).clamp(360.0, double.infinity),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: data.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Gagal memuat data: $e')),
           data: (items) => genders.when(
@@ -49,6 +51,7 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
                 Expanded(child: _table(items, gs)),
               ],
             ),
+          ),
           ),
         ),
       ),
