@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
-import '../database/app_database.dart';
+import '../database/app_database.dart';\nimport '../services/pemohon_api_service.dart';
 
 class JenisKelaminRepository {
   JenisKelaminRepository(this.db);
@@ -233,6 +233,66 @@ class PemohonRepository {
     );
 
     return affected > 0;
+  }
+
+  Future<void> syncToCloud(PemohonApiService api) async {
+    final pending = await (db.select(db.pemohons)..where((t) => t.isSyncDirty.equals(true))).get();
+    for (final snapshot in pending) {
+      if (snapshot.uuid.trim().isEmpty) throw StateError('Pemohon lokal ID ${snapshot.id} tidak memiliki UUID.');
+      if (snapshot.status != 1 || snapshot.deletedAt != null) {
+        // A row created and deleted entirely offline never existed in cloud.
+        // Do not send a deactivate request for an unknown UUID.
+        if (snapshot.lastSyncedAt == null) {
+          await (db.update(db.pemohons)..where((t) => t.id.equals(snapshot.id)))
+              .write(PemohonsCompanion(isSyncDirty: const Value(false)));
+          continue;
+        }
+        await api.syncDeactivate(uuid: snapshot.uuid);
+        final current = await (db.select(db.pemohons)..where((t) => t.id.equals(snapshot.id))).getSingleOrNull();
+        if (current != null && current.isSyncDirty && current.updatedAt == snapshot.updatedAt && current.status == snapshot.status && current.deletedAt == snapshot.deletedAt) {
+          await (db.update(db.pemohons)..where((t) => t.id.equals(snapshot.id))).write(PemohonsCompanion(isSyncDirty: const Value(false), lastSyncedAt: Value(DateTime.now())));
+        }
+        continue;
+      }
+      String? genderName;
+      if (snapshot.jenisKelamin != null) {
+        final gender = await (db.select(db.jenisKelamins)..where((t) => t.id.equals(snapshot.jenisKelamin!))).getSingleOrNull();
+        if (gender == null) throw StateError('Referensi jenis kelamin Pemohon ID ${snapshot.id} tidak ditemukan.');
+        genderName = gender.nama;
+      }
+      await api.syncUpsert(uuid: snapshot.uuid, nama: snapshot.nama, alamat: snapshot.alamat, jenisKelaminNama: genderName, noTelp: snapshot.noTelp, nik: snapshot.nik);
+      final current = await (db.select(db.pemohons)..where((t) => t.id.equals(snapshot.id))).getSingleOrNull();
+      if (current != null && current.isSyncDirty && current.updatedAt == snapshot.updatedAt && current.nama == snapshot.nama && current.alamat == snapshot.alamat && current.jenisKelamin == snapshot.jenisKelamin && current.noTelp == snapshot.noTelp && current.nik == snapshot.nik && current.status == snapshot.status) {
+        await (db.update(db.pemohons)..where((t) => t.id.equals(snapshot.id))).write(PemohonsCompanion(isSyncDirty: const Value(false), lastSyncedAt: Value(DateTime.now())));
+      }
+    }
+  }
+
+  Future<void> syncFromCloud(List<PemohonApiModel> remoteItems) async {
+    await db.transaction(() async {
+      final genders = await db.select(db.jenisKelamins).get();
+      final localByGenderName = <String, int>{for (final gender in genders) gender.nama.trim().toLowerCase(): gender.id};
+      for (final item in remoteItems) {
+        final uuid = item.uuid;
+        if (uuid == null || uuid.trim().isEmpty) throw const FormatException('Data Pemohon cloud tidak memiliki UUID valid.');
+        final existing = await (db.select(db.pemohons)..where((t) => t.uuid.equals(uuid))).getSingleOrNull();
+        if (existing?.isSyncDirty == true) continue;
+        int? localGenderId;
+        final genderName = item.jenisKelaminNama?.trim();
+        if (genderName != null && genderName.isNotEmpty) {
+          localGenderId = localByGenderName[genderName.toLowerCase()];
+          if (localGenderId == null) throw StateError('Jenis kelamin "$genderName" belum tersedia di cache lokal.');
+        }
+        final values = PemohonsCompanion(
+          uuid: Value(uuid), nama: Value(item.nama), alamat: Value(item.alamat), jenisKelamin: Value(localGenderId),
+          noTelp: Value(item.noTelp), nik: Value(item.nik), createdBy: Value(item.createdBy), updatedBy: Value(item.updatedBy),
+          createdAt: Value(item.createdAt), updatedAt: Value(item.updatedAt), status: Value(item.status),
+          isSyncDirty: const Value(false), lastSyncedAt: Value(DateTime.now()), deletedAt: const Value(null),
+        );
+        if (existing == null) { await db.into(db.pemohons).insert(values); }
+        else { await (db.update(db.pemohons)..where((t) => t.id.equals(existing.id))).write(values.copyWith(id: Value(existing.id))); }
+      }
+    });
   }
 
   static String _requiredText(String value) {

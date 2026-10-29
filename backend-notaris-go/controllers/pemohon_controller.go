@@ -26,7 +26,7 @@ func NewPemohonController() *PemohonController {
 type pemohonRequest struct {
 	Nama         string  `json:"nama"`
 	Alamat       *string `json:"alamat"`
-	JenisKelamin *int    `json:"jenis_kelamin"`
+	JenisKelamin *int    `json:"jenis_kelamin"`\n\tJenisKelaminNama *string `json:"jenis_kelamin_nama"`
 	NoTelp       *string `json:"no_telp"`
 	NIK          *string `json:"nik"`
 }
@@ -203,6 +203,18 @@ func (c *PemohonController) SyncUpsert(ctx *gin.Context) {
 		return
 	}
 
+	if input.JenisKelaminNama != nil && strings.TrimSpace(*input.JenisKelaminNama) != "" {
+		genderID, err := c.repository.FindJenisKelaminIDByName(ctx.Request.Context(), *input.JenisKelaminNama)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Error(ctx, http.StatusUnprocessableEntity, "Validasi data gagal", gin.H{"jenis_kelamin_nama": "Jenis kelamin tidak ditemukan"})
+			return
+		}
+		if err != nil {
+			response.Error(ctx, http.StatusInternalServerError, "Gagal memvalidasi jenis kelamin", nil)
+			return
+		}
+		input.JenisKelamin = &genderID
+	}
 	if input.JenisKelamin != nil {
 		exists, err := c.repository.JenisKelaminExists(
 			ctx.Request.Context(),

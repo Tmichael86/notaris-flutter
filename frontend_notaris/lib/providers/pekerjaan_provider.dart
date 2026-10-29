@@ -13,7 +13,7 @@ import 'authenticated_api_provider.dart';
 import '../database/app_database.dart';
 import '../repositories/pekerjaan_repository.dart';
 import '../repositories/pekerjaan_kategori_repository.dart';
-import '../repositories/pengeluaran_jenis_repository.dart';
+import '../repositories/pengeluaran_jenis_repository.dart';\nimport '../repositories/people_repository.dart';
 import 'database_provider.dart';
 
 final pekerjaanNotarisRepositoryProvider = Provider<PekerjaanNotarisRepository>(
@@ -195,13 +195,13 @@ final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
 
       // Push local changes first, then pull the authoritative cloud snapshot.
       await kategoriRepository.syncToCloud(kategoriApi);
-      await pengeluaranRepository.syncToCloud(pengeluaranApi);
+      await pengeluaranRepository.syncToCloud(pengeluaranApi);\n\n      final pemohonRepository = PemohonRepository(ref.read(appDatabaseProvider));\n      final pemohonApi = ref.read(pemohonApiServiceProvider);\n      await pemohonRepository.syncToCloud(pemohonApi);
 
       final remoteKategori = await kategoriApi.getAllPages();
       await kategoriRepository.syncFromCloud(remoteKategori);
 
       final remotePengeluaran = await pengeluaranApi.getAllPages();
-      await pengeluaranRepository.syncFromCloud(remotePengeluaran);
+      await pengeluaranRepository.syncFromCloud(remotePengeluaran);\n\n      final remotePemohon = await pemohonApi.getAllPages();\n      await pemohonRepository.syncFromCloud(remotePemohon);
     },
     onStatusChanged: (status) {
       ref.read(syncStatusProvider.notifier).state = status;
