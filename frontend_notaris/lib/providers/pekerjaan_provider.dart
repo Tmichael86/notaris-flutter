@@ -82,10 +82,7 @@ class SyncFailure implements Exception {
 /// Single-flight coordinator for category push/pull. Future sync triggers should
 /// call this provider instead of invoking repository sync methods directly.
 class SyncCoordinator {
-  SyncCoordinator({
-    required this._runSync,
-    required this._onStatusChanged,
-  });
+  SyncCoordinator({required this._runSync, required this._onStatusChanged});
 
   final Future<void> Function() _runSync;
   final void Function(SyncStatus) _onStatusChanged;
@@ -201,7 +198,9 @@ final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
       await kategoriRepository.syncToCloud(kategoriApi);
       await pengeluaranRepository.syncToCloud(pengeluaranApi);
 
-      final pemohonRepository = PemohonRepository(ref.read(appDatabaseProvider));
+      final pemohonRepository = PemohonRepository(
+        ref.read(appDatabaseProvider),
+      );
       final pemohonApi = ref.read(pemohonApiServiceProvider);
       await pemohonRepository.syncToCloud(pemohonApi);
 
