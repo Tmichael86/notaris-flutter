@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
 import '../services/pemohon_api_service.dart';
+import 'package:flutter/foundation.dart';
 
 class JenisKelaminRepository {
   JenisKelaminRepository(this.db);
@@ -332,53 +333,68 @@ class PemohonRepository {
           gender.nama.trim().toLowerCase(): gender.id,
       };
 
-      for (final item in remoteItems) {
-        final uuid = item.uuid;
-        if (uuid == null || uuid.trim().isEmpty) {
-          throw const FormatException(
-            'Data Pemohon cloud tidak memiliki UUID valid.',
+      for (var i = 0; i < remoteItems.length; i++) {
+        final item = remoteItems[i];
+
+        try {
+          // Pindahkan isi loop syncFromCloud yang sekarang
+          // ke sini, tanpa mengubah logika sinkronisasinya.
+          for (final item in remoteItems) {
+              final uuid = item.uuid;
+              if (uuid == null || uuid.trim().isEmpty) {
+                throw const FormatException(
+                  'Data Pemohon cloud tidak memiliki UUID valid.',
+                );
+              }
+
+              final existing = await (db.select(
+                db.pemohons,
+              )..where((t) => t.uuid.equals(uuid))).getSingleOrNull();
+
+              if (existing?.isSyncDirty == true) continue;
+
+              int? localGenderId;
+              final genderName = item.jenisKelaminNama?.trim();
+              if (genderName != null && genderName.isNotEmpty) {
+                localGenderId = localByGenderName[genderName.toLowerCase()];
+                if (localGenderId == null) {
+                  throw StateError(
+                    'Jenis kelamin "$genderName" belum tersedia di cache lokal.',
+                  );
+                }
+              }
+
+              final values = PemohonsCompanion(
+                uuid: Value(uuid),
+                nama: Value(item.nama),
+                alamat: Value(item.alamat),
+                jenisKelamin: Value(localGenderId),
+                noTelp: Value(item.noTelp),
+                nik: Value(item.nik),
+                createdBy: Value(item.createdBy),
+                updatedBy: Value(item.updatedBy),
+                createdAt: Value(item.createdAt),
+                updatedAt: Value(item.updatedAt),
+                status: Value(item.status),
+                isSyncDirty: const Value(false),
+                lastSyncedAt: Value(DateTime.now()),
+                deletedAt: const Value(null),
+              );
+
+              if (existing == null) {
+                await db.into(db.pemohons).insert(values);
+              } else {
+                await (db.update(db.pemohons)..where((t) => t.id.equals(existing.id)))
+                    .write(values.copyWith(id: Value(existing.id)));
+              }
+            }
+        } catch (error, stackTrace) {
+          debugPrint(
+            '[SYNC][PEMOHON] Gagal pada indeks $i '
+            '(cloud ID: ${item.id}, UUID: ${item.uuid}): $error',
           );
-        }
-
-        final existing = await (db.select(
-          db.pemohons,
-        )..where((t) => t.uuid.equals(uuid))).getSingleOrNull();
-
-        if (existing?.isSyncDirty == true) continue;
-
-        int? localGenderId;
-        final genderName = item.jenisKelaminNama?.trim();
-        if (genderName != null && genderName.isNotEmpty) {
-          localGenderId = localByGenderName[genderName.toLowerCase()];
-          if (localGenderId == null) {
-            throw StateError(
-              'Jenis kelamin "$genderName" belum tersedia di cache lokal.',
-            );
-          }
-        }
-
-        final values = PemohonsCompanion(
-          uuid: Value(uuid),
-          nama: Value(item.nama),
-          alamat: Value(item.alamat),
-          jenisKelamin: Value(localGenderId),
-          noTelp: Value(item.noTelp),
-          nik: Value(item.nik),
-          createdBy: Value(item.createdBy),
-          updatedBy: Value(item.updatedBy),
-          createdAt: Value(item.createdAt),
-          updatedAt: Value(item.updatedAt),
-          status: Value(item.status),
-          isSyncDirty: const Value(false),
-          lastSyncedAt: Value(DateTime.now()),
-          deletedAt: const Value(null),
-        );
-
-        if (existing == null) {
-          await db.into(db.pemohons).insert(values);
-        } else {
-          await (db.update(db.pemohons)..where((t) => t.id.equals(existing.id)))
-              .write(values.copyWith(id: Value(existing.id)));
+          debugPrintStack(stackTrace: stackTrace);
+          rethrow;
         }
       }
     });

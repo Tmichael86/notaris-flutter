@@ -15,6 +15,7 @@ import '../repositories/pekerjaan_repository.dart';
 import '../repositories/pekerjaan_kategori_repository.dart';
 import '../repositories/pengeluaran_jenis_repository.dart';
 import '../repositories/people_repository.dart';
+import 'package:flutter/foundation.dart';
 import 'database_provider.dart';
 
 final pekerjaanNotarisRepositoryProvider = Provider<PekerjaanNotarisRepository>(
@@ -195,23 +196,33 @@ final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
       final pengeluaranApi = ref.read(jenisPengeluaranApiServiceProvider);
 
       // Push local changes first, then pull the authoritative cloud snapshot.
+      debugPrint('[SYNC] Mulai sync kategori pekerjaan');
       await kategoriRepository.syncToCloud(kategoriApi);
+      debugPrint('[SYNC] Mulai sync jenis pengeluaran');
       await pengeluaranRepository.syncToCloud(pengeluaranApi);
 
       final pemohonRepository = PemohonRepository(
         ref.read(appDatabaseProvider),
       );
       final pemohonApi = ref.read(pemohonApiServiceProvider);
+      debugPrint('[SYNC] Mulai push Pemohon');
       await pemohonRepository.syncToCloud(pemohonApi);
 
+      debugPrint('[SYNC] Mulai pull kategori pekerjaan');
       final remoteKategori = await kategoriApi.getAllPages();
       await kategoriRepository.syncFromCloud(remoteKategori);
 
+      debugPrint('[SYNC] Mulai pull jenis pengeluaran');
       final remotePengeluaran = await pengeluaranApi.getAllPages();
       await pengeluaranRepository.syncFromCloud(remotePengeluaran);
 
+      debugPrint('[SYNC] Mulai pull Pemohon');
       final remotePemohon = await pemohonApi.getAllPages();
+      debugPrint('[SYNC] Pemohon berhasil diambil: ${remotePemohon.length}');
+      debugPrint('[SYNC] Mulai simpan Pemohon ke SQLite');
       await pemohonRepository.syncFromCloud(remotePemohon);
+
+      debugPrint('[SYNC] Pemohon berhasil disimpan ke SQLite');
     },
     onStatusChanged: (status) {
       ref.read(syncStatusProvider.notifier).state = status;
