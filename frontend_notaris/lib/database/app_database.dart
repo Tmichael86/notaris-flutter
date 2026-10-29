@@ -197,6 +197,7 @@ class TransaksiRiwayatPembayarans extends Table {
     PekerjaanKategoris,
     PengeluaranJenis,
     PetugasLocals,
+    PetugasIdentityMaps,
     PekerjaanNotarisLocals,
     PekerjaanNotarisHargaLocals,
     PekerjaanNotarisProsesLocals,
@@ -214,7 +215,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -222,6 +223,7 @@ class AppDatabase extends _$AppDatabase {
       await m.createAll();
       await _createUuidUniqueIndexes();
       await _createTransactionNumberUniqueIndex();
+      await _createPetugasIdentityMapIndexes();
     },
     onUpgrade: (Migrator m, int from, int to) async {
       // Keep all pending migration steps atomic. If V8 UUID validation fails,
@@ -283,9 +285,12 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(transaksiProses);
           await m.createTable(transaksiProsesRiwayat);
 
-          final legacyDetails = await (select(transaksiDetails)..where(
-            (detail) => detail.deletedAt.isNull() & detail.status.equals(1),
-          )).get();
+          final legacyDetails =
+              await (select(transaksiDetails)..where(
+                    (detail) =>
+                        detail.deletedAt.isNull() & detail.status.equals(1),
+                  ))
+                  .get();
           const uuidGenerator = Uuid();
 
           for (final detail in legacyDetails) {
@@ -344,6 +349,14 @@ class AppDatabase extends _$AppDatabase {
           await _validateTransactionNumbersForUniqueIndex();
           await _createTransactionNumberUniqueIndex();
         }
+
+        if (from < 10) {
+          // This table only adds reconciliation metadata. Existing Petugas
+          // rows, local UUIDs, local IDs, and transaction references stay
+          // untouched until an explicit reconciliation decision is recorded.
+          await m.createTable(petugasIdentityMaps);
+          await _createPetugasIdentityMapIndexes();
+        }
       });
     },
   );
@@ -356,6 +369,24 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_transaksis_uuid_unique '
       'ON transaksis (uuid)',
+    );
+  }
+
+  Future<void> _createPetugasIdentityMapIndexes() async {
+    // A cloud identity can be actively mapped to only one local identity.
+    // SQLite allows multiple NULLs here, so local-only/ambiguous/development
+    // rows remain representable without inventing a cloud UUID.
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS '
+      'idx_petugas_identity_map_active_cloud_uuid '
+      'ON petugas_identity_map (cloud_uuid) '
+      "WHERE cloud_uuid IS NOT NULL AND state IN ('verified', 'server_only')",
+    );
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS '
+      'idx_petugas_identity_map_active_server_id '
+      'ON petugas_identity_map (server_id) '
+      "WHERE server_id IS NOT NULL AND state IN ('verified', 'server_only')",
     );
   }
 
