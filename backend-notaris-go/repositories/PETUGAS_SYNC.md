@@ -37,12 +37,39 @@ No policy excluding inactive referenced rows is inferred by this checkpoint.
 
 Outbox `payload` is an internal JSON snapshot of the database Petugas row,
 including version and deletion metadata. A later publisher must transform it
-to the public pull contract. No publication sequence is allocated here.
-Allocating a normal sequence in multiple publisher transactions would still
-be unsafe: publisher A can allocate 1 and commit after B publishes 2. Before
-pull activation, implement a transactional counter row locked until commit
-to serialize publication batches, with event assignment and counter update in
-the same transaction. SKIP LOCKED alone does not provide this guarantee.
+to the public pull contract. The publication repository now provides this
+projection directly from historical snapshots; it never reads latest Petugas
+state to reconstruct an earlier event.
+
+Apply `20261030_01_petugas_publication.sql` after the identity migration. It
+adds a singleton transactional counter, initialized under an outbox table lock.
+`PetugasPublicationRepository.Publish` locks the counter FOR UPDATE until commit,
+then assigns publication_seq and published_at to committed unpublished events.
+All publishers must use this protocol. No SKIP LOCKED or PostgreSQL sequence is
+used to allocate the pull cursor. The preexisting BIGSERIAL outbox ID is only a
+batch ordering key. An event with a smaller ID that commits later gets a later
+publication sequence and remains discoverable by incremental pull.
+
+Counter update and event assignment commit together. A publisher transaction
+rollback (including connection loss before commit) rolls back both; retry after
+commit sees events already assigned and does not republish them. Publishers
+are serialized deliberately; throughput can be optimized in a later checkpoint.
+Published snapshots must remain immutable. No scheduler or HTTP route is wired.
+
+`Pull` uses one read-only REPEATABLE READ snapshot for counter bounds and event
+selection. It returns at most limit events, next_cursor (last returned sequence,
+or the input for an empty page), and has_more based on one extra row. Historical
+tombstones carry identity/version and no active payload. Negative/future cursors
+and limits outside 1..500 fail. Malformed snapshots fail without advancing the
+cursor. The database column is publication_seq; the Go contract calls the value
+publication_sequence. No second synonymous sequence column is introduced.
+
+The counter's min_cursor is initially zero. A future retention transaction must
+delete only a published prefix and advance min_cursor atomically under the
+counter lock; Pull reports ErrPetugasCursorExpired for older clients. Retention
+and full resync are not implemented yet; keep all published events. A future
+resync must preserve dirty local records and capture its snapshot plus cursor
+consistently. Database replacement/feed epochs require a future cursor contract.
 
 Legacy CRUD remains unchanged and does not yet increment row_version or write
 outbox events. Consequently concurrency protection currently covers only Apply
