@@ -2,10 +2,13 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter/foundation.dart' show mapEquals;
 
 import '../database/app_database.dart';
 import '../services/petugas_sync_api.dart';
 import 'petugas_identity_map_repository.dart';
+
+part 'petugas_conflict_resolution.dart';
 
 /// All non-null references require explicit, verified resolution. Implementors
 /// must never infer identity from names, seed UUIDs, or equal integer values.
@@ -99,6 +102,18 @@ class PetugasLocalSyncRepository {
     late String snapshot;
     await db.transaction(() async {
       await _bind();
+      final conflicts = await db
+          .customSelect(
+            "SELECT mutation_id FROM petugas_sync_conflict WHERE scope=? AND local_uuid=? AND state IN ('open','held')",
+            variables: [Variable(scope), Variable(localUuid)],
+          )
+          .get();
+      if (conflicts.isNotEmpty) {
+        throw const PetugasSyncFailure(
+          PetugasSyncFailureKind.blocked,
+          'unresolved conflict',
+        );
+      }
       final mapping = await PetugasIdentityMapRepository(db)
           .findByLocalUuid(localUuid);
       if (mapping == null ||
@@ -168,7 +183,20 @@ class PetugasLocalSyncRepository {
         [jsonEncode(mutation), snapshot, localUuid],
       );
     });
-    final response = await api.push(mutation);
+    late Map<String, dynamic> response;
+    try {
+      response = await api.push(mutation);
+    } on PetugasSyncFailure catch (e) {
+      if (e.kind == PetugasSyncFailureKind.conflict) {
+        await _saveConflict(localUuid, mutation, snapshot, e.details);
+      }
+      if (e.kind == PetugasSyncFailureKind.expired) {
+        await db.customStatement(
+          "UPDATE petugas_sync_feed SET blocked='full_resync_required' WHERE id=1",
+        );
+      }
+      rethrow;
+    }
     final ack = syncMap(response['acknowledgement']);
     final canonical = syncMap(response['record']);
     if (ack['mutation_id'] != mutation['mutation_id'] ||
@@ -273,7 +301,10 @@ class PetugasLocalSyncRepository {
       }
     }
   });
-  Future<void> _apply(Map<String, dynamic> event) async {
+  Future<void> _apply(
+    Map<String, dynamic> event, {
+    bool resolving = false,
+  }) async {
     final cloud = event['petugas_uuid'];
     final id = event['server_id'];
     final version = event['row_version'];
@@ -299,7 +330,7 @@ class PetugasLocalSyncRepository {
         );
       }
       final row = await _row(uuid);
-      if (row.isSyncDirty) {
+      if (row.isSyncDirty && !resolving) {
         throw const PetugasSyncFailure(
           PetugasSyncFailureKind.blocked,
           'dirty local record requires conflict resolution',
@@ -311,7 +342,8 @@ class PetugasLocalSyncRepository {
             variables: [Variable(uuid)],
           )
           .getSingleOrNull();
-      if ((journal?.readNullable<int>('row_version') ?? 0) >= version) {
+      if (!resolving &&
+          (journal?.readNullable<int>('row_version') ?? 0) >= version) {
         return;
       }
     }

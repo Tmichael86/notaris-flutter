@@ -215,7 +215,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -226,6 +226,7 @@ class AppDatabase extends _$AppDatabase {
       await _createPetugasIdentityMapIndexes();
       await _createPetugasSyncStorage();
       await _createPetugasReferenceStorage();
+      await _createPetugasConflictStorage();
     },
     onUpgrade: (Migrator m, int from, int to) async {
       // Keep all pending migration steps atomic. If V8 UUID validation fails,
@@ -365,6 +366,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 12) {
           await _createPetugasReferenceStorage();
         }
+        if (from < 13) {
+          await _createPetugasConflictStorage();
+        }
       });
     },
   );
@@ -400,6 +404,15 @@ class AppDatabase extends _$AppDatabase {
     );
     await customStatement(
       'CREATE TABLE petugas_user_reference (scope TEXT NOT NULL,server_id INTEGER NOT NULL CHECK(server_id>0),evidence TEXT NOT NULL,PRIMARY KEY(scope,server_id))',
+    );
+  }
+
+  Future<void> _createPetugasConflictStorage() async {
+    await customStatement(
+      "CREATE TABLE petugas_sync_conflict (scope TEXT NOT NULL,mutation_id TEXT NOT NULL,local_uuid TEXT NOT NULL REFERENCES petugas(uuid),mutation TEXT NOT NULL,local_snapshot TEXT NOT NULL,observed_local TEXT NOT NULL,response TEXT NOT NULL,base_version INTEGER,state TEXT NOT NULL CHECK(state IN ('open','held','resolved_local','resolved_server')),note TEXT,updated_at TEXT NOT NULL,PRIMARY KEY(scope,mutation_id))",
+    );
+    await customStatement(
+      "CREATE UNIQUE INDEX petugas_conflict_unresolved ON petugas_sync_conflict(scope,local_uuid) WHERE state IN ('open','held')",
     );
   }
 

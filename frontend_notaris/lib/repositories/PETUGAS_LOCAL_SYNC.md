@@ -45,10 +45,12 @@ for evidence requirements and the still-missing automatic gender catalog contrac
 Verified legacy mappings can establish their version through explicit
 PetugasIdentityReconciliation confirmation; it never clears dirty local data.
 
-HTTP 409 leaves the pending snapshot and dirty record intact for a future explicit
-conflict-resolution workflow. HTTP 410 persistently blocks sync pending a future
-full-resync workflow; the cursor is never reset. No conflict UI or resync reset API
-is provided. Never clear receipts/cursors ad hoc to make requests proceed.
+HTTP 409 leaves the pending snapshot and dirty record intact. Schema v13 adds
+persistent conflict inspection and explicit resolution operations; see
+PETUGAS_CONFLICT_RESOLUTION.md for freshness checks and remaining limitations.
+HTTP 410 persistently blocks sync pending a future full-resync workflow; the cursor
+is never reset. No conflict UI or resync reset API is provided. Never clear
+receipts/cursors ad hoc to make requests proceed.
 
 Before manual end-to-end testing: deploy backend migrations, run bootstrap, drain
 publication explicitly (there is no automatic publisher scheduler), provide the

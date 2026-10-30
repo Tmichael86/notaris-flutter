@@ -61,5 +61,6 @@ future UI must use this reconciliation facade, not bypass its pending-work guard
 
 Legacy dirty/unlinked data requires explicit operator decisions; name/email/NIK
 never auto-match. Ambiguous/development mappings do not enter push. Dirty pull
-conflicts roll back that page/cursor. No conflict resolution, full-resync reset,
-UI, automatic sync or production migration is introduced in this checkpoint.
+conflicts roll back that page/cursor. The later schema-v13 conflict foundation is
+documented in PETUGAS_CONFLICT_RESOLUTION.md. Full-resync reset, UI, automatic sync
+and production migration remain unavailable here.

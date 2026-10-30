@@ -34,6 +34,7 @@ void main() {
     await setup.customStatement('DROP TABLE petugas_sync_feed');
     await setup.customStatement('DROP TABLE petugas_gender_reference');
     await setup.customStatement('DROP TABLE petugas_user_reference');
+    await setup.customStatement('DROP TABLE petugas_sync_conflict');
     await setup.customStatement('PRAGMA user_version=10');
     await setup.close();
     final db = AppDatabase(NativeDatabase(file));
@@ -71,6 +72,7 @@ void main() {
     );
     await setup.customStatement('DROP TABLE petugas_gender_reference');
     await setup.customStatement('DROP TABLE petugas_user_reference');
+    await setup.customStatement('DROP TABLE petugas_sync_conflict');
     await setup.customStatement('PRAGMA user_version=11');
     await setup.close();
     final db = AppDatabase(NativeDatabase(file));
@@ -102,6 +104,60 @@ void main() {
       await db.close();
     }
   });
+
+  test(
+    'V12 to V13 preserves pending work, reference provenance and cursor',
+    () async {
+      final file = File('${tempDirectory.path}/conflict_v12.sqlite');
+      final setup = AppDatabase(NativeDatabase(file));
+      await setup.customStatement(
+        "INSERT INTO petugas(id,uuid,nama,email) VALUES(55,'conflict-local','Legacy','legacy@example.com')",
+      );
+      await setup.customStatement(
+        "INSERT INTO petugas_sync_feed(id,scope,cursor) VALUES(1,'deployment/account',42)",
+      );
+      await setup.customStatement(
+        "INSERT INTO petugas_sync_journal(local_uuid,row_version,pending,snapshot) VALUES('conflict-local',8,'unchanged-pending','unchanged-snapshot')",
+      );
+      await setup.customStatement(
+        "INSERT INTO petugas_user_reference(scope,server_id,evidence) VALUES('deployment/account',20,'authenticated selection')",
+      );
+      await setup.customStatement('DROP TABLE petugas_sync_conflict');
+      await setup.customStatement('PRAGMA user_version=12');
+      await setup.close();
+      final db = AppDatabase(NativeDatabase(file));
+      try {
+        final row = await db.select(db.petugasLocals).getSingle();
+        expect(row.id, 55);
+        expect(row.uuid, 'conflict-local');
+        final journal = await db
+            .customSelect('SELECT * FROM petugas_sync_journal')
+            .getSingle();
+        expect(journal.read<String>('pending'), 'unchanged-pending');
+        expect(journal.read<int>('row_version'), 8);
+        expect(
+          (await db
+                  .customSelect('SELECT cursor FROM petugas_sync_feed')
+                  .getSingle())
+              .read<int>('cursor'),
+          42,
+        );
+        expect(
+          (await db
+                  .customSelect('SELECT server_id FROM petugas_user_reference')
+                  .getSingle())
+              .read<int>('server_id'),
+          20,
+        );
+        expect(
+          await db.customSelect('SELECT * FROM petugas_sync_conflict').get(),
+          isEmpty,
+        );
+      } finally {
+        await db.close();
+      }
+    },
+  );
 
   Future<File> createV6Fixture({required String filename}) async {
     final file = File('${tempDirectory.path}/$filename');
@@ -269,7 +325,7 @@ void main() {
       final version = await inspectionDb
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 12);
+      expect(version.read<int>('user_version'), 13);
     } finally {
       await inspectionDb.close();
     }
