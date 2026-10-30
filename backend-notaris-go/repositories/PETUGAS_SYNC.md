@@ -71,13 +71,35 @@ and full resync are not implemented yet; keep all published events. A future
 resync must preserve dirty local records and capture its snapshot plus cursor
 consistently. Database replacement/feed epochs require a future cursor contract.
 
-Legacy CRUD remains unchanged and does not yet increment row_version or write
-outbox events. Consequently concurrency protection currently covers only Apply
-calls; sync endpoints must remain disabled until all legacy writes participate.
-The inherited migration backfills legacy UUIDs using an ID-derived hash. That
-is not globally unique across independent installations; before deployment,
-replace that unapplied backfill with a durable random UUID strategy. This
-repository accepts an explicit UUID and does not derive one from integer IDs.
+Legacy CRUD writes now use transactions and row locks, preserve integer IDs,
+allocate random server UUIDs, increment row_version, and append exactly one
+snapshot per committed create/update/delete. Reads expose the already-defined
+UUID/version model fields accurately. Requests, authorization, validation and
+controller status/envelopes are unchanged. A repeated legacy DELETE still
+returns not found; unlike sync requests, legacy writes have no mutation receipt.
+
+Both write paths lock the same row. If legacy commits first, a waiting sync
+write based on the old version conflicts. If sync commits first, the following
+legacy PUT remains an unconditional replacement, now at the next version, with
+both snapshots preserved. Existing legacy requests carry no expected version:
+detecting a stale legacy form would require an additional client/API contract.
+Row locks prevent lost version increments, but cannot infer user intent.
+
+Fresh installs use gen_random_uuid() in the identity migration. Known previous
+applications were only disposable PostgreSQL test schemas, not production.
+The corrective 20261030_02 migration handles an already-applied older revision:
+it fills NULL UUIDs, preserves ALL assigned UUIDs including previous hashes,
+adds a random UUID default and NOT NULL, and normalizes nonpositive legacy
+versions before activation. Native PostgreSQL uuid columns cannot contain an
+empty string. The existing unique index plus NOT NULL enforces identity
+uniqueness. PostgreSQL 13+ is required; tested on 18.6. No local/server matching
+is performed. Existing hash identities must never be blindly regenerated when
+references or receipts might exist.
+
+Deploy the identity, publication and UUID-hardening migrations before this
+writer. Coordinate upgrade of old binaries that explicitly insert NULL UUIDs.
+Schema creation/backfill does not create initial outbox snapshots for untouched
+legacy rows; bootstrap/full-resync remains required before client activation.
 
 ## Verification
 

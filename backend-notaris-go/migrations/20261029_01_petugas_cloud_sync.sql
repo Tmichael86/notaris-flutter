@@ -8,10 +8,10 @@ ALTER TABLE petugas ADD COLUMN IF NOT EXISTS uuid uuid;
 ALTER TABLE petugas ADD COLUMN IF NOT EXISTS row_version bigint NOT NULL DEFAULT 1;
 ALTER TABLE petugas ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
 
--- Existing IDs remain untouched. The deterministic UUID is only a one-time
--- server identity for legacy rows; new sync-capable writes must provide UUIDs.
+-- Existing IDs and non-null UUIDs remain untouched. PostgreSQL 13+ provides
+-- gen_random_uuid() in core; no extension or ID-derived identity is required.
 UPDATE petugas
-SET uuid = md5('petugas:' || id::text)::uuid
+SET uuid = gen_random_uuid()
 WHERE uuid IS NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS petugas_uuid_unique
