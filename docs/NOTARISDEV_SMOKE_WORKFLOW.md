@@ -1,8 +1,49 @@
 # Synthetic notarisdev smoke workflow
 
-This checkpoint does **not** create permanent notarisdev. First creation requires
-explicit owner confirmation plus the provisioning prompt. No pending Cloud Sync
-migration proposal is executed. Source schema archive is read, never source rows.
+The initial implementation checkpoint did **not** create permanent notarisdev.
+The owner subsequently explicitly approved provisioning; it is now complete as
+recorded below. No pending Cloud Sync migration proposal has been executed.
+Source schema archive was restored, never source table data.
+
+## Approved permanent provisioning — 30 October 2026
+
+Database 127.0.0.1:5432/notarisdev was verified absent and then created using the
+reviewed schema-only archive and smoke-v1 fixture. The explicit CREATE notarisdev
+prompt was answered under the owner's approval. No overwrite/drop was performed.
+
+Verification on the actual permanent target:
+
+- 38 public tables, 427 column definitions matching the reviewed source archive,
+  extensions plpgsql/pgcrypto/uuid-ossp, zero added FK constraints.
+- 61 synthetic rows; all 20 reference edges and fixture counts validated as the
+  dedicated application role in a read-only transaction.
+- No Petugas sync tables; no uuid/row_version/deleted_at columns on Petugas.
+- New role nd_app_14af5452144b: no superuser, CREATEDB, CREATEROLE or public schema
+  CREATE rights. Only target object grants were issued. Source table SELECT,
+  INSERT, UPDATE, DELETE and source schema CREATE privileges were verified false.
+- Default PUBLIC CONNECT still permits connecting to the source/catalog; this
+  is NOT total connection-level database isolation. No source ACL or server HBA
+  was modified. Strict connection denial would need a separate reviewed server
+  access-policy change, not a claim that target grants revoke inherited PUBLIC.
+- Actual normal Go backend started on 8081; fixture login issued a fresh JWT.
+  auth/me/sidebar-access, kategori-pekerjaan, jenis-pengeluaran and pemohon returned
+  200; anonymous category request returned 401. No mutation endpoint was called.
+- Source structural fingerprint still matches the pre-provisioning archive;
+  PostgreSQL service remains Running. Provisioning did not write to notarislokal.
+- Backend validation process was stopped; permanent database/service remain
+  available. No Flutter interactive verification was performed.
+
+Local generated credentials are ignored by Git:
+
+- Database connection: backend-notaris-go/.env.notarisdev, DB_USER/DB_PASSWORD.
+- App login: .local/notarisdev-14af5452144b42d0be2ad88bac41b656/login.private.json.
+- Profile manifest: .local/notarisdev-profile.json (non-secret).
+
+DBeaver: PostgreSQL driver, Host 127.0.0.1, Port 5432, Database notarisdev,
+User nd_app_14af5452144b, password from local DB_PASSWORD, SSL disabled for this
+loopback development connection. Do not use source/admin credentials for browsing
+development data. DBeaver database login is separate from fixture.operator app login.
+Do not paste either password into Git/chat. The role cannot perform schema migrations.
 
 ## What is implemented
 
@@ -164,7 +205,9 @@ operation. Do not “recover” by dropping tables, applying Cloud Sync or editi
 - Source structural fingerprint matches previous archive review; read-only legacy
   aggregate remains 7058 detail rows. This does not exclude concurrent changes by
   other apps, but none of the provisioning/generation code connects to the source.
-- No permanent notarisdev created. No interactive Flutter UI success claimed.
+- At the initial implementation checkpoint no permanent database was created;
+  subsequent explicitly approved creation is recorded at the top of this document.
+  No interactive Flutter UI success claimed.
 - Flutter Windows debug build of lib/notaris_dev_main.dart exited 0; the binary
   was built only, not launched for interactive verification.
 
