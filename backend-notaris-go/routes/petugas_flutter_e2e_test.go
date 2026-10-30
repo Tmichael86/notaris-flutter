@@ -94,8 +94,21 @@ func runFlutterPetugasE2E(t *testing.T, handler http.Handler, db *gorm.DB, token
 			t.Log("manual harness readiness smoke passed; no interactive UI executed")
 			return
 		}
-		<-ctx.Done()
-		return
+		ticker := time.NewTicker(250 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if stop := os.Getenv("NOTARIS_MANUAL_STOP_FILE"); stop != "" {
+					if _, err := os.Stat(stop); err == nil {
+						t.Log("manual launcher requested graceful harness shutdown")
+						return
+					}
+				}
+			}
+		}
 	}
 	args := []string{"test", "test/e2e/petugas_live_e2e_test.dart", "--reporter", "expanded"}
 	var command *exec.Cmd

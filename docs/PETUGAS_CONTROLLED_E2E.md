@@ -1,5 +1,10 @@
 # Controlled Petugas E2E (development/testing only)
 
+For one-command Windows manual Desktop setup/cleanup, use
+`scripts/start-petugas-manual-test.ps1` and `scripts/stop-petugas-manual-test.ps1`
+from the repository root. See [PETUGAS_MANUAL_DESKTOP.md](PETUGAS_MANUAL_DESKTOP.md).
+The provisioning instructions below remain an alternative for automated E2E.
+
 Reference contract: GET /api/v1/petugas/references/jenis-kelamin requires JWT,
 active user/group and existing Petugas read permission. Standard success envelope
 contains data.items with id (server integer), nama (display label), status=1.

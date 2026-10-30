@@ -6,6 +6,53 @@ the separate debug target petugas_manual_main.dart with explicit compile opt-in.
 Release/profile builds refuse this target. No application auth secure storage,
 daily SQLite file, migrations or bootstrap are opened/run by Flutter startup.
 
+## One-command Windows launcher
+
+From the repository root in PowerShell (Go and Flutter must be in PATH):
+
+```powershell
+.\scripts\start-petugas-manual-test.ps1
+# Later, in another PowerShell terminal in this checkout:
+.\scripts\stop-petugas-manual-test.ps1
+```
+
+START discovers PostgreSQL binaries through PATH, then
+`D:\Program Files\PostgreSQL\bin` or `C:\Program Files\PostgreSQL\18\bin`.
+Use `-PostgresBin 'X:\path\to\bin'` for another installation. No installation,
+service change or normal backend .env loading is performed by the launcher.
+An occupied 55439 causes a safe refusal. PostgreSQL on 5432 is untouched.
+
+Each invocation creates `notaris-petugas-launcher-<guid>` under Windows TEMP,
+initializes a fresh trust-authenticated loopback-only cluster on 55439, verifies
+`SELECT 1`, then starts the isolated Go fixture and waits for its session file.
+The debug Flutter target receives only that path and explicit sync opt-in.
+The fixture applies migrations, bootstrap and publication in its own random
+schema; it never targets the development database. Local programs can access
+the temporary trust cluster: use only on a trusted development machine.
+
+A detached hidden PowerShell supervisor owns the session. It records process
+IDs plus creation times in state.json and monitors Go and Flutter. START returning
+`Ready` means the harness is ready and the Flutter command was launched; the
+first Windows build can still take minutes. Inspect flutter.log / flutter.log.err
+under the printed session directory for compiler failures. No JWT is printed.
+Do not share session.json or logs containing private session paths.
+
+Closing Flutter, session expiry (30 minutes), or STOP triggers cleanup. STOP
+first closes only owned Flutter windows, signals Go via harness.stop and waits
+for deferred schema cleanup, then stops only the recorded PostgreSQL data
+directory. A stuck owned process tree may be terminated after its grace period.
+Data directories, test SQLite, session files and logs are retained. No directory
+is deleted. The testing cluster is unavailable after STOP. Run START for a fresh
+session/profile; credentials from an expired session are not reused.
+
+For diagnostics use START `-BackendOnly`. STOP defaults to the latest session
+from this checkout, or accepts `-SessionRoot '<printed session directory>'`.
+Missing/reused process IDs are checked before targeting processes. A stop timeout
+requires log inspection; do not stop PostgreSQL by process name. Script syntax
+and guard tests: `& .\scripts\test-petugas-manual-launcher.ps1`.
+
+## Manual terminals (alternative)
+
 1. Provision a NEW temporary PostgreSQL cluster as documented in
    PETUGAS_CONTROLLED_E2E.md. Keep it on 127.0.0.1:55439. Do not use .env or an
    active development/production database. Keep this cluster running for testing.
