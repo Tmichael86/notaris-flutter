@@ -14,7 +14,28 @@ foreach($binary in @('initdb.exe','pg_ctl.exe','psql.exe')) {
     if(!(Test-Path -LiteralPath (Join-Path $PostgresBin $binary))) { throw "Missing PostgreSQL binary: $binary" }
 }
 if(!$Supervisor) {
+    $lifecycle = Enter-LauncherLock
+    try {
     foreach($tool in @('go','flutter')) { if(!(Get-Command $tool -ErrorAction SilentlyContinue)) { throw "$tool missing from PATH" } }
+    $pointer = Get-SessionPointer $repo
+    if ($pointer) {
+        $stateLock = Enter-StateLock $pointer.Root
+        try {
+        $old = Read-State $pointer.Root
+        if ($old.Repo -ne $repo) { throw 'Session repository mismatch' }
+        if (Test-SessionHealthy $old $pointer.Root) {
+            if (!$BackendOnly -and !(Get-Owned $old.Flutter)) {
+                $old.Flutter = Start-Owned (Join-Path $PSScriptRoot 'petugas-manual-process.ps1') @{Role='Flutter';SessionRoot=$pointer.Root;RepoRoot=$repo} (Join-Path $pointer.Root 'flutter.log')
+                Save-State $old $pointer.Root
+            }
+            Write-Output "Reusing healthy session: $($pointer.Root)"
+            $global:LASTEXITCODE = 0
+            return
+        }
+        } finally { $stateLock.ReleaseMutex(); $stateLock.Dispose() }
+        # STOP verifies recorded process creation times and cluster data/PID/port.
+        & (Join-Path $PSScriptRoot 'stop-petugas-manual-test.ps1') -SessionRoot $pointer.Root
+    }
     # Bind probe rejects another service on the fixed testing port.
     $probe=[Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback,55439)
     try { $probe.Start() } catch { throw 'Port 55439 is occupied. Stop the previous test session; no existing service was touched.' } finally { $probe.Stop() }
@@ -27,18 +48,19 @@ if(!$Supervisor) {
     if($BackendOnly) { $entry+=' -BackendOnly' }
     $encoded=[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($entry))
     $super=Start-Process -FilePath (Get-Process -Id $PID).Path -ArgumentList @('-NoProfile','-EncodedCommand',$encoded) -WindowStyle Hidden -RedirectStandardOutput (Join-Path $SessionRoot 'supervisor.log') -RedirectStandardError (Join-Path $SessionRoot 'supervisor.err') -PassThru
-    @{Root=$SessionRoot;Repo=$repo} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path ([IO.Path]::GetTempPath()) 'notaris-petugas-launcher-last.json')
+    Write-LauncherJson @{Root=$SessionRoot;Repo=$repo} (Join-Path ([IO.Path]::GetTempPath()) 'notaris-petugas-launcher-last.json')
     Write-Output "Session: $SessionRoot"
     $deadline=[DateTime]::UtcNow.AddMinutes(4)
     while([DateTime]::UtcNow -lt $deadline) {
         $s=Read-State $SessionRoot
-        if($s.Phase -eq 'Running') { Write-Output "Ready. Logs: $SessionRoot | Stop: .\scripts\stop-petugas-manual-test.ps1"; return }
+        if($s.Phase -eq 'Running') { Write-Output "Ready. Logs: $SessionRoot | Stop: .\scripts\stop-petugas-manual-test.ps1"; $global:LASTEXITCODE=0; return }
         if($s.Phase -in @('Failed','Stopped')) { throw "Startup stopped: $($s.Error). Logs: $SessionRoot" }
         if($super.HasExited) { throw "Supervisor exited. Logs: $SessionRoot" }
         Start-Sleep -Milliseconds 500
     }
     New-Item -ItemType File -Path (Join-Path $SessionRoot 'stop.request') -Force | Out-Null
     throw "Startup timeout; stop requested. Logs: $SessionRoot"
+    } finally { $lifecycle.ReleaseMutex(); $lifecycle.Dispose() }
 }
 $SessionRoot=Assert-TestRoot $SessionRoot
 $state=Read-State $SessionRoot
@@ -72,13 +94,20 @@ try {
     if(!$BackendOnly) { $state.Flutter=Start-Owned (Join-Path $PSScriptRoot 'petugas-manual-process.ps1') @{Role='Flutter';SessionRoot=$SessionRoot;RepoRoot=$repo} (Join-Path $SessionRoot 'flutter.log') }
     $state.Phase='Running'; Save-State $state $SessionRoot
     while(!(Test-Path -LiteralPath (Join-Path $SessionRoot 'stop.request'))) {
+        $state=Read-State $SessionRoot
         if($null -eq (Get-Owned $state.Go)) { throw 'Go harness ended (session expired or failure)' }
-        if(!$BackendOnly -and $null -eq (Get-Owned $state.Flutter)) { throw 'Flutter ended; inspect flutter.log / flutter.log.err' }
+        # Flutter may close/reopen independently in the two-terminal workflow.
         Start-Sleep -Milliseconds 500
     }
-} catch { $state.Error=$_.Exception.Message; $state.Phase='Failed'; Save-State $state $SessionRoot }
+} catch {
+    $errorMessage = $_.Exception.Message
+    $stateLock = Enter-StateLock $SessionRoot
+    try { $state=Read-State $SessionRoot; $state.Error=$errorMessage; $state.Phase='Failed'; Save-State $state $SessionRoot }
+    finally { $stateLock.ReleaseMutex(); $stateLock.Dispose() }
+}
 finally {
     $failure=$state.Error
+    $state=Read-State $SessionRoot
     try { Stop-Session $state $SessionRoot } catch { $failure="Cleanup failed: $($_.Exception.Message)" }
     if($failure) { $state.Error=$failure; $state.Phase='Failed'; Save-State $state $SessionRoot }
 }
