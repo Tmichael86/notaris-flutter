@@ -215,7 +215,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -225,6 +225,7 @@ class AppDatabase extends _$AppDatabase {
       await _createTransactionNumberUniqueIndex();
       await _createPetugasIdentityMapIndexes();
       await _createPetugasSyncStorage();
+      await _createPetugasReferenceStorage();
     },
     onUpgrade: (Migrator m, int from, int to) async {
       // Keep all pending migration steps atomic. If V8 UUID validation fails,
@@ -361,6 +362,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 11) {
           await _createPetugasSyncStorage();
         }
+        if (from < 12) {
+          await _createPetugasReferenceStorage();
+        }
       });
     },
   );
@@ -384,6 +388,18 @@ class AppDatabase extends _$AppDatabase {
     );
     await customStatement(
       'CREATE TABLE petugas_sync_journal (local_uuid TEXT PRIMARY KEY REFERENCES petugas(uuid), row_version INTEGER, pending TEXT, snapshot TEXT)',
+    );
+  }
+
+  Future<void> _createPetugasReferenceStorage() async {
+    await customStatement(
+      "CREATE TABLE petugas_gender_reference (scope TEXT NOT NULL,local_uuid TEXT NOT NULL REFERENCES jenis_kelamin(uuid),server_id INTEGER CHECK(server_id>0),state TEXT NOT NULL CHECK(state IN ('verified','ambiguous')),evidence TEXT NOT NULL,PRIMARY KEY(scope,local_uuid),CHECK((state='verified' AND server_id IS NOT NULL) OR (state='ambiguous' AND server_id IS NULL)))",
+    );
+    await customStatement(
+      "CREATE UNIQUE INDEX petugas_gender_server_unique ON petugas_gender_reference(scope,server_id) WHERE state='verified'",
+    );
+    await customStatement(
+      'CREATE TABLE petugas_user_reference (scope TEXT NOT NULL,server_id INTEGER NOT NULL CHECK(server_id>0),evidence TEXT NOT NULL,PRIMARY KEY(scope,server_id))',
     );
   }
 

@@ -11,12 +11,16 @@ enum PetugasSyncFailureKind {
   server,
   network,
   blocked,
+  blockedReference,
 }
 
 class PetugasSyncFailure implements Exception {
   const PetugasSyncFailure(this.kind, [this.details]);
   final PetugasSyncFailureKind kind;
   final Object? details;
+  String get code => kind == PetugasSyncFailureKind.blockedReference
+      ? 'blocked_reference'
+      : kind.name;
 }
 
 Map<String, dynamic> syncMap(Object? value) {

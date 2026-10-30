@@ -15,6 +15,11 @@ abstract interface class PetugasSyncReferences {
   Future<int> verifiedServerUser(int storedId);
 }
 
+abstract interface class ScopedPetugasSyncReferences
+    implements PetugasSyncReferences {
+  String get scope;
+}
+
 class PetugasLocalSyncRepository {
   PetugasLocalSyncRepository(
     this.db,
@@ -47,6 +52,13 @@ class PetugasLocalSyncRepository {
   Future<void> _bind() async {
     if (scope.isEmpty) {
       throw ArgumentError('scope required');
+    }
+    final resolver = references;
+    if (resolver is ScopedPetugasSyncReferences && resolver.scope != scope) {
+      throw const PetugasSyncFailure(
+        PetugasSyncFailureKind.blockedReference,
+        'reference scope mismatch',
+      );
     }
     await db.customStatement(
       'INSERT OR IGNORE INTO petugas_sync_feed(id,scope) VALUES(1,?)',
@@ -110,6 +122,16 @@ class PetugasLocalSyncRepository {
       final pending = journal.readNullable<String>('pending');
       if (pending != null) {
         mutation = syncMap(jsonDecode(pending));
+        final payload = mutation['payload'];
+        if (payload != null) {
+          final p = syncMap(payload);
+          if (p['jenis_kelamin_id'] != null) {
+            await references.genderToLocal(p['jenis_kelamin_id'] as int);
+          }
+          if (p['user_id'] != null) {
+            await references.verifiedServerUser(p['user_id'] as int);
+          }
+        }
         snapshot = journal.read<String>('snapshot');
         return;
       }

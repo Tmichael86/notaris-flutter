@@ -38,11 +38,12 @@ ignored. New cloud rows get new local identities; tombstones preserve existing
 identity/transaction references. No matching by name/email/NIK is performed.
 
 Non-null gender IDs require explicit local/server resolution. user_id must be a
-verified server user ID; no user is created or matched automatically. This checkpoint
-deliberately supplies no production resolver because no canonical cross-device
-reference cache is available. Implement a verified reference mapping/cache before
-manual sync of records containing these references. Verified legacy mappings also
-need their server row version established by a clean pull before pushing.
+verified server user ID; no user is created or matched automatically. Schema 12
+adds VerifiedPetugasReferences with operator-confirmed deployment-scoped gender
+mapping and authenticated server-user provenance. See PETUGAS_REFERENCE_RECONCILIATION.md
+for evidence requirements and the still-missing automatic gender catalog contract.
+Verified legacy mappings can establish their version through explicit
+PetugasIdentityReconciliation confirmation; it never clears dirty local data.
 
 HTTP 409 leaves the pending snapshot and dirty record intact for a future explicit
 conflict-resolution workflow. HTTP 410 persistently blocks sync pending a future
