@@ -4,6 +4,10 @@ Status: **NO DATA CLONE APPROVED OR CREATED**. Owner selected sanitization revie
 before copying data. No Cloud Sync migration has been applied to either database.
 This document is for consultation with the supervisor, not a production runbook.
 
+Implementation follow-up: [synthetic smoke provisioning and isolated development profile](NOTARISDEV_SMOKE_WORKFLOW.md).
+The smoke generator/profile now exist; this does not approve permanent creation or
+Cloud Sync migrations. Historical review findings below remain unchanged.
+
 Follow-up: [legacy relationships and synthetic fixture review](NOTARISDEV_LEGACY_AND_FIXTURE_REVIEW.md)
 separates intended parentage from unproven archive matches, proposes fully synthetic
 smoke/volume/negative profiles and records revised first-install migration guards.
