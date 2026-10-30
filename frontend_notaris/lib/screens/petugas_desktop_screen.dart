@@ -6,6 +6,7 @@ import '../core/widgets/loading_overlay.dart';
 import '../core/widgets/searchable_dropdown.dart';
 import '../database/app_database.dart';
 import '../providers/people_provider.dart';
+import '../core/widgets/petugas_manual_sync_panel.dart';
 
 class PetugasDesktopScreen extends ConsumerStatefulWidget {
   const PetugasDesktopScreen({super.key});
@@ -46,6 +47,7 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _header(),
+                const PetugasManualSyncPanel(),
                 const SizedBox(height: 20),
                 Expanded(child: _table(items, gs)),
               ],

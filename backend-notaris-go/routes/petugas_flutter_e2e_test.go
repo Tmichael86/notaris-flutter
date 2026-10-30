@@ -1,14 +1,19 @@
 package routes
 
 import (
+	"backend-notaris-go/config"
+	"backend-notaris-go/middleware"
 	"backend-notaris-go/repositories"
 	"backend-notaris-go/services"
 	"context"
+	"encoding/json"
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -26,9 +31,28 @@ func runFlutterPetugasE2E(t *testing.T, handler http.Handler, db *gorm.DB, token
 	if n, err := pub.Bootstrap(context.Background()); err != nil || n != 1 {
 		t.Fatalf("bootstrap: %d %v", n, err)
 	}
+	manual := os.Getenv("NOTARIS_MANUAL_DESKTOP") == "1"
+	var manualDir, nonce string
+	if manual {
+		var err error
+		manualDir, err = os.MkdirTemp("", "petugas-manual-")
+		if err != nil {
+			t.Fatal(err)
+		}
+		nonce = filepath.Base(manualDir)
+		engine, ok := handler.(*gin.Engine)
+		if !ok {
+			t.Fatal("manual test requires real router")
+		}
+		engine.GET("/api/v1/petugas/testing/status", middleware.JWTAuth(config.Config{JWTSecret: "local-test-signing-key"}), middleware.RequirePermission(repositories.NewSidebarAccessRepository(), "petugas", middleware.PermissionRead), func(c *gin.Context) { c.JSON(200, gin.H{"success": true, "data": gin.H{"nonce": nonce}}) })
+	}
 	server := httptest.NewServer(handler)
 	defer server.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	lifetime := 2 * time.Minute
+	if manual {
+		lifetime = 30 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), lifetime)
 	defer cancel()
 	worker, err := services.NewPetugasPublicationWorker(pub, services.PublicationWorkerOptions{BatchSize: 20, Interval: 10 * time.Millisecond, AttemptTimeout: time.Second, MaxBackoff: time.Second}, nil)
 	if err != nil {
@@ -37,6 +61,42 @@ func runFlutterPetugasE2E(t *testing.T, handler http.Handler, db *gorm.DB, token
 	done := make(chan struct{})
 	go func() { defer close(done); worker.Run(ctx) }()
 	defer func() { cancel(); <-done }()
+	if manual {
+		b, err := json.Marshal(map[string]string{"url": server.URL + "/api/v1", "token": token, "nonce": nonce})
+		if err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(manualDir, "session.json")
+		if err := os.WriteFile(path, b, 0600); err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("MANUAL_SESSION_FILE=%s (contains test credentials; do not share contents)", path)
+		t.Log("Isolated manual backend ready for 30 minutes. No manual UI success is asserted.")
+		if os.Getenv("NOTARIS_MANUAL_SMOKE") == "1" {
+			req, err := http.NewRequest("GET", server.URL+"/api/v1/petugas/testing/status", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set("Authorization", "Bearer "+token)
+			resp, err := server.Client().Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			var result struct {
+				Data struct {
+					Nonce string `json:"nonce"`
+				}
+			}
+			if err := json.NewDecoder(resp.Body).Decode(&result); err != nil || resp.StatusCode != 200 || result.Data.Nonce != nonce {
+				t.Fatal("manual readiness smoke failed")
+			}
+			t.Log("manual harness readiness smoke passed; no interactive UI executed")
+			return
+		}
+		<-ctx.Done()
+		return
+	}
 	args := []string{"test", "test/e2e/petugas_live_e2e_test.dart", "--reporter", "expanded"}
 	var command *exec.Cmd
 	if runtime.GOOS == "windows" {
