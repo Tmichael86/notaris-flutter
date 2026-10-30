@@ -4,6 +4,15 @@ Status: **NO DATA CLONE APPROVED OR CREATED**. Owner selected sanitization revie
 before copying data. No Cloud Sync migration has been applied to either database.
 This document is for consultation with the supervisor, not a production runbook.
 
+Follow-up: [legacy relationships and synthetic fixture review](NOTARISDEV_LEGACY_AND_FIXTURE_REVIEW.md)
+separates intended parentage from unproven archive matches, proposes fully synthetic
+smoke/volume/negative profiles and records revised first-install migration guards.
+No historical record is classified as corrupt solely because its current parent
+is absent. The fixture option does not authorize any raw source data clone.
+For the new fully synthetic route, use new fixture-owned IDs with internally
+consistent links. The source-ID-preserving transformation below remains an
+alternative proposal only; it is not a prerequisite or authorization for fixtures.
+
 ## Evidence from the running database
 
 Read-only connections to localhost:5432 succeeded on PostgreSQL 18.6. Database
