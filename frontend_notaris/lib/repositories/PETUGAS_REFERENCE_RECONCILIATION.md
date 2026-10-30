@@ -20,9 +20,10 @@ is safe; reassigning a verified local reference to a different server ID is bloc
 markGenderAmbiguous withdraws the mapping so subsequent resolution fails closed.
 
 Repository evidence: Go PetugasPayload uses jenis_kelamin_id; DATABASE_STRUCTURE.md
-section 7.1 defines only integer ID and name plus metadata; routes/routes.go has
-no jenis-kelamin read route. No unique immutable label/code is established by this
-source. Therefore automatic canonical gender discovery remains blocked. Minimal
+section 7.1 defines only integer ID and name plus metadata. The later controlled
+E2E checkpoint adds GET /petugas/references/jenis-kelamin for authenticated catalog
+selection (see docs/PETUGAS_CONTROLLED_E2E.md). No unique immutable label/code is
+established, so automatic canonical gender discovery remains blocked. Minimal
 future contract: an authenticated server reference catalog with server ID, active
 status and a documented unique immutable canonical code/UUID plus deployment
 identity. Do not invent it in the Flutter client or use equality of labels/IDs.

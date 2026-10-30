@@ -58,7 +58,7 @@ func TestPetugasSyncHTTPPostgres(t *testing.T) {
 	if err := db.Exec("ALTER TABLE petugas ALTER COLUMN uuid TYPE uuid USING uuid::uuid").Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Exec("CREATE TABLE jenis_kelamin (id bigint PRIMARY KEY, nama text); INSERT INTO jenis_kelamin VALUES (2,'Test')").Error; err != nil {
+	if err := db.Exec("CREATE TABLE jenis_kelamin (id bigint PRIMARY KEY, nama text,status smallint NOT NULL DEFAULT 1); INSERT INTO jenis_kelamin(id,nama) VALUES (2,'Test')").Error; err != nil {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"20261029_01_petugas_cloud_sync.sql", "20261030_01_petugas_publication.sql", "20261030_02_petugas_uuid_hardening.sql"} {
@@ -81,6 +81,10 @@ func TestPetugasSyncHTTPPostgres(t *testing.T) {
 		t.Fatal(err)
 	}
 	router := SetupRouter(config.Config{JWTSecret: secret}, nil, nil, controllers.NewPetugasController(), nil, nil, nil, nil, nil, nil, nil, nil)
+	if os.Getenv("NOTARIS_FLUTTER_E2E") == "1" {
+		runFlutterPetugasE2E(t, router, db, token)
+		return
+	}
 	uuid := "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 	path := "/api/v1/petugas/sync/" + uuid
 	body := `{"mutation_id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb","petugas_uuid":"` + uuid + `","operation":"upsert","expected_row_version":null,"payload":{"nama":"Sari","email":"sari@example.com","jenis_kelamin_id":2,"user_id":1}}`
@@ -99,6 +103,20 @@ func TestPetugasSyncHTTPPostgres(t *testing.T) {
 		return w.Body.String()
 	}
 	request("PUT", path, body, "", 401)
+	request("GET", "/api/v1/petugas/references/jenis-kelamin", "", "", 401)
+	catalog := request("GET", "/api/v1/petugas/references/jenis-kelamin", "", token, 200)
+	if !strings.Contains(catalog, `"id":2`) {
+		t.Fatal("reference catalog missing server ID")
+	}
+	if err := db.Exec("UPDATE jenis_kelamin SET status=0").Error; err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(request("GET", "/api/v1/petugas/references/jenis-kelamin", "", token, 200), `"items":[]`) {
+		t.Fatal("unavailable active catalog not empty")
+	}
+	if err := db.Exec("UPDATE jenis_kelamin SET status=1").Error; err != nil {
+		t.Fatal(err)
+	}
 	if err := db.Exec(`UPDATE sidebar_akses SET "create"=0`).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -163,6 +181,7 @@ func TestPetugasSyncHTTPPostgres(t *testing.T) {
 	db.Exec("UPDATE petugas_sync_publication SET min_cursor=1")
 	request("GET", "/api/v1/petugas/sync/pull", "", token, 410)
 	db.Exec(`UPDATE sidebar_akses SET "read"=0`)
+	request("GET", "/api/v1/petugas/references/jenis-kelamin", "", token, 403)
 	request("GET", "/api/v1/petugas/sync/pull", "", token, 403)
 	db.Exec(`UPDATE sidebar_akses SET "read"=1`)
 	db.Exec("DROP TABLE petugas_sync_publication")
