@@ -215,7 +215,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -224,6 +224,7 @@ class AppDatabase extends _$AppDatabase {
       await _createUuidUniqueIndexes();
       await _createTransactionNumberUniqueIndex();
       await _createPetugasIdentityMapIndexes();
+      await _createPetugasSyncStorage();
     },
     onUpgrade: (Migrator m, int from, int to) async {
       // Keep all pending migration steps atomic. If V8 UUID validation fails,
@@ -357,6 +358,9 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(petugasIdentityMaps);
           await _createPetugasIdentityMapIndexes();
         }
+        if (from < 11) {
+          await _createPetugasSyncStorage();
+        }
       });
     },
   );
@@ -369,6 +373,17 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_transaksis_uuid_unique '
       'ON transaksis (uuid)',
+    );
+  }
+
+  // Private sync journal tables: accessed with parameterized SQL only. They
+  // are deliberately independent of Petugas IDs and existing transaction FKs.
+  Future<void> _createPetugasSyncStorage() async {
+    await customStatement(
+      'CREATE TABLE petugas_sync_feed (id INTEGER PRIMARY KEY CHECK(id=1), scope TEXT NOT NULL, cursor INTEGER NOT NULL DEFAULT 0, blocked TEXT)',
+    );
+    await customStatement(
+      'CREATE TABLE petugas_sync_journal (local_uuid TEXT PRIMARY KEY REFERENCES petugas(uuid), row_version INTEGER, pending TEXT, snapshot TEXT)',
     );
   }
 

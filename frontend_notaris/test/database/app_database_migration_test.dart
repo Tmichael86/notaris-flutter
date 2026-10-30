@@ -19,6 +19,42 @@ void main() {
     }
   });
 
+  test('V10 to V11 preserves Petugas and transaction identities', () async {
+    final file = File('${tempDirectory.path}/sync_v10.sqlite');
+    final setup = AppDatabase(NativeDatabase(file));
+    await setup.customSelect('SELECT 1').get();
+    await setup.customStatement(
+      "INSERT INTO petugas(id,uuid,nama,email) VALUES(9,'stable-local','Legacy','legacy@example.com')",
+    );
+    await setup.customStatement(
+      "INSERT INTO transaksis(uuid,no_akta,total,petugas_id,petugas_uuid) VALUES('stable-tx','1000000000001',0,9,'stable-local')",
+    );
+    // Reconstruct the V10 checkpoint: only the new private journals are absent.
+    await setup.customStatement('DROP TABLE petugas_sync_journal');
+    await setup.customStatement('DROP TABLE petugas_sync_feed');
+    await setup.customStatement('PRAGMA user_version=10');
+    await setup.close();
+    final db = AppDatabase(NativeDatabase(file));
+    try {
+      final row = await db.select(db.petugasLocals).getSingle();
+      expect(row.id, 9);
+      expect(row.uuid, 'stable-local');
+      final tx = await db.select(db.transaksis).getSingle();
+      expect(tx.petugasId, 9);
+      expect(tx.petugasUuid, 'stable-local');
+      expect(
+        await db.customSelect('SELECT * FROM petugas_sync_journal').get(),
+        isEmpty,
+      );
+      expect(
+        await db.customSelect('SELECT * FROM petugas_sync_feed').get(),
+        isEmpty,
+      );
+    } finally {
+      await db.close();
+    }
+  });
+
   Future<File> createV6Fixture({required String filename}) async {
     final file = File('${tempDirectory.path}/$filename');
 
@@ -185,7 +221,7 @@ void main() {
       final version = await inspectionDb
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 10);
+      expect(version.read<int>('user_version'), 11);
     } finally {
       await inspectionDb.close();
     }
