@@ -185,3 +185,89 @@ a transparent rollback: identity/replay/feed recovery must be reconciled explici
 Remaining limits: shared authorization catalog is not multi-tenant isolation;
 retention/full-resync recovery and normal Petugas reference/UI/coordinator wiring
 remain pending. Source legacy details and source database are out of scope.
+
+## Rollout preflight follow-up — 31 October 2026
+
+Starting checkpoint d2dd0af, feature/pemohon-cloud-sync, clean working tree.
+The owner's rollout request still requires a separate approval AFTER a new
+maintenance backup has passed restore verification. That approval is not implied
+by the request to prepare the rollout.
+
+Read-only live preflight again verified the server-reported endpoint
+127.0.0.1:5432, database notarisdev, synthetic marker, Petugas IDs 101–104,
+zero missing gender/user references, active operator permissions and absent sync
+foundation. PostgreSQL remains 18.6. Table/database owner postgres is a separate,
+login-capable provisioning role; application role still has no schema CREATE.
+A passwordless, noninteractive provisioning connection failed authentication;
+administrator credentials must be supplied locally, never taken from ordinary
+.env or pasted into chat.
+
+The backend was initially listening on 8081 and the development Flutter executable
+was active. A later listener check found 8081 closed. Two DBeaver sessions to
+notarisdev initially remained open, then disconnected. The final checks found
+no 8081 listener, no development Flutter executable, and no other notarisdev
+sessions. No process/session was terminated by the agent; PostgreSQL stayed running.
+
+The preparation script now records actual endpoint/ownership, a schema fingerprint,
+target-session metadata, and transaction/payment fingerprints as well as the
+existing Petugas/detail fingerprints. It refuses -Backup while port 8081 is active
+or another target database session exists, and checks for schema/data/session
+changes after backup. Parser validation and actual live maintenance-refusal checks
+passed. These are detection checks, not a server-wide connection fence: keep
+writers/clients closed through the entire rollout and recheck before DDL.
+
+Latest read-only hashes (no data values exported):
+
+| Object | Fingerprint |
+| --- | --- |
+| Schema visible to application role | 9a1201485ec598806b5dba5334918b14 |
+| Four Petugas | eedb14e3f393d42ed3fbdc818a0728e1 |
+| Four development detail rows | 7f314987f2e49339875e92cdb79e74c8 |
+| Four development transactions | f4af66a193fab2e15c0e2f8bf012ec19 |
+| Development payments | e87baa817f065403bf0348df710e29cf |
+
+Fresh backup: `.local/petugas-migration-20261031-040507-fb7e27c8/` contains the
+custom archive, listing, SHA256 and current preflight report. All five development
+schema/data fingerprints above matched before/after backup AND after disposable
+integration testing. Backup checksum:
+`FE14A131067DAF488B86EB14948B94FD89569B452A12F69AF734E317B17D85D0`.
+
+Full restore into a NEW owned cluster 127.0.0.1:55442 succeeded. The three actual
+SQL phases and app grants, UUID-hardening repeat, first-install replay refusal,
+restricted-role legacy CRUD, authenticated HTTP sync, idempotency, 409/410,
+bootstrap retry and publication passed there. Go full suite: 40 passed, 1 skipped
+(internal/devfixture.TestSyntheticHTTP requires a different opt-in DSN), zero
+failures, exit 0. The four PostgreSQL concurrency cases repeated ten times passed,
+exit 0. Temporary cluster shutdown passed. Logs/data are retained at
+`C:/Users/Msi GF63/AppData/Local/Temp/notaris-petugas-readiness-3fea7a09b3fa41279fddabc1c3121202/`.
+
+The protected source notarislokal was contacted ONLY with an explicitly read-only
+catalog query using the development role (no normal .env fallback). It has 38
+tables and matching before/after catalog fingerprints
+`03b67625aae627db88a2d6b6406450b7`. This catalog-based algorithm differs from the
+application-visible information_schema hash above. Source Petugas/detail SELECT
+privileges are false: no source rows or historical details were read, exported,
+modified or relinked, and no source data-content checksum is claimed. Catalog
+before/after JSON and query are in the private new backup directory.
+
+Permanent target remains UNMIGRATED: no UUID/version/delete columns or sync tables.
+All migration/CRUD/bootstrap/publication results in the preceding paragraph are
+for the restored disposable target, NOT live development rollout results.
+
+The separate permanent-schema approval was requested AFTER the new backup/restore
+passed; no answer has been received at this checkpoint. Provisioning authentication
+must also be supplied locally before DDL. Keep clients off, recheck target/sessions
+and all backup fingerprints immediately before execution; if writes occurred,
+retake and verify the backup. Only after approval run the reviewed SQL phases/grants.
+Record each phase/grant outcome and source/target checks, never mark partial phases
+as overall success. No automatic restore is authorized; use the recovery procedure
+above. Never point disposable destructive integration tests at permanent notarisdev.
+Publisher and Flutter wiring remain OFF.
+
+Follow-up checks: PowerShell parser exit 0; live read-only preflight and expected
+maintenance backup refusal exit 0. Go test -json -count=1 ./... first exited 1
+inside the sandbox (TestPublicationEnvironmentConfiguration could not execute
+testing.Chdir: access denied). Repeating outside that filesystem restriction exited
+0: 24 passed, 17 skipped, zero failed. Integration opt-in DSNs were explicitly unset
+in those two initial attempts; the subsequent fresh restore run above actually
+executed the PostgreSQL cases. No Go or Flutter source changed.
