@@ -1,5 +1,11 @@
 # Petugas migration readiness — 31 October 2026
 
+**Current follow-up:** the permanent schema phases have since committed, but
+application grants remain missing. Do NOT rerun the first-install procedure below.
+See [grants-only recovery review](PETUGAS_GRANTS_ONLY_RECOVERY.md) for the observed
+state, explicit authorization boundary and tested recovery. This document retains
+the historical readiness/preflight evidence.
+
 Baseline 09a919d. Status: **technically ready for reviewed development rollout,
 NOT authorized/applied on permanent notarisdev in this checkpoint**. No UI, shell,
 Pemohon, transaction-sync or normal SyncCoordinator behavior changed.
@@ -271,3 +277,83 @@ testing.Chdir: access denied). Repeating outside that filesystem restriction exi
 0: 24 passed, 17 skipped, zero failed. Integration opt-in DSNs were explicitly unset
 in those two initial attempts; the subsequent fresh restore run above actually
 executed the PostgreSQL cases. No Go or Flutter source changed.
+
+## Explicit approval received; provisioning authentication gate
+
+The owner subsequently approved the three permanent notarisdev phases, limited
+app grants and post-migration checks. Approval is recorded in the conversation;
+do NOT request the same approval again. Constraints remain: only
+127.0.0.1:5432/notarisdev, preserve IDs/data, stop on failure, no automatic restore,
+publisher OFF, no Flutter/SyncCoordinator activation or push/merge. The owner
+confirmed closing backend/Flutter/DBeaver and requested local terminal password
+entry if the previous provisioning credentials were unavailable.
+
+Latest actual recheck after that approval: correct branch/9ee3ab5, clean tree;
+no backend listener, no development Flutter executable or other notarisdev session;
+all five development fingerprints still match the verified fresh backup above.
+No connection to notarislokal or any other database was made in this continuation.
+
+Original provisioning script used Get-Credential and restored its process
+environment; it did not persist the admin credential. Project provisioning
+artifacts, process PG environment, and standard APPDATA PostgreSQL pgpass/service
+locations did not contain a usable provisioning credential. Do not mine DBeaver's
+credential store, fall back to normal .env, elevate the app role, or change HBA.
+
+`scripts/migrate-notarisdev-petugas.ps1` is the local interactive entry point:
+
+```powershell
+# Ownership/authentication preflight only, no DDL:
+.\scripts\migrate-notarisdev-petugas.ps1 `
+  -BackupDirectory '.local\petugas-migration-20261031-040507-fb7e27c8'
+
+# Execute the ALREADY approved rollout, after successful authentication:
+.\scripts\migrate-notarisdev-petugas.ps1 -Apply `
+  -ConfirmTarget '127.0.0.1:5432/notarisdev' `
+  -BackupDirectory '.local\petugas-migration-20261031-040507-fb7e27c8'
+```
+
+Password input is hidden (Read-Host -AsSecureString), passed to child psql through
+the process environment, never a command-line password or stored credential file.
+The environment is restored in finally. Default provisioning username postgres
+is the observed existing table owner, NOT the application account. If a narrower
+provisioning login already exists, use -ProvisioningUser; required privileges are
+available table-owner rights and public schema CREATE, plus ownership/grant rights
+on the new objects. The launcher does not create/elevate roles or require
+CREATEDB/CREATEROLE. If privileges/authentication fail, stop before DDL. An operator
+using the existing postgres owner should recognize that it is an administrator,
+not claim that its cluster-wide privileges are least-privilege.
+
+The launcher verifies explicit private config/publisher OFF, archive checksum and
+all baseline fingerprints; rejects app DDL and active backend/target sessions;
+rechecks after password entry; then invokes the reviewed SQL. The SQL now runs a
+read-only anonymous target/owner/maintenance assertion BEFORE EACH phase and
+before grants. No new persistent function or schema object is added by the guard.
+psql's connected PORT is recorded once; the permanent launcher fixes it to 5432
+(the existing separate disposable harness uses 55442). Successful phase commits
+emit explicit markers. Grants form one transaction; schema phases retain their
+previous transaction boundaries. No schema/data migration algorithm was changed.
+
+Private `.local/petugas-rollout-*/history.json` records SQL SHA256s, archive/target,
+role names, psql exit status and per-phase commit markers. Failures remain failures
+even if earlier phases committed. Postflight compares original Petugas values
+excluding the three new columns, transaction/detail/payment hashes, IDs, UUID
+uniqueness/default/index, versions, empty journals/feed and initial counter. It
+authenticates as the app for actual SELECTs and checks each necessary/forbidden
+grant individually. No automatic replay, restore, bootstrap, publication or HTTP
+write test is hidden in this launcher.
+
+Checks executed before handing the terminal step to the operator:
+
+- PowerShell parser passed; wrong target refused before authentication.
+- Explicit application credential refused by the launcher.
+- Actual psql target guard rejected the app role in a read-only notarisdev session
+  (expected psql exit 3), BEFORE DDL. Preflight afterward confirmed no sync schema.
+- Go test -json -count=1 ./... exited 0: 24 passed, 17 opt-in tests skipped, no
+  failures. Integration DSNs deliberately unset to avoid connections while the
+  operator may run migration. This is not a new PostgreSQL success-path test.
+
+Permanent phase execution remains unconfirmed pending local provisioning password
+entry. Do not claim the new execution/postflight success path, live CRUD/bootstrap,
+UUID repeat or HTTP 409/410 were run on permanent notarisdev until receipts and
+direct verification prove it. No new source-data assertion is made here. Keep
+backend/clients/publisher OFF until migration outcome and postchecks are reviewed.
