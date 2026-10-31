@@ -73,9 +73,13 @@ void main() {
       ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
     await icons.load();
   });
-  for (final size in [const Size(1440, 900), const Size(980, 600)]) {
+  for (final size in [
+    const Size(1440, 900),
+    const Size(980, 600),
+    const Size(1920, 1080),
+  ]) {
     for (final entry in pages.entries) {
-      for (final count in [0, 21]) {
+      for (final count in [0, 20]) {
         testWidgets(
           '${entry.key} $size count=$count fills content and keeps pagination bounded',
           (tester) async {
@@ -90,6 +94,10 @@ void main() {
               ProviderScope(
                 overrides: [appDatabaseProvider.overrideWithValue(db)],
                 child: MaterialApp(
+                  theme: ThemeData(
+                    platform: TargetPlatform.windows,
+                    fontFamily: 'Roboto',
+                  ),
                   home: Scaffold(
                     body: Column(
                       children: [
@@ -135,6 +143,27 @@ void main() {
                 find.byType(MasterDataTableViewport),
               );
               expect(viewport.bottom, lessThan(size.height - 60));
+              final widget = tester.widget<MasterDataTableViewport>(
+                find.byType(MasterDataTableViewport),
+              );
+              final bars = tester.widgetList<Scrollbar>(
+                find.descendant(
+                  of: find.byType(MasterDataTableViewport),
+                  matching: find.byType(Scrollbar),
+                ),
+              );
+              expect(
+                bars
+                    .where((b) => b.controller == widget.verticalController)
+                    .length,
+                1,
+              );
+              expect(
+                bars
+                    .where((b) => b.controller == widget.horizontalController)
+                    .length,
+                1,
+              );
               final vertical = tester
                   .widget<MasterDataTableViewport>(
                     find.byType(MasterDataTableViewport),
@@ -188,9 +217,15 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [appDatabaseProvider.overrideWithValue(db)],
-        child: const RepaintBoundary(
+        child: RepaintBoundary(
           key: Key('capture'),
-          child: MaterialApp(home: AppShell()),
+          child: MaterialApp(
+            theme: ThemeData(
+              platform: TargetPlatform.windows,
+              fontFamily: 'Roboto',
+            ),
+            home: const AppShell(),
+          ),
         ),
       ),
     );

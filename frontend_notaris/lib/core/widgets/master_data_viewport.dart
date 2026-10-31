@@ -52,26 +52,38 @@ class MasterDataTableViewport extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, c) {
-      return Scrollbar(
-        controller: verticalController,
-        thumbVisibility: true,
-        notificationPredicate: (n) => n.metrics.axis == Axis.vertical,
+      // Desktop MaterialScrollBehavior otherwise adds another vertical bar to
+      // the inner Scrollable, sharing this very same controller. Limit this
+      // override to the table; preserve shell/app scrolling and drag devices.
+      return ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
         child: Scrollbar(
-          controller: horizontalController,
+          controller: verticalController,
+          scrollbarOrientation: ScrollbarOrientation.right,
+          interactive: true,
           thumbVisibility: true,
-          notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
-          child: Padding(
-            padding: const EdgeInsets.only(right: 12, bottom: 12),
-            child: SingleChildScrollView(
-              controller: horizontalController,
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minWidth: (c.maxWidth - 12).clamp(0, double.infinity),
-                ),
-                child: SingleChildScrollView(
-                  controller: verticalController,
-                  child: child,
+          notificationPredicate: (n) => n.metrics.axis == Axis.vertical,
+          child: Scrollbar(
+            controller: horizontalController,
+            scrollbarOrientation: ScrollbarOrientation.bottom,
+            interactive: true,
+            thumbVisibility: true,
+            notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 12, bottom: 12),
+              child: SingleChildScrollView(
+                controller: horizontalController,
+                primary: false,
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth: (c.maxWidth - 12).clamp(0, double.infinity),
+                  ),
+                  child: SingleChildScrollView(
+                    controller: verticalController,
+                    primary: false,
+                    child: child,
+                  ),
                 ),
               ),
             ),
