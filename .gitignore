@@ -12,6 +12,10 @@ backend-notaris-go/.air/
 
 # Environment
 backend-notaris-go/.env
+backend-notaris-go/.env.notarisdev
+.local/
+*.dump
+*.backup
 
 # IDE / OS
 .vscode/

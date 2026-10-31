@@ -18,8 +18,7 @@ class JenisKelamins extends Table {
   DateTimeColumn get updatedAt => dateTime().nullable()();
   IntColumn get status => integer().withDefault(const Constant(1))();
 
-  BoolColumn get isSyncDirty =>
-      boolean().withDefault(const Constant(true))();
+  BoolColumn get isSyncDirty => boolean().withDefault(const Constant(true))();
   DateTimeColumn get lastSyncedAt => dateTime().nullable()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
 }
@@ -38,8 +37,7 @@ class PekerjaanKategoris extends Table {
   DateTimeColumn get updatedAt => dateTime().nullable()();
   IntColumn get status => integer().withDefault(const Constant(1))();
 
-  BoolColumn get isSyncDirty =>
-      boolean().withDefault(const Constant(true))();
+  BoolColumn get isSyncDirty => boolean().withDefault(const Constant(true))();
   DateTimeColumn get lastSyncedAt => dateTime().nullable()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
 }
@@ -59,8 +57,7 @@ class PengeluaranJenis extends Table {
   DateTimeColumn get updatedAt => dateTime().nullable()();
   IntColumn get status => integer().withDefault(const Constant(1))();
 
-  BoolColumn get isSyncDirty =>
-      boolean().withDefault(const Constant(true))();
+  BoolColumn get isSyncDirty => boolean().withDefault(const Constant(true))();
   DateTimeColumn get lastSyncedAt => dateTime().nullable()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
 }
@@ -89,9 +86,40 @@ class PetugasLocals extends Table {
   DateTimeColumn get updatedAt => dateTime().nullable()();
   IntColumn get status => integer().withDefault(const Constant(1))();
 
-  BoolColumn get isSyncDirty =>
-      boolean().withDefault(const Constant(true))();
+  BoolColumn get isSyncDirty => boolean().withDefault(const Constant(true))();
   DateTimeColumn get lastSyncedAt => dateTime().nullable()();
   DateTimeColumn get deletedAt => dateTime().nullable()();
 }
 
+/// Reconciliation metadata for a local Petugas identity.
+///
+/// `localUuid` is deliberately the primary key. It is immutable local
+/// identity and may already be referenced by local transaction snapshots.
+/// Cloud identity is stored separately so an explicit reconciliation never
+/// rewrites local IDs, local UUIDs, or transaction references.
+class PetugasIdentityMaps extends Table {
+  @override
+  String get tableName => 'petugas_identity_map';
+
+  TextColumn get localUuid => text().references(PetugasLocals, #uuid)();
+  TextColumn get cloudUuid => text().nullable()();
+  IntColumn get serverId => integer().nullable()();
+  TextColumn get state => text().customConstraint(
+    "NOT NULL CHECK (state IN ('local_only', 'verified', 'ambiguous', "
+    "'server_only', 'development'))",
+  )();
+  TextColumn get evidence => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {localUuid};
+
+  @override
+  List<String> get customConstraints => const [
+    "CHECK ((state IN ('verified', 'server_only') "
+        'AND cloud_uuid IS NOT NULL AND server_id IS NOT NULL) '
+        "OR (state IN ('local_only', 'ambiguous', 'development') "
+        'AND cloud_uuid IS NULL AND server_id IS NULL))',
+  ];
+}

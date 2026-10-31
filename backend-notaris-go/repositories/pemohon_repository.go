@@ -62,6 +62,13 @@ func (r *PemohonRepository) FindActiveByID(ctx context.Context, id uint64) (*mod
 	return &item, nil
 }
 
+func (r *PemohonRepository) FindJenisKelaminIDByName(ctx context.Context, name string) (int, error) {
+	var id int
+	err := r.db.WithContext(ctx).Table("jenis_kelamin").Select("id").
+		Where("LOWER(TRIM(nama)) = LOWER(TRIM(?)) AND status = ?", name, 1).Take(&id).Error
+	return id, err
+}
+
 func (r *PemohonRepository) JenisKelaminExists(ctx context.Context, id int) (bool, error) {
 	var count int64
 	err := r.db.WithContext(ctx).Table("jenis_kelamin").Where("id = ?", id).Count(&count).Error

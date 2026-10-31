@@ -197,6 +197,7 @@ class TransaksiRiwayatPembayarans extends Table {
     PekerjaanKategoris,
     PengeluaranJenis,
     PetugasLocals,
+    PetugasIdentityMaps,
     PekerjaanNotarisLocals,
     PekerjaanNotarisHargaLocals,
     PekerjaanNotarisProsesLocals,
@@ -214,7 +215,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -222,6 +223,10 @@ class AppDatabase extends _$AppDatabase {
       await m.createAll();
       await _createUuidUniqueIndexes();
       await _createTransactionNumberUniqueIndex();
+      await _createPetugasIdentityMapIndexes();
+      await _createPetugasSyncStorage();
+      await _createPetugasReferenceStorage();
+      await _createPetugasConflictStorage();
     },
     onUpgrade: (Migrator m, int from, int to) async {
       // Keep all pending migration steps atomic. If V8 UUID validation fails,
@@ -283,9 +288,12 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(transaksiProses);
           await m.createTable(transaksiProsesRiwayat);
 
-          final legacyDetails = await (select(transaksiDetails)..where(
-            (detail) => detail.deletedAt.isNull() & detail.status.equals(1),
-          )).get();
+          final legacyDetails =
+              await (select(transaksiDetails)..where(
+                    (detail) =>
+                        detail.deletedAt.isNull() & detail.status.equals(1),
+                  ))
+                  .get();
           const uuidGenerator = Uuid();
 
           for (final detail in legacyDetails) {
@@ -344,6 +352,23 @@ class AppDatabase extends _$AppDatabase {
           await _validateTransactionNumbersForUniqueIndex();
           await _createTransactionNumberUniqueIndex();
         }
+
+        if (from < 10) {
+          // This table only adds reconciliation metadata. Existing Petugas
+          // rows, local UUIDs, local IDs, and transaction references stay
+          // untouched until an explicit reconciliation decision is recorded.
+          await m.createTable(petugasIdentityMaps);
+          await _createPetugasIdentityMapIndexes();
+        }
+        if (from < 11) {
+          await _createPetugasSyncStorage();
+        }
+        if (from < 12) {
+          await _createPetugasReferenceStorage();
+        }
+        if (from < 13) {
+          await _createPetugasConflictStorage();
+        }
       });
     },
   );
@@ -356,6 +381,56 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_transaksis_uuid_unique '
       'ON transaksis (uuid)',
+    );
+  }
+
+  // Private sync journal tables: accessed with parameterized SQL only. They
+  // are deliberately independent of Petugas IDs and existing transaction FKs.
+  Future<void> _createPetugasSyncStorage() async {
+    await customStatement(
+      'CREATE TABLE petugas_sync_feed (id INTEGER PRIMARY KEY CHECK(id=1), scope TEXT NOT NULL, cursor INTEGER NOT NULL DEFAULT 0, blocked TEXT)',
+    );
+    await customStatement(
+      'CREATE TABLE petugas_sync_journal (local_uuid TEXT PRIMARY KEY REFERENCES petugas(uuid), row_version INTEGER, pending TEXT, snapshot TEXT)',
+    );
+  }
+
+  Future<void> _createPetugasReferenceStorage() async {
+    await customStatement(
+      "CREATE TABLE petugas_gender_reference (scope TEXT NOT NULL,local_uuid TEXT NOT NULL REFERENCES jenis_kelamin(uuid),server_id INTEGER CHECK(server_id>0),state TEXT NOT NULL CHECK(state IN ('verified','ambiguous')),evidence TEXT NOT NULL,PRIMARY KEY(scope,local_uuid),CHECK((state='verified' AND server_id IS NOT NULL) OR (state='ambiguous' AND server_id IS NULL)))",
+    );
+    await customStatement(
+      "CREATE UNIQUE INDEX petugas_gender_server_unique ON petugas_gender_reference(scope,server_id) WHERE state='verified'",
+    );
+    await customStatement(
+      'CREATE TABLE petugas_user_reference (scope TEXT NOT NULL,server_id INTEGER NOT NULL CHECK(server_id>0),evidence TEXT NOT NULL,PRIMARY KEY(scope,server_id))',
+    );
+  }
+
+  Future<void> _createPetugasConflictStorage() async {
+    await customStatement(
+      "CREATE TABLE petugas_sync_conflict (scope TEXT NOT NULL,mutation_id TEXT NOT NULL,local_uuid TEXT NOT NULL REFERENCES petugas(uuid),mutation TEXT NOT NULL,local_snapshot TEXT NOT NULL,observed_local TEXT NOT NULL,response TEXT NOT NULL,base_version INTEGER,state TEXT NOT NULL CHECK(state IN ('open','held','resolved_local','resolved_server')),note TEXT,updated_at TEXT NOT NULL,PRIMARY KEY(scope,mutation_id))",
+    );
+    await customStatement(
+      "CREATE UNIQUE INDEX petugas_conflict_unresolved ON petugas_sync_conflict(scope,local_uuid) WHERE state IN ('open','held')",
+    );
+  }
+
+  Future<void> _createPetugasIdentityMapIndexes() async {
+    // A cloud identity can be actively mapped to only one local identity.
+    // SQLite allows multiple NULLs here, so local-only/ambiguous/development
+    // rows remain representable without inventing a cloud UUID.
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS '
+      'idx_petugas_identity_map_active_cloud_uuid '
+      'ON petugas_identity_map (cloud_uuid) '
+      "WHERE cloud_uuid IS NOT NULL AND state IN ('verified', 'server_only')",
+    );
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS '
+      'idx_petugas_identity_map_active_server_id '
+      'ON petugas_identity_map (server_id) '
+      "WHERE server_id IS NOT NULL AND state IN ('verified', 'server_only')",
     );
   }
 

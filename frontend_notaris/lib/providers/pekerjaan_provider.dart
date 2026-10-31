@@ -14,7 +14,13 @@ import '../database/app_database.dart';
 import '../repositories/pekerjaan_repository.dart';
 import '../repositories/pekerjaan_kategori_repository.dart';
 import '../repositories/pengeluaran_jenis_repository.dart';
+import '../repositories/people_repository.dart';
+
+import 'package:flutter/foundation.dart';
+
 import 'database_provider.dart';
+import 'app_providers.dart' show pemohonGenderReferencesProvider;
+import '../repositories/pemohon_gender_references.dart';
 
 final pekerjaanNotarisRepositoryProvider = Provider<PekerjaanNotarisRepository>(
   (ref) {
@@ -115,6 +121,13 @@ class SyncCoordinator {
 
   static SyncFailure mapSyncFailure(Object error) {
     if (error is SyncFailure) return error;
+    if (error is PemohonReferenceBlocked) {
+      return SyncFailure(
+        SyncFailureKind.validation,
+        'blocked_reference: referensi jenis kelamin Pemohon belum tervalidasi. Periksa manifest development dan akses katalog; data lokal tetap tersimpan.',
+        cause: error,
+      );
+    }
 
     if (error is DioException) {
       if (error.type == DioExceptionType.connectionError) {
@@ -194,14 +207,34 @@ final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
       final pengeluaranApi = ref.read(jenisPengeluaranApiServiceProvider);
 
       // Push local changes first, then pull the authoritative cloud snapshot.
+      debugPrint('[SYNC] Mulai sync kategori pekerjaan');
       await kategoriRepository.syncToCloud(kategoriApi);
+      debugPrint('[SYNC] Mulai sync jenis pengeluaran');
       await pengeluaranRepository.syncToCloud(pengeluaranApi);
 
+      final pemohonRepository = PemohonRepository(
+        ref.read(appDatabaseProvider),
+        genderReferences: ref.read(pemohonGenderReferencesProvider),
+      );
+      final pemohonApi = ref.read(pemohonApiServiceProvider);
+      debugPrint('[SYNC] Mulai push Pemohon');
+      await pemohonRepository.syncToCloud(pemohonApi);
+
+      debugPrint('[SYNC] Mulai pull kategori pekerjaan');
       final remoteKategori = await kategoriApi.getAllPages();
       await kategoriRepository.syncFromCloud(remoteKategori);
 
+      debugPrint('[SYNC] Mulai pull jenis pengeluaran');
       final remotePengeluaran = await pengeluaranApi.getAllPages();
       await pengeluaranRepository.syncFromCloud(remotePengeluaran);
+
+      debugPrint('[SYNC] Mulai pull Pemohon');
+      final remotePemohon = await pemohonApi.getAllPages();
+      debugPrint('[SYNC] Pemohon berhasil diambil: ${remotePemohon.length}');
+      debugPrint('[SYNC] Mulai simpan Pemohon ke SQLite');
+      await pemohonRepository.syncFromCloud(remotePemohon);
+
+      debugPrint('[SYNC] Pemohon berhasil disimpan ke SQLite');
     },
     onStatusChanged: (status) {
       ref.read(syncStatusProvider.notifier).state = status;

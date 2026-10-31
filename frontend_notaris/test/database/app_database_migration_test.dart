@@ -19,6 +19,146 @@ void main() {
     }
   });
 
+  test('V10 to V11 preserves Petugas and transaction identities', () async {
+    final file = File('${tempDirectory.path}/sync_v10.sqlite');
+    final setup = AppDatabase(NativeDatabase(file));
+    await setup.customSelect('SELECT 1').get();
+    await setup.customStatement(
+      "INSERT INTO petugas(id,uuid,nama,email) VALUES(9,'stable-local','Legacy','legacy@example.com')",
+    );
+    await setup.customStatement(
+      "INSERT INTO transaksis(uuid,no_akta,total,petugas_id,petugas_uuid) VALUES('stable-tx','1000000000001',0,9,'stable-local')",
+    );
+    // Reconstruct the V10 checkpoint: only the new private journals are absent.
+    await setup.customStatement('DROP TABLE petugas_sync_journal');
+    await setup.customStatement('DROP TABLE petugas_sync_feed');
+    await setup.customStatement('DROP TABLE petugas_gender_reference');
+    await setup.customStatement('DROP TABLE petugas_user_reference');
+    await setup.customStatement('DROP TABLE petugas_sync_conflict');
+    await setup.customStatement('PRAGMA user_version=10');
+    await setup.close();
+    final db = AppDatabase(NativeDatabase(file));
+    try {
+      final row = await db.select(db.petugasLocals).getSingle();
+      expect(row.id, 9);
+      expect(row.uuid, 'stable-local');
+      final tx = await db.select(db.transaksis).getSingle();
+      expect(tx.petugasId, 9);
+      expect(tx.petugasUuid, 'stable-local');
+      expect(
+        await db.customSelect('SELECT * FROM petugas_sync_journal').get(),
+        isEmpty,
+      );
+      expect(
+        await db.customSelect('SELECT * FROM petugas_sync_feed').get(),
+        isEmpty,
+      );
+    } finally {
+      await db.close();
+    }
+  });
+
+  test('V11 to V12 preserves pending mutation, version and cursor', () async {
+    final file = File('${tempDirectory.path}/references_v11.sqlite');
+    final setup = AppDatabase(NativeDatabase(file));
+    await setup.customStatement(
+      "INSERT INTO petugas(id,uuid,nama,email) VALUES(41,'legacy-ref','Keep','keep@example.com')",
+    );
+    await setup.customStatement(
+      "INSERT INTO petugas_sync_feed(id,scope,cursor) VALUES(1,'deployment/account',42)",
+    );
+    await setup.customStatement(
+      "INSERT INTO petugas_sync_journal(local_uuid,row_version,pending,snapshot) VALUES('legacy-ref',7,'persisted-mutation','persisted-snapshot')",
+    );
+    await setup.customStatement('DROP TABLE petugas_gender_reference');
+    await setup.customStatement('DROP TABLE petugas_user_reference');
+    await setup.customStatement('DROP TABLE petugas_sync_conflict');
+    await setup.customStatement('PRAGMA user_version=11');
+    await setup.close();
+    final db = AppDatabase(NativeDatabase(file));
+    try {
+      final row = await db.select(db.petugasLocals).getSingle();
+      expect(row.id, 41);
+      expect(row.uuid, 'legacy-ref');
+      final journal = await db
+          .customSelect('SELECT * FROM petugas_sync_journal')
+          .getSingle();
+      expect(journal.read<String>('pending'), 'persisted-mutation');
+      expect(journal.read<int>('row_version'), 7);
+      expect(
+        (await db
+                .customSelect('SELECT cursor FROM petugas_sync_feed')
+                .getSingle())
+            .read<int>('cursor'),
+        42,
+      );
+      expect(
+        await db.customSelect('SELECT * FROM petugas_gender_reference').get(),
+        isEmpty,
+      );
+      expect(
+        await db.customSelect('SELECT * FROM petugas_user_reference').get(),
+        isEmpty,
+      );
+    } finally {
+      await db.close();
+    }
+  });
+
+  test(
+    'V12 to V13 preserves pending work, reference provenance and cursor',
+    () async {
+      final file = File('${tempDirectory.path}/conflict_v12.sqlite');
+      final setup = AppDatabase(NativeDatabase(file));
+      await setup.customStatement(
+        "INSERT INTO petugas(id,uuid,nama,email) VALUES(55,'conflict-local','Legacy','legacy@example.com')",
+      );
+      await setup.customStatement(
+        "INSERT INTO petugas_sync_feed(id,scope,cursor) VALUES(1,'deployment/account',42)",
+      );
+      await setup.customStatement(
+        "INSERT INTO petugas_sync_journal(local_uuid,row_version,pending,snapshot) VALUES('conflict-local',8,'unchanged-pending','unchanged-snapshot')",
+      );
+      await setup.customStatement(
+        "INSERT INTO petugas_user_reference(scope,server_id,evidence) VALUES('deployment/account',20,'authenticated selection')",
+      );
+      await setup.customStatement('DROP TABLE petugas_sync_conflict');
+      await setup.customStatement('PRAGMA user_version=12');
+      await setup.close();
+      final db = AppDatabase(NativeDatabase(file));
+      try {
+        final row = await db.select(db.petugasLocals).getSingle();
+        expect(row.id, 55);
+        expect(row.uuid, 'conflict-local');
+        final journal = await db
+            .customSelect('SELECT * FROM petugas_sync_journal')
+            .getSingle();
+        expect(journal.read<String>('pending'), 'unchanged-pending');
+        expect(journal.read<int>('row_version'), 8);
+        expect(
+          (await db
+                  .customSelect('SELECT cursor FROM petugas_sync_feed')
+                  .getSingle())
+              .read<int>('cursor'),
+          42,
+        );
+        expect(
+          (await db
+                  .customSelect('SELECT server_id FROM petugas_user_reference')
+                  .getSingle())
+              .read<int>('server_id'),
+          20,
+        );
+        expect(
+          await db.customSelect('SELECT * FROM petugas_sync_conflict').get(),
+          isEmpty,
+        );
+      } finally {
+        await db.close();
+      }
+    },
+  );
+
   Future<File> createV6Fixture({required String filename}) async {
     final file = File('${tempDirectory.path}/$filename');
 
@@ -124,7 +264,7 @@ void main() {
     return file;
   }
 
-  test('V6 to V9 backfills processes and creates UUID and transaction-number indexes', () async {
+  test('V6 to V10 backfills processes and creates UUID and transaction-number indexes', () async {
     final file = await createV6Fixture(filename: 'valid_v6.sqlite');
     final db = AppDatabase(NativeDatabase(file));
 
@@ -132,19 +272,19 @@ void main() {
       final processes = await db.select(db.transaksiProses).get();
 
       expect(processes, hasLength(2));
+      expect(processes.map((process) => process.sourceProcessId).toSet(), {
+        'process-1',
+        '22',
+      });
+      expect(processes.map((process) => process.namaProsesSnapshot).toSet(), {
+        'Pemeriksaan dokumen',
+        'Penandatanganan',
+      });
       expect(
-        processes.map((process) => process.sourceProcessId).toSet(),
-        {'process-1', '22'},
-      );
-      expect(
-        processes.map((process) => process.namaProsesSnapshot).toSet(),
-        {'Pemeriksaan dokumen', 'Penandatanganan'},
-      );
-      expect(processes.every((process) => process.statusProses == null), isTrue);
-      expect(
-        processes.every((process) => process.legacyData != null),
+        processes.every((process) => process.statusProses == null),
         isTrue,
       );
+      expect(processes.every((process) => process.legacyData != null), isTrue);
       expect(processes.map((process) => process.uuid).toSet(), hasLength(2));
 
       final uuidIndexes = await db.customSelect('''
@@ -152,10 +292,11 @@ void main() {
         WHERE type = 'index'
           AND name IN ('idx_pemohons_uuid_unique', 'idx_transaksis_uuid_unique', 'idx_transaksis_no_akta_unique')
       ''').get();
-      expect(
-        uuidIndexes.map((row) => row.read<String>('name')).toSet(),
-        {'idx_pemohons_uuid_unique', 'idx_transaksis_uuid_unique', 'idx_transaksis_no_akta_unique'},
-      );
+      expect(uuidIndexes.map((row) => row.read<String>('name')).toSet(), {
+        'idx_pemohons_uuid_unique',
+        'idx_transaksis_uuid_unique',
+        'idx_transaksis_no_akta_unique',
+      });
 
       final details = await db.select(db.transaksiDetails).get();
       final snapshots = {
@@ -181,15 +322,14 @@ void main() {
       NativeDatabase(file, enableMigrations: false),
     );
     try {
-      final version = await inspectionDb.customSelect(
-        'PRAGMA user_version',
-      ).getSingle();
-      expect(version.read<int>('user_version'), 9);
+      final version = await inspectionDb
+          .customSelect('PRAGMA user_version')
+          .getSingle();
+      expect(version.read<int>('user_version'), 13);
     } finally {
       await inspectionDb.close();
     }
   });
-
 
   Future<File> createV7Fixture({
     required String filename,
@@ -224,7 +364,11 @@ void main() {
           );
           if (duplicateTable != null) {
             database.execute(
-              "INSERT INTO $duplicateTable (uuid) VALUES ('${blankUuid ? '' : duplicateTable == 'pemohons' ? 'pemohon-1' : 'transaksi-1'}')",
+              "INSERT INTO $duplicateTable (uuid) VALUES ('${blankUuid
+                  ? ''
+                  : duplicateTable == 'pemohons'
+                  ? 'pemohon-1'
+                  : 'transaksi-1'}')",
             );
           }
           database.execute('PRAGMA user_version = 7');
@@ -247,7 +391,9 @@ void main() {
         throwsA(anything),
       );
       await expectLater(
-        db.customStatement("INSERT INTO transaksis (uuid) VALUES ('transaksi-1')"),
+        db.customStatement(
+          "INSERT INTO transaksis (uuid) VALUES ('transaksi-1')",
+        ),
         throwsA(anything),
       );
     } finally {
@@ -256,37 +402,37 @@ void main() {
   });
 
   for (final table in ['pemohons', 'transaksis']) {
-    test('V7 to V8 rejects duplicate UUIDs in $table without partial migration', () async {
-      final file = await createV7Fixture(
-        filename: 'duplicate_$table.sqlite',
-        duplicateTable: table,
-      );
-      final db = AppDatabase(NativeDatabase(file));
-      await expectLater(
-        db.customSelect('SELECT 1').get(),
-        throwsA(anything),
-      );
-      await db.close();
+    test(
+      'V7 to V8 rejects duplicate UUIDs in $table without partial migration',
+      () async {
+        final file = await createV7Fixture(
+          filename: 'duplicate_$table.sqlite',
+          duplicateTable: table,
+        );
+        final db = AppDatabase(NativeDatabase(file));
+        await expectLater(db.customSelect('SELECT 1').get(), throwsA(anything));
+        await db.close();
 
-      final inspectionDb = AppDatabase(
-        NativeDatabase(file, enableMigrations: false),
-      );
-      try {
-        final version = await inspectionDb.customSelect(
-          'PRAGMA user_version',
-        ).getSingle();
-        expect(version.read<int>('user_version'), 7);
+        final inspectionDb = AppDatabase(
+          NativeDatabase(file, enableMigrations: false),
+        );
+        try {
+          final version = await inspectionDb
+              .customSelect('PRAGMA user_version')
+              .getSingle();
+          expect(version.read<int>('user_version'), 7);
 
-        final indexes = await inspectionDb.customSelect('''
+          final indexes = await inspectionDb.customSelect('''
           SELECT name FROM sqlite_master
           WHERE type = 'index'
             AND name IN ('idx_pemohons_uuid_unique', 'idx_transaksis_uuid_unique')
         ''').get();
-        expect(indexes, isEmpty);
-      } finally {
-        await inspectionDb.close();
-      }
-    });
+          expect(indexes, isEmpty);
+        } finally {
+          await inspectionDb.close();
+        }
+      },
+    );
   }
 
   test('V7 upgrade rejects blank UUIDs without partial migration', () async {
@@ -303,29 +449,33 @@ void main() {
       NativeDatabase(file, enableMigrations: false),
     );
     try {
-      final version = await inspectionDb.customSelect(
-        'PRAGMA user_version',
-      ).getSingle();
+      final version = await inspectionDb
+          .customSelect('PRAGMA user_version')
+          .getSingle();
       expect(version.read<int>('user_version'), 7);
     } finally {
       await inspectionDb.close();
     }
   });
 
-  test('V8 to V9 rejects duplicate transaction numbers without partial migration', () async {
-    final file = File('${tempDirectory.path}/duplicate_transaction_numbers_v8.sqlite');
-    final setupDb = AppDatabase(
-      NativeDatabase(
-        file,
-        enableMigrations: false,
-        setup: (database) {
-          database.execute('''
+  test(
+    'V8 to V9 rejects duplicate transaction numbers without partial migration',
+    () async {
+      final file = File(
+        '${tempDirectory.path}/duplicate_transaction_numbers_v8.sqlite',
+      );
+      final setupDb = AppDatabase(
+        NativeDatabase(
+          file,
+          enableMigrations: false,
+          setup: (database) {
+            database.execute('''
             CREATE TABLE pemohons (
               id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
               uuid TEXT NOT NULL
             )
           ''');
-          database.execute('''
+            database.execute('''
             CREATE TABLE transaksis (
               id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
               uuid TEXT NOT NULL,
@@ -333,9 +483,78 @@ void main() {
               total REAL NOT NULL
             )
           ''');
-          database.execute("INSERT INTO transaksis (uuid, no_akta, total) VALUES ('tx-1', '1001410260001', 0)");
-          database.execute("INSERT INTO transaksis (uuid, no_akta, total) VALUES ('tx-2', ' 1001410260001 ', 0)");
-          database.execute('PRAGMA user_version = 8');
+            database.execute(
+              "INSERT INTO transaksis (uuid, no_akta, total) VALUES ('tx-1', '1001410260001', 0)",
+            );
+            database.execute(
+              "INSERT INTO transaksis (uuid, no_akta, total) VALUES ('tx-2', ' 1001410260001 ', 0)",
+            );
+            database.execute('PRAGMA user_version = 8');
+          },
+        ),
+      );
+      await setupDb.customSelect('SELECT 1').get();
+      await setupDb.close();
+
+      final db = AppDatabase(NativeDatabase(file));
+      await expectLater(db.customSelect('SELECT 1').get(), throwsA(anything));
+      await db.close();
+
+      final inspectionDb = AppDatabase(
+        NativeDatabase(file, enableMigrations: false),
+      );
+      try {
+        final version = await inspectionDb
+            .customSelect('PRAGMA user_version')
+            .getSingle();
+        expect(version.read<int>('user_version'), 8);
+        final rows = await inspectionDb
+            .customSelect('SELECT id, no_akta FROM transaksis ORDER BY id')
+            .get();
+        expect(rows, hasLength(2));
+        final indexes = await inspectionDb
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_transaksis_no_akta_unique'",
+            )
+            .get();
+        expect(indexes, isEmpty);
+      } finally {
+        await inspectionDb.close();
+      }
+    },
+  );
+
+  test('V9 to V10 adds identity mapping without changing Petugas identities or transaction references', () async {
+    final file = File('${tempDirectory.path}/petugas_identity_v9.sqlite');
+    final setupDb = AppDatabase(
+      NativeDatabase(
+        file,
+        enableMigrations: false,
+        setup: (database) {
+          database.execute('''
+            CREATE TABLE petugas (
+              id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              uuid TEXT NOT NULL UNIQUE
+            )
+          ''');
+          database.execute('''
+            CREATE TABLE transaksis (
+              id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+              petugas_id INTEGER,
+              petugas_uuid TEXT
+            )
+          ''');
+          database.execute(
+            "INSERT INTO petugas (id, uuid) VALUES (7, 'local-petugas-uuid')",
+          );
+          database.execute(
+            "INSERT INTO petugas (id, uuid) VALUES (8, 'second-local-petugas-uuid')",
+          );
+          database.execute('''
+            INSERT INTO transaksis (id, petugas_id, petugas_uuid)
+            VALUES (11, 7, 'local-petugas-uuid')
+          ''');
+          database.execute('PRAGMA user_version = 9');
         },
       ),
     );
@@ -343,37 +562,84 @@ void main() {
     await setupDb.close();
 
     final db = AppDatabase(NativeDatabase(file));
-    await expectLater(db.customSelect('SELECT 1').get(), throwsA(anything));
-    await db.close();
-
-    final inspectionDb = AppDatabase(
-      NativeDatabase(file, enableMigrations: false),
-    );
     try {
-      final version = await inspectionDb.customSelect('PRAGMA user_version').getSingle();
-      expect(version.read<int>('user_version'), 8);
-      final rows = await inspectionDb.customSelect('SELECT id, no_akta FROM transaksis ORDER BY id').get();
-      expect(rows, hasLength(2));
-      final indexes = await inspectionDb.customSelect(
-        "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_transaksis_no_akta_unique'",
-      ).get();
-      expect(indexes, isEmpty);
+      await db.customSelect('SELECT 1').get();
+
+      final petugas = await db
+          .customSelect('SELECT id, uuid FROM petugas WHERE id = 7')
+          .getSingle();
+      expect(petugas.read<int>('id'), 7);
+      expect(petugas.read<String>('uuid'), 'local-petugas-uuid');
+
+      final transaction = await db
+          .customSelect(
+            'SELECT petugas_id, petugas_uuid FROM transaksis WHERE id = 11',
+          )
+          .getSingle();
+      expect(transaction.read<int>('petugas_id'), 7);
+      expect(transaction.read<String>('petugas_uuid'), 'local-petugas-uuid');
+
+      final mappingTable = await db.customSelect('''
+        SELECT name FROM sqlite_master
+        WHERE type = 'table' AND name = 'petugas_identity_map'
+      ''').get();
+      expect(mappingTable, hasLength(1));
+
+      final mappings = await db
+          .customSelect('SELECT * FROM petugas_identity_map')
+          .get();
+      expect(mappings, isEmpty);
+
+      final indexes = await db.customSelect('''
+        SELECT name FROM sqlite_master
+        WHERE type = 'index' AND name IN (
+          'idx_petugas_identity_map_active_cloud_uuid',
+          'idx_petugas_identity_map_active_server_id'
+        )
+      ''').get();
+      expect(indexes.map((row) => row.read<String>('name')).toSet(), {
+        'idx_petugas_identity_map_active_cloud_uuid',
+        'idx_petugas_identity_map_active_server_id',
+      });
+
+      await db.customStatement('''
+        INSERT INTO petugas_identity_map
+          (local_uuid, cloud_uuid, server_id, state, created_at, updated_at)
+        VALUES
+          ('local-petugas-uuid', 'cloud-petugas-uuid', 101, 'verified', 0, 0)
+      ''');
+      await expectLater(
+        db.customStatement('''
+          INSERT INTO petugas_identity_map
+            (local_uuid, cloud_uuid, server_id, state, created_at, updated_at)
+          VALUES
+            ('second-local-petugas-uuid', 'cloud-petugas-uuid', 102, 'verified', 0, 0)
+        '''),
+        throwsA(anything),
+      );
+      await expectLater(
+        db.customStatement('''
+          INSERT INTO petugas_identity_map
+            (local_uuid, cloud_uuid, server_id, state, created_at, updated_at)
+          VALUES
+            ('second-local-petugas-uuid', 'another-cloud-petugas-uuid', 101, 'verified', 0, 0)
+        '''),
+        throwsA(anything),
+      );
     } finally {
-      await inspectionDb.close();
+      await db.close();
     }
   });
 
-  test(
-    'failed V6 to V7 migration rolls back V7 DDL and keeps the old version',
-    () async {
-      // This deliberately damaged V6 fixture omits deleted_at. The migration
-      // creates the two V7 tables, then fails when its backfill query references
-      // the missing legacy column. This is a diagnostic test for atomicity.
-      final file = File('${tempDirectory.path}/broken_v6.sqlite');
-      final executor = NativeDatabase(
-        file,
-        setup: (database) {
-          database.execute('''
+  test('failed V6 to V7 migration rolls back V7 DDL and keeps the old version', () async {
+    // This deliberately damaged V6 fixture omits deleted_at. The migration
+    // creates the two V7 tables, then fails when its backfill query references
+    // the missing legacy column. This is a diagnostic test for atomicity.
+    final file = File('${tempDirectory.path}/broken_v6.sqlite');
+    final executor = NativeDatabase(
+      file,
+      setup: (database) {
+        database.execute('''
             CREATE TABLE transaksis (
               id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
               uuid TEXT NOT NULL,
@@ -381,7 +647,7 @@ void main() {
               total REAL NOT NULL
             )
           ''');
-          database.execute('''
+        database.execute('''
             CREATE TABLE transaksi_details (
               id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
               uuid TEXT NOT NULL UNIQUE,
@@ -394,40 +660,36 @@ void main() {
               updated_at INTEGER
             )
           ''');
-          database.execute('PRAGMA user_version = 6');
-        },
-      );
+        database.execute('PRAGMA user_version = 6');
+      },
+    );
 
-      final db = AppDatabase(executor);
-      await expectLater(
-        db.customSelect('SELECT 1').get(),
-        throwsA(anything),
-      );
-      await db.close();
+    final db = AppDatabase(executor);
+    await expectLater(db.customSelect('SELECT 1').get(), throwsA(anything));
+    await db.close();
 
-      final inspectionDb = AppDatabase(
-        NativeDatabase(file, enableMigrations: false),
-      );
-      try {
-        final version = await inspectionDb.customSelect(
-          'PRAGMA user_version',
-        ).getSingle();
-        expect(version.read<int>('user_version'), 6);
+    final inspectionDb = AppDatabase(
+      NativeDatabase(file, enableMigrations: false),
+    );
+    try {
+      final version = await inspectionDb
+          .customSelect('PRAGMA user_version')
+          .getSingle();
+      expect(version.read<int>('user_version'), 6);
 
-        final tables = await inspectionDb.customSelect('''
+      final tables = await inspectionDb.customSelect('''
           SELECT name FROM sqlite_master
           WHERE type = 'table'
             AND name IN ('transaksi_proses', 'transaksi_proses_riwayat')
         ''').get();
-        expect(
-          tables.map((row) => row.read<String>('name')).toSet(),
-          isEmpty,
-          reason:
-              'V7 tables must not remain when the migration transaction fails.',
-        );
-      } finally {
-        await inspectionDb.close();
-      }
-    },
-  );
+      expect(
+        tables.map((row) => row.read<String>('name')).toSet(),
+        isEmpty,
+        reason:
+            'V7 tables must not remain when the migration transaction fails.',
+      );
+    } finally {
+      await inspectionDb.close();
+    }
+  });
 }
