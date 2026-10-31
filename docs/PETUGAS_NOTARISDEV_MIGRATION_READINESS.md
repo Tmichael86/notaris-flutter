@@ -1,10 +1,11 @@
 # Petugas migration readiness — 31 October 2026
 
-**Current follow-up:** the permanent schema phases have since committed, but
-application grants remain missing. Do NOT rerun the first-install procedure below.
-See [grants-only recovery review](PETUGAS_GRANTS_ONLY_RECOVERY.md) for the observed
-state, explicit authorization boundary and tested recovery. This document retains
-the historical readiness/preflight evidence.
+**Current follow-up:** schema phases and grants-only recovery have committed and
+passed subsequent authenticated read-only verification. Do NOT rerun schema or
+GRANT procedures. The [development operations runner](PETUGAS_DEVELOPMENT_OPERATIONS.md)
+is now implemented and validated; permanent bootstrap, publication and worker
+activation still require separate approval. The sections below retain historical
+readiness/preflight evidence, including statements from earlier checkpoints.
 
 Baseline 09a919d. Status: **technically ready for reviewed development rollout,
 NOT authorized/applied on permanent notarisdev in this checkpoint**. No UI, shell,

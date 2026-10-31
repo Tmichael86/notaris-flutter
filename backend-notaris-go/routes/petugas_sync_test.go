@@ -104,6 +104,11 @@ func TestPetugasSyncHTTPPostgres(t *testing.T) {
 	}
 	request("PUT", path, body, "", 401)
 	request("GET", "/api/v1/petugas/references/jenis-kelamin", "", "", 401)
+	// Read endpoints remain usable with no publisher or published baseline yet.
+	empty := request("GET", "/api/v1/petugas/sync/pull?cursor=0&limit=2", "", token, 200)
+	if !strings.Contains(empty, `"changes":[]`) || !strings.Contains(empty, `"next_cursor":0`) {
+		t.Fatal("unpublished installation must return an empty, unchanged cursor")
+	}
 	catalog := request("GET", "/api/v1/petugas/references/jenis-kelamin", "", token, 200)
 	if !strings.Contains(catalog, `"id":2`) {
 		t.Fatal("reference catalog missing server ID")
@@ -125,6 +130,10 @@ func TestPetugasSyncHTTPPostgres(t *testing.T) {
 	request("PUT", path, "{}", token, 400)
 	request("PUT", path, strings.ReplaceAll(body, "sari@example.com", "invalid-email"), token, 422)
 	first := request("PUT", path, body, token, 200)
+	unpublished := request("GET", "/api/v1/petugas/sync/pull", "", token, 200)
+	if !strings.Contains(unpublished, `"changes":[]`) || !strings.Contains(unpublished, `"next_cursor":0`) {
+		t.Fatal("pending events leaked into read-only pull before publication")
+	}
 	replay := request("PUT", path, body, token, 200)
 	if first != replay {
 		t.Fatal("receipt replay changed")

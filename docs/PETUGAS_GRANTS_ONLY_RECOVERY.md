@@ -1,5 +1,11 @@
 # Petugas grants-only recovery review — 31 October 2026
 
+**Subsequent checkpoint:** the operator has since completed grants recovery;
+receipt `.local/petugas-grants-20261031-045404-127d93cb` has verified COMMIT and
+postchecks. Do not repeat GRANTs. See [development operations](PETUGAS_DEVELOPMENT_OPERATIONS.md)
+for the implemented runner and the separate permanent-bootstrap/publication
+approval boundary. The original review/evidence below is retained historically.
+
 Status: source/scripts/tests authorized and implemented; **permanent GRANT NOT
 authorized or executed in this checkpoint**. Branch feature/pemohon-cloud-sync,
 starting HEAD 9ee3ab5. No Flutter, CRUD, publisher algorithm or SyncCoordinator

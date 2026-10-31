@@ -1,4 +1,5 @@
 # Normal Go entry point, fail-closed development target. No migrations/bootstrap.
+param([switch]$EnablePetugasPublisher,[string]$PetugasGrantsReceiptDirectory)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $file = Join-Path $repo 'backend-notaris-go/.env.notarisdev'
@@ -16,6 +17,12 @@ if(!(Test-Path $pointer)){throw 'Missing successful provisioning manifest'}
 $profile=Get-Content $pointer -Raw|ConvertFrom-Json
 if($profile.database -ne 'notarisdev' -or $profile.port -ne 5432){throw 'Development manifest mismatch'}
 $settings['PETUGAS_PUBLISHER_ENABLED']='false'
+if($EnablePetugasPublisher){
+    if(!$PetugasGrantsReceiptDirectory){throw 'Publisher opt-in requires -PetugasGrantsReceiptDirectory and an already published baseline'}
+    # Read-only gate only. Never bootstrap or drain implicitly during startup.
+    & (Join-Path $PSScriptRoot 'invoke-notarisdev-petugas-operations.ps1') -GrantsReceiptDirectory $PetugasGrantsReceiptDirectory -RequirePublishedBaseline
+    $settings['PETUGAS_PUBLISHER_ENABLED']='true'
+}
 try {
     # Verify target marker with app credentials before the normal Go startup.
     foreach($key in @('PGHOST','PGPORT','PGUSER','PGPASSWORD','PGDATABASE','PGOPTIONS','PGCONNECT_TIMEOUT')){$previous[$key]=[Environment]::GetEnvironmentVariable($key)}
@@ -27,7 +34,7 @@ try {
     try{$probe.Start()}finally{$probe.Stop()}
     foreach ($key in $settings.Keys) { $previous[$key]=[Environment]::GetEnvironmentVariable($key); [Environment]::SetEnvironmentVariable($key,$settings[$key]) }
     Set-Location (Join-Path $repo 'backend-notaris-go')
-    Write-Output 'Normal Go backend -> localhost:5432/notarisdev; publisher OFF. No migrations/bootstrap.'
+    Write-Output "Normal Go backend -> localhost:5432/notarisdev; publisher enabled=$($settings['PETUGAS_PUBLISHER_ENABLED']). No migrations/bootstrap."
     & go run ./cmd
     if ($LASTEXITCODE) { throw "Go backend exited with code $LASTEXITCODE" }
 } finally {
