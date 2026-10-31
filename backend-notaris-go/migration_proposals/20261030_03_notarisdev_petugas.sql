@@ -14,6 +14,14 @@
   \quit
 \endif
 -- Session-scoped: included files COMMIT, so SET LOCAL would not protect phase 2/3.
+\if :{?NOTARIS_DEV_APP_ROLE}
+\else
+  DO $$ BEGIN RAISE EXCEPTION 'Explicit development application role required'; END $$;
+  \quit
+\endif
+-- Fail before DDL if the explicit role is missing or privileged. Never use the
+-- application account to run these DDL phases.
+SELECT set_config('notaris.review_app_role', :'NOTARIS_DEV_APP_ROLE', false);
 SET search_path=public,pg_catalog;
 SET lock_timeout='5s';
 SET statement_timeout='60s';
@@ -22,6 +30,10 @@ DO $$
 BEGIN
   IF current_database() <> 'notarisdev' THEN
     RAISE EXCEPTION 'Only notarisdev may be migrated';
+  END IF;
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname=current_setting('notaris.review_app_role') AND rolcanlogin AND NOT rolsuper AND NOT rolcreatedb AND NOT rolcreaterole)
+     OR current_user=current_setting('notaris.review_app_role') THEN
+    RAISE EXCEPTION 'Separate nonprivileged application role required';
   END IF;
   -- First-install proposal only. Partial installations need phase-aware recovery,
   -- not blind IF NOT EXISTS replay over unknown object definitions.
@@ -57,6 +69,12 @@ COMMIT;
 -- actual object definitions before re-running; IF NOT EXISTS is NOT validation.
 \ir ../migrations/20261030_01_petugas_publication.sql
 \ir ../migrations/20261030_02_petugas_uuid_hardening.sql
+-- Initial provisioning grants do NOT cover tables/sequences created later.
+-- Receipts are append-only; publisher updates only outbox/counter state.
+SELECT format('GRANT SELECT,INSERT ON public.petugas_sync_mutations TO %I', :'NOTARIS_DEV_APP_ROLE') \gexec
+SELECT format('GRANT SELECT,INSERT,UPDATE ON public.petugas_sync_outbox TO %I', :'NOTARIS_DEV_APP_ROLE') \gexec
+SELECT format('GRANT SELECT,UPDATE ON public.petugas_sync_publication TO %I', :'NOTARIS_DEV_APP_ROLE') \gexec
+SELECT format('GRANT USAGE,SELECT ON SEQUENCE public.petugas_sync_outbox_id_seq TO %I', :'NOTARIS_DEV_APP_ROLE') \gexec
 RESET search_path;
 RESET lock_timeout;
 RESET statement_timeout;
