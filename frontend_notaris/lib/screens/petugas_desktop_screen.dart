@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/widgets/loading_overlay.dart';
+import '../core/widgets/master_data_viewport.dart';
 import '../core/widgets/searchable_dropdown.dart';
 import '../database/app_database.dart';
 import '../providers/people_provider.dart';
@@ -32,11 +33,8 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
     return LoadingOverlay(
       isLoading: _loading,
       message: 'Memproses data...',
-      child: SizedBox(
-        height: (MediaQuery.sizeOf(context).height - 210).clamp(360.0, double.infinity),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: data.when(
+      child: MasterDataViewport(
+        child: data.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Gagal memuat data: $e')),
           data: (items) => genders.when(
@@ -48,11 +46,10 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
               children: [
                 _header(),
                 const PetugasManualSyncPanel(),
-                const SizedBox(height: 20),
+                const SizedBox(height: 18),
                 Expanded(child: _table(items, gs)),
               ],
             ),
-          ),
           ),
         ),
       ),
@@ -111,6 +108,7 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
     final rows = filtered.skip(start).take(_pageSize).toList();
 
     return Card(
+      margin: EdgeInsets.zero,
       color: AppColors.card,
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -118,7 +116,7 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
         side: const BorderSide(color: AppColors.border),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             Row(
@@ -140,73 +138,60 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: Scrollbar(
-                controller: _vScroll,
-                thumbVisibility: true,
-                notificationPredicate: (n) => n.metrics.axis == Axis.vertical,
-                child: SingleChildScrollView(
-                  controller: _vScroll,
-                  child: Scrollbar(
-                    controller: _hScroll,
-                    thumbVisibility: true,
-                    notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
-                    child: SingleChildScrollView(
-                      controller: _hScroll,
-                      scrollDirection: Axis.horizontal,
+              child: rows.isEmpty
+                  ? const Center(child: Text('Belum ada data petugas.'))
+                  : MasterDataTableViewport(
+                      horizontalController: _hScroll,
+                      verticalController: _vScroll,
                       child: DataTable(
-                  columnSpacing: 28,
-                  columns: const [
-                    DataColumn(label: Text('No')),
-                    DataColumn(label: Text('NIK')),
-                    DataColumn(label: Text('Nama')),
-                    DataColumn(label: Text('Jenis Kelamin')),
-                    DataColumn(label: Text('Email')),
-                    DataColumn(label: Text('No Telp')),
-                    DataColumn(label: Text('Created At')),
-                    DataColumn(label: Text('Aksi')),
-                  ],
-                  rows: [
-                    for (var i = 0; i < rows.length; i++)
-                      DataRow(
-                        cells: [
-                          DataCell(Text('${start + i + 1}')),
-                          DataCell(Text(rows[i].nik ?? '-')),
-                          DataCell(Text(rows[i].nama)),
-                          DataCell(Text(_gender(rows[i].jenisKelamin, gs))),
-                          DataCell(Text(rows[i].email)),
-                          DataCell(Text(rows[i].noTelp ?? '-')),
-                          DataCell(Text(_dateTime(rows[i].createdAt))),
-                          DataCell(
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  tooltip: 'Edit',
-                                  onPressed: () => _showForm(item: rows[i]),
-                                  icon: const Icon(Icons.edit_outlined),
+                        columnSpacing: 28,
+                        columns: const [
+                          DataColumn(label: Text('No')),
+                          DataColumn(label: Text('NIK')),
+                          DataColumn(label: Text('Nama')),
+                          DataColumn(label: Text('Jenis Kelamin')),
+                          DataColumn(label: Text('Email')),
+                          DataColumn(label: Text('No Telp')),
+                          DataColumn(label: Text('Created At')),
+                          DataColumn(label: Text('Aksi')),
+                        ],
+                        rows: [
+                          for (var i = 0; i < rows.length; i++)
+                            DataRow(
+                              cells: [
+                                DataCell(Text('${start + i + 1}')),
+                                DataCell(Text(rows[i].nik ?? '-')),
+                                DataCell(Text(rows[i].nama)),
+                                DataCell(
+                                  Text(_gender(rows[i].jenisKelamin, gs)),
                                 ),
-                                IconButton(
-                                  tooltip: 'Hapus',
-                                  onPressed: () => _delete(rows[i]),
-                                  icon: const Icon(Icons.delete_outline),
+                                DataCell(Text(rows[i].email)),
+                                DataCell(Text(rows[i].noTelp ?? '-')),
+                                DataCell(Text(_dateTime(rows[i].createdAt))),
+                                DataCell(
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        tooltip: 'Edit',
+                                        onPressed: () =>
+                                            _showForm(item: rows[i]),
+                                        icon: const Icon(Icons.edit_outlined),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'Hapus',
+                                        onPressed: () => _delete(rows[i]),
+                                        icon: const Icon(Icons.delete_outline),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
                         ],
                       ),
-                  ],
-                      ),
                     ),
-                  ),
-                ),
-              ),
             ),
-            if (rows.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('Belum ada data petugas.'),
-              ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,

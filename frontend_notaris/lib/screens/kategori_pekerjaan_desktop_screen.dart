@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/widgets/loading_overlay.dart';
+import '../core/widgets/master_data_viewport.dart';
 import '../database/app_database.dart';
 import '../providers/pekerjaan_provider.dart';
 
@@ -32,14 +33,8 @@ class _KategoriPekerjaanDesktopScreenState
       message: 'Memproses data...',
       child: LayoutBuilder(
         builder: (context, c) {
-          final mobile = c.maxWidth < 700;
-          return Padding(
-            padding: EdgeInsets.fromLTRB(
-              mobile ? 16 : 28,
-              20,
-              mobile ? 16 : 28,
-              30,
-            ),
+          final mobile = c.maxWidth < 900;
+          return MasterDataViewport(
             child: data.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Gagal memuat data: $e')),
@@ -61,7 +56,9 @@ class _KategoriPekerjaanDesktopScreenState
     return Row(
       children: [
         Expanded(
-          child: Row(
+          child: Wrap(
+            spacing: 14,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 'Kategori Pekerjaan',
@@ -71,7 +68,6 @@ class _KategoriPekerjaanDesktopScreenState
                 ),
               ),
               if (!mobile) ...[
-                const SizedBox(width: 14),
                 Text(
                   'Master  |  Kategori Pekerjaan',
                   style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
@@ -143,8 +139,7 @@ class _KategoriPekerjaanDesktopScreenState
         children: [
           Row(
             children: [
-              SizedBox(
-                width: mobile ? double.infinity : 280,
+              Expanded(
                 child: TextField(
                   controller: _search,
                   onChanged: (v) => setState(() {
@@ -160,7 +155,7 @@ class _KategoriPekerjaanDesktopScreenState
                   ),
                 ),
               ),
-              if (!mobile) const Spacer(),
+              if (!mobile) const SizedBox(width: 14),
               if (!mobile) Text('${filtered.length} data'),
             ],
           ),
@@ -186,71 +181,55 @@ class _KategoriPekerjaanDesktopScreenState
   }
 
   Widget _table(List<PekerjaanKategori> rows) {
-    return Scrollbar(
-      controller: _verticalScroll,
-      thumbVisibility: true,
-      notificationPredicate: (n) => n.metrics.axis == Axis.vertical,
-      child: SingleChildScrollView(
-        controller: _verticalScroll,
-        child: Scrollbar(
-          controller: _horizontalScroll,
-          thumbVisibility: true,
-          notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
-          child: SingleChildScrollView(
-            controller: _horizontalScroll,
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: 28,
-              columns: const [
-                DataColumn(label: Text('No')),
-                DataColumn(label: Text('Nama')),
-                DataColumn(label: Text('Created At')),
-                DataColumn(label: Text('Aksi')),
-              ],
-              rows: List.generate(rows.length, (i) {
-                final item = rows[i];
-                return DataRow(
-                  cells: [
-                    DataCell(Text('${(_page - 1) * _limit + i + 1}')),
-                    DataCell(
-                      SizedBox(
-                        width: 300,
-                        child: Text(
-                          item.nama,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
+    return MasterDataTableViewport(
+      horizontalController: _horizontalScroll,
+      verticalController: _verticalScroll,
+      child: DataTable(
+        columnSpacing: 28,
+        columns: const [
+          DataColumn(label: Text('No')),
+          DataColumn(label: Text('Nama')),
+          DataColumn(label: Text('Created At')),
+          DataColumn(label: Text('Aksi')),
+        ],
+        rows: List.generate(rows.length, (i) {
+          final item = rows[i];
+          return DataRow(
+            cells: [
+              DataCell(Text('${(_page - 1) * _limit + i + 1}')),
+              DataCell(
+                SizedBox(
+                  width: 300,
+                  child: Text(
+                    item.nama,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              DataCell(
+                SizedBox(width: 220, child: Text(_formatDate(item.createdAt))),
+              ),
+              DataCell(
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Edit',
+                      onPressed: _busy ? null : () => _form(item: item),
+                      icon: const Icon(Icons.edit_outlined),
                     ),
-                    DataCell(
-                      SizedBox(
-                        width: 220,
-                        child: Text(_formatDate(item.createdAt)),
-                      ),
-                    ),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            tooltip: 'Edit',
-                            onPressed: _busy ? null : () => _form(item: item),
-                            icon: const Icon(Icons.edit_outlined),
-                          ),
-                          IconButton(
-                            tooltip: 'Hapus',
-                            onPressed: _busy ? null : () => _delete(item),
-                            icon: const Icon(Icons.delete_outline),
-                          ),
-                        ],
-                      ),
+                    IconButton(
+                      tooltip: 'Hapus',
+                      onPressed: _busy ? null : () => _delete(item),
+                      icon: const Icon(Icons.delete_outline),
                     ),
                   ],
-                );
-              }),
-            ),
-          ),
-        ),
+                ),
+              ),
+            ],
+          );
+        }),
       ),
     );
   }
