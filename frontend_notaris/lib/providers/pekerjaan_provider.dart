@@ -15,8 +15,12 @@ import '../repositories/pekerjaan_repository.dart';
 import '../repositories/pekerjaan_kategori_repository.dart';
 import '../repositories/pengeluaran_jenis_repository.dart';
 import '../repositories/people_repository.dart';
+
 import 'package:flutter/foundation.dart';
+
 import 'database_provider.dart';
+import 'app_providers.dart' show pemohonGenderReferencesProvider;
+import '../repositories/pemohon_gender_references.dart';
 
 final pekerjaanNotarisRepositoryProvider = Provider<PekerjaanNotarisRepository>(
   (ref) {
@@ -117,6 +121,13 @@ class SyncCoordinator {
 
   static SyncFailure mapSyncFailure(Object error) {
     if (error is SyncFailure) return error;
+    if (error is PemohonReferenceBlocked) {
+      return SyncFailure(
+        SyncFailureKind.validation,
+        'blocked_reference: referensi jenis kelamin Pemohon belum tervalidasi. Periksa manifest development dan akses katalog; data lokal tetap tersimpan.',
+        cause: error,
+      );
+    }
 
     if (error is DioException) {
       if (error.type == DioExceptionType.connectionError) {
@@ -203,6 +214,7 @@ final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
 
       final pemohonRepository = PemohonRepository(
         ref.read(appDatabaseProvider),
+        genderReferences: ref.read(pemohonGenderReferencesProvider),
       );
       final pemohonApi = ref.read(pemohonApiServiceProvider);
       debugPrint('[SYNC] Mulai push Pemohon');

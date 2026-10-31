@@ -1,5 +1,10 @@
 # Synthetic notarisdev smoke workflow
 
+Pemohon dependency correction (31 October): see
+[verified development gender references](PEMOHON_DEV_REFERENCE_FIX.md). Re-launch
+the Flutter development launcher to load its fixture-owned reference manifest;
+keep the existing SQLite generation/data, do not reset the profile.
+
 The initial implementation checkpoint did **not** create permanent notarisdev.
 The owner subsequently explicitly approved provisioning; it is now complete as
 recorded below. No pending Cloud Sync migration proposal has been executed.

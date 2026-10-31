@@ -31,39 +31,78 @@ class PemohonApiService {
   }
 
   Future<List<PemohonApiModel>> getAllPages({int pageSize = 100}) async {
-    if (pageSize < 1 || pageSize > 100) throw ArgumentError.value(pageSize, 'pageSize', 'Harus 1 sampai 100.');
+    if (pageSize < 1 || pageSize > 100) {
+      throw ArgumentError.value(pageSize, 'pageSize', 'Harus 1 sampai 100.');
+    }
     final result = <PemohonApiModel>[];
     var page = 1;
     while (true) {
-      final response = await _dio.get<Map<String, dynamic>>('/pemohon', queryParameters: {'page': page, 'page_size': pageSize});
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/pemohon',
+        queryParameters: {'page': page, 'page_size': pageSize},
+      );
       final envelope = _asMap(response.data);
       final data = _asMap(envelope['data']);
       final items = data['items'];
       final pagination = _asMap(data['pagination']);
-      if (envelope['success'] != true || items is! List) throw const FormatException('Format response pemohon tidak valid.');
-      final batch = items.whereType<Map>().map((item) => PemohonApiModel.fromJson(Map<String, dynamic>.from(item))).toList();
+      if (envelope['success'] != true || items is! List) {
+        throw const FormatException('Format response pemohon tidak valid.');
+      }
+      final batch = items
+          .whereType<Map>()
+          .map(
+            (item) => PemohonApiModel.fromJson(Map<String, dynamic>.from(item)),
+          )
+          .toList();
       result.addAll(batch);
       final hasMore = pagination['has_more'];
-      if (hasMore is bool) { if (!hasMore) break; }
-      else if (batch.length < pageSize) { break; }
-      if (batch.isEmpty) throw const FormatException('Pagination pemohon tidak valid: halaman kosong saat has_more bernilai true.');
+      if (hasMore is bool) {
+        if (!hasMore) break;
+      } else if (batch.length < pageSize) {
+        break;
+      }
+      if (batch.isEmpty) {
+        throw const FormatException(
+          'Pagination pemohon tidak valid: halaman kosong saat has_more bernilai true.',
+        );
+      }
       page++;
     }
     return result;
   }
 
-  Future<PemohonApiModel> syncUpsert({required String uuid, required String nama, String? alamat, String? jenisKelaminNama, String? noTelp, String? nik}) async {
-    final response = await _dio.put<Map<String, dynamic>>('/pemohon/sync/$uuid', data: {
-      'nama': nama.trim(), 'alamat': _nullableText(alamat),
-      'jenis_kelamin_nama': _nullableText(jenisKelaminNama),
-      'no_telp': _nullableText(noTelp), 'nik': _nullableText(nik),
-    });
+  Future<PemohonApiModel> syncUpsert({
+    required String uuid,
+    required String nama,
+    String? alamat,
+    String? jenisKelaminNama,
+    int? jenisKelamin,
+    String? noTelp,
+    String? nik,
+  }) async {
+    final response = await _dio.put<Map<String, dynamic>>(
+      '/pemohon/sync/$uuid',
+      data: {
+        'nama': nama.trim(),
+        'alamat': _nullableText(alamat),
+        if (jenisKelamin != null)
+          'jenis_kelamin': jenisKelamin
+        else
+          'jenis_kelamin_nama': _nullableText(jenisKelaminNama),
+        'no_telp': _nullableText(noTelp),
+        'nik': _nullableText(nik),
+      },
+    );
     return _parseRecord(response.data);
   }
 
   Future<void> syncDeactivate({required String uuid}) async {
-    final response = await _dio.delete<Map<String, dynamic>>('/pemohon/sync/$uuid');
-    if (_asMap(response.data)['success'] != true) throw const FormatException('Server gagal menonaktifkan pemohon.');
+    final response = await _dio.delete<Map<String, dynamic>>(
+      '/pemohon/sync/$uuid',
+    );
+    if (_asMap(response.data)['success'] != true) {
+      throw const FormatException('Server gagal menonaktifkan pemohon.');
+    }
   }
 
   Future<PemohonApiModel> getById(int id) async {

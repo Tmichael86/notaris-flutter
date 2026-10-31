@@ -24,6 +24,15 @@ func run() error {
 	mode := flag.String("mode", "generate", "generate or validate")
 	out := flag.String("out", "", "new SQL output file")
 	flag.Parse()
+	if *mode == "references" {
+		pairs := []map[string]any{}
+		for _, row := range devfixture.Build("unused") {
+			if row.Table == "jenis_kelamin" {
+				pairs = append(pairs, map[string]any{"server_id": row.Values["id"], "local_uuid": fmt.Sprintf("notarisdev-smoke-gender-%v", row.Values["id"]), "label": row.Values["nama"], "state": "verified"})
+			}
+		}
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{"fixture": "smoke-v1", "genders": pairs})
+	}
 	if *mode == "generate" {
 		password := os.Getenv("NOTARIS_DEV_FIXTURE_PASSWORD")
 		if len(password) < 16 {

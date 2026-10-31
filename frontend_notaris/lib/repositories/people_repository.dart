@@ -3,7 +3,10 @@ import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
 import '../services/pemohon_api_service.dart';
+
 import 'package:flutter/foundation.dart';
+
+import 'pemohon_gender_references.dart';
 
 class JenisKelaminRepository {
   JenisKelaminRepository(this.db);
@@ -144,7 +147,8 @@ class PetugasRepository {
 }
 
 class PemohonRepository {
-  PemohonRepository(this.db);
+  PemohonRepository(this.db, {this.genderReferences});
+  final PemohonGenderReferences? genderReferences;
 
   final AppDatabase db;
   static const _uuid = Uuid();
@@ -235,6 +239,7 @@ class PemohonRepository {
   }
 
   Future<void> syncToCloud(PemohonApiService api) async {
+    await genderReferences?.prepare();
     final pending = await (db.select(
       db.pemohons,
     )..where((t) => t.isSyncDirty.equals(true))).get();
@@ -278,7 +283,12 @@ class PemohonRepository {
       }
 
       String? genderName;
-      if (snapshot.jenisKelamin != null) {
+      int? serverGenderId;
+      if (snapshot.jenisKelamin != null && genderReferences != null) {
+        serverGenderId = await genderReferences!.toServer(
+          snapshot.jenisKelamin!,
+        );
+      } else if (snapshot.jenisKelamin != null) {
         final gender = await (db.select(
           db.jenisKelamins,
         )..where((t) => t.id.equals(snapshot.jenisKelamin!))).getSingleOrNull();
@@ -296,6 +306,7 @@ class PemohonRepository {
         nama: snapshot.nama,
         alamat: snapshot.alamat,
         jenisKelaminNama: genderName,
+        jenisKelamin: serverGenderId,
         noTelp: snapshot.noTelp,
         nik: snapshot.nik,
       );
@@ -326,17 +337,20 @@ class PemohonRepository {
   }
 
   Future<void> syncFromCloud(List<PemohonApiModel> remoteItems) async {
+    await genderReferences?.prepare();
     await db.transaction(() async {
-      // Jenis kelamin is local reference data today. Ensure the baseline rows
-      // exist before resolving cloud labels to device-local auto-increment IDs.
-      await _ensureGenderReference(
-        uuid: 'dev-jenis-kelamin-laki-laki',
-        nama: 'Laki-laki',
-      );
-      await _ensureGenderReference(
-        uuid: 'dev-jenis-kelamin-perempuan',
-        nama: 'Perempuan',
-      );
+      if (genderReferences == null) {
+        // Jenis kelamin is local reference data today. Ensure the baseline rows
+        // exist before resolving cloud labels to device-local auto-increment IDs.
+        await _ensureGenderReference(
+          uuid: 'dev-jenis-kelamin-laki-laki',
+          nama: 'Laki-laki',
+        );
+        await _ensureGenderReference(
+          uuid: 'dev-jenis-kelamin-perempuan',
+          nama: 'Perempuan',
+        );
+      }
 
       final genders = await db.select(db.jenisKelamins).get();
       final localByGenderName = <String, int>{
@@ -364,7 +378,17 @@ class PemohonRepository {
 
           int? localGenderId;
           final genderName = item.jenisKelaminNama?.trim();
-          if (genderName != null && genderName.isNotEmpty) {
+          if (genderReferences != null) {
+            if (item.jenisKelamin != null) {
+              localGenderId = await genderReferences!.toLocal(
+                item.jenisKelamin!,
+              );
+            } else if (genderName != null && genderName.isNotEmpty) {
+              throw PemohonReferenceBlocked(
+                'blocked_reference: server gender ID required',
+              );
+            }
+          } else if (genderName != null && genderName.isNotEmpty) {
             localGenderId = localByGenderName[genderName.toLowerCase()];
             if (localGenderId == null) {
               throw StateError(
@@ -393,11 +417,9 @@ class PemohonRepository {
           if (existing == null) {
             await db.into(db.pemohons).insert(values);
           } else {
-            await (db.update(
-              db.pemohons,
-            )..where((t) => t.id.equals(existing.id))).write(
-              values.copyWith(id: Value(existing.id)),
-            );
+            await (db.update(db.pemohons)
+                  ..where((t) => t.id.equals(existing.id)))
+                .write(values.copyWith(id: Value(existing.id)));
           }
         } catch (error, stackTrace) {
           debugPrint(
@@ -434,15 +456,17 @@ class PemohonRepository {
     }
 
     final now = DateTime.now();
-    await db.into(db.jenisKelamins).insert(
-      JenisKelaminsCompanion.insert(
-        uuid: uuid,
-        nama: nama,
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        isSyncDirty: const Value(false),
-      ),
-    );
+    await db
+        .into(db.jenisKelamins)
+        .insert(
+          JenisKelaminsCompanion.insert(
+            uuid: uuid,
+            nama: nama,
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            isSyncDirty: const Value(false),
+          ),
+        );
   }
 
   static String _requiredText(String value) {

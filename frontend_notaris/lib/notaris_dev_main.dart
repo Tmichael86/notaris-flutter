@@ -1,5 +1,6 @@
 // Debug-only normal application bootstrap. No test JWT or harness session.
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
@@ -15,6 +16,8 @@ import 'providers/app_providers.dart';
 import 'providers/auth_provider.dart';
 import 'providers/database_provider.dart';
 import 'services/auth_service.dart';
+import 'providers/authenticated_api_provider.dart';
+import 'repositories/pemohon_gender_references.dart';
 
 String developmentGeneration(Map<String, String> environment) {
   final generation = environment['NOTARIS_DEV_GENERATION'] ?? '';
@@ -38,6 +41,12 @@ Future<void> main() async {
       throw StateError('Windows debug only');
     }
     final generation = developmentGeneration(Platform.environment);
+    final manifest = jsonDecode(
+      Platform.environment['NOTARIS_DEV_REFERENCE_MANIFEST'] ?? '',
+    ) as Map<String, dynamic>;
+    if (manifest['generation'] != generation) {
+      throw StateError('Reference manifest generation mismatch');
+    }
     final support = await getApplicationSupportDirectory();
     final file = File(developmentDatabasePath(support.path, generation));
     final folder = file.parent;
@@ -64,6 +73,13 @@ Future<void> main() async {
             (ref) => AuthService(
               dio: ref.watch(dioProvider),
               cacheKey: 'notaris.auth.notarisdev.$generation',
+            ),
+          ),
+          pemohonGenderReferencesProvider.overrideWith(
+            (ref) => DevelopmentPemohonGenderReferences(
+              ref.watch(appDatabaseProvider),
+              ref.watch(authenticatedDioProvider),
+              manifest,
             ),
           ),
         ],
