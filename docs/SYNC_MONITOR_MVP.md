@@ -1,5 +1,26 @@
 # Monitoring Sinkronisasi MVP — read-only capability checkpoint
 
+## UI consistency pass
+
+Log and Monitoring now reuse MasterDataViewport/MasterDataTableViewport, matching
+Pemohon's outer padding, title/breadcrumb hierarchy and white card (radius12,
+border AppColors.border, inner padding16). A small shared SyncPageFrame and
+SyncStatusBadge serve these two diagnostic pages; no shared shell or Master Data
+screen is changed. Controls/loading/error/empty/table all sit inside the card.
+Progress wraps at bounded column width with content-sized rows. Each table has
+one explicit horizontal scrollbar and one vertical scrollbar with auto-bars
+suppressed. Log operation IDs remain copyable through SelectionArea, avoiding
+SelectableText's per-row desktop scrollbars.
+
+UI-only: query/filter/reload/status/capabilities and smoke guards are unchanged.
+Analyze clean; focused page/smoke tests13 passed, Windows-theme layout tests7
+passed at980×600,1280×720,1920×1080. No live data, schema or migrations touched.
+Final full regression after the Windows scrollbar fix:343 passed,0 failed,3 skipped.
+Manual acceptance: open both System pages with the existing -UiSmoke launcher;
+inspect title/breadcrumb/card, empty or populated content, filters/reload, resize
+and horizontal scroll to the full Progress column. Confirm unsupported actions
+remain disabled and Master Data/header/sidebar/footer remain unchanged.
+
 Implemented2026-11-02 ahead of the stated Asana deadline2026-11-14. Manual Windows
 acceptance is still pending. No Asana record was changed by this task.
 
