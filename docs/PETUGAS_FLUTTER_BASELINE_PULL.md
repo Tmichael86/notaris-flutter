@@ -1,5 +1,49 @@
 # Petugas Flutter baseline pull — preparation checkpoint
 
+## Windows interactive UI smoke (existing imported development profile)
+
+From the repository root, in two local PowerShell terminals:
+
+```powershell
+# Terminal 1: existing development backend; publisher stays OFF.
+.\scripts\run-notarisdev-backend.ps1
+```
+
+```powershell
+# Terminal 2: interactive Flutter Windows, no automatic/manual global sync.
+.\scripts\run-notarisdev-flutter.ps1 -UiSmoke
+```
+
+Expect the `DEV notarisdev UI SMOKE` banner. Login uses the existing legitimate
+development account/credential. The auth login POST remains available solely for
+authentication; all business POST/PUT/PATCH/DELETE requests are rejected locally.
+Both the base and authenticated Dio clients restrict requests to the development
+loopback origin and reject redirects. No publisher or Petugas coordinator is
+enabled. Startup/resume/timer synchronization is not started, global/manual sync
+is a no-op before any repository is resolved, and the optional Petugas manual
+action is disabled even if its build flag was supplied.
+
+Smoke is opt-in only through the debug Windows notarisdev entry point and does
+not change normal application behavior. The launcher restores its environment
+after exit. It requires an existing profile SQLite and does not create a fresh
+database in smoke mode. The current profile resolves to
+`C:\Users\Msi GF63\AppData\Roaming\com.notaris\frontend_notaris\notarisdev\14af5452144b42d0be2ad88bac41b656\offline.sqlite`.
+It does not select the daily file or the retained disposable import database.
+`petugasProvider → PetugasRepository.watchAll → appDatabaseProvider` reads the
+same explicitly overridden Drift database. The shared desktop shell/layout is
+unchanged.
+
+Inspect Master Data → Petugas (4) and Pemohon (20), navigation, sidebar, header,
+footer and window resizing. Global Sync may be clicked to verify it cannot run;
+avoid local Add/Edit/Delete during this viewing smoke test. Close Flutter normally
+when finished. No interactive application was launched by the implementation task.
+
+Validation: Flutter analyze clean;325 fixture tests passed,3 opt-in skipped.
+Focused tests cover startup/resume/manual coordinator bypass prevention, unchanged
+normal-mode behavior, GET/login-only base HTTP boundary and the authenticated Dio
+clone boundary. Existing database verified immutable read-only with unchanged
+hash/mtime, schema13, Petugas4/Pemohon20/cursor4, integrityOK/FK0.
+
 Scope: server→Flutter import of four published version-1 Petugas baseline events
 through cursor4, with fixture validation and a separate controlled live GET test.
 The normal Petugas SyncCoordinator remains OFF. No user SQLite file was opened.

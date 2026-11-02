@@ -1,9 +1,9 @@
-
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_providers.dart';
 import 'auth_provider.dart';
+import 'development_smoke_provider.dart';
 
 /// Dio untuk endpoint API yang membutuhkan autentikasi.
 ///
@@ -12,6 +12,9 @@ import 'auth_provider.dart';
 final authenticatedDioProvider = Provider<Dio>((ref) {
   final baseDio = ref.watch(dioProvider);
   final dio = Dio(baseDio.options);
+  if (ref.watch(developmentUiSmokeProvider)) {
+    installDevelopmentSmokeHttpGuard(dio);
+  }
 
   dio.interceptors.add(
     InterceptorsWrapper(

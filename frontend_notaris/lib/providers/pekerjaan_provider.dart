@@ -10,6 +10,7 @@ import '../services/group_api_service.dart';
 import '../services/group_sidebar_access_api_service.dart';
 import '../services/sidebar_api_service.dart';
 import 'authenticated_api_provider.dart';
+import 'development_smoke_provider.dart';
 import '../database/app_database.dart';
 import '../repositories/pekerjaan_repository.dart';
 import '../repositories/pekerjaan_kategori_repository.dart';
@@ -199,6 +200,7 @@ final syncStatusProvider = StateProvider<SyncStatus>((ref) => SyncStatus.idle);
 final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
   return SyncCoordinator(
     runSync: () async {
+      if (ref.read(developmentUiSmokeProvider)) return;
       final kategoriRepository = ref.read(pekerjaanKategoriRepositoryProvider);
       final kategoriApi = ref.read(kategoriPekerjaanApiServiceProvider);
       final pengeluaranRepository = ref.read(

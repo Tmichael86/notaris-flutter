@@ -14,6 +14,8 @@ import 'main.dart' show MyApp;
 import 'providers/app_providers.dart';
 import 'providers/auth_provider.dart';
 import 'providers/database_provider.dart';
+import 'providers/development_smoke_provider.dart';
+import 'providers/petugas_manual_sync_provider.dart';
 import 'services/auth_service.dart';
 import 'providers/authenticated_api_provider.dart';
 import 'repositories/pemohon_gender_references.dart';
@@ -40,6 +42,7 @@ Future<void> main() async {
       throw StateError('Windows debug only');
     }
     final generation = developmentGeneration(Platform.environment);
+    final smoke = Platform.environment['NOTARIS_DEV_UI_SMOKE'] == '1';
     final manifest = jsonDecode(
       Platform.environment['NOTARIS_DEV_REFERENCE_MANIFEST'] ?? '',
     ) as Map<String, dynamic>;
@@ -49,27 +52,37 @@ Future<void> main() async {
     final support = await getApplicationSupportDirectory();
     final file = File(developmentDatabasePath(support.path, generation));
     final folder = file.parent;
-    await folder.create(recursive: true);
+    if (smoke) {
+      if (!file.existsSync()) {
+        throw StateError('Existing development SQLite required');
+      }
+    } else {
+      await folder.create(recursive: true);
+    }
     // Same isolated profile; labels the file for a future approved pull only.
     // It does not configure, enable or invoke the Petugas pull provider.
     final db = AppDatabase.forIsolatedPetugasPull(file);
     runApp(
       ProviderScope(
         overrides: [
+          developmentUiSmokeProvider.overrideWithValue(smoke),
+          if (smoke) petugasManualEnabledProvider.overrideWithValue(false),
           appDatabaseProvider.overrideWith((ref) {
             ref.onDispose(db.close);
             return db;
           }),
-          dioProvider.overrideWith(
-            (ref) => Dio(
+          dioProvider.overrideWith((ref) {
+            final dio = Dio(
               BaseOptions(
                 baseUrl: 'http://127.0.0.1:8081/api/v1',
                 connectTimeout: const Duration(seconds: 10),
                 receiveTimeout: const Duration(seconds: 10),
                 sendTimeout: const Duration(seconds: 10),
               ),
-            ),
-          ),
+            );
+            if (smoke) installDevelopmentSmokeHttpGuard(dio);
+            return dio;
+          }),
           authServiceProvider.overrideWith(
             (ref) => AuthService(
               dio: ref.watch(dioProvider),
@@ -84,12 +97,12 @@ Future<void> main() async {
             ),
           ),
         ],
-        child: const Directionality(
+        child: Directionality(
           textDirection: TextDirection.ltr,
           child: Banner(
-            message: 'DEV notarisdev',
+            message: smoke ? 'DEV notarisdev UI SMOKE' : 'DEV notarisdev',
             location: BannerLocation.topEnd,
-            child: MyApp(),
+            child: const MyApp(),
           ),
         ),
       ),
