@@ -14,7 +14,10 @@ completed push, publisher, bidirectional/global sync or production release.
 
 ## Remaining modules and concrete gaps
 
-- **Monitoring Sinkronisasi — manager request, backlog.** A dedicated per-module
+- **Monitoring Sinkronisasi — read-only MVP implemented.** See
+  [SYNC_MONITOR_MVP.md](SYNC_MONITOR_MVP.md). Status/history/local journals are
+  integrated; all manual selective actions remain disabled until a safe scoped
+  coordinator entry exists. Manual UI acceptance remains pending. Original need: a dedicated per-module
   status view (green/yellow/red), selective manual upload/download and progress.
   Existing pekerjaan_provider.dart exposes a global in-memory SyncStatus and an
   ordered combined push/pull; it is not a per-module control panel. Define status

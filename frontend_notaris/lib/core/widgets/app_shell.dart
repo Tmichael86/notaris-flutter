@@ -22,6 +22,7 @@ import '../../screens/sidebar_desktop_screen.dart';
 import '../../screens/transaction_desktop_screen.dart';
 import '../../screens/users_desktop_screen.dart';
 import '../../screens/sync_log_desktop_screen.dart';
+import '../../screens/sync_monitor_desktop_screen.dart';
 import '../../core/theme/app_colors.dart';
 
 class AppShell extends StatefulWidget {
@@ -58,6 +59,7 @@ class _AppShellState extends State<AppShell> {
     'Sidebars',
     'Konfigurasi Umum',
     'Log Sinkronisasi',
+    'Monitoring Sinkronisasi',
   ];
 
   void _selectMenu(String title) {
@@ -78,6 +80,7 @@ class _AppShellState extends State<AppShell> {
     if (title.trim().toLowerCase() == 'dashboard') return true;
     // Local sanitized diagnostics of this profile; no server CRUD permission.
     if (title == 'Log Sinkronisasi') return true;
+    if (title == 'Monitoring Sinkronisasi') return true;
 
     final session = widget.session;
     if (session == null) return true;
@@ -632,6 +635,8 @@ class _AppShellState extends State<AppShell> {
         return const KonfigurasiUmumDesktopScreen();
       case 'Log Sinkronisasi':
         return const SyncLogDesktopScreen();
+      case 'Monitoring Sinkronisasi':
+        return const SyncMonitorDesktopScreen();
       default:
         return Padding(
           padding: const EdgeInsets.all(28),
