@@ -1,8 +1,7 @@
-/// Local contract for a future Petugas cloud-sync transport.
+/// Local identity contract for the implemented Petugas cloud-sync transport.
 ///
-/// This layer intentionally has no endpoint or Dio dependency. The server
-/// contract is not implemented yet, so these types only make identity and
-/// acknowledgement boundaries explicit in Flutter.
+/// This layer has no endpoint or Dio dependency. It separates local identity,
+/// server acknowledgements and publication cursors; normal auto-sync stays OFF.
 enum PetugasIdentityState {
   localOnly('local_only'),
   verified('verified'),
@@ -52,7 +51,7 @@ class PetugasPullCursor {
   final int sequence;
 }
 
-/// Acknowledgement data expected from a future Petugas sync endpoint.
+/// Acknowledgement identity from the Petugas sync endpoint.
 class PetugasSyncAcknowledgement {
   const PetugasSyncAcknowledgement({
     required this.cloudUuid,

@@ -29,6 +29,8 @@ class PetugasLocalSyncRepository {
     this.api,
     this.references, {
     required this.scope,
+    this.preparePullIdentity,
+    this.validatePullContext,
   });
   final AppDatabase db;
   final PetugasSyncApi api;
@@ -36,6 +38,10 @@ class PetugasLocalSyncRepository {
 
   /// Stable server deployment + authenticated account identifier, not a token.
   final String scope;
+  // Optional controlled-pull boundary. Both run in the page transaction, so
+  // reconciliation, row changes and cursor advancement share the same commit.
+  final Future<void> Function(Map<String, dynamic> event)? preparePullIdentity;
+  final Future<void> Function()? validatePullContext;
   static final _running = Expando<bool>();
   Future<T> _exclusive<T>(Future<T> Function() action) async {
     if (_running[db] == true) {
@@ -238,7 +244,14 @@ class PetugasLocalSyncRepository {
     });
   });
 
-  Future<void> pull({int limit = 100}) => _exclusive(() async {
+  Future<void> pull({
+    int limit = 100,
+    int? throughCursor,
+  }) => _exclusive(() async {
+    if (limit < 1 || limit > 500) {
+      throw ArgumentError.value(limit, 'limit', 'Expected 1..500');
+    }
+    await validatePullContext?.call();
     await db.transaction(_bind);
     final pending = await db
         .customSelect(
@@ -256,9 +269,17 @@ class PetugasLocalSyncRepository {
           .customSelect('SELECT cursor FROM petugas_sync_feed WHERE id=1')
           .getSingle();
       final cursor = feed.read<int>('cursor');
+      if (throughCursor != null && cursor > throughCursor) {
+        throw const PetugasSyncFailure(
+          PetugasSyncFailureKind.blocked,
+          'cursor exceeds the reviewed baseline boundary',
+        );
+      }
+      final remaining = throughCursor == null ? limit : throughCursor - cursor;
+      final pageLimit = remaining > 0 && remaining < limit ? remaining : limit;
       late Map<String, dynamic> page;
       try {
-        page = await api.pull(cursor, limit: limit);
+        page = await api.pull(cursor, limit: pageLimit);
       } on PetugasSyncFailure catch (e) {
         if (e.kind == PetugasSyncFailureKind.expired) {
           await db.customStatement(
@@ -274,29 +295,44 @@ class PetugasLocalSyncRepository {
           next is! int ||
           more is! bool ||
           next < cursor ||
+          (throughCursor != null && next > throughCursor) ||
+          changes.length > pageLimit ||
           (more && next == cursor)) {
         throw const FormatException('Invalid pull page');
       }
       await db.transaction(() async {
+        await validatePullContext?.call();
+        await _bind();
+        final current = await db
+            .customSelect('SELECT cursor FROM petugas_sync_feed WHERE id=1')
+            .getSingle();
+        if (current.read<int>('cursor') != cursor) {
+          throw const PetugasSyncFailure(
+            PetugasSyncFailureKind.blocked,
+            'cursor changed while awaiting HTTP; retry from persisted state',
+          );
+        }
         var last = cursor;
         for (final value in changes) {
           final event = syncMap(value);
           final seq = event['publication_sequence'];
-          if (seq is! int || seq <= last || seq > next) {
+          if (seq is! int || seq != last + 1 || seq > next) {
             throw const FormatException('Invalid event sequence');
           }
           last = seq;
+          await preparePullIdentity?.call(event);
           await _apply(event);
         }
         if (last != next) {
           throw const FormatException('Cursor did not match events');
         }
+        await validatePullContext?.call();
         await db.customStatement(
           'UPDATE petugas_sync_feed SET cursor=? WHERE id=1',
           [next],
         );
       });
-      if (!more) {
+      if (!more || next == throughCursor) {
         break;
       }
     }
@@ -310,6 +346,9 @@ class PetugasLocalSyncRepository {
     final version = event['row_version'];
     final tomb = event['tombstone'];
     if (cloud is! String ||
+        !RegExp(
+          r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+        ).hasMatch(cloud) ||
         id is! int ||
         id < 1 ||
         version is! int ||
@@ -348,6 +387,31 @@ class PetugasLocalSyncRepository {
       }
     }
     final p = tomb ? <String, dynamic>{} : syncMap(event['payload']);
+    if (!tomb) {
+      for (final key in ['nama', 'email']) {
+        if (p[key] is! String || (p[key] as String).trim().isEmpty) {
+          throw const FormatException('Missing required Petugas payload');
+        }
+      }
+      for (final key in ['nik', 'alamat', 'tempat_lahir', 'no_telp']) {
+        if (p[key] != null && p[key] is! String) {
+          throw const FormatException('Invalid Petugas text field');
+        }
+      }
+      for (final key in ['jenis_kelamin_id', 'user_id']) {
+        if (p[key] != null && (p[key] is! int || (p[key] as int) < 1)) {
+          throw const FormatException('Invalid Petugas reference');
+        }
+      }
+      final date = p['tanggal_lahir'];
+      if (date != null &&
+          (date is! String ||
+              !RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(date) ||
+              DateTime.tryParse(date)?.toIso8601String().substring(0, 10) !=
+                  date)) {
+        throw const FormatException('Invalid Petugas birth date');
+      }
+    }
     final gender = p['jenis_kelamin_id'];
     final user = p['user_id'];
     final localGender = gender == null

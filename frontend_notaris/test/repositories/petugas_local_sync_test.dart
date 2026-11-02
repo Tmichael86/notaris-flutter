@@ -136,8 +136,11 @@ void main() {
     await repo((req) async => ack(req)).push(uuid);
     final mapping = await PetugasIdentityMapRepository(db)
         .findByLocalUuid(uuid);
-    final tomb = event(2, tomb: true)..['petugas_uuid'] = mapping!.cloudUuid;
-    await repo((_) async => page([tomb], 2)).pull();
+    // Record version and publication cursor are independent identities.
+    final tomb = event(1, tomb: true)
+      ..['row_version'] = 2
+      ..['petugas_uuid'] = mapping!.cloudUuid;
+    await repo((_) async => page([tomb], 1)).pull();
     final tx = await db.select(db.transaksis).getSingle();
     expect(tx.petugasId, id);
     expect(tx.petugasUuid, uuid);

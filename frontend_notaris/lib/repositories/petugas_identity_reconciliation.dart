@@ -44,9 +44,10 @@ class PetugasIdentityReconciliation {
       [scope],
     );
     final feed = await db
-        .customSelect('SELECT scope FROM petugas_sync_feed WHERE id=1')
+        .customSelect('SELECT scope,blocked FROM petugas_sync_feed WHERE id=1')
         .getSingle();
-    if (feed.read<String>('scope') != scope) {
+    if (feed.read<String>('scope') != scope ||
+        feed.readNullable<String>('blocked') != null) {
       _blocked('identity belongs to another scope');
     }
     final journal = await db
@@ -65,6 +66,48 @@ class PetugasIdentityReconciliation {
     required PetugasServerIdentity server,
     required String evidence,
   }) => _confirm(localUuid, server, evidence, false);
+
+  /// Select an existing clean local row for an authenticated baseline event.
+  /// Unlike push reconciliation, do not acknowledge a server version until the
+  /// corresponding payload has actually been applied by the pull transaction.
+  Future<PetugasIdentityMap> confirmForPull({
+    required String localUuid,
+    required PetugasServerIdentity server,
+    required String evidence,
+  }) => db.transaction(() async {
+    await _guard(localUuid, evidence);
+    if (server.scope != scope) _blocked('server identity scope mismatch');
+    final row = await (db.select(
+      db.petugasLocals,
+    )..where((r) => r.uuid.equals(localUuid))).getSingle();
+    if (row.isSyncDirty || row.deletedAt != null || row.status != 1) {
+      _blocked('local edits/deletion must be reviewed before baseline pull');
+    }
+    final mappings = PetugasIdentityMapRepository(db);
+    final old = await mappings.findByLocalUuid(localUuid);
+    if (old?.state == 'development' ||
+        (old?.cloudUuid != null &&
+            (old!.cloudUuid != server.cloudUuid ||
+                old.serverId != server.serverId))) {
+      _blocked('existing identity cannot be silently reassigned');
+    }
+    final journal = await db
+        .customSelect(
+          'SELECT row_version FROM petugas_sync_journal WHERE local_uuid=?',
+          variables: [Variable(localUuid)],
+        )
+        .getSingleOrNull();
+    if (old?.cloudUuid == null &&
+        journal?.readNullable<int>('row_version') != null) {
+      _blocked('unmapped local row already has a server version');
+    }
+    return mappings.linkVerified(
+      localUuid: localUuid,
+      cloudUuid: server.cloudUuid,
+      serverId: server.serverId,
+      evidence: evidence,
+    );
+  });
   Future<PetugasIdentityMap> confirmServerOnly({
     required String localUuid,
     required PetugasServerIdentity server,

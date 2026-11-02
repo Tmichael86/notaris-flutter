@@ -50,13 +50,14 @@ class PetugasSyncApi {
     String path, {
     Object? data,
     Map<String, dynamic>? query,
+    Map<String, dynamic>? headers,
   }) async {
     try {
       final response = await dio.request<Object?>(
         path,
         data: data,
         queryParameters: query,
-        options: Options(method: method),
+        options: Options(method: method, headers: headers),
       );
       if ((response.statusCode ?? 500) >= 400) {
         throw _failure(response.statusCode, response.data);
@@ -91,4 +92,32 @@ class PetugasSyncApi {
         422 => PetugasSyncFailureKind.reference,
         _ => PetugasSyncFailureKind.server,
       }, data);
+}
+
+/// Pull-only capability for the controlled baseline path. Session/origin are
+/// checked before and after HTTP; a user switch cannot commit the old response.
+class AuthenticatedPetugasPullApi extends PetugasSyncApi {
+  AuthenticatedPetugasPullApi(super.dio, {required this.verifiedToken});
+  final String Function() verifiedToken;
+
+  @override
+  Future<Map<String, dynamic>> push(Map<String, dynamic> mutation) async {
+    throw const PetugasSyncFailure(
+      PetugasSyncFailureKind.blocked,
+      'baseline pull does not permit mutations',
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> pull(int cursor, {int limit = 100}) async {
+    final token = verifiedToken();
+    final result = await _request(
+      'GET',
+      '/petugas/sync/pull',
+      query: {'cursor': cursor, 'limit': limit},
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    verifiedToken();
+    return result;
+  }
 }

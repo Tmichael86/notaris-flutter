@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -51,7 +50,9 @@ Future<void> main() async {
     final file = File(developmentDatabasePath(support.path, generation));
     final folder = file.parent;
     await folder.create(recursive: true);
-    final db = AppDatabase(NativeDatabase(file));
+    // Same isolated profile; labels the file for a future approved pull only.
+    // It does not configure, enable or invoke the Petugas pull provider.
+    final db = AppDatabase.forIsolatedPetugasPull(file);
     runApp(
       ProviderScope(
         overrides: [

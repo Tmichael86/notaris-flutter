@@ -209,10 +209,56 @@ class TransaksiRiwayatPembayarans extends Table {
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
+  AppDatabase([QueryExecutor? executor])
+    : petugasBaselinePath = null,
+      super(executor ?? _openConnection());
 
   /// Creates an isolated database for repository and migration tests.
-  AppDatabase.forTesting(super.executor);
+  AppDatabase.forTesting(super.executor) : petugasBaselinePath = null;
+
+  /// Explicit target for the disabled-by-default baseline pull service. Reject
+  /// the normal daily file before Drift can open or migrate it. Caller creates
+  /// the isolated profile directory; no default path/fallback is used here.
+  factory AppDatabase.forIsolatedPetugasPull(File file) {
+    final path = petugasBaselineFilePath(file);
+    return AppDatabase._isolatedPetugasFile(File(path), path);
+  }
+
+  static String petugasBaselineFilePath(File file) {
+    final path = p.normalize(p.absolute(file.path));
+    final parent = p.dirname(path);
+    if (!p.isAbsolute(file.path) ||
+        p.basename(path) != 'offline.sqlite' ||
+        !RegExp(r'^[a-f0-9]{32}$').hasMatch(p.basename(parent)) ||
+        p.basename(p.dirname(parent)) != 'notarisdev' ||
+        !Directory(parent).existsSync()) {
+      throw ArgumentError(
+        'Explicit non-linked isolated notarisdev file required',
+      );
+    }
+    // Resolve legitimate Windows 8.3 aliases, but reject actual links/junctions
+    // before opening SQLite. TEMP may use a short spelling of the user folder.
+    var component = path;
+    while (true) {
+      if (FileSystemEntity.typeSync(component, followLinks: false) ==
+          FileSystemEntityType.link) {
+        throw ArgumentError('Linked baseline profile is not permitted');
+      }
+      final above = p.dirname(component);
+      if (p.equals(component, above)) break;
+      component = above;
+    }
+    return p.join(
+      Directory(parent).resolveSymbolicLinksSync(),
+      p.basename(path),
+    );
+  }
+
+  AppDatabase._isolatedPetugasFile(File file, String path)
+    : petugasBaselinePath = path,
+      super(NativeDatabase(file));
+
+  final String? petugasBaselinePath;
 
   @override
   int get schemaVersion => 13;
