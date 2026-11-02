@@ -40,7 +40,7 @@ func Build(hash string) []Row {
 	}{{11, "Fixture Gender A"}, {29, "Fixture Gender B"}} {
 		add("jenis_kelamin", item.id, map[string]any{"nama": item.name, "status": 1})
 	}
-	menus := []struct{ code, name string }{{"pemohon", "Pemohon"}, {"petugas", "Petugas"}, {"kategori_pekerjaan", "Kategori Pekerjaan"}, {"jenis_pengeluaran", "Jenis Pengeluaran"}, {"transaksi", "Transaksi"}, {"pekerjaan_notaris", "Pekerjaan Notaris"}}
+	menus := []struct{ code, name string }{{"pemohon", "Pemohon"}, {"petugas", "Petugas"}, {"kategori_pekerjaan", "Kategori Pekerjaan"}, {"jenis_pengeluaran", "Jenis Pengeluaran"}, {"transaksi", "Transaksi"}, {"pekerjaan_notaris", "Pekerjaan Notaris"}, {"pekerjaan_ppat", "Pekerjaan PPAT"}}
 	for i, m := range menus {
 		add("sidebar", i+1, map[string]any{"sidebar_nama": m.name, "sidebar_route": "/" + m.code, "sidebar_kode": m.code, "sidebar_icon": "folder", "sidebar_index": i + 1, "status": 1})
 		add("sidebar_akses", i+1, map[string]any{"sidebar_id": i + 1, "group_id": 11, "read": 1, "create": 1, "update": 1, "delete": 1})

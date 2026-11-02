@@ -330,6 +330,7 @@ class PekerjaanNotarisRepository {
     final now = DateTime.now();
 
     return dao.attachedDatabase.transaction(() async {
+      await _validateCategories(dao, input);
       final pekerjaanId = await dao.insertPekerjaanNotaris(
         PekerjaanNotarisLocalsCompanion.insert(
           uuid: _uuid.v4(),
@@ -804,6 +805,7 @@ class PekerjaanPpatRepository {
     final now = DateTime.now();
 
     return dao.attachedDatabase.transaction(() async {
+      await _validateCategories(dao, input);
       final pekerjaanId = await dao.insertPekerjaanPpat(
         PekerjaanPpatLocalsCompanion.insert(
           uuid: _uuid.v4(),
@@ -1044,5 +1046,20 @@ class PekerjaanPpatRepository {
 
       return dao.softDeletePekerjaanPpat(id, now);
     });
+  }
+}
+
+Future<void> _validateCategories(
+  PekerjaanDao dao,
+  PekerjaanAggregateInput input,
+) async {
+  final db = dao.attachedDatabase;
+  for (final harga in input.harga) {
+    final row = await (db.select(
+      db.pekerjaanKategoris,
+    )..where((t) => t.id.equals(harga.kategoriPekerjaanId))).getSingleOrNull();
+    if (row == null || row.status != 1 || row.deletedAt != null) {
+      throw ArgumentError('Kategori pekerjaan harus ada dan aktif.');
+    }
   }
 }

@@ -42,3 +42,41 @@ func TestDuplicatePK(t *testing.T) {
 		t.Fatal("duplicate accepted")
 	}
 }
+
+func TestBothMasterMenusHaveScopedFixtureCRUD(t *testing.T) {
+	rows := Build("test")
+	for _, code := range []string{"pekerjaan_notaris", "pekerjaan_ppat"} {
+		var id any
+		for _, r := range rows {
+			if r.Table == "sidebar" && r.Values["sidebar_kode"] == code {
+				id = r.Values["id"]
+				if r.Values["status"] != 1 || r.Values["sidebar_route"] != "/"+code {
+					t.Fatal("inactive/wrong route", code)
+				}
+			}
+		}
+		if id == nil {
+			t.Fatal("missing master", code)
+		}
+		count := 0
+		for _, r := range rows {
+			if r.Table == "sidebar_akses" && r.Values["sidebar_id"] == id {
+				count++
+				if r.Values["group_id"] != 11 {
+					t.Fatal("global access")
+				}
+				for _, flag := range []string{"read", "create", "update", "delete"} {
+					if r.Values[flag] != 1 {
+						t.Fatal("missing", flag)
+					}
+				}
+			}
+		}
+		if count != 1 {
+			t.Fatal("duplicate/missing grant", code)
+		}
+	}
+	if err := Validate(rows); err != nil {
+		t.Fatal(err)
+	}
+}

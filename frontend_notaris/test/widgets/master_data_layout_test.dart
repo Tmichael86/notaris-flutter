@@ -1,5 +1,7 @@
 import 'dart:ui' as ui;
 
+import 'package:frontend_notaris/models/auth_session.dart';
+
 import 'package:flutter/rendering.dart';
 
 import 'dart:io';
@@ -9,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend_notaris/screens/pekerjaan_ppat_desktop_screen.dart';
 import 'package:drift/native.dart';
 import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/providers/database_provider.dart';
@@ -26,6 +29,7 @@ const pages = <String, Widget>{
   'Kategori': KategoriPekerjaanDesktopScreen(),
   'Pengeluaran': JenisPengeluaranDesktopScreen(),
   'Notaris': PekerjaanNotarisDesktopScreen(),
+  'PPAT': PekerjaanPPATDesktopScreen(),
 };
 Future<AppDatabase> fixture(int count) async {
   final db = AppDatabase.forTesting(NativeDatabase.memory());
@@ -35,6 +39,7 @@ Future<AppDatabase> fixture(int count) async {
     'pekerjaan_kategori',
     'pengeluaran_jenis',
     'pekerjaan_notaris',
+    'pekerjaan_ppat',
   ]) {
     for (var i = 0; i < count; i++) {
       await db.customStatement(
@@ -204,6 +209,55 @@ void main() {
         );
       }
     }
+  }
+  for (final allowed in [false, true]) {
+    testWidgets('Fixture PPAT sidebar read permission $allowed', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1440, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final db = await fixture(0);
+      addTearDown(db.close);
+      final session = AuthSession(
+        token: 'fixture',
+        userId: 2001,
+        groupId: 11,
+        userName: 'Fixture',
+        groupName: 'Fixture Operators',
+        user: const {},
+        verifiedAt: DateTime.now(),
+        sidebars: [
+          {
+            'sidebar': {'sidebar_nama': 'Pekerjaan Notaris'},
+            'read': 1,
+          },
+          {
+            'sidebar': {'sidebar_nama': 'Pekerjaan PPAT'},
+            'read': allowed ? 1 : 0,
+          },
+        ],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [appDatabaseProvider.overrideWithValue(db)],
+          child: MaterialApp(
+            theme: ThemeData(fontFamily: 'Roboto'),
+            home: AppShell(session: session),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Master').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Pekerjaan Notaris'), findsOneWidget);
+      expect(
+        find.text('Pekerjaan PPAT'),
+        allowed ? findsOneWidget : findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    });
   }
   testWidgets('persistent shell navigation between masters retains footer', (
     tester,
