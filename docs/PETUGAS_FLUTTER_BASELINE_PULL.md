@@ -226,3 +226,92 @@ on explicitly selected clean rows. Dirty edits and their transaction references
 must be preserved for a separate conflict/reconciliation decision. Full-resync/410,
 future events beyond cursor4, background publication, UI activation and push remain
 separate checkpoints. No normal persistent pull is authorized by this document.
+
+## Existing Windows development profile: prepared operator entry
+
+`scripts/invoke-notarisdev-petugas-baseline-pull.ps1` now supplies the explicit
+headless entry `frontend_notaris/tool/petugas_existing_baseline_entry.dart`.
+It runs through the installed Flutter test runtime to reuse Drift/Flutter imports;
+it is outside the default test directory and never launches the application UI.
+It adds no sync engine, schema migration or normal coordinator registration.
+
+Preparation for this checkpoint uses `scripts/petugas-baseline-sqlite.py` with
+Python3.12 on Windows. It resolves only the provisioned generation under Windows
+RoamingAppData/com.notaris/frontend_notaris/notarisdev, refuses links and any
+WAL/SHM/journal sidecar, and checks the source against the reviewed audit hash.
+It holds a read handle denying writers, opens SQLite read-only/immutable, and uses
+the SQLite backup API into a new receipt directory. It never checkpoints or
+changes the source journal mode. Reopened backup schema, integrity/FK checks,
+counts and every table fingerprint must equal the source. The backup file SHA256
+can differ from the source because the API materializes a database snapshot.
+If sidecars or changed source state appear, stop for a new backup review; do not
+copy only a live main file or force a checkpoint. Backup failure never deletes or
+restores the source or an earlier receipt.
+
+There was no prior Petugas device identity service/feed owner in this profile.
+The preparation therefore documents a stable binding derived from a versioned
+namespace, the real Windows MachineGuid, generation and canonical casefolded
+profile path. It retains only the resulting `ndpetugas-<hash>` ID and machine
+fingerprint in `.local/notarisdev-<generation>/petugas-device.json`, not the raw
+MachineGuid. Subsequent runs validate/reuse that manifest, never substitute the
+disposable's device or silently create a replacement. SQLite scope/reference
+storage remains untouched until separately approved apply.
+
+With an already verified preparation receipt, the default command is read-only:
+
+```powershell
+.\scripts\invoke-notarisdev-petugas-baseline-pull.ps1 `
+  -PreparedReceiptDirectory '<absolute workspace .local preparation receipt>'
+```
+
+The CLI checks closed Flutter clients, no writable SQLite handle, exact
+source/backup checksums and stable device identity. It uses the existing
+AuthService.Login through `scripts/petugas-baseline-auth.go` to verify the real
+fixture credential/account2001/group11; this is not an HTTP login POST. The
+adapter verifies the exact deployment marker, read-only PostgreSQL session,
+published4/pending0/cursor4 and no other target database sessions. An owned normal
+Go backend runs temporarily with default_transaction_read_only=on and publisher
+OFF, and is stopped after the bounded operation. Secrets remain in process
+memory/environment and are never persisted in receipts.
+
+Dry-run performs authenticated GET pages0/2/4 and the gender catalog, checks the
+four reviewed cloud UUIDs, version1 and publication sequence1-4, and builds the
+existing PetugasBaselinePlan. It does NOT open the source via Drift, bind the feed,
+install provenance or import rows. Go omits NULL user_id (`omitempty`); omission
+and explicit NULL are both accepted, while any non-null user stops for review.
+Gender11 is explicitly paired through fixture producer provenance with existing
+local UUID `notarisdev-smoke-gender-11`/PK1, not by its label or numeric equality.
+
+Only after separate final import approval, the exact same receipt is used:
+
+```powershell
+.\scripts\invoke-notarisdev-petugas-baseline-pull.ps1 `
+  -PreparedReceiptDirectory '<approved absolute receipt>' `
+  -Apply -MaintenanceConfirmed `
+  -ConfirmTarget '<approved exact canonical existing offline.sqlite path>'
+```
+
+Apply additionally requires a matching successful dry-run, exact target
+confirmation, unchanged source/backup/device, and no previous apply attempt.
+It records the attempt before any SQLite write, confirms one scoped gender
+provenance row, then calls the EXISTING PetugasBaselinePull with limit2 and the
+four explicit serverOnly decisions. Local effects: four new local UUID/PK rows,
+four identity mappings, four row_version1 journals, singleton scoped feed
+cursor0→2→4, one gender reference and the Petugas SQLite sequence. No existing
+Pemohon/master/transaction row may change. Fresh discovery is GET-only; no
+server operation or normal/global synchronization is invoked.
+
+An initial reference row/feed binding can persist before the first page. Each
+page's rows/maps/journals/cursor is atomic; page2 failure preserves cursor2 and
+page1. Any failure or timeout stops, retains receipts, kills only the owned
+Flutter process tree and backend, and requires read-only investigation. No
+automatic retry, cursor reset or restore is provided. The one-shot CLI does not
+silently resume a changed file. A later recovery/resume needs a separately
+reviewed inventory and approval. Successful apply closes/reopens Drift to verify
+cursor4/maps, then independently checks SQLite integrity/FKs/version/journals and
+every pre-existing non-Petugas fingerprint against the verified backup.
+
+Fixture coverage for the operator adapter includes byte-identical dry-run,
+exact-target/scope/backup guards, GET-only enforcement, omitted/NULL user contract,
+preserved20 Pemohon and existing gender identity, and durable cursor2 on page2
+failure. These apply tests use only unique test-owned disposable profiles.

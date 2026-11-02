@@ -76,4 +76,18 @@ $pidFile=Join-Path $root 'timeout-child.pid'
 Refuses {Invoke-PetugasBoundedProcess (Get-Command powershell.exe).Source @('-NoProfile','-ExecutionPolicy','Bypass','-File',$nativeFile,$pidFile) (Join-Path $root 'timeout.log') 2} 'bounded native timeout'
 $childPid=[int](Get-Content $pidFile)
 Check ($null -eq (Get-Process -Id $childPid -ErrorAction SilentlyContinue)) 'only owned timed-out process stopped'
+$leafFile=Join-Path $root 'owned-leaf.ps1'
+$leafPidFile=Join-Path $root 'owned-leaf.pid'
+'param([string]$PidFile); $PID | Set-Content $PidFile; Start-Sleep -Seconds 30'|Set-Content $leafFile
+@'
+param([string]$PidFile,[string]$Leaf)
+$child=Start-Process -FilePath (Get-Command powershell.exe).Source -ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-File',('"'+$Leaf+'"'),('"'+$PidFile+'"')) -WindowStyle Hidden -PassThru
+$child.WaitForExit()
+'@|Set-Content $nativeFile
+Refuses {Invoke-PetugasBoundedProcess (Get-Command powershell.exe).Source @('-NoProfile','-ExecutionPolicy','Bypass','-File',$nativeFile,$leafPidFile,$leafFile) (Join-Path $root 'tree-timeout.log') 3 -KillTreeOnTimeout} 'bounded owned-tree timeout'
+Check (Test-Path -LiteralPath $leafPidFile) 'owned grandchild actually started'
+$leafPid=[int](Get-Content $leafPidFile)
+$remainingLeaf=Get-Process -Id $leafPid -ErrorAction SilentlyContinue
+if($remainingLeaf){$remainingLeaf.Kill();throw 'Owned Flutter-like descendant survived tree timeout'}
+$checks++
 Write-Output "PETUGAS_OPERATIONS_GUARDS_PASS: $checks checks; artifacts: $root"

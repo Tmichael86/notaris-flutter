@@ -51,14 +51,15 @@ function Get-PetugasOperationsBaseline([string]$ReceiptDirectory,[string]$Reposi
  return $baseline
 }
 
-function Invoke-PetugasBoundedProcess([string]$Executable,[string[]]$Arguments,[string]$Log,[int]$TimeoutSeconds) {
+function Invoke-PetugasBoundedProcess([string]$Executable,[string[]]$Arguments,[string]$Log,[int]$TimeoutSeconds,[switch]$KillTreeOnTimeout) {
  # Native Windows quoting; credentials are inherited only via process environment.
  $quoted=($Arguments|ForEach-Object {'"'+[regex]::Replace([regex]::Replace($_,'(\\*)"','$1$1\"'),'(\\+)$','$1$1')+'"'}) -join ' '
  $process=Start-Process -FilePath $Executable -ArgumentList $quoted -WindowStyle Hidden -PassThru -RedirectStandardOutput $Log -RedirectStandardError ($Log+'.stderr')
  $handle=$process.Handle
  if(!$process.WaitForExit($TimeoutSeconds*1000)){
   # Only the exact child object started here; no process-name/service termination.
-  $process.Kill();$process.WaitForExit()
+  if($KillTreeOnTimeout){$process.Kill($true)}else{$process.Kill()}
+  $process.WaitForExit()
   throw "Owned command timed out; inspect $Log. Earlier commits may persist; no automatic retry"
  }
  return [int]$process.ExitCode
