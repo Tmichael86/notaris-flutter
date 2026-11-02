@@ -1,15 +1,16 @@
 # Petugas Flutter baseline pull — preparation checkpoint
 
-Scope: prepare server→Flutter import of four published version-1 Petugas baseline
-events through cursor4. Code and disposable testing only. The normal Petugas
-SyncCoordinator remains OFF. No user SQLite file was opened and no permanent
-server request/write, publisher, bootstrap, drain or schema/grant action is needed
-to execute the tests below.
+Scope: server→Flutter import of four published version-1 Petugas baseline events
+through cursor4, with fixture validation and a separate controlled live GET test.
+The normal Petugas SyncCoordinator remains OFF. No user SQLite file was opened.
+The regular suite uses fixtures; the explicit live test below uses server reads
+and a fresh owned SQLite only, without publisher/bootstrap/drain/schema/grants.
 
 Server evidence is in `.local/petugas-drain-execution-20261102/REPORT.md`:
-four published events, cursor0→2→4, latest cursor4 empty. The current checkpoint
-uses in-process HTTP fixtures with the same IDs/UUIDs and synthetic payloads; it
-does not claim a new live-server or interactive Flutter acceptance run.
+four published events, cursor0→2→4, latest cursor4 empty. Initial preparation used
+in-process fixtures. The subsequent opt-in live checkpoint demonstrated real
+Flutter/Dart HTTP GET → production baseline service → disposable SQLite, including
+restart/replay. This remains separate from interactive app/coordinator activation.
 
 ## Audit of existing components
 
@@ -105,16 +106,76 @@ cursor race, baseline upper bound, and default-disabled/explicit-provider behavi
 Exact final results/logs are retained under `.local/petugas-flutter-baseline-20261102/`.
 
 Validated on 2 November 2026: `flutter analyze --no-pub` reports no issues;
-full `flutter test --no-pub` reports **312 passed, 0 failed, 2 live-E2E skips**.
+full `flutter test --no-pub` reports **312 passed, 0 failed, 3 live-E2E skips**.
 This includes 19 baseline-boundary tests and 29 Pemohon repository/API/reference
-tests. The skipped cases are the independently opted-in Petugas and Pemohon live
-tests; no live PostgreSQL/application database was contacted by this run.
+tests. The skipped cases are the independently opted-in Petugas mutation roundtrip,
+Pemohon live test and new GET-only baseline test. No server is contacted by the
+default suite. The new GET-only live test passed separately with explicit opt-in.
 
-## Future controlled development call — approval still required
+## Controlled live GET test with a new disposable profile
+
+`test/e2e/petugas_baseline_get_live_test.dart` uses the actual IOHttpClientAdapter,
+not a mock, and production PetugasBaselinePull, identity/reference repositories
+and Drift storage. It never starts the Flutter UI or normal SyncCoordinator.
+
+Required preflight/runner inputs (not supplied automatically by the test):
+
+1. Verify the local provisioning manifest, exact notarisdev identity/marker, four
+   published events, cursor4, no pending mutations and stable legacy fingerprints.
+   Keep before/after PostgreSQL snapshots and verify maintenance before startup.
+2. Create a fresh workspace-owned `.local/petugas-baseline-live-<unique-id>` audit
+   directory and nonsecret `ownership.json`: kind=petugas-baseline-get-live-v1,
+   exact target, verified generation/account/group, a unique device_id,
+   postgres_preflight_verified=true, and expected_events from the verified outbox
+   (petugas_id/uuid/sequences). That flag must represent actual validation.
+3. Verify the real local fixture credential through the existing AuthService.Login
+   (active user/group and bcrypt) under a read-only PostgreSQL connection. Use its
+   returned JWT in memory; do not invent claims, print credentials/tokens, save a
+   token file, or perform an HTTP login POST. Stop if credentials/provenance fail.
+4. Start the existing normal Go entry point with explicit reviewed development
+   config, PETUGAS_PUBLISHER_ENABLED=false and PGOPTIONS enforcing
+   default_transaction_read_only=on. Own/bound its process lifetime. No normal
+   Flutter startup, worker, bootstrap or migration is invoked.
+5. In that controlled child environment only, set NOTARIS_PETUGAS_BASELINE_LIVE=1,
+   NOTARIS_BASELINE_LIVE_ROOT to the owned audit directory and
+   NOTARIS_BASELINE_LIVE_TOKEN to the credential-verified JWT, then run:
+
+```powershell
+flutter test --no-pub --reporter expanded test/e2e/petugas_baseline_get_live_test.dart
+```
+
+The test refuses an existing profile/SQLite file. It discovers both baseline pages
+and required references through authenticated GET, checks deployment identities,
+creates local gender UUIDs from explicit active catalog selections, verifies each
+non-null server user reference, and records four server-only decisions after an
+empty local inventory check. NULL user_id is preserved, not guessed or replaced
+with the authenticated account. Only needed gender/user references are installed.
+
+The production service then imports pages0→2→4 into a fresh labelled SQLite file,
+closes/reopens it, replays cursor4, and checks unique maps/independent local PKs,
+persisted cursor, integrity_check and foreign_key_check. Requests are restricted
+to GET on the exact loopback API origin; logs retain request metadata without
+Authorization headers. SQLite and sanitized diagnostics remain even on failure.
+
+After completion stop only the owned backend and compare complete business/
+journal/counter snapshots plus all72 legacy fingerprints. Preserve the file and
+audit material. Do not reset/reuse the same profile for another test run, activate
+normal sync, or silently retry existing-file writes after a failure.
+
+Completed live evidence: `.local/petugas-baseline-live-20261102-cf7a632f/` contains
+the retained local orchestration, credential-verification adapter using existing
+Login, server process/config proof, Dart request trace, SQLite and before/after
+server snapshots. Live import=4, local IDs1–4 versus server101–104, cursor0→4,
+restart4/replay4 with zero added events, integrity=ok/FK violations0. The actual
+payloads required gender11 (mapped to local ID1) and had user_id=NULL. Source
+production components, user databases and PostgreSQL state remained unchanged.
+
+## Controlled pull to an existing profile — approval still required
 
 Do not launch the normal application or call its global synchronizeNow merely to
 perform this test: its existing initial/Pemohon synchronization can push other
-entities. This preparation did not change that workflow or contact notarisdev.
+entities. That workflow is unchanged; only the explicitly scoped disposable live
+test above contacted notarisdev, using GET and read-only database connections.
 
 After a separate approved target/backup review, the bounded application call is:
 
