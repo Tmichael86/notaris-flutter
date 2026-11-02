@@ -261,7 +261,7 @@ class AppDatabase extends _$AppDatabase {
   final String? petugasBaselinePath;
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -273,6 +273,7 @@ class AppDatabase extends _$AppDatabase {
       await _createPetugasSyncStorage();
       await _createPetugasReferenceStorage();
       await _createPetugasConflictStorage();
+      await _createSyncLogStorage();
     },
     onUpgrade: (Migrator m, int from, int to) async {
       // Keep all pending migration steps atomic. If V8 UUID validation fails,
@@ -415,6 +416,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 13) {
           await _createPetugasConflictStorage();
         }
+        if (from < 14) {
+          await _createSyncLogStorage();
+        }
       });
     },
   );
@@ -427,6 +431,15 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_transaksis_uuid_unique '
       'ON transaksis (uuid)',
+    );
+  }
+
+  Future<void> _createSyncLogStorage() async {
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS sync_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, operation_id TEXT NOT NULL, attempt_id TEXT NOT NULL, module TEXT NOT NULL, direction TEXT NOT NULL CHECK(direction IN (\'push\',\'pull\')), started_at TEXT NOT NULL, finished_at TEXT, status TEXT NOT NULL CHECK(status IN (\'pending\',\'success\',\'failed\')), record_count INTEGER, error_code TEXT, error_message TEXT, UNIQUE(attempt_id,module,direction))',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS sync_logs_recent ON sync_logs(id DESC)',
     );
   }
 

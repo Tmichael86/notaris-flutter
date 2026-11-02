@@ -21,7 +21,10 @@ completed push, publisher, bidirectional/global sync or production release.
   meaning, permissions, pending/conflict/blocked handling and supported directions
   before enabling actions. Unsupported module/direction must not imply success.
   Keep smoke mode write guards; adding this backlog does not enable sync.
-- **Log Sinkronisasi — manager request, backlog.** Persistent history for success,
+- **Log Sinkronisasi — MVP implemented, fixture acceptance passed.** See
+  [SYNC_LOG_MVP.md](SYNC_LOG_MVP.md): Drift14 history, active coordinator integration,
+  sanitized outcomes/retry IDs, local page/filters and smoke protection. Live UI
+  acceptance of this new page and operational rollout remain separate. Original need: persistent history for success,
   failure and retry, with timestamp, module, direction and error reason. Existing
   session_sync_controller.dart/SyncStatus/debugPrint are not a durable cross-module
   history. Petugas journal/conflict storage is entity/protocol metadata, not the
