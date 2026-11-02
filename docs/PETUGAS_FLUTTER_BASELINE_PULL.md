@@ -1,4 +1,28 @@
-# Petugas Flutter baseline pull — preparation checkpoint
+# Petugas Flutter baseline pull and UI checkpoint
+
+## Petugas Baseline UI — PASSED (manual 7/7)
+
+Recorded 2026-11-02 from the user's completed manual Flutter Windows smoke test,
+on branch feature/pemohon-cloud-sync after commit0f35f4d. This records the user's
+reported acceptance; no E2E or suite was rerun to record it, and no screenshot or
+additional runtime evidence is implied.
+
+1. DEV notarisdev UI SMOKE banner displayed: PASS.
+2. Development account login: PASS.
+3. Master Data → Petugas displayed4 records: PASS.
+4. Master Data → Pemohon displayed20 records: PASS.
+5. Shared header/sidebar/footer remained available during navigation: PASS.
+6. Tables, pagination and scrollbars behaved normally: PASS.
+7. After application restart, Petugas/Pemohon counts remained4/20: PASS.
+
+Acceptance covers the controlled server→SQLite Petugas baseline and its local UI
+display/persistence in smoke mode. It does NOT establish completed Petugas push,
+background publisher operation, normal/global sync activation, bidirectional sync,
+multi-device acceptance, or production readiness. Those remain separate work and
+approval boundaries. Preserve the shared desktop shell.
+
+Current remaining-work inventory and the two manager requests are recorded in
+[PROJECT_BACKLOG.md](PROJECT_BACKLOG.md).
 
 ## Windows interactive UI smoke (existing imported development profile)
 
