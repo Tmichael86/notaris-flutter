@@ -306,4 +306,101 @@ void main() {
       );
     },
   );
+
+  test(
+    'UPDATE 409 keeps the durable pending mutation and local edit',
+    () async {
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+      await category(db);
+      final id = await PekerjaanNotarisRepository(db.pekerjaanDao)
+          .createAggregate(
+            input: const PekerjaanAggregateInput(
+              nama: 'Original',
+              harga: [
+                PekerjaanHargaInput(
+                  harga: '100',
+                  kategoriPekerjaanId: 1,
+                  estimasiWaktu: '1 hari',
+                ),
+              ],
+              proses: [
+                PekerjaanProsesInput(nama: 'Periksa', detail: 'Fixture'),
+              ],
+            ),
+          );
+      final dio = Dio(BaseOptions(baseUrl: 'http://example.invalid/api/v1'));
+      dio.interceptors.add(
+        InterceptorsWrapper(
+          onRequest: (request, handler) {
+            if (request.path.endsWith('/update')) {
+              handler.reject(
+                DioException(
+                  requestOptions: request,
+                  response: Response(
+                    requestOptions: request,
+                    statusCode: 409,
+                    data: {'code': 'revision_conflict'},
+                  ),
+                ),
+              );
+            } else {
+              final payload = request.data as Map;
+              handler.resolve(
+                Response(
+                  requestOptions: request,
+                  statusCode: 200,
+                  data: {
+                    'acknowledgement': {
+                      'mutation_id': payload['mutation_id'],
+                      'uuid': payload['uuid'],
+                      'revision': 1,
+                      'server_id': 100,
+                    },
+                  },
+                ),
+              );
+            }
+          },
+        ),
+      );
+      final cloud = PekerjaanNotarisCloudRepository(
+        db,
+        dio,
+        scope: 'test-scope',
+      );
+      await cloud.pushCreate(id);
+      await PekerjaanNotarisRepository(db.pekerjaanDao)
+          .updateNama(id: id, nama: 'Unsent edit');
+      await expectLater(
+        cloud.pushUpdate(id),
+        throwsA(
+          isA<DioException>().having(
+            (e) => e.response?.statusCode,
+            'status',
+            409,
+          ),
+        ),
+      );
+      final saved = await db
+          .customSelect(
+            'SELECT payload,state FROM pekerjaan_notaris_sync_pending',
+          )
+          .getSingle();
+      expect(saved.read<String>('state'), 'pending');
+      expect(saved.read<String>('payload'), contains('Unsent edit'));
+      final parent = (await db.pekerjaanDao.getPekerjaanNotaris()).single;
+      expect(parent.nama, 'Unsent edit');
+      expect(parent.isSyncDirty, isTrue);
+      expect(
+        (await db
+                .customSelect(
+                  'SELECT revision FROM pekerjaan_notaris_sync_identity',
+                )
+                .getSingle())
+            .read<int>('revision'),
+        1,
+      );
+    },
+  );
 }

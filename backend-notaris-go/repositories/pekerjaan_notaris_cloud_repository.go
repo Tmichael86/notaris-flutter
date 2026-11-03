@@ -47,10 +47,20 @@ type NotarisCloudAck struct {
 	ServerID   int64  `json:"server_id"`
 	Revision   int64  `json:"revision"`
 }
+type NotarisCloudUpdate struct {
+	NotarisCloudCreate
+	ExpectedRevision int64 `json:"expected_revision"`
+}
+type NotarisCloudDelete struct {
+	MutationID       string `json:"mutation_id"`
+	UUID             string `json:"uuid"`
+	ExpectedRevision int64  `json:"expected_revision"`
+}
 type NotarisCloudEvent struct {
 	Sequence  int64              `json:"sequence"`
 	Aggregate NotarisCloudCreate `json:"aggregate"`
 	Revision  int64              `json:"revision"`
+	Operation string             `json:"operation"`
 }
 type NotarisCloudPage struct {
 	Changes    []NotarisCloudEvent `json:"changes"`
@@ -209,8 +219,10 @@ func (r *NotarisCloudRepository) Pull(ctx context.Context, cursor int64, limit i
 		var rows []struct {
 			PublicationSeq int64
 			Payload        []byte
+			Revision       int64
+			Operation      string
 		}
-		if err := tx.Raw("SELECT publication_seq,payload FROM pekerjaan_notaris_sync_outbox WHERE publication_seq>? ORDER BY publication_seq LIMIT ?", cursor, limit+1).Scan(&rows).Error; err != nil {
+		if err := tx.Raw("SELECT publication_seq,payload,revision,operation FROM pekerjaan_notaris_sync_outbox WHERE publication_seq>? ORDER BY publication_seq LIMIT ?", cursor, limit+1).Scan(&rows).Error; err != nil {
 			return err
 		}
 		page.HasMore = len(rows) > limit
@@ -222,7 +234,7 @@ func (r *NotarisCloudRepository) Pull(ctx context.Context, cursor int64, limit i
 			if err := json.Unmarshal(row.Payload, &aggregate); err != nil {
 				return err
 			}
-			page.Changes = append(page.Changes, NotarisCloudEvent{Sequence: row.PublicationSeq, Aggregate: aggregate, Revision: 1})
+			page.Changes = append(page.Changes, NotarisCloudEvent{Sequence: row.PublicationSeq, Aggregate: aggregate, Revision: row.Revision, Operation: row.Operation})
 			page.NextCursor = row.PublicationSeq
 		}
 		return nil

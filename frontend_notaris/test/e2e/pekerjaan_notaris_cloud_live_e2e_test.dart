@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/database/app_database.dart';
@@ -22,7 +23,7 @@ void main() {
     return;
   }
   test(
-    'Device A HTTP create, PostgreSQL publish, Device B HTTP pull',
+    'Device A create, update, delete through HTTP publication to Device B',
     () async {
       final folder = await Directory.systemTemp.createTemp(
         'notaris-cloud-devices-',
@@ -150,11 +151,220 @@ void main() {
         (await b.pekerjaanDao.getAtributNotaris(process.id)).single.atribut,
         'KTP',
       );
+      final aHarga = (await a.pekerjaanDao.getHargaNotaris(id)).single;
+      final aProses = (await a.pekerjaanDao.getProsesNotaris(id)).single;
+      expect(
+        await PekerjaanNotarisRepository(a.pekerjaanDao).updateAggregate(
+          id: id,
+          input: PekerjaanAggregateInput(
+            nama: 'E2E Notaris updated',
+            harga: [
+              PekerjaanHargaInput(
+                id: aHarga.id,
+                harga: '150000',
+                kategoriPekerjaanId: 1,
+                estimasiWaktu: '3 hari',
+              ),
+            ],
+            proses: [
+              PekerjaanProsesInput(
+                id: aProses.id,
+                nama: 'Periksa',
+                detail: 'Updated',
+                atribut: const [PekerjaanAtributInput(atribut: 'Akta')],
+              ),
+            ],
+          ),
+        ),
+        isTrue,
+      );
+      final updatedAck = await sender.pushUpdate(id);
+      expect(updatedAck['revision'], 2);
+      final updatePayload = jsonDecode(
+        (await a
+                .customSelect(
+                  'SELECT payload FROM pekerjaan_notaris_sync_pending',
+                )
+                .getSingle())
+            .read<String>('payload'),
+      ) as Map<String, dynamic>;
+      final updateRetry = await dio.post<Map<String, dynamic>>(
+        '/pekerjaan-notaris/sync/update',
+        data: updatePayload,
+      );
+      expect((updateRetry.data!['acknowledgement'] as Map)['revision'], 2);
+      final changedUpdate = Map<String, dynamic>.from(updatePayload)
+        ..['nama'] = 'Other';
+      await expectLater(
+        dio.post('/pekerjaan-notaris/sync/update', data: changedUpdate),
+        throwsA(
+          isA<DioException>().having(
+            (e) => e.response?.statusCode,
+            'status',
+            409,
+          ),
+        ),
+      );
+      final stale = Map<String, dynamic>.from(updatePayload)
+        ..['mutation_id'] = '00000000-0000-4000-8000-000000000781';
+      await expectLater(
+        dio.post('/pekerjaan-notaris/sync/update', data: stale),
+        throwsA(
+          isA<DioException>().having(
+            (e) => e.response?.statusCode,
+            'status',
+            409,
+          ),
+        ),
+      );
+      expect(
+        (await dio.post<Map<String, dynamic>>(
+          '/pekerjaan-notaris/testing/publish',
+        )).data!['published'],
+        1,
+      );
+      expect(await receiver.pullPage(), 2);
+      final updatedB = (await b.pekerjaanDao.getPekerjaanNotaris()).single;
+      expect(updatedB.nama, 'E2E Notaris updated');
+      expect(
+        (await b.pekerjaanDao.getHargaNotaris(updatedB.id)).single.uuid,
+        aHarga.uuid,
+      );
+      expect(
+        (await b.pekerjaanDao.getHargaNotaris(updatedB.id)).single.harga,
+        '150000',
+      );
+      final updatedProcess = (await b.pekerjaanDao.getProsesNotaris(
+        updatedB.id,
+      )).single;
+      expect(updatedProcess.uuid, aProses.uuid);
+      expect(
+        (await b.pekerjaanDao.getAtributNotaris(updatedProcess.id))
+            .single
+            .atribut,
+        'Akta',
+      );
+      expect(
+        (await b
+                .customSelect(
+                  'SELECT count(*) AS n FROM pekerjaan_notaris_atributs WHERE pekerjaan_notaris_id=? AND status=0',
+                  variables: [Variable.withInt(updatedB.id)],
+                )
+                .getSingle())
+            .read<int>('n'),
+        1,
+      );
+      final invalidUpdate =
+          jsonDecode(jsonEncode(updatePayload)) as Map<String, dynamic>;
+      invalidUpdate['mutation_id'] = '00000000-0000-4000-8000-000000000782';
+      invalidUpdate['expected_revision'] = 2;
+      (invalidUpdate['harga'] as List).first['category_uuid'] =
+          '00000000-0000-4000-8000-000000000799';
+      await expectLater(
+        dio.post('/pekerjaan-notaris/sync/update', data: invalidUpdate),
+        throwsA(
+          isA<DioException>().having(
+            (e) => e.response?.statusCode,
+            'status',
+            422,
+          ),
+        ),
+      );
+      invalidUpdate['mutation_id'] = '00000000-0000-4000-8000-000000000783';
+      (invalidUpdate['harga'] as List).first['category_uuid'] = categoryUuid;
+      (invalidUpdate['harga'] as List).first['harga'] = 'fail';
+      await expectLater(
+        dio.post('/pekerjaan-notaris/sync/update', data: invalidUpdate),
+        throwsA(
+          isA<DioException>().having(
+            (e) => e.response?.statusCode,
+            'status',
+            500,
+          ),
+        ),
+      );
+      expect(
+        (await dio.post<Map<String, dynamic>>(
+          '/pekerjaan-notaris/testing/publish',
+        )).data!['published'],
+        0,
+      );
+      expect(
+        await PekerjaanNotarisRepository(a.pekerjaanDao).deleteAggregate(id),
+        isTrue,
+      );
+      final deletedAck = await sender.pushDelete(id);
+      expect(deletedAck['revision'], 3);
+      final deletePayload = jsonDecode(
+        (await a
+                .customSelect(
+                  'SELECT payload FROM pekerjaan_notaris_sync_pending',
+                )
+                .getSingle())
+            .read<String>('payload'),
+      ) as Map<String, dynamic>;
+      deletePayload.remove('delete');
+      final deleteRetry = await dio.post<Map<String, dynamic>>(
+        '/pekerjaan-notaris/sync/delete',
+        data: deletePayload,
+      );
+      expect((deleteRetry.data!['acknowledgement'] as Map)['revision'], 3);
+      final changedDelete = Map<String, dynamic>.from(deletePayload)
+        ..['expected_revision'] = 1;
+      await expectLater(
+        dio.post('/pekerjaan-notaris/sync/delete', data: changedDelete),
+        throwsA(
+          isA<DioException>().having(
+            (e) => e.response?.statusCode,
+            'status',
+            409,
+          ),
+        ),
+      );
+      expect(
+        (await dio.post<Map<String, dynamic>>(
+          '/pekerjaan-notaris/testing/publish',
+        )).data!['published'],
+        1,
+      );
+      await b.customStatement(
+        "UPDATE pekerjaan_notaris SET nama='Device B pending edit',is_sync_dirty=1 WHERE id=?",
+        [updatedB.id],
+      );
+      await expectLater(receiver.pullPage(), throwsStateError);
+      expect(
+        (await b.pekerjaanDao.getPekerjaanNotaris()).single.nama,
+        'Device B pending edit',
+      );
+      expect(
+        (await b
+                .customSelect('SELECT cursor FROM pekerjaan_notaris_sync_feed')
+                .getSingle())
+            .read<int>('cursor'),
+        2,
+      );
+      // Resolve the fixture edit explicitly; production never discards it.
+      await b.customStatement(
+        "UPDATE pekerjaan_notaris SET nama='E2E Notaris updated',is_sync_dirty=0 WHERE id=?",
+        [updatedB.id],
+      );
+      expect(await receiver.pullPage(), 3);
+      expect(await b.pekerjaanDao.getPekerjaanNotaris(), isEmpty);
+      expect(
+        (await b
+                .customSelect(
+                  'SELECT status FROM pekerjaan_notaris WHERE id=?',
+                  variables: [Variable.withInt(updatedB.id)],
+                )
+                .getSingle())
+            .read<int>('status'),
+        0,
+      );
       await b.customStatement(
         "UPDATE pekerjaan_notaris_sync_feed SET cursor=0 WHERE scope='disposable-shared-v1'",
       );
-      expect(await receiver.pullPage(), 1);
-      expect(await b.pekerjaanDao.getPekerjaanNotaris(), hasLength(1));
+      expect(await receiver.pullPage(), 3);
+      expect(await b.pekerjaanDao.getPekerjaanNotaris(), isEmpty);
       expect(await b.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
       expect(
         (await b.customSelect('PRAGMA integrity_check').getSingle())
@@ -166,16 +376,13 @@ void main() {
       final restart = AppDatabase.forTesting(
         NativeDatabase(File('${folder.path}/b.sqlite')),
       );
-      expect(
-        (await restart.pekerjaanDao.getPekerjaanNotaris()).single.uuid,
-        ack['uuid'],
-      );
+      expect(await restart.pekerjaanDao.getPekerjaanNotaris(), isEmpty);
       expect(
         (await restart
                 .customSelect('SELECT cursor FROM pekerjaan_notaris_sync_feed')
                 .getSingle())
             .read<int>('cursor'),
-        1,
+        3,
       );
       await restart.close();
     },

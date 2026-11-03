@@ -60,3 +60,52 @@ func PekerjaanNotarisCloudPull(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, page)
 }
+
+func PekerjaanNotarisCloudUpdate(ctx *gin.Context) {
+	actor, ok := getAuthenticatedUserID(ctx)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"code": "invalid_actor"})
+		return
+	}
+	var request repositories.NotarisCloudUpdate
+	decoder := json.NewDecoder(http.MaxBytesReader(ctx.Writer, ctx.Request.Body, 1<<20))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&request) != nil || decoder.Decode(new(any)) != io.EOF {
+		ctx.JSON(http.StatusBadRequest, gin.H{"code": "invalid_payload"})
+		return
+	}
+	ack, err := repositories.NewNotarisCloudRepository(database.DB).Update(ctx.Request.Context(), request, int64(actor))
+	notarisMutationResponse(ctx, ack, err)
+}
+
+func PekerjaanNotarisCloudDelete(ctx *gin.Context) {
+	actor, ok := getAuthenticatedUserID(ctx)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"code": "invalid_actor"})
+		return
+	}
+	var request repositories.NotarisCloudDelete
+	decoder := json.NewDecoder(http.MaxBytesReader(ctx.Writer, ctx.Request.Body, 1<<20))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&request) != nil || decoder.Decode(new(any)) != io.EOF {
+		ctx.JSON(http.StatusBadRequest, gin.H{"code": "invalid_payload"})
+		return
+	}
+	ack, err := repositories.NewNotarisCloudRepository(database.DB).Delete(ctx.Request.Context(), request, int64(actor))
+	notarisMutationResponse(ctx, ack, err)
+}
+
+func notarisMutationResponse(ctx *gin.Context, ack *repositories.NotarisCloudAck, err error) {
+	switch {
+	case errors.Is(err, repositories.ErrNotarisCloudInvalid):
+		ctx.JSON(http.StatusUnprocessableEntity, gin.H{"code": "invalid_reference_or_payload"})
+	case errors.Is(err, repositories.ErrNotarisCloudReuse):
+		ctx.JSON(http.StatusConflict, gin.H{"code": "mutation_reuse"})
+	case errors.Is(err, repositories.ErrNotarisCloudRevision):
+		ctx.JSON(http.StatusConflict, gin.H{"code": "revision_conflict"})
+	case err != nil:
+		ctx.JSON(http.StatusInternalServerError, gin.H{"code": "sync_failed"})
+	default:
+		ctx.JSON(http.StatusOK, gin.H{"acknowledgement": ack})
+	}
+}

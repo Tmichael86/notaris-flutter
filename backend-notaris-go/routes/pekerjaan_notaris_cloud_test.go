@@ -112,6 +112,24 @@ INSERT INTO pekerjaan_kategori(uuid,nama,status) VALUES('00000000-0000-4000-8000
 		if err := db.Table("pekerjaan_notaris").Count(&count).Error; err != nil || count != 1 {
 			t.Fatalf("server aggregate count %d %v", count, err)
 		}
+		var revision, status, receipts, outbox, activeAttrs, removedAttrs int64
+		if err := db.Raw("SELECT row_version,status FROM pekerjaan_notaris LIMIT 1").Row().Scan(&revision, &status); err != nil || revision != 3 || status != 0 {
+			t.Fatalf("tombstone revision=%d status=%d err=%v", revision, status, err)
+		}
+		for _, check := range []struct {
+			query string
+			dest  *int64
+			want  int64
+		}{
+			{"SELECT count(*) FROM pekerjaan_notaris_sync_mutation", &receipts, 3},
+			{"SELECT count(*) FROM pekerjaan_notaris_sync_outbox WHERE publication_seq IS NOT NULL", &outbox, 3},
+			{"SELECT count(*) FROM pekerjaan_notaris_sync_atribut WHERE status=1", &activeAttrs, 1},
+			{"SELECT count(*) FROM pekerjaan_notaris_sync_atribut WHERE status=0", &removedAttrs, 1},
+		} {
+			if err := db.Raw(check.query).Row().Scan(check.dest); err != nil || *check.dest != check.want {
+				t.Fatalf("%s count=%d err=%v", check.query, *check.dest, err)
+			}
+		}
 		return
 	}
 	request := func(method, path, body, auth string, want int) string {
@@ -131,6 +149,8 @@ INSERT INTO pekerjaan_kategori(uuid,nama,status) VALUES('00000000-0000-4000-8000
 	path := "/api/v1/pekerjaan-notaris/sync/create"
 	body := `{"mutation_id":"00000000-0000-4000-8000-000000000101","uuid":"00000000-0000-4000-8000-000000000201","nama":"Synthetic","harga":[{"uuid":"00000000-0000-4000-8000-000000000301","category_uuid":"00000000-0000-4000-8000-000000000011","harga":"100000","estimasi_waktu":"2 hari"}],"proses":[{"uuid":"00000000-0000-4000-8000-000000000401","nama":"Periksa","detail":"Fixture","atribut":[{"uuid":"00000000-0000-4000-8000-000000000501","atribut":"KTP"}]}]}`
 	request("POST", path, body, "", 401)
+	request("POST", "/api/v1/pekerjaan-notaris/sync/update", body, "", 401)
+	request("POST", "/api/v1/pekerjaan-notaris/sync/delete", body, "", 401)
 	first := request("POST", path, body, token, 200)
 	if replay := request("POST", path, body, token, 200); replay != first {
 		t.Fatal("receipt replay differs")
@@ -148,4 +168,9 @@ INSERT INTO pekerjaan_kategori(uuid,nama,status) VALUES('00000000-0000-4000-8000
 		t.Fatal(err)
 	}
 	request("GET", "/api/v1/pekerjaan-notaris/sync/pull", "", token, http.StatusForbidden)
+	if err := db.Exec(`UPDATE sidebar_akses SET "update"=0,"delete"=0 WHERE id=1`).Error; err != nil {
+		t.Fatal(err)
+	}
+	request("POST", "/api/v1/pekerjaan-notaris/sync/update", body, token, http.StatusForbidden)
+	request("POST", "/api/v1/pekerjaan-notaris/sync/delete", body, token, http.StatusForbidden)
 }

@@ -1,6 +1,7 @@
 -- Disposable-only proposal. Never run automatically or on permanent notarisdev.
 BEGIN;
 ALTER TABLE pekerjaan_notaris ADD COLUMN IF NOT EXISTS row_version bigint NOT NULL DEFAULT 1;
+ALTER TABLE pekerjaan_notaris ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
 ALTER TABLE pekerjaan_notaris_harga ADD COLUMN IF NOT EXISTS uuid uuid;
 ALTER TABLE pekerjaan_notaris_proses ADD COLUMN IF NOT EXISTS uuid uuid;
 UPDATE pekerjaan_notaris_harga SET uuid=gen_random_uuid() WHERE uuid IS NULL;
@@ -14,7 +15,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS pekerjaan_kategori_sync_uuid ON pekerjaan_kate
 CREATE TABLE IF NOT EXISTS pekerjaan_notaris_sync_atribut (
   id bigserial PRIMARY KEY, uuid uuid NOT NULL UNIQUE,
   proses_uuid uuid NOT NULL REFERENCES pekerjaan_notaris_proses(uuid),
-  atribut text NOT NULL
+  atribut text NOT NULL, status smallint NOT NULL DEFAULT 1
 );
 CREATE TABLE IF NOT EXISTS pekerjaan_notaris_sync_mutation (
   mutation_id uuid PRIMARY KEY, actor_id bigint NOT NULL,
@@ -23,7 +24,9 @@ CREATE TABLE IF NOT EXISTS pekerjaan_notaris_sync_mutation (
 );
 CREATE TABLE IF NOT EXISTS pekerjaan_notaris_sync_outbox (
   id bigserial PRIMARY KEY, aggregate_uuid uuid NOT NULL,
-  payload jsonb NOT NULL, publication_seq bigint UNIQUE,
+  payload jsonb NOT NULL, revision bigint NOT NULL DEFAULT 1,
+  operation text NOT NULL DEFAULT 'create' CHECK(operation IN ('create','update','delete')),
+  publication_seq bigint UNIQUE,
   published_at timestamptz
 );
 CREATE INDEX IF NOT EXISTS pekerjaan_notaris_sync_pending
