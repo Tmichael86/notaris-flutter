@@ -17,6 +17,77 @@ import '../widgets/transaksi_proses_list.dart';
 
 enum TransactionType { notaris, ppat }
 
+class TransactionPaymentHistoryDialog extends StatelessWidget {
+  const TransactionPaymentHistoryDialog({
+    super.key,
+    required this.transactionNumber,
+    required this.history,
+    required this.saved,
+  });
+
+  final String transactionNumber;
+  final Future<List<TransaksiRiwayatPembayaran>> history;
+  final bool saved;
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text('Riwayat Pembayaran $transactionNumber'),
+    content: SizedBox(
+      width: 520,
+      height: 300,
+      child: !saved
+          ? const Center(
+              child: Text('Simpan transaksi untuk melihat riwayat pembayaran.'),
+            )
+          : FutureBuilder<List<TransaksiRiwayatPembayaran>>(
+              future: history,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return const Center(
+                    child: Text('Gagal memuat riwayat pembayaran.'),
+                  );
+                }
+                final rows =
+                    snapshot.data ?? const <TransaksiRiwayatPembayaran>[];
+                if (rows.isEmpty) {
+                  return const Center(
+                    child: Text('Belum ada riwayat pembayaran.'),
+                  );
+                }
+                return ListView.separated(
+                  itemCount: rows.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final row = rows[index];
+                    final date = row.tanggalPembayaran;
+                    return ListTile(
+                      title: Text(
+                        'Rp ${_formatCurrencyDigits(row.nominal.toStringAsFixed(0))}',
+                      ),
+                      subtitle: Text(
+                        '${date.day.toString().padLeft(2, '0')}/'
+                        '${date.month.toString().padLeft(2, '0')}/${date.year} · '
+                        '${row.metodePembayaran}'
+                        '${row.keterangan == null ? '' : ' · ${row.keterangan}'}',
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Tutup'),
+      ),
+    ],
+  );
+}
+
 final _transactionJobUuid = Uuid();
 
 /// Formats numeric currency input using Indonesian thousands separators.
@@ -1451,10 +1522,7 @@ class _TransactionDesktopScreenState
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () => _showSimpleInfoDialog(
-                'Riwayat Pembayaran',
-                'Prototype riwayat pembayaran untuk transaksi $transactionNumber.',
-              ),
+              onPressed: _showPaymentHistory,
               style: outlinedButtonStyle(),
               icon: const Icon(Icons.history, size: 18),
               label: const Text('Lihat Riwayat Pembayaran'),
@@ -1703,7 +1771,8 @@ class _TransactionDesktopScreenState
       if (!mounted) return;
       setState(() => _isSaving = false);
       final errorText = error.toString();
-      final duplicateNumber = errorText.contains('Nomor transaksi') ||
+      final duplicateNumber =
+          errorText.contains('Nomor transaksi') ||
           errorText.contains('idx_transaksis_no_akta_unique');
       if (duplicateNumber && _editingTransactionId == null) {
         await _refreshTransactionNumber();
@@ -2322,6 +2391,20 @@ class _TransactionDesktopScreenState
         ),
         _StatusTag(text: transactionStatus),
       ],
+    );
+  }
+
+  void _showPaymentHistory() {
+    final id = int.tryParse(_editingTransactionId ?? '');
+    showDialog<void>(
+      context: context,
+      builder: (_) => TransactionPaymentHistoryDialog(
+        transactionNumber: transactionNumber,
+        history: id == null
+            ? Future.value(const <TransaksiRiwayatPembayaran>[])
+            : ref.read(transactionRepositoryProvider).getPaymentHistory(id),
+        saved: id != null,
+      ),
     );
   }
 

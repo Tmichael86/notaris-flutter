@@ -1,5 +1,16 @@
 # Master Pekerjaan Notaris/PPAT readiness
 
+## Local CRUD acceptance — PASSED (user report, 2026-11-03)
+
+Manual Flutter Windows UI Smoke: 7/7 PASS for both Masters. Create, read/search,
+aggregate update (harga/proses/atribut), soft delete, persistence after restart,
+and active Kategori Pekerjaan selection were exercised by the user. This is local
+Drift acceptance only; cloud synchronization for these two Masters remains open.
+Both repositories and DAO paths use distinct tables. A focused disposable SQLite
+test creates the same name in each, then updates/deletes PPAT while Notaris remains
+intact. A name in the PPAT screenshot that contains the word “Notaris” is not
+identity evidence.
+
 Date2026-11-02; branch feature/pemohon-cloud-sync. No fixture reprovisioning,
 permanent database write, grant, cloud sync, publisher or shell permission bypass.
 

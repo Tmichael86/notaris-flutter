@@ -75,6 +75,40 @@ void main() {
     expect(aggregate.proses.single.atribut, hasLength(2));
   });
 
+  test('same name in Notaris and PPAT keeps separate aggregates', () async {
+    final notaris = PekerjaanNotarisRepository(database.pekerjaanDao);
+    final notarisId = await notaris.createAggregate(
+      input: validInput(nama: 'Synthetic Pekerjaan Notaris 1'),
+    );
+    final ppatId = await repository.createAggregate(
+      input: validInput(nama: 'Synthetic Pekerjaan Notaris 1'),
+    );
+    expect((await notaris.getAll()).single.id, notarisId);
+    expect((await repository.getAll()).single.id, ppatId);
+    expect(
+      (await notaris.getAggregate(notarisId))!.harga.single.harga,
+      '1500000',
+    );
+    await repository.updateAggregate(
+      id: ppatId,
+      input: validInput(
+        nama: 'Synthetic Pekerjaan Notaris 1',
+        harga: '2000000',
+      ),
+    );
+    expect(
+      (await repository.getAggregate(ppatId))!.harga.single.harga,
+      '2000000',
+    );
+    expect(
+      (await notaris.getAggregate(notarisId))!.harga.single.harga,
+      '1500000',
+    );
+    await repository.deleteAggregate(ppatId);
+    expect(await repository.getAll(), isEmpty);
+    expect((await notaris.getAll()).single.id, notarisId);
+  });
+
   test('trims the work name when creating', () async {
     final id = await repository.createAggregate(
       input: validInput(nama: '  Akta Jual Beli PPAT  '),
