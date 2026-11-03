@@ -5,6 +5,56 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/database/app_database.dart';
 
 void main() {
+  test(
+    'V14 to V15 preserves existing masters and adds isolated Notaris state',
+    () async {
+      final folder = await Directory.systemTemp.createTemp(
+        'notaris_cloud_v14_',
+      );
+      addTearDown(() => folder.delete(recursive: true));
+      final file = File('${folder.path}/offline.sqlite');
+      final before = AppDatabase.forTesting(NativeDatabase(file));
+      await before.customStatement(
+        "INSERT INTO pekerjaan_notaris(uuid,nama) VALUES('local-stable','Existing')",
+      );
+      await before.customStatement(
+        "INSERT INTO pemohons(uuid,nama) VALUES('pemohon-stable','Existing')",
+      );
+      await before.customStatement('DROP TABLE pekerjaan_notaris_sync_pending');
+      await before.customStatement(
+        'DROP TABLE pekerjaan_notaris_sync_identity',
+      );
+      await before.customStatement('DROP TABLE pekerjaan_notaris_sync_feed');
+      await before.customStatement('PRAGMA user_version=14');
+      await before.close();
+      final after = AppDatabase.forTesting(NativeDatabase(file));
+      expect(
+        (await after.pekerjaanDao.getPekerjaanNotaris()).single.uuid,
+        'local-stable',
+      );
+      expect(
+        (await after.select(after.pemohons).get()).single.uuid,
+        'pemohon-stable',
+      );
+      expect(
+        await after
+            .customSelect('SELECT * FROM pekerjaan_notaris_sync_feed')
+            .get(),
+        isEmpty,
+      );
+      expect(
+        (await after.customSelect('PRAGMA user_version').getSingle()).read<int>(
+          'user_version',
+        ),
+        15,
+      );
+      expect(
+        await after.customSelect('PRAGMA foreign_key_check').get(),
+        isEmpty,
+      );
+      await after.close();
+    },
+  );
   late Directory tempDirectory;
 
   setUp(() async {
@@ -325,7 +375,7 @@ void main() {
       final version = await inspectionDb
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 14);
+      expect(version.read<int>('user_version'), 15);
     } finally {
       await inspectionDb.close();
     }

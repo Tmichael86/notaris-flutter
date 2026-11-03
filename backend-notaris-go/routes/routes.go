@@ -85,6 +85,11 @@ func SetupRouter(
 			petugas.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionUpdate), petugasController.Update)
 			petugas.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionDelete), petugasController.Delete)
 		}
+		pekerjaanNotarisSync := v1.Group("/pekerjaan-notaris/sync")
+		{
+			pekerjaanNotarisSync.POST("/create", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionCreate), controllers.PekerjaanNotarisCloudCreate)
+			pekerjaanNotarisSync.GET("/pull", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionRead), controllers.PekerjaanNotarisCloudPull)
+		}
 
 		masterRoutes := []struct {
 			path       string

@@ -261,7 +261,7 @@ class AppDatabase extends _$AppDatabase {
   final String? petugasBaselinePath;
 
   @override
-  int get schemaVersion => 14;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -274,6 +274,7 @@ class AppDatabase extends _$AppDatabase {
       await _createPetugasReferenceStorage();
       await _createPetugasConflictStorage();
       await _createSyncLogStorage();
+      await _createNotarisCloudStorage();
     },
     onUpgrade: (Migrator m, int from, int to) async {
       // Keep all pending migration steps atomic. If V8 UUID validation fails,
@@ -419,6 +420,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 14) {
           await _createSyncLogStorage();
         }
+        if (from < 15) {
+          await _createNotarisCloudStorage();
+        }
       });
     },
   );
@@ -440,6 +444,25 @@ class AppDatabase extends _$AppDatabase {
     );
     await customStatement(
       'CREATE INDEX IF NOT EXISTS sync_logs_recent ON sync_logs(id DESC)',
+    );
+  }
+
+  Future<void> _createNotarisCloudStorage() async {
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS pekerjaan_notaris_sync_identity ('
+      'local_uuid TEXT PRIMARY KEY REFERENCES pekerjaan_notaris(uuid), '
+      'cloud_uuid TEXT NOT NULL UNIQUE, scope TEXT NOT NULL, '
+      'revision INTEGER NOT NULL CHECK(revision>0))',
+    );
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS pekerjaan_notaris_sync_feed ('
+      'scope TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0 CHECK(cursor>=0))',
+    );
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS pekerjaan_notaris_sync_pending ('
+      'local_uuid TEXT PRIMARY KEY REFERENCES pekerjaan_notaris(uuid), '
+      'mutation_id TEXT NOT NULL UNIQUE, payload TEXT NOT NULL, '
+      'state TEXT NOT NULL CHECK(state IN (\'pending\',\'acked\')))',
     );
   }
 
