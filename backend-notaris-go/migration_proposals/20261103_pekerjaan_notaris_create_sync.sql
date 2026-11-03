@@ -1,5 +1,9 @@
--- Disposable-only proposal. Never run automatically or on permanent notarisdev.
+-- Proposal. Permanent notarisdev apply requires separate approval and target guard.
 BEGIN;
+ALTER TABLE pekerjaan_notaris ADD COLUMN IF NOT EXISTS uuid uuid;
+UPDATE pekerjaan_notaris SET uuid=gen_random_uuid() WHERE uuid IS NULL;
+ALTER TABLE pekerjaan_notaris ALTER COLUMN uuid SET DEFAULT gen_random_uuid();
+ALTER TABLE pekerjaan_notaris ALTER COLUMN uuid SET NOT NULL;
 ALTER TABLE pekerjaan_notaris ADD COLUMN IF NOT EXISTS row_version bigint NOT NULL DEFAULT 1;
 ALTER TABLE pekerjaan_notaris ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
 ALTER TABLE pekerjaan_notaris_harga ADD COLUMN IF NOT EXISTS uuid uuid;
@@ -11,7 +15,6 @@ ALTER TABLE pekerjaan_notaris_proses ALTER COLUMN uuid SET NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS pekerjaan_notaris_harga_sync_uuid ON pekerjaan_notaris_harga(uuid);
 CREATE UNIQUE INDEX IF NOT EXISTS pekerjaan_notaris_proses_sync_uuid ON pekerjaan_notaris_proses(uuid);
 CREATE UNIQUE INDEX IF NOT EXISTS pekerjaan_notaris_sync_uuid ON pekerjaan_notaris(uuid);
-CREATE UNIQUE INDEX IF NOT EXISTS pekerjaan_kategori_sync_uuid ON pekerjaan_kategori(uuid);
 CREATE TABLE IF NOT EXISTS pekerjaan_notaris_sync_atribut (
   id bigserial PRIMARY KEY, uuid uuid NOT NULL UNIQUE,
   proses_uuid uuid NOT NULL REFERENCES pekerjaan_notaris_proses(uuid),
