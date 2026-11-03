@@ -141,11 +141,13 @@ class DummyProcess {
   final String id;
   final String name;
   final String status;
+  final List<String> attributes;
 
   const DummyProcess({
     required this.id,
     required this.name,
     this.status = 'Belum Valid',
+    this.attributes = const [],
   });
 }
 
@@ -729,6 +731,13 @@ class _TransactionDesktopScreenState
                       id: value['id']?.toString() ?? '',
                       name: value['name']?.toString() ?? '',
                       status: value['status']?.toString() ?? 'Belum Valid',
+                      attributes: [
+                        for (final attribute
+                            in (value['attributes'] is List
+                                ? value['attributes'] as List
+                                : const []))
+                          attribute.toString(),
+                      ],
                     ),
               ];
             } on FormatException {
@@ -1730,6 +1739,7 @@ class _TransactionDesktopScreenState
                               'id': process.id,
                               'name': process.name,
                               'status': process.status,
+                              'attributes': process.attributes,
                             },
                           )
                           .toList(),
@@ -2610,6 +2620,9 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
     final preserveSavedProcesses =
         widget.initialJob != null && id == originalMasterId;
     final savedProcesses = List<DummyProcess>.from(selectedProcesses);
+    final savedCategories = List<DummyCategory>.from(selectedCategories);
+    final savedEstimate = estimatedController.text;
+    final savedPrice = serviceCostController.text;
     setState(() {
       selectedMasterJobId = id;
       selectedMasterPriceId = null;
@@ -2660,7 +2673,9 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
         selectedMasterPriceId =
             currentPrice?.id ??
             (priceOptions.length == 1 ? priceOptions.first.id : null);
-        selectedCategories = currentPrice == null
+        selectedCategories = preserveSavedProcesses
+            ? savedCategories
+            : currentPrice == null
             ? []
             : [
                 DummyCategory(
@@ -2668,8 +2683,12 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                   name: currentPrice.name,
                 ),
               ];
-        estimatedController.text = currentPrice?.estimate ?? '';
-        serviceCostController.text = currentPrice == null
+        estimatedController.text = preserveSavedProcesses
+            ? savedEstimate
+            : currentPrice?.estimate ?? '';
+        serviceCostController.text = preserveSavedProcesses
+            ? savedPrice
+            : currentPrice == null
             ? ''
             : _formatCurrencyDigits(
                 _parseCurrency(currentPrice.price).toStringAsFixed(0),
@@ -2682,6 +2701,10 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                     id: item.id.toString(),
                     name: item.nama,
                     status: item.detail,
+                    attributes: [
+                      for (final attribute in item.atribut)
+                        attribute.atribut ?? '',
+                    ],
                   ),
               ];
         _loadingMasterDetails = false;

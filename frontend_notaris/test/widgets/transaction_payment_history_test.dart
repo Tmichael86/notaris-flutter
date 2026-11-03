@@ -14,6 +14,15 @@ void main() {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
       final repository = TransactionRepository(db);
+      await db.customStatement(
+        "INSERT INTO pemohons(id,uuid,nama) VALUES(1,'pemohon-fixture','Fixture')",
+      );
+      await db.customStatement(
+        "INSERT INTO petugas(id,uuid,nama,email) VALUES(1,'petugas-fixture','Fixture','fixture@example.invalid')",
+      );
+      await db.customStatement(
+        "INSERT INTO pekerjaan_notaris(id,uuid,nama) VALUES(1,'job-fixture','Fixture')",
+      );
       final id = await repository.save(
         nomorTransaksi: '1000311260001',
         jenisTransaksi: 'notaris',

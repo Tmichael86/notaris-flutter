@@ -193,16 +193,62 @@ class TransactionRepository {
     final now = DateTime.now();
 
     return db.transaction(() async {
+      final pemohon =
+          await (db.select(db.pemohons)..where(
+                (p) =>
+                    p.id.equals(pemohonId) &
+                    p.deletedAt.isNull() &
+                    p.status.equals(1),
+              ))
+              .getSingleOrNull();
+      final petugas =
+          await (db.select(db.petugasLocals)..where(
+                (p) =>
+                    p.id.equals(petugasId) &
+                    p.deletedAt.isNull() &
+                    p.status.equals(1),
+              ))
+              .getSingleOrNull();
+      if (pemohon?.uuid != pemohonUuid || petugas?.uuid != petugasUuid) {
+        throw ArgumentError('Pemohon atau Petugas lokal tidak valid.');
+      }
+      for (final job in jobs) {
+        if (jenisTransaksi == 'notaris') {
+          if (job.pekerjaanPpatId != null ||
+              await (db.select(db.pekerjaanNotarisLocals)..where(
+                        (p) =>
+                            p.id.equals(job.pekerjaanNotarisId!) &
+                            p.deletedAt.isNull() &
+                            p.status.equals(1),
+                      ))
+                      .getSingleOrNull() ==
+                  null) {
+            throw ArgumentError('Pekerjaan Notaris tidak valid.');
+          }
+        } else if (job.pekerjaanNotarisId != null ||
+            await (db.select(db.pekerjaanPpatLocals)..where(
+                      (p) =>
+                          p.id.equals(job.pekerjaanPpatId!) &
+                          p.deletedAt.isNull() &
+                          p.status.equals(1),
+                    ))
+                    .getSingleOrNull() ==
+                null) {
+          throw ArgumentError('Pekerjaan PPAT tidak valid.');
+        }
+      }
       // Catch ordinary collisions with a clear error. The unique SQLite index
       // remains the final guard against two concurrent writers racing here.
-      final duplicateNumbers = await db.customSelect(
-        'SELECT id FROM transaksis '
-        'WHERE TRIM(no_akta) = ? AND id != ? LIMIT 1',
-        variables: [
-          Variable.withString(normalizedNoAkta),
-          Variable.withInt(id ?? -1),
-        ],
-      ).get();
+      final duplicateNumbers = await db
+          .customSelect(
+            'SELECT id FROM transaksis '
+            'WHERE TRIM(no_akta) = ? AND id != ? LIMIT 1',
+            variables: [
+              Variable.withString(normalizedNoAkta),
+              Variable.withInt(id ?? -1),
+            ],
+          )
+          .get();
 
       if (duplicateNumbers.isNotEmpty) {
         throw StateError(
@@ -216,7 +262,7 @@ class TransactionRepository {
           await db
               .into(db.transaksis)
               .insert(
-              TransaksisCompanion.insert(
+                TransaksisCompanion.insert(
                   uuid: _uuid.v4(),
                   noAkta: nomorTransaksi.trim(),
                   total: totalBersih.toDouble(),
@@ -398,7 +444,7 @@ class TransactionRepository {
   /// A null snapshot means the caller did not provide process data, so existing
   /// workflow state must be left untouched. Matching rows keep their validated
   /// status and audit history; removed rows are soft-deleted, never hard-deleted.
-Future<void> _syncProcessesForJob({
+  Future<void> _syncProcessesForJob({
     required int transactionId,
     required String detailUuid,
     required String? snapshot,
@@ -605,16 +651,17 @@ Future<void> _syncProcessesForJob({
 
       final history = await getPaymentHistory(payment.transaksiId);
       final paid = history.fold<double>(0, (sum, item) => sum + item.nominal);
-      final affected = await (db.update(
-        db.transaksis,
-      )..where((t) => t.id.equals(payment.transaksiId) & t.deletedAt.isNull()))
-          .write(
-        TransaksisCompanion(
-          pembayaranSekarang: Value(paid),
-          updatedAt: Value(now),
-          isSyncDirty: const Value(true),
-        ),
-      );
+      final affected =
+          await (db.update(db.transaksis)..where(
+                (t) => t.id.equals(payment.transaksiId) & t.deletedAt.isNull(),
+              ))
+              .write(
+                TransaksisCompanion(
+                  pembayaranSekarang: Value(paid),
+                  updatedAt: Value(now),
+                  isSyncDirty: const Value(true),
+                ),
+              );
       if (affected == 0) {
         throw StateError('Transaksi tidak ditemukan atau sudah dihapus.');
       }
