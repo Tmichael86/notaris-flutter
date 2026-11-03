@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -193,13 +194,17 @@ func (r *PpatCloudRepository) Publish(ctx context.Context, limit int) (int, erro
 			if err := tx.Raw("UPDATE pekerjaan_ppat_sync_publication SET last_seq=last_seq+1 WHERE id=1 RETURNING last_seq").Row().Scan(&seq); err != nil {
 				return err
 			}
-			if err := tx.Exec("UPDATE pekerjaan_ppat_sync_outbox SET publication_seq=?,published_at=clock_timestamp() WHERE id=?", seq, row.ID).Error; err != nil {
-				return err
+			result := tx.Exec("UPDATE pekerjaan_ppat_sync_outbox SET publication_seq=?,published_at=clock_timestamp() WHERE id=? AND publication_seq IS NULL", seq, row.ID)
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected != 1 {
+				return errors.New("ppat publication lost its pending outbox row")
 			}
 		}
 		count = len(rows)
 		return nil
-	})
+	}, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	return count, err
 }
 

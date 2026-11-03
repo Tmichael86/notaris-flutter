@@ -126,6 +126,15 @@ INSERT INTO pekerjaan_kategori(uuid,nama,status) VALUES('00000000-0000-4000-8000
 		if err := db.Table("pekerjaan_ppat").Count(&count).Error; err != nil || count != 1 {
 			t.Fatalf("server aggregate count %d %v", count, err)
 		}
+		for cursor := int64(0); cursor < 3; cursor++ {
+			page, err := repositories.NewPpatCloudRepository(db).Pull(ctx, cursor, 1)
+			if err != nil || len(page.Changes) != 1 || page.Changes[0].Sequence != cursor+1 || page.NextCursor != cursor+1 || page.HasMore != (cursor < 2) {
+				t.Fatalf("ppat pagination cursor=%d page=%+v err=%v", cursor, page, err)
+			}
+		}
+		if page, err := repositories.NewPpatCloudRepository(db).Pull(ctx, 3, 1); err != nil || len(page.Changes) != 0 || page.NextCursor != 3 {
+			t.Fatalf("ppat final cursor page=%+v err=%v", page, err)
+		}
 		var revision, status, receipts, outbox, activeAttrs, removedAttrs int64
 		if err := db.Raw("SELECT row_version,status FROM pekerjaan_ppat LIMIT 1").Row().Scan(&revision, &status); err != nil || revision != 3 || status != 0 {
 			t.Fatalf("tombstone revision=%d status=%d err=%v", revision, status, err)
