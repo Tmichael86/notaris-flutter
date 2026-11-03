@@ -37,7 +37,7 @@ class _PekerjaanPPATDesktopScreenState
       message: 'Memproses data...',
       child: LayoutBuilder(
         builder: (context, c) {
-          final mobile = c.maxWidth < 700;
+          final mobile = c.maxWidth < 900;
           return MasterDataViewport(
             child: data.when(
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -65,6 +65,7 @@ class _PekerjaanPPATDesktopScreenState
     children: [
       Expanded(
         child: Wrap(
+          spacing: 14,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
@@ -75,7 +76,6 @@ class _PekerjaanPPATDesktopScreenState
               ),
             ),
             if (!mobile) ...[
-              const SizedBox(width: 14),
               Text(
                 'Master  |  Pekerjaan PPAT',
                 style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
@@ -148,7 +148,7 @@ class _PekerjaanPPATDesktopScreenState
                   ),
                 ),
               ),
-              if (!mobile) const Spacer(),
+              if (!mobile) const SizedBox(width: 14),
               if (!mobile) Text('${filtered.length} data'),
             ],
           ),

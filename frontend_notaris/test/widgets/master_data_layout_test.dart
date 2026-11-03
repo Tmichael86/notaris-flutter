@@ -210,6 +210,87 @@ void main() {
       }
     }
   }
+  for (final width in [1440.0, 980.0, 899.0, 600.0, 400.0]) {
+    testWidgets('Job master search layouts match at width $width', (
+      tester,
+    ) async {
+      tester.view.physicalSize = Size(width, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final db = await fixture(0);
+      addTearDown(db.close);
+      Rect? referenceSearch;
+      Rect? referenceCount;
+      InputDecoration? referenceDecoration;
+      for (final page in [
+        const PekerjaanNotarisDesktopScreen(),
+        const PekerjaanPPATDesktopScreen(),
+      ]) {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [appDatabaseProvider.overrideWithValue(db)],
+            child: MaterialApp(
+              theme: ThemeData(
+                platform: TargetPlatform.windows,
+                fontFamily: 'Roboto',
+              ),
+              home: Scaffold(body: page),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        final search = tester.getRect(find.byType(TextField));
+        final count = tester.getRect(find.text('0 data'));
+        final decoration = tester
+            .widget<TextField>(find.byType(TextField))
+            .decoration!;
+        final card = tester.getRect(
+          find
+              .ancestor(
+                of: find.byType(TextField),
+                matching: find.byType(Container),
+              )
+              .first,
+        );
+        // Container includes its 1px border in addition to the 16px padding.
+        const inset = 17.0;
+        expect(search.left - card.left, closeTo(inset, .01));
+        expect(search.top - card.top, closeTo(inset, .01));
+        if (width >= 900) {
+          expect(count.left - search.right, closeTo(14, .01));
+          expect(count.right, closeTo(card.right - inset, .01));
+          expect(count.center.dy, closeTo(search.center.dy, .01));
+        } else {
+          expect(search.right, closeTo(card.right - inset, .01));
+          expect(count.left, search.left);
+          expect(count.top - search.bottom, closeTo(8, .01));
+        }
+        if (referenceSearch != null) {
+          expect(search, referenceSearch);
+          expect(count, referenceCount);
+          expect(decoration.border, referenceDecoration!.border);
+          expect(decoration.contentPadding, referenceDecoration.contentPadding);
+          expect(decoration.constraints, referenceDecoration.constraints);
+          expect(decoration.hintText, referenceDecoration.hintText);
+          expect(
+            (decoration.prefixIcon! as Icon).icon,
+            (referenceDecoration.prefixIcon! as Icon).icon,
+          );
+          expect(
+            (decoration.prefixIcon! as Icon).size,
+            (referenceDecoration.prefixIcon! as Icon).size,
+          );
+        }
+        referenceSearch = search;
+        referenceCount = count;
+        referenceDecoration = decoration;
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpAndSettle();
+      }
+    });
+  }
   for (final allowed in [false, true]) {
     testWidgets('Fixture PPAT sidebar read permission $allowed', (
       tester,
