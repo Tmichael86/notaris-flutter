@@ -111,7 +111,7 @@ void main() {
       expect(
         (await fileDb.customSelect('PRAGMA user_version').getSingle())
             .read<int>('user_version'),
-        15,
+        16,
       );
       expect(
         await fileDb.customSelect('PRAGMA foreign_key_check').get(),

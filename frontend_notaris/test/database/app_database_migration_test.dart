@@ -6,7 +6,67 @@ import 'package:frontend_notaris/database/app_database.dart';
 
 void main() {
   test(
-    'V14 to V15 preserves existing masters and adds isolated Notaris state',
+    'V15 to V16 preserves Notaris and PPAT rows and separates PPAT feed',
+    () async {
+      final folder = await Directory.systemTemp.createTemp('ppat_cloud_v15_');
+      addTearDown(() => folder.delete(recursive: true));
+      final file = File('${folder.path}/offline.sqlite');
+      final before = AppDatabase.forTesting(NativeDatabase(file));
+      await before.customStatement(
+        "INSERT INTO pekerjaan_notaris(uuid,nama) VALUES('notaris-uuid','Notaris')",
+      );
+      await before.customStatement(
+        "INSERT INTO pekerjaan_ppat(uuid,nama) VALUES('ppat-uuid','PPAT')",
+      );
+      await before.customStatement(
+        "INSERT INTO pekerjaan_notaris_sync_feed(scope,cursor) VALUES('shared',3)",
+      );
+      for (final table in [
+        'pekerjaan_ppat_sync_pending',
+        'pekerjaan_ppat_sync_identity',
+        'pekerjaan_ppat_sync_feed',
+      ]) {
+        await before.customStatement('DROP TABLE $table');
+      }
+      await before.customStatement('PRAGMA user_version=15');
+      await before.close();
+      final after = AppDatabase.forTesting(NativeDatabase(file));
+      expect(
+        (await after.pekerjaanDao.getPekerjaanNotaris()).single.uuid,
+        'notaris-uuid',
+      );
+      expect(
+        (await after.pekerjaanDao.getPekerjaanPpat()).single.uuid,
+        'ppat-uuid',
+      );
+      expect(
+        (await after
+                .customSelect('SELECT cursor FROM pekerjaan_notaris_sync_feed')
+                .getSingle())
+            .read<int>('cursor'),
+        3,
+      );
+      expect(
+        await after
+            .customSelect('SELECT * FROM pekerjaan_ppat_sync_feed')
+            .get(),
+        isEmpty,
+      );
+      expect(
+        (await after.customSelect('PRAGMA user_version').getSingle()).read<int>(
+          'user_version',
+        ),
+        16,
+      );
+      expect(
+        await after.customSelect('PRAGMA foreign_key_check').get(),
+        isEmpty,
+      );
+      await after.close();
+    },
+  );
+  test(
+    'V14 to V16 preserves existing masters and adds isolated cloud states',
     () async {
       final folder = await Directory.systemTemp.createTemp(
         'notaris_cloud_v14_',
@@ -46,7 +106,7 @@ void main() {
         (await after.customSelect('PRAGMA user_version').getSingle()).read<int>(
           'user_version',
         ),
-        15,
+        16,
       );
       expect(
         await after.customSelect('PRAGMA foreign_key_check').get(),
@@ -375,7 +435,7 @@ void main() {
       final version = await inspectionDb
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 15);
+      expect(version.read<int>('user_version'), 16);
     } finally {
       await inspectionDb.close();
     }

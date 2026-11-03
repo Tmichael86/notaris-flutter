@@ -1,0 +1,243 @@
+package repositories
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"regexp"
+	"strings"
+
+	"gorm.io/gorm"
+)
+
+var ErrPpatCloudInvalid = errors.New("invalid ppat aggregate or reference")
+var ErrPpatCloudReuse = errors.New("mutation ID reused with different content or actor")
+var ErrPpatCloudConflict = errors.New("aggregate UUID already exists")
+var ErrPpatCloudCursor = errors.New("invalid publication cursor")
+var ppatCloudUUID = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+type PpatCloudAtribut struct {
+	UUID  string `json:"uuid"`
+	Value string `json:"atribut"`
+}
+type PpatCloudProses struct {
+	UUID    string             `json:"uuid"`
+	Nama    string             `json:"nama"`
+	Detail  string             `json:"detail"`
+	Atribut []PpatCloudAtribut `json:"atribut"`
+}
+type PpatCloudHarga struct {
+	UUID          string `json:"uuid"`
+	CategoryUUID  string `json:"category_uuid"`
+	Harga         string `json:"harga"`
+	EstimasiWaktu string `json:"estimasi_waktu"`
+}
+type PpatCloudCreate struct {
+	MutationID string            `json:"mutation_id"`
+	UUID       string            `json:"uuid"`
+	Nama       string            `json:"nama"`
+	Harga      []PpatCloudHarga  `json:"harga"`
+	Proses     []PpatCloudProses `json:"proses"`
+}
+type PpatCloudAck struct {
+	MutationID string `json:"mutation_id"`
+	UUID       string `json:"uuid"`
+	ServerID   int64  `json:"server_id"`
+	Revision   int64  `json:"revision"`
+}
+type PpatCloudUpdate struct {
+	PpatCloudCreate
+	ExpectedRevision int64 `json:"expected_revision"`
+}
+type PpatCloudDelete struct {
+	MutationID       string `json:"mutation_id"`
+	UUID             string `json:"uuid"`
+	ExpectedRevision int64  `json:"expected_revision"`
+}
+type PpatCloudEvent struct {
+	Sequence  int64           `json:"sequence"`
+	Aggregate PpatCloudCreate `json:"aggregate"`
+	Revision  int64           `json:"revision"`
+	Operation string          `json:"operation"`
+}
+type PpatCloudPage struct {
+	Changes    []PpatCloudEvent `json:"changes"`
+	NextCursor int64            `json:"next_cursor"`
+	HasMore    bool             `json:"has_more"`
+}
+type PpatCloudRepository struct{ db *gorm.DB }
+
+func NewPpatCloudRepository(db *gorm.DB) *PpatCloudRepository {
+	return &PpatCloudRepository{db: db}
+}
+
+func (m PpatCloudCreate) validate() error {
+	if !ppatCloudUUID.MatchString(m.MutationID) || !ppatCloudUUID.MatchString(m.UUID) || strings.TrimSpace(m.Nama) == "" || len(m.Harga) == 0 || len(m.Proses) == 0 || len(m.Harga) > 100 || len(m.Proses) > 100 {
+		return ErrPpatCloudInvalid
+	}
+	seen := map[string]bool{m.UUID: true}
+	for _, h := range m.Harga {
+		if !ppatCloudUUID.MatchString(h.UUID) || !ppatCloudUUID.MatchString(h.CategoryUUID) || strings.TrimSpace(h.Harga) == "" || strings.TrimSpace(h.EstimasiWaktu) == "" || seen[h.UUID] {
+			return ErrPpatCloudInvalid
+		}
+		seen[h.UUID] = true
+	}
+	for _, p := range m.Proses {
+		if !ppatCloudUUID.MatchString(p.UUID) || strings.TrimSpace(p.Nama) == "" || strings.TrimSpace(p.Detail) == "" || len(p.Atribut) > 100 || seen[p.UUID] {
+			return ErrPpatCloudInvalid
+		}
+		seen[p.UUID] = true
+		for _, a := range p.Atribut {
+			if !ppatCloudUUID.MatchString(a.UUID) || strings.TrimSpace(a.Value) == "" || seen[a.UUID] {
+				return ErrPpatCloudInvalid
+			}
+			seen[a.UUID] = true
+		}
+	}
+	return nil
+}
+
+// Create is the only accepted mutation in this slice. A receipt is committed
+// with every parent/child write and one complete aggregate outbox event.
+func (r *PpatCloudRepository) Create(ctx context.Context, m PpatCloudCreate, actor int64) (*PpatCloudAck, error) {
+	if actor <= 0 || m.validate() != nil {
+		return nil, ErrPpatCloudInvalid
+	}
+	body, _ := json.Marshal(m)
+	hash := sha256.Sum256(body)
+	digest := hex.EncodeToString(hash[:])
+	var ack PpatCloudAck
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Serializes receipt probes and create attempts for the same immutable ID.
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", m.MutationID).Error; err != nil {
+			return err
+		}
+		var saved struct {
+			ActorID         int64
+			RequestHash     string
+			Acknowledgement []byte
+		}
+		probe := tx.Raw("SELECT actor_id,request_hash,acknowledgement FROM pekerjaan_ppat_sync_mutation WHERE mutation_id=?::uuid", m.MutationID).Scan(&saved)
+		if probe.Error != nil {
+			return probe.Error
+		}
+		if probe.RowsAffected > 0 {
+			if saved.ActorID != actor || saved.RequestHash != digest {
+				return ErrPpatCloudReuse
+			}
+			return json.Unmarshal(saved.Acknowledgement, &ack)
+		}
+		var existing int64
+		if err := tx.Raw("SELECT count(*) FROM pekerjaan_ppat WHERE uuid=?::uuid", m.UUID).Row().Scan(&existing); err != nil {
+			return err
+		}
+		if existing != 0 {
+			return ErrPpatCloudConflict
+		}
+		if err := tx.Raw("INSERT INTO pekerjaan_ppat(uuid,nama,status,row_version) VALUES(?::uuid,?,1,1) RETURNING id", m.UUID, m.Nama).Row().Scan(&ack.ServerID); err != nil {
+			return err
+		}
+		for _, h := range m.Harga {
+			var categoryID int64
+			if err := tx.Raw("SELECT id FROM pekerjaan_kategori WHERE uuid=?::uuid AND status=1", h.CategoryUUID).Row().Scan(&categoryID); err != nil {
+				return ErrPpatCloudInvalid
+			}
+			if err := tx.Exec("INSERT INTO pekerjaan_ppat_harga(uuid,pekerjaan_ppat_id,kategori_pekerjaan_id,harga,estimasi_waktu,status) VALUES(?::uuid,?,?,?,?,1)", h.UUID, ack.ServerID, categoryID, h.Harga, h.EstimasiWaktu).Error; err != nil {
+				return err
+			}
+		}
+		for _, p := range m.Proses {
+			if err := tx.Exec("INSERT INTO pekerjaan_ppat_proses(uuid,pekerjaan_ppat_id,nama,detail,status) VALUES(?::uuid,?,?,?,1)", p.UUID, ack.ServerID, p.Nama, p.Detail).Error; err != nil {
+				return err
+			}
+			for _, a := range p.Atribut {
+				if err := tx.Exec("INSERT INTO pekerjaan_ppat_sync_atribut(uuid,proses_uuid,atribut) VALUES(?::uuid,?::uuid,?)", a.UUID, p.UUID, a.Value).Error; err != nil {
+					return err
+				}
+			}
+		}
+		ack = PpatCloudAck{MutationID: m.MutationID, UUID: m.UUID, ServerID: ack.ServerID, Revision: 1}
+		ackBytes, _ := json.Marshal(ack)
+		if err := tx.Exec("INSERT INTO pekerjaan_ppat_sync_mutation(mutation_id,actor_id,request_hash,acknowledgement) VALUES(?::uuid,?,?,?::jsonb)", m.MutationID, actor, digest, string(ackBytes)).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("INSERT INTO pekerjaan_ppat_sync_outbox(aggregate_uuid,payload) VALUES(?::uuid,?::jsonb)", m.UUID, string(body)).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &ack, nil
+}
+
+// Publish advances a locked counter only after reading committed outbox rows.
+func (r *PpatCloudRepository) Publish(ctx context.Context, limit int) (int, error) {
+	if limit < 1 || limit > 500 {
+		return 0, ErrPpatCloudInvalid
+	}
+	count := 0
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var seq int64
+		if err := tx.Raw("SELECT last_seq FROM pekerjaan_ppat_sync_publication WHERE id=1 FOR UPDATE").Row().Scan(&seq); err != nil {
+			return err
+		}
+		var rows []struct{ ID int64 }
+		if err := tx.Raw("SELECT id FROM pekerjaan_ppat_sync_outbox WHERE publication_seq IS NULL ORDER BY id LIMIT ? FOR UPDATE", limit).Scan(&rows).Error; err != nil {
+			return err
+		}
+		for _, row := range rows {
+			if err := tx.Raw("UPDATE pekerjaan_ppat_sync_publication SET last_seq=last_seq+1 WHERE id=1 RETURNING last_seq").Row().Scan(&seq); err != nil {
+				return err
+			}
+			if err := tx.Exec("UPDATE pekerjaan_ppat_sync_outbox SET publication_seq=?,published_at=clock_timestamp() WHERE id=?", seq, row.ID).Error; err != nil {
+				return err
+			}
+		}
+		count = len(rows)
+		return nil
+	})
+	return count, err
+}
+
+func (r *PpatCloudRepository) Pull(ctx context.Context, cursor int64, limit int) (*PpatCloudPage, error) {
+	if cursor < 0 || limit < 1 || limit > 500 {
+		return nil, ErrPpatCloudCursor
+	}
+	page := &PpatCloudPage{Changes: []PpatCloudEvent{}, NextCursor: cursor}
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var last, min int64
+		if err := tx.Raw("SELECT last_seq,min_cursor FROM pekerjaan_ppat_sync_publication WHERE id=1").Row().Scan(&last, &min); err != nil {
+			return err
+		}
+		if cursor < min || cursor > last {
+			return ErrPpatCloudCursor
+		}
+		var rows []struct {
+			PublicationSeq int64
+			Payload        []byte
+			Revision       int64
+			Operation      string
+		}
+		if err := tx.Raw("SELECT publication_seq,payload,revision,operation FROM pekerjaan_ppat_sync_outbox WHERE publication_seq>? ORDER BY publication_seq LIMIT ?", cursor, limit+1).Scan(&rows).Error; err != nil {
+			return err
+		}
+		page.HasMore = len(rows) > limit
+		if page.HasMore {
+			rows = rows[:limit]
+		}
+		for _, row := range rows {
+			var aggregate PpatCloudCreate
+			if err := json.Unmarshal(row.Payload, &aggregate); err != nil {
+				return err
+			}
+			page.Changes = append(page.Changes, PpatCloudEvent{Sequence: row.PublicationSeq, Aggregate: aggregate, Revision: row.Revision, Operation: row.Operation})
+			page.NextCursor = row.PublicationSeq
+		}
+		return nil
+	})
+	return page, err
+}

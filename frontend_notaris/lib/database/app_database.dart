@@ -261,7 +261,7 @@ class AppDatabase extends _$AppDatabase {
   final String? petugasBaselinePath;
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -275,6 +275,7 @@ class AppDatabase extends _$AppDatabase {
       await _createPetugasConflictStorage();
       await _createSyncLogStorage();
       await _createNotarisCloudStorage();
+      await _createPpatCloudStorage();
     },
     onUpgrade: (Migrator m, int from, int to) async {
       // Keep all pending migration steps atomic. If V8 UUID validation fails,
@@ -423,6 +424,9 @@ class AppDatabase extends _$AppDatabase {
         if (from < 15) {
           await _createNotarisCloudStorage();
         }
+        if (from < 16) {
+          await _createPpatCloudStorage();
+        }
       });
     },
   );
@@ -461,6 +465,25 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE TABLE IF NOT EXISTS pekerjaan_notaris_sync_pending ('
       'local_uuid TEXT PRIMARY KEY REFERENCES pekerjaan_notaris(uuid), '
+      'mutation_id TEXT NOT NULL UNIQUE, payload TEXT NOT NULL, '
+      'state TEXT NOT NULL CHECK(state IN (\'pending\',\'acked\')))',
+    );
+  }
+
+  Future<void> _createPpatCloudStorage() async {
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS pekerjaan_ppat_sync_identity ('
+      'local_uuid TEXT PRIMARY KEY REFERENCES pekerjaan_ppat(uuid), '
+      'cloud_uuid TEXT NOT NULL UNIQUE, scope TEXT NOT NULL, '
+      'revision INTEGER NOT NULL CHECK(revision>0))',
+    );
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS pekerjaan_ppat_sync_feed ('
+      'scope TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0 CHECK(cursor>=0))',
+    );
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS pekerjaan_ppat_sync_pending ('
+      'local_uuid TEXT PRIMARY KEY REFERENCES pekerjaan_ppat(uuid), '
       'mutation_id TEXT NOT NULL UNIQUE, payload TEXT NOT NULL, '
       'state TEXT NOT NULL CHECK(state IN (\'pending\',\'acked\')))',
     );
