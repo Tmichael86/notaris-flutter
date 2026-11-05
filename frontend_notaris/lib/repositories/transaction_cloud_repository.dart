@@ -7,7 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../database/app_database.dart';
 import 'transaction_cloud_references.dart';
 
-/// Explicit CREATE-only adapter. Never registered with SyncCoordinator.
+/// Explicit domain-checked transaction adapter. Never registered with SyncCoordinator.
 class TransactionCloudRepository {
   TransactionCloudRepository(
     this.db,
@@ -15,11 +15,21 @@ class TransactionCloudRepository {
     required this.scope,
     required this.petugasScope,
     required this.masterScope,
+    this.domain = 'notaris',
+    this.otherMasterScope,
   });
   final AppDatabase db;
   final Dio dio;
   final String scope, petugasScope, masterScope;
+  final String domain;
+  final String? otherMasterScope;
+  String _masterScopeFor(String value) =>
+      value == domain ? masterScope : (otherMasterScope ?? masterScope);
+  String _domainOf(Map value) => (value['domain'] ?? 'notaris') as String;
   Future<void> _bind() async {
+    if (!{'notaris', 'ppat'}.contains(domain)) {
+      throw StateError('Invalid transaction domain');
+    }
     if (scope.isEmpty) throw StateError('Transaction cloud scope required');
     final feeds = await db
         .customSelect('SELECT scope FROM transaction_cloud_feed')
@@ -39,8 +49,8 @@ class TransactionCloudRepository {
       petugasScope: petugasScope,
       masterScope: masterScope,
     ).prepare(id);
-    if (refs['domain'] != 'notaris') {
-      throw StateError('Only Notaris CREATE supported');
+    if (refs['domain'] != domain) {
+      throw StateError('Transaction push domain mismatch');
     }
     final header = await (db.select(
       db.transaksis,
@@ -122,6 +132,7 @@ class TransactionCloudRepository {
       });
     }
     return {
+      'domain': domain,
       'mutation_id': mutation,
       'uuid': header.uuid,
       'expected_revision': 0,
@@ -159,6 +170,9 @@ class TransactionCloudRepository {
       final h = await (db.select(
         db.transaksis,
       )..where((t) => t.id.equals(id))).getSingle();
+      if (h.jenisTransaksi != domain) {
+        throw StateError('Transaction domain mismatch');
+      }
       final identity = await db
           .customSelect(
             'SELECT local_uuid FROM transaction_cloud_identity WHERE local_uuid=?',
@@ -184,7 +198,7 @@ class TransactionCloudRepository {
       return body;
     });
     final response = await dio.post<Map<String, dynamic>>(
-      '/transaksi-notaris/sync/create',
+      '/transaksi-$domain/sync/create',
       data: jsonDecode(payload),
     );
     final ack = Map<String, dynamic>.from(
@@ -194,7 +208,8 @@ class TransactionCloudRepository {
     if (ack['uuid'] != sent['uuid'] ||
         ack['mutation_id'] != sent['mutation_id'] ||
         ack['revision'] != 1 ||
-        !RegExp(r'^100\d{10}$').hasMatch(ack['final_number'] as String)) {
+        !RegExp(domain == 'ppat' ? r'^200\d{10}$' : r'^100\d{10}$')
+            .hasMatch(ack['final_number'] as String)) {
       throw StateError('Invalid transaction acknowledgement');
     }
     await db.transaction(() async {
@@ -306,6 +321,9 @@ class TransactionCloudRepository {
       final h = await (db.select(
         db.transaksis,
       )..where((t) => t.id.equals(id))).getSingle();
+      if (h.jenisTransaksi != domain) {
+        throw StateError('Transaction domain mismatch');
+      }
       final identity = await db
           .customSelect(
             'SELECT * FROM transaction_cloud_identity WHERE local_uuid=?',
@@ -344,6 +362,7 @@ class TransactionCloudRepository {
           throw StateError('Local soft deletion required before cloud delete');
         }
         request = {
+          'domain': domain,
           'mutation_id': const Uuid().v4(),
           'uuid': h.uuid,
           'expected_revision': identity.read<int>('revision'),
@@ -362,7 +381,7 @@ class TransactionCloudRepository {
     final sent = jsonDecode(payload) as Map<String, dynamic>;
     // 409 leaves the immutable request and all dirty state intact.
     final response = await dio.post<Map<String, dynamic>>(
-      '/transaksi-notaris/sync/$operation',
+      '/transaksi-$domain/sync/$operation',
       data: sent,
     );
     final ack = Map<String, dynamic>.from(
@@ -441,7 +460,7 @@ class TransactionCloudRepository {
                 .getSingle())
             .read<int>('cursor');
     final response = await dio.get<Map<String, dynamic>>(
-      '/transaksi-notaris/sync/pull',
+      '/transaksi-$domain/sync/pull',
       queryParameters: {'cursor': before, 'limit': limit},
     );
     final page = response.data!;
@@ -488,6 +507,10 @@ class TransactionCloudRepository {
     int revision,
     String operation,
   ) async {
+    final eventDomain = _domainOf(aggregate);
+    if (!{'notaris', 'ppat'}.contains(eventDomain)) {
+      throw StateError('Invalid published domain');
+    }
     final uuid = aggregate['uuid'] as String;
     final identity = await db
         .customSelect(
@@ -496,7 +519,9 @@ class TransactionCloudRepository {
         )
         .getSingleOrNull();
     if (identity != null) {
-      if (identity.read<String>('scope') != scope ||
+      if (_domainOf(jsonDecode(identity.read<String>('snapshot')) as Map) !=
+              eventDomain ||
+          identity.read<String>('scope') != scope ||
           identity.read<String>('final_number') != aggregate['final_number']) {
         throw StateError('Transaction replay disagrees');
       }
@@ -517,7 +542,8 @@ class TransactionCloudRepository {
     final existing = await (db.select(
       db.transaksis,
     )..where((t) => t.uuid.equals(uuid))).get();
-    if (existing.length > 1 ||
+    if (existing.any((row) => row.jenisTransaksi != eventDomain) ||
+        existing.length > 1 ||
         (identity == null && existing.isNotEmpty) ||
         (identity != null && existing.length != 1)) {
       throw StateError(
@@ -606,7 +632,7 @@ class TransactionCloudRepository {
     final h = Map<String, dynamic>.from(aggregate['header'] as Map);
     if (!updating) {
       await db.customStatement(
-        'INSERT INTO transaksis(uuid,no_akta,total,pemohon_id,pemohon_uuid,petugas_id,petugas_uuid,jenis_transaksi,status_transaksi,tanggal_transaksi,tanggal_jatuh_tempo,diskon,pembayaran_sekarang,metode_pembayaran,jumlah_materai,catatan,is_sync_dirty) VALUES(?,?,?,?,?,?,?,\'notaris\',?,?,?,?,?,?,?,?,0)',
+        'INSERT INTO transaksis(uuid,no_akta,total,pemohon_id,pemohon_uuid,petugas_id,petugas_uuid,jenis_transaksi,status_transaksi,tanggal_transaksi,tanggal_jatuh_tempo,diskon,pembayaran_sekarang,metode_pembayaran,jumlah_materai,catatan,is_sync_dirty) VALUES(?,?,?,?,?,?,?,\'$eventDomain\',?,?,?,?,?,?,?,?,0)',
         [
           uuid,
           aggregate['final_number'],
@@ -672,10 +698,10 @@ class TransactionCloudRepository {
       }
       final jobs = await db
           .customSelect(
-            "SELECT p.id FROM pekerjaan_notaris p JOIN pekerjaan_notaris_sync_identity i ON i.local_uuid=p.uuid JOIN pekerjaan_notaris_harga h ON h.pekerjaan_notaris_id=p.id JOIN pekerjaan_kategori c ON c.id=h.kategori_pekerjaan_id WHERE i.cloud_uuid=? AND i.scope=? AND i.revision>0 AND p.status=1 AND p.deleted_at IS NULL AND p.is_sync_dirty=0 AND h.uuid=? AND h.status=1 AND h.deleted_at IS NULL AND h.is_sync_dirty=0 AND c.uuid=? AND c.status=1 AND c.deleted_at IS NULL AND c.is_sync_dirty=0 AND NOT EXISTS(SELECT 1 FROM pekerjaan_notaris_sync_pending m WHERE m.local_uuid=p.uuid AND m.state='pending')",
+            "SELECT p.id FROM pekerjaan_$eventDomain p JOIN pekerjaan_${eventDomain}_sync_identity i ON i.local_uuid=p.uuid JOIN pekerjaan_${eventDomain}_harga h ON h.pekerjaan_${eventDomain}_id=p.id JOIN pekerjaan_kategori c ON c.id=h.kategori_pekerjaan_id WHERE i.cloud_uuid=? AND i.scope=? AND i.revision>0 AND p.status=1 AND p.deleted_at IS NULL AND p.is_sync_dirty=0 AND h.uuid=? AND h.status=1 AND h.deleted_at IS NULL AND h.is_sync_dirty=0 AND c.uuid=? AND c.status=1 AND c.deleted_at IS NULL AND c.is_sync_dirty=0 AND NOT EXISTS(SELECT 1 FROM pekerjaan_${eventDomain}_sync_pending m WHERE m.local_uuid=p.uuid AND m.state='pending')",
             variables: [
               Variable(d['job_uuid'] as String),
-              Variable(masterScope),
+              Variable(_masterScopeFor(eventDomain)),
               Variable(d['price_uuid'] as String),
               Variable(d['category_uuid'] as String),
             ],
@@ -685,7 +711,7 @@ class TransactionCloudRepository {
         throw StateError('Transaction job reference unresolved');
       }
       await db.customStatement(
-        "INSERT INTO transaksi_details(uuid,transaksi_id,jenis_pekerjaan,pekerjaan_notaris_id,nama_pekerjaan_snapshot,kategori_snapshot,estimasi_waktu_snapshot,proses_snapshot,biaya_layanan,biaya_lainnya,total_snapshot,harga_uuid,kategori_uuid,is_sync_dirty) VALUES(?,?,'notaris',?,?,?,?,?,?,?,?,?,?,0) ON CONFLICT(uuid) DO UPDATE SET pekerjaan_notaris_id=excluded.pekerjaan_notaris_id,nama_pekerjaan_snapshot=excluded.nama_pekerjaan_snapshot,kategori_snapshot=excluded.kategori_snapshot,estimasi_waktu_snapshot=excluded.estimasi_waktu_snapshot,proses_snapshot=excluded.proses_snapshot,biaya_layanan=excluded.biaya_layanan,biaya_lainnya=excluded.biaya_lainnya,total_snapshot=excluded.total_snapshot,harga_uuid=excluded.harga_uuid,kategori_uuid=excluded.kategori_uuid,status=1,deleted_at=NULL,is_sync_dirty=0",
+        "INSERT INTO transaksi_details(uuid,transaksi_id,jenis_pekerjaan,pekerjaan_${eventDomain}_id,nama_pekerjaan_snapshot,kategori_snapshot,estimasi_waktu_snapshot,proses_snapshot,biaya_layanan,biaya_lainnya,total_snapshot,harga_uuid,kategori_uuid,is_sync_dirty) VALUES(?,?,'$eventDomain',?,?,?,?,?,?,?,?,?,?,0) ON CONFLICT(uuid) DO UPDATE SET pekerjaan_${eventDomain}_id=excluded.pekerjaan_${eventDomain}_id,nama_pekerjaan_snapshot=excluded.nama_pekerjaan_snapshot,kategori_snapshot=excluded.kategori_snapshot,estimasi_waktu_snapshot=excluded.estimasi_waktu_snapshot,proses_snapshot=excluded.proses_snapshot,biaya_layanan=excluded.biaya_layanan,biaya_lainnya=excluded.biaya_lainnya,total_snapshot=excluded.total_snapshot,harga_uuid=excluded.harga_uuid,kategori_uuid=excluded.kategori_uuid,status=1,deleted_at=NULL,is_sync_dirty=0",
         [
           d['uuid'],
           id,
@@ -761,6 +787,12 @@ class TransactionCloudRepository {
 
   bool _same(dynamic a, dynamic b) {
     if (a is Map && b is Map) {
+      if (a.containsKey('expected_revision') && a.containsKey('header')) {
+        a = {'domain': 'notaris', ...a};
+      }
+      if (b.containsKey('expected_revision') && b.containsKey('header')) {
+        b = {'domain': 'notaris', ...b};
+      }
       return a.length == b.length &&
           a.keys.every(
             (k) =>

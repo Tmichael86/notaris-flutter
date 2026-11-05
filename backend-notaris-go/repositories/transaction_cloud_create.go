@@ -61,6 +61,7 @@ type TransactionCloudPayment struct {
 	Order       int       `json:"order"`
 }
 type TransactionCloudCreate struct {
+	Domain           string                    `json:"domain,omitempty"`
 	MutationID       string                    `json:"mutation_id"`
 	UUID             string                    `json:"uuid"`
 	ExpectedRevision int64                     `json:"expected_revision"`
@@ -94,10 +95,25 @@ type TransactionCloudPage struct {
 	NextCursor int64                   `json:"next_cursor"`
 	HasMore    bool                    `json:"has_more"`
 }
-type TransactionCloudRepository struct{ db *gorm.DB }
+type TransactionCloudRepository struct {
+	db     *gorm.DB
+	domain string
+}
 
 func NewTransactionCloudRepository(db *gorm.DB) *TransactionCloudRepository {
-	return &TransactionCloudRepository{db}
+	return NewTransactionCloudRepositoryForDomain(db, "notaris")
+}
+func NewTransactionCloudRepositoryForDomain(db *gorm.DB, domain string) *TransactionCloudRepository {
+	return &TransactionCloudRepository{db: db, domain: domain}
+}
+func (r *TransactionCloudRepository) validDomain(request string) bool {
+	return (r.domain == "notaris" || r.domain == "ppat") && (request == r.domain || (request == "" && r.domain == "notaris"))
+}
+func (r *TransactionCloudRepository) jobColumns() (string, string) {
+	if r.domain == "ppat" {
+		return "pekerjaan_ppat_id", "harga_ppat_id"
+	}
+	return "pekerjaan_notaris_id", "harga_id"
 }
 func (m TransactionCloudCreate) validate() error {
 	seen := map[string]bool{}
@@ -146,7 +162,7 @@ func (m TransactionCloudCreate) validate() error {
 	return nil
 }
 func (r *TransactionCloudRepository) Create(ctx context.Context, m TransactionCloudCreate, actor int64) (*TransactionCloudAck, error) {
-	if actor < 1 || m.validate() != nil {
+	if actor < 1 || !r.validDomain(m.Domain) || m.validate() != nil {
 		return nil, ErrTransactionCloudInvalid
 	}
 	body, _ := json.Marshal(m)
@@ -182,7 +198,7 @@ func (r *TransactionCloudRepository) Create(ctx context.Context, m TransactionCl
 		if count != 0 {
 			return ErrTransactionCloudConflict
 		}
-		refs := TransactionCloudReferences{PemohonUUID: m.PemohonUUID, PetugasUUID: m.PetugasUUID, Domain: "notaris"}
+		refs := TransactionCloudReferences{PemohonUUID: m.PemohonUUID, PetugasUUID: m.PetugasUUID, Domain: r.domain}
 		for _, d := range m.Details {
 			refs.Jobs = append(refs.Jobs, TransactionCloudJobReference{JobUUID: d.JobUUID, PriceUUID: d.PriceUUID, CategoryUUID: d.CategoryUUID})
 		}
@@ -190,18 +206,19 @@ func (r *TransactionCloudRepository) Create(ctx context.Context, m TransactionCl
 		if e != nil {
 			return e
 		}
-		number, e := allocateTransactionNumber(ctx, tx, "notaris")
+		number, e := allocateTransactionNumber(ctx, tx, r.domain)
 		if e != nil {
 			return e
 		}
 		header, _ := json.Marshal(m.Header)
-		if e = tx.Raw("INSERT INTO transaction_cloud(uuid,final_number,revision,pemohon_id,petugas_id,header) VALUES(?::uuid,?,1,?,?,?::jsonb) RETURNING id", m.UUID, number, resolved.PemohonID, resolved.PetugasID, string(header)).Row().Scan(&ack.ServerID); e != nil {
+		if e = tx.Raw("INSERT INTO transaction_cloud(uuid,final_number,revision,pemohon_id,petugas_id,header,domain) VALUES(?::uuid,?,1,?,?,?::jsonb,?) RETURNING id", m.UUID, number, resolved.PemohonID, resolved.PetugasID, string(header), r.domain).Row().Scan(&ack.ServerID); e != nil {
 			return e
 		}
 		for i, d := range m.Details {
 			snapshot, _ := json.Marshal(d)
 			ref := resolved.Jobs[i]
-			if e = tx.Exec("INSERT INTO transaction_cloud_detail(uuid,transaction_id,pekerjaan_notaris_id,harga_id,kategori_id,snapshot) VALUES(?::uuid,?,?,?,?,?::jsonb)", d.UUID, ack.ServerID, ref.JobID, ref.PriceID, ref.CategoryID, string(snapshot)).Error; e != nil {
+			jobColumn, priceColumn := r.jobColumns()
+			if e = tx.Exec("INSERT INTO transaction_cloud_detail(uuid,transaction_id,"+jobColumn+","+priceColumn+",kategori_id,snapshot,domain) VALUES(?::uuid,?,?,?,?,?::jsonb,?)", d.UUID, ack.ServerID, ref.JobID, ref.PriceID, ref.CategoryID, string(snapshot), r.domain).Error; e != nil {
 				return e
 			}
 			for _, p := range d.Processes {
@@ -219,7 +236,9 @@ func (r *TransactionCloudRepository) Create(ctx context.Context, m TransactionCl
 		}
 		ack = TransactionCloudAck{MutationID: m.MutationID, UUID: m.UUID, ServerID: ack.ServerID, Revision: 1, FinalNumber: number}
 		receipt, _ := json.Marshal(ack)
-		event, _ := json.Marshal(TransactionCloudAggregate{TransactionCloudCreate: m, FinalNumber: number})
+		published := m
+		published.Domain = r.domain
+		event, _ := json.Marshal(TransactionCloudAggregate{TransactionCloudCreate: published, FinalNumber: number})
 		if e = tx.Exec("INSERT INTO transaction_cloud_mutation(mutation_id,actor_id,request_hash,acknowledgement) VALUES(?::uuid,?,?,?::jsonb)", m.MutationID, actor, digest, string(receipt)).Error; e != nil {
 			return e
 		}
@@ -288,6 +307,9 @@ func (r *TransactionCloudRepository) Pull(ctx context.Context, cursor int64, lim
 			var a TransactionCloudAggregate
 			if e := json.Unmarshal(row.Payload, &a); e != nil {
 				return e
+			}
+			if a.Domain == "" {
+				a.Domain = "notaris"
 			}
 			page.Changes = append(page.Changes, TransactionCloudEvent{Sequence: row.PublicationSeq, Aggregate: a, Revision: row.Revision, Operation: row.Operation})
 			page.NextCursor = row.PublicationSeq

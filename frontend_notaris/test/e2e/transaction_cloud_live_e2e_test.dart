@@ -9,6 +9,10 @@ import 'package:frontend_notaris/repositories/transaction_repository.dart';
 import 'package:frontend_notaris/repositories/transaction_cloud_repository.dart';
 
 void main() {
+  final domain = Platform.environment['TRANSACTION_DOMAIN'] ?? 'notaris';
+  if (!{'notaris', 'ppat'}.contains(domain)) {
+    throw StateError('Invalid fixture domain');
+  }
   final url = Platform.environment['TRANSACTION_E2E_URL'];
   final token = Platform.environment['TRANSACTION_E2E_TOKEN'];
   if (url == null || token == null) {
@@ -22,7 +26,7 @@ void main() {
   if (!url.startsWith('http://127.0.0.1:') || url.contains(':8081/')) {
     throw StateError('Disposable HTTP target required');
   }
-  test('Notaris CREATE SQLite A → real HTTP/PostgreSQL → SQLite B', () async {
+  test('$domain CRUD SQLite A → real HTTP/PostgreSQL → SQLite B', () async {
     final folder = await Directory.systemTemp.createTemp(
       'transaction_cloud_e2e_',
     );
@@ -64,18 +68,21 @@ void main() {
         "INSERT INTO pekerjaan_kategori(id,uuid,nama,is_sync_dirty) VALUES(?,?,'Category',0)",
         [offset + 30, category],
       );
-      await db.customStatement(
-        "INSERT INTO pekerjaan_notaris(id,uuid,nama,is_sync_dirty) VALUES(?,?,'Job',0)",
-        [offset + 40, job],
-      );
-      await db.customStatement(
-        "INSERT INTO pekerjaan_notaris_sync_identity(local_uuid,cloud_uuid,scope,revision) VALUES(?,?,'master-scope',1)",
-        [job, job],
-      );
-      await db.customStatement(
-        "INSERT INTO pekerjaan_notaris_harga(uuid,pekerjaan_notaris_id,kategori_pekerjaan_id,harga,estimasi_waktu,is_sync_dirty) VALUES(?,?,?,'100','2 hari',0)",
-        [price, offset + 40, offset + 30],
-      );
+      for (final jobDomain in ['notaris', 'ppat']) {
+        final jobId = offset + (jobDomain == domain ? 40 : 50);
+        await db.customStatement(
+          "INSERT INTO pekerjaan_$jobDomain(id,uuid,nama,is_sync_dirty) VALUES(?,?,'Job $jobDomain',0)",
+          [jobId, job],
+        );
+        await db.customStatement(
+          "INSERT INTO pekerjaan_${jobDomain}_sync_identity(local_uuid,cloud_uuid,scope,revision) VALUES(?,?,'master-scope',1)",
+          [job, job],
+        );
+        await db.customStatement(
+          "INSERT INTO pekerjaan_${jobDomain}_harga(uuid,pekerjaan_${jobDomain}_id,kategori_pekerjaan_id,harga,estimasi_waktu,is_sync_dirty) VALUES(?,?,?,'100','2 hari',0)",
+          [price, jobId, offset + 30],
+        );
+      }
     }
 
     await seed(a, 0);
@@ -88,13 +95,14 @@ void main() {
           db,
           dio,
           scope: 'disposable-deployment-account-device-profile',
+          domain: domain,
           petugasScope: 'officer-scope',
           masterScope: 'master-scope',
         );
     final sender = cloud(a), receiver = cloud(b);
     final id = await TransactionRepository(a).save(
       nomorTransaksi: 'OFFLINE-TEMP',
-      jenisTransaksi: 'notaris',
+      jenisTransaksi: domain,
       pemohonId: 10,
       pemohonUuid: applicant,
       petugasId: 20,
@@ -102,10 +110,11 @@ void main() {
       status: 'Baru',
       tanggalTransaksi: DateTime.utc(2020, 1, 1),
       jobs: [
-        const TransactionJobInput(
-          jenisPekerjaan: 'notaris',
+        TransactionJobInput(
+          jenisPekerjaan: domain,
           namaPekerjaan: 'Historical job',
-          pekerjaanNotarisId: 40,
+          pekerjaanNotarisId: domain == 'notaris' ? 40 : null,
+          pekerjaanPpatId: domain == 'ppat' ? 40 : null,
           hargaUuid: price,
           kategoriUuid: category,
           detailUuid: detail,
@@ -121,7 +130,10 @@ void main() {
     final ack = await sender.pushCreate(id);
     expect(ack['uuid'], before.uuid);
     expect(ack['revision'], 1);
-    expect(ack['final_number'], matches(r'^100\d{6}0001$'));
+    expect(
+      ack['final_number'],
+      matches(domain == 'ppat' ? r'^200\d{6}0001$' : r'^100\d{6}0001$'),
+    );
     final accepted = (await TransactionRepository(a).findById(id))!;
     expect(accepted.uuid, before.uuid);
     expect(accepted.id, id);
@@ -133,14 +145,14 @@ void main() {
                 .getSingle())
             .read<String>('payload');
     final replay = await dio.post<Map<String, dynamic>>(
-      '/transaksi-notaris/sync/create',
+      '/transaksi-$domain/sync/create',
       data: jsonDecode(pending),
     );
     expect(replay.data!['acknowledgement'], ack);
     final altered = jsonDecode(pending) as Map<String, dynamic>;
     (altered['header'] as Map)['note'] = 'changed';
     await expectLater(
-      dio.post('/transaksi-notaris/sync/create', data: altered),
+      dio.post('/transaksi-$domain/sync/create', data: altered),
       throwsA(
         isA<DioException>().having(
           (e) => e.response?.statusCode,
@@ -151,13 +163,13 @@ void main() {
     );
     expect(
       (await dio.post<Map<String, dynamic>>(
-        '/transaksi-notaris/testing/publish',
+        '/transaksi-$domain/testing/publish',
       )).data!['published'],
       1,
     );
     expect(
       (await dio.post<Map<String, dynamic>>(
-        '/transaksi-notaris/testing/publish',
+        '/transaksi-$domain/testing/publish',
       )).data!['published'],
       0,
     );
@@ -174,7 +186,7 @@ void main() {
     );
     await b.customStatement('UPDATE pekerjaan_kategori SET is_sync_dirty=0');
     await b.customStatement(
-      "INSERT INTO transaksis(uuid,no_akta,total,is_sync_dirty) VALUES(?,'LOCAL-DIRTY',100,1)",
+      "INSERT INTO transaksis(uuid,no_akta,total,is_sync_dirty,jenis_transaksi) VALUES(?,'LOCAL-DIRTY',100,1,'$domain')",
       [before.uuid],
     );
     await expectLater(receiver.pullPage(limit: 1), throwsStateError);
@@ -195,7 +207,18 @@ void main() {
     expect(receivedDetail.uuid, detail);
     expect(receivedDetail.hargaUuid, price);
     expect(receivedDetail.kategoriUuid, category);
-    expect(receivedDetail.pekerjaanNotarisId, 140);
+    expect(
+      domain == 'ppat'
+          ? receivedDetail.pekerjaanPpatId
+          : receivedDetail.pekerjaanNotarisId,
+      140,
+    );
+    expect(
+      domain == 'ppat'
+          ? receivedDetail.pekerjaanNotarisId
+          : receivedDetail.pekerjaanPpatId,
+      isNull,
+    );
     expect(receivedDetail.namaPekerjaanSnapshot, 'Historical job');
     expect(
       (jsonDecode(receivedDetail.prosesSnapshot!) as List).single['attributes'],
@@ -214,7 +237,7 @@ void main() {
     expect(targetPayment.uuid, sourcePayment.uuid);
     expect(targetPayment.nominal, 25);
     await b.customStatement(
-      "UPDATE pekerjaan_notaris SET nama='Master changed'",
+      "UPDATE pekerjaan_$domain SET nama='Master changed'",
     );
     expect(
       (await b.select(b.transaksiDetails).getSingle()).namaPekerjaanSnapshot,
@@ -229,7 +252,7 @@ void main() {
       await TransactionRepository(a).save(
         id: id,
         nomorTransaksi: ack['final_number'] as String,
-        jenisTransaksi: 'notaris',
+        jenisTransaksi: domain,
         pemohonId: 10,
         pemohonUuid: applicant,
         petugasId: 20,
@@ -237,10 +260,11 @@ void main() {
         status: 'Baru',
         tanggalTransaksi: DateTime.utc(2020, 1, 1),
         jobs: [
-          const TransactionJobInput(
-            jenisPekerjaan: 'notaris',
+          TransactionJobInput(
+            jenisPekerjaan: domain,
             namaPekerjaan: 'Updated historical job',
-            pekerjaanNotarisId: 40,
+            pekerjaanNotarisId: domain == 'notaris' ? 40 : null,
+            pekerjaanPpatId: domain == 'ppat' ? 40 : null,
             hargaUuid: price,
             kategoriUuid: category,
             detailUuid: detail,
@@ -262,14 +286,14 @@ void main() {
                   .getSingle())
               .read<String>('payload');
       final retry = await dio.post<Map<String, dynamic>>(
-        '/transaksi-notaris/sync/update',
+        '/transaksi-$domain/sync/update',
         data: jsonDecode(updatePayload),
       );
       expect(retry.data!['acknowledgement'], updated);
       final changed = jsonDecode(updatePayload) as Map<String, dynamic>;
       (changed['header'] as Map)['note'] = 'mutation reuse';
       await expectLater(
-        dio.post('/transaksi-notaris/sync/update', data: changed),
+        dio.post('/transaksi-$domain/sync/update', data: changed),
         throwsA(
           isA<DioException>().having(
             (e) => e.response?.statusCode,
@@ -300,7 +324,7 @@ void main() {
       expect((await b.select(b.transaksis).getSingle()).isSyncDirty, true);
       expect(
         (await dio.post<Map<String, dynamic>>(
-          '/transaksi-notaris/testing/publish',
+          '/transaksi-$domain/testing/publish',
         )).data!['published'],
         1,
       );
@@ -399,13 +423,13 @@ void main() {
                   .getSingle())
               .read<String>('payload');
       final deleteRetry = await dio.post<Map<String, dynamic>>(
-        '/transaksi-notaris/sync/delete',
+        '/transaksi-$domain/sync/delete',
         data: jsonDecode(deletePayload),
       );
       expect(deleteRetry.data!['acknowledgement'], deleted);
       expect(
         (await dio.post<Map<String, dynamic>>(
-          '/transaksi-notaris/testing/publish',
+          '/transaksi-$domain/testing/publish',
         )).data!['published'],
         1,
       );
@@ -434,7 +458,7 @@ void main() {
     // Legacy unresolved detail cannot create a new pending request or HTTP mutation.
     final legacyId = await TransactionRepository(a).save(
       nomorTransaksi: 'LEGACY-LOCAL',
-      jenisTransaksi: 'notaris',
+      jenisTransaksi: domain,
       pemohonId: 10,
       pemohonUuid: applicant,
       petugasId: 20,
@@ -442,10 +466,11 @@ void main() {
       status: 'Baru',
       tanggalTransaksi: DateTime.utc(2020),
       jobs: [
-        const TransactionJobInput(
-          jenisPekerjaan: 'notaris',
+        TransactionJobInput(
+          jenisPekerjaan: domain,
           namaPekerjaan: 'Unresolved',
-          pekerjaanNotarisId: 40,
+          pekerjaanNotarisId: domain == 'notaris' ? 40 : null,
+          pekerjaanPpatId: domain == 'ppat' ? 40 : null,
           biayaLayanan: 100,
           detailUuid: '00000000-0000-4000-8000-000000000017',
         ),
@@ -461,6 +486,88 @@ void main() {
           .read<int>('n'),
       1,
     );
+    var expectedPayments = 1;
+    if (domain == 'ppat' &&
+        Platform.environment['TRANSACTION_MUTATIONS'] == '1') {
+      final collision = Map<String, dynamic>.from(jsonDecode(pending) as Map)
+        ..['domain'] = 'notaris'
+        ..['mutation_id'] = '00000000-0000-4000-8000-000000009909';
+      await expectLater(
+        dio.post('/transaksi-notaris/sync/create', data: collision),
+        throwsA(
+          isA<DioException>().having(
+            (e) => e.response?.statusCode,
+            'status',
+            409,
+          ),
+        ),
+      );
+      final otherCloud = TransactionCloudRepository(
+        a,
+        dio,
+        domain: 'notaris',
+        scope: 'disposable-deployment-account-device-profile',
+        petugasScope: 'officer-scope',
+        masterScope: 'master-scope',
+      );
+      final otherId = await TransactionRepository(a).save(
+        nomorTransaksi: 'OTHER-DOMAIN-OFFLINE',
+        jenisTransaksi: 'notaris',
+        pemohonId: 10,
+        pemohonUuid: applicant,
+        petugasId: 20,
+        petugasUuid: officer,
+        status: 'Baru',
+        tanggalTransaksi: DateTime.utc(2020),
+        jobs: [
+          const TransactionJobInput(
+            jenisPekerjaan: 'notaris',
+            namaPekerjaan: 'Notaris isolated',
+            pekerjaanNotarisId: 50,
+            hargaUuid: price,
+            kategoriUuid: category,
+            detailUuid: '00000000-0000-4000-8000-000000000027',
+            biayaLayanan: 100,
+            kategoriSnapshot: 'Historical category',
+            prosesSnapshot: '[]',
+          ),
+        ],
+        pembayaranSekarang: 25,
+      );
+      final otherAck = await otherCloud.pushCreate(otherId);
+      expect(otherAck['final_number'], matches(r'^100\d{6}0001$'));
+      await expectLater(sender.pushUpdate(otherId), throwsStateError);
+      expect(
+        (await dio.post<Map<String, dynamic>>(
+          '/transaksi-$domain/testing/publish',
+        )).data!['published'],
+        1,
+      );
+      expect(await receiver.pullPage(limit: 1), 4);
+      expect(await sender.pullPage(limit: 1), 4);
+      final combined = await b.select(b.transaksis).get();
+      expect(combined, hasLength(2));
+      expect(
+        combined.singleWhere((t) => t.jenisTransaksi == 'ppat').uuid,
+        before.uuid,
+      );
+      final other = combined.singleWhere((t) => t.jenisTransaksi == 'notaris');
+      expect(other.uuid, otherAck['uuid']);
+      expect(other.deletedAt, isNull);
+      final combinedDetails = await b.select(b.transaksiDetails).get();
+      final notarisDetail = combinedDetails.singleWhere(
+        (d) => d.jenisPekerjaan == 'notaris',
+      );
+      expect(notarisDetail.pekerjaanNotarisId, 150);
+      expect(notarisDetail.pekerjaanPpatId, isNull);
+      final ppatDetail = combinedDetails.singleWhere(
+        (d) => d.jenisPekerjaan == 'ppat',
+      );
+      expect(ppatDetail.pekerjaanPpatId, 140);
+      expect(ppatDetail.pekerjaanNotarisId, isNull);
+      expectedCursor = 4;
+      expectedPayments = 2;
+    }
     for (final db in [a, b]) {
       expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
       expect(
@@ -476,7 +583,7 @@ void main() {
       expect(await cloud(reopened).pullPage(), expectedCursor);
       expect(
         await reopened.select(reopened.transaksiRiwayatPembayarans).get(),
-        hasLength(1),
+        hasLength(expectedPayments),
       );
       await reopened.close();
     }

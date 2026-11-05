@@ -11,6 +11,14 @@ import (
 	"strconv"
 )
 
+func transactionRepository(ctx *gin.Context) *repositories.TransactionCloudRepository {
+	domain := ctx.GetString("transaction_domain")
+	if domain == "" {
+		domain = "notaris"
+	}
+	return repositories.NewTransactionCloudRepositoryForDomain(database.DB, domain)
+}
+
 // Shared single-office catalog, authenticated transaksi permission at the router.
 // There is no worker, publication route, or global synchronization activation.
 func TransactionCloudCreate(ctx *gin.Context) {
@@ -32,7 +40,7 @@ func transactionCloudWrite(ctx *gin.Context, update bool) {
 		ctx.JSON(400, gin.H{"code": "invalid_payload"})
 		return
 	}
-	repo := repositories.NewTransactionCloudRepository(database.DB)
+	repo := transactionRepository(ctx)
 	var ack *repositories.TransactionCloudAck
 	var err error
 	if update {
@@ -55,7 +63,7 @@ func TransactionCloudDelete(ctx *gin.Context) {
 		ctx.JSON(400, gin.H{"code": "invalid_payload"})
 		return
 	}
-	ack, err := repositories.NewTransactionCloudRepository(database.DB).Delete(ctx.Request.Context(), m, int64(actor))
+	ack, err := transactionRepository(ctx).Delete(ctx.Request.Context(), m, int64(actor))
 	transactionCloudResponse(ctx, ack, err)
 }
 func transactionCloudResponse(ctx *gin.Context, ack *repositories.TransactionCloudAck, err error) {
@@ -87,7 +95,7 @@ func TransactionCloudPull(ctx *gin.Context) {
 		ctx.JSON(400, gin.H{"code": "invalid_cursor"})
 		return
 	}
-	page, err := repositories.NewTransactionCloudRepository(database.DB).Pull(ctx.Request.Context(), cursor, limit)
+	page, err := transactionRepository(ctx).Pull(ctx.Request.Context(), cursor, limit)
 	if errors.Is(err, repositories.ErrTransactionCloudCursor) {
 		ctx.JSON(400, gin.H{"code": "invalid_cursor"})
 		return

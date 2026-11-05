@@ -18,6 +18,7 @@ var ErrTransactionCloudPayment = errors.New("committed payment history cannot be
 var ErrTransactionCloudAudit = errors.New("process transition requires verified cloud actor provenance")
 
 type TransactionCloudDelete struct {
+	Domain           string `json:"domain,omitempty"`
 	MutationID       string `json:"mutation_id"`
 	UUID             string `json:"uuid"`
 	ExpectedRevision int64  `json:"expected_revision"`
@@ -26,13 +27,13 @@ type TransactionCloudDelete struct {
 func (r *TransactionCloudRepository) Update(ctx context.Context, m TransactionCloudCreate, actor int64) (*TransactionCloudAck, error) {
 	copy := m
 	copy.ExpectedRevision = 0
-	if actor < 1 || m.ExpectedRevision < 1 || copy.validate() != nil {
+	if actor < 1 || !r.validDomain(m.Domain) || m.ExpectedRevision < 1 || copy.validate() != nil {
 		return nil, ErrTransactionCloudInvalid
 	}
 	return r.mutate(ctx, "update", m.MutationID, m.UUID, m.ExpectedRevision, actor, m, &m)
 }
 func (r *TransactionCloudRepository) Delete(ctx context.Context, m TransactionCloudDelete, actor int64) (*TransactionCloudAck, error) {
-	if actor < 1 || m.ExpectedRevision < 1 || !notarisCloudUUID.MatchString(m.MutationID) || !notarisCloudUUID.MatchString(m.UUID) {
+	if actor < 1 || !r.validDomain(m.Domain) || m.ExpectedRevision < 1 || !notarisCloudUUID.MatchString(m.MutationID) || !notarisCloudUUID.MatchString(m.UUID) {
 		return nil, ErrTransactionCloudInvalid
 	}
 	return r.mutate(ctx, "delete", m.MutationID, m.UUID, m.ExpectedRevision, actor, m, nil)
@@ -75,12 +76,13 @@ func (r *TransactionCloudRepository) mutate(ctx context.Context, op, mutation, u
 			ID, Revision int64
 			FinalNumber  string
 			DeletedAt    *time.Time
+			Domain       string
 		}
-		locked := tx.Raw("SELECT id,revision,final_number,deleted_at FROM transaction_cloud WHERE uuid=?::uuid FOR UPDATE", uuid).Scan(&parent)
+		locked := tx.Raw("SELECT id,revision,final_number,deleted_at,domain FROM transaction_cloud WHERE uuid=?::uuid FOR UPDATE", uuid).Scan(&parent)
 		if locked.Error != nil {
 			return locked.Error
 		}
-		if locked.RowsAffected != 1 || parent.DeletedAt != nil || parent.Revision != expected {
+		if locked.RowsAffected != 1 || parent.Domain != r.domain || parent.DeletedAt != nil || parent.Revision != expected {
 			return ErrTransactionCloudRevision
 		}
 		var saved []byte
@@ -95,7 +97,7 @@ func (r *TransactionCloudRepository) mutate(ctx context.Context, op, mutation, u
 			if !sameTransactionPayments(aggregate.Payments, update.Payments) {
 				return ErrTransactionCloudPayment
 			}
-			refs := TransactionCloudReferences{PemohonUUID: update.PemohonUUID, PetugasUUID: update.PetugasUUID, Domain: "notaris"}
+			refs := TransactionCloudReferences{PemohonUUID: update.PemohonUUID, PetugasUUID: update.PetugasUUID, Domain: r.domain}
 			for _, d := range update.Details {
 				refs.Jobs = append(refs.Jobs, TransactionCloudJobReference{JobUUID: d.JobUUID, PriceUUID: d.PriceUUID, CategoryUUID: d.CategoryUUID})
 			}
@@ -138,8 +140,9 @@ func (r *TransactionCloudRepository) mutate(ctx context.Context, op, mutation, u
 			for i, d := range update.Details {
 				snapshot, _ := json.Marshal(d)
 				ref := resolved.Jobs[i]
-				result := tx.Exec(`INSERT INTO transaction_cloud_detail(uuid,transaction_id,pekerjaan_notaris_id,harga_id,kategori_id,snapshot)
-     VALUES(?::uuid,?,?,?,?,?::jsonb) ON CONFLICT(uuid) DO UPDATE SET pekerjaan_notaris_id=EXCLUDED.pekerjaan_notaris_id,harga_id=EXCLUDED.harga_id,kategori_id=EXCLUDED.kategori_id,snapshot=EXCLUDED.snapshot,deleted_at=NULL WHERE transaction_cloud_detail.transaction_id=EXCLUDED.transaction_id`, d.UUID, parent.ID, ref.JobID, ref.PriceID, ref.CategoryID, string(snapshot))
+				jobColumn, priceColumn := r.jobColumns()
+				result := tx.Exec(`INSERT INTO transaction_cloud_detail(uuid,transaction_id,`+jobColumn+`,`+priceColumn+`,kategori_id,snapshot,domain)
+     VALUES(?::uuid,?,?,?,?,?::jsonb,?) ON CONFLICT(uuid) DO UPDATE SET `+jobColumn+`=EXCLUDED.`+jobColumn+`,`+priceColumn+`=EXCLUDED.`+priceColumn+`,kategori_id=EXCLUDED.kategori_id,snapshot=EXCLUDED.snapshot,deleted_at=NULL WHERE transaction_cloud_detail.transaction_id=EXCLUDED.transaction_id AND transaction_cloud_detail.domain=EXCLUDED.domain`, d.UUID, parent.ID, ref.JobID, ref.PriceID, ref.CategoryID, string(snapshot), r.domain)
 				if result.Error != nil {
 					return result.Error
 				}
@@ -159,6 +162,7 @@ func (r *TransactionCloudRepository) mutate(ctx context.Context, op, mutation, u
 				}
 			}
 			aggregate.TransactionCloudCreate = *update
+			aggregate.Domain = r.domain
 		} else {
 			// Existing local delete is unconditional soft deletion; no payment/audit erasure.
 			if e := tx.Raw("UPDATE transaction_cloud SET deleted_at=clock_timestamp() WHERE id=? RETURNING deleted_at", parent.ID).Row().Scan(&aggregate.DeletedAt); e != nil {
@@ -171,6 +175,7 @@ func (r *TransactionCloudRepository) mutate(ctx context.Context, op, mutation, u
 				return e
 			}
 			aggregate.MutationID = mutation
+			aggregate.Domain = r.domain
 			aggregate.ExpectedRevision = expected
 		}
 		if e := tx.Exec("UPDATE transaction_cloud SET revision=revision+1 WHERE id=?", parent.ID).Error; e != nil {

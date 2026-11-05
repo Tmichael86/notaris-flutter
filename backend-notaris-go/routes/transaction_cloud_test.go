@@ -28,7 +28,9 @@ import (
 	"time"
 )
 
-func TestTransactionCloudHTTPPostgres(t *testing.T) {
+func TestTransactionCloudHTTPPostgres(t *testing.T)     { runTransactionCloudHTTP(t, "notaris") }
+func TestTransactionPpatCloudHTTPPostgres(t *testing.T) { runTransactionCloudHTTP(t, "ppat") }
+func runTransactionCloudHTTP(t *testing.T, domain string) {
 	dsn := os.Getenv("NOTARIS_SYNC_TEST_DSN")
 	if dsn == "" {
 		t.Skip("disposable DSN unset")
@@ -65,19 +67,25 @@ func TestTransactionCloudHTTPPostgres(t *testing.T) {
  CREATE TABLE petugas(id bigint PRIMARY KEY,uuid uuid NOT NULL UNIQUE,status smallint,deleted_at timestamptz);
  CREATE TABLE pekerjaan_kategori(id bigint PRIMARY KEY,uuid uuid NOT NULL UNIQUE,status smallint,deleted_at timestamptz);
  CREATE TABLE pekerjaan_notaris(id bigint PRIMARY KEY,uuid uuid NOT NULL UNIQUE,status smallint,deleted_at timestamptz);
+ CREATE TABLE pekerjaan_ppat(id bigint PRIMARY KEY,uuid uuid NOT NULL UNIQUE,status smallint,deleted_at timestamptz);
+ CREATE TABLE pekerjaan_ppat_harga(id bigint PRIMARY KEY,uuid uuid NOT NULL UNIQUE,pekerjaan_ppat_id bigint REFERENCES pekerjaan_ppat(id),kategori_pekerjaan_id bigint REFERENCES pekerjaan_kategori(id),status smallint,deleted_at timestamptz);
  CREATE TABLE pekerjaan_notaris_harga(id bigint PRIMARY KEY,uuid uuid NOT NULL UNIQUE,pekerjaan_notaris_id bigint REFERENCES pekerjaan_notaris(id),kategori_pekerjaan_id bigint REFERENCES pekerjaan_kategori(id),status smallint,deleted_at timestamptz);
  INSERT INTO pemohon VALUES(301,'00000000-0000-4000-8000-000000000001',1,NULL);
  INSERT INTO petugas VALUES(104,'00000000-0000-4000-8000-000000000003',1,NULL);
  INSERT INTO pekerjaan_notaris VALUES(901,'00000000-0000-4000-8000-000000000004',1,NULL);
  INSERT INTO pekerjaan_kategori VALUES(801,'00000000-0000-4000-8000-000000000006',1,NULL);
  INSERT INTO pekerjaan_notaris_harga VALUES(701,'00000000-0000-4000-8000-000000000005',901,801,1,NULL);
+ INSERT INTO pekerjaan_ppat VALUES(1901,'00000000-0000-4000-8000-000000000004',1,NULL);
+ INSERT INTO pekerjaan_ppat_harga VALUES(1701,'00000000-0000-4000-8000-000000000005',1901,801,1,NULL);
+ INSERT INTO pekerjaan_notaris VALUES(902,'00000000-0000-4000-8000-000000000044',1,NULL);
+ INSERT INTO pekerjaan_notaris_harga VALUES(702,'00000000-0000-4000-8000-000000000045',902,801,1,NULL);
  INSERT INTO groups(id,status) VALUES(1,1); INSERT INTO users(id,group_id,status) VALUES(1,1,1);
  INSERT INTO sidebar(id,sidebar_kode,sidebar_route,status) VALUES(1,'transaksi','/transaksi',1);
  INSERT INTO sidebar_akses(id,group_id,sidebar_id,"read","create","update","delete") VALUES(1,1,1,1,1,1,1);`
 	if e = db.Exec(ddl).Error; e != nil {
 		t.Fatal(e)
 	}
-	for _, name := range []string{"20261105_transaction_cloud_numbering.sql", "20261105_transaction_notaris_create.sql", "20261105_transaction_notaris_mutations.sql"} {
+	for _, name := range []string{"20261105_transaction_cloud_numbering.sql", "20261105_transaction_notaris_create.sql", "20261105_transaction_notaris_mutations.sql", "20261105_transaction_ppat_domain.sql"} {
 		sql, e := os.ReadFile("../migration_proposals/" + name)
 		if e != nil {
 			t.Fatal(e)
@@ -92,7 +100,7 @@ func TestTransactionCloudHTTPPostgres(t *testing.T) {
 		t.Fatal(e)
 	}
 	router := SetupRouter(config.Config{JWTSecret: secret}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
-	router.POST("/api/v1/transaksi-notaris/testing/publish", middleware.JWTAuth(config.Config{JWTSecret: secret}), func(c *gin.Context) {
+	router.POST("/api/v1/transaksi-"+domain+"/testing/publish", middleware.JWTAuth(config.Config{JWTSecret: secret}), func(c *gin.Context) {
 		n, e := repositories.NewTransactionCloudRepository(db).Publish(c.Request.Context(), 2)
 		if e != nil {
 			c.JSON(500, gin.H{"code": "failed"})
@@ -113,7 +121,7 @@ func TestTransactionCloudHTTPPostgres(t *testing.T) {
 			cmd = exec.CommandContext(ctx, "flutter", args...)
 		}
 		cmd.Dir = "../../frontend_notaris"
-		cmd.Env = append(os.Environ(), "TRANSACTION_E2E_URL="+server.URL+"/api/v1", "TRANSACTION_E2E_TOKEN="+token, "TRANSACTION_MUTATIONS="+os.Getenv("NOTARIS_TRANSACTION_MUTATIONS_E2E"))
+		cmd.Env = append(os.Environ(), "TRANSACTION_DOMAIN="+domain, "TRANSACTION_E2E_URL="+server.URL+"/api/v1", "TRANSACTION_E2E_TOKEN="+token, "TRANSACTION_MUTATIONS="+os.Getenv("NOTARIS_TRANSACTION_MUTATIONS_E2E"))
 		out, e := cmd.CombinedOutput()
 		t.Log(strings.ReplaceAll(string(out), token, "[redacted]"))
 		if e != nil {
@@ -125,15 +133,35 @@ func TestTransactionCloudHTTPPostgres(t *testing.T) {
 			if os.Getenv("NOTARIS_TRANSACTION_MUTATIONS_E2E") == "1" && q == "SELECT count(*) FROM transaction_cloud_mutation" {
 				want = 3
 			}
+			if domain == "ppat" && os.Getenv("NOTARIS_TRANSACTION_MUTATIONS_E2E") == "1" {
+				if q == "SELECT count(*) FROM transaction_cloud" || q == "SELECT count(*) FROM transaction_cloud_payment" {
+					want = 2
+				}
+				if q == "SELECT count(*) FROM transaction_cloud_mutation" {
+					want = 4
+				}
+			}
 			if e = db.Raw(q).Row().Scan(&n); e != nil || n != want {
 				t.Fatalf("%s=%d err=%v", q, n, e)
+			}
+		}
+		if domain == "ppat" && os.Getenv("NOTARIS_TRANSACTION_MUTATIONS_E2E") == "1" {
+			for _, q := range []string{"SELECT count(*) FROM transaction_cloud_number_counter WHERE last_number=1", "SELECT count(DISTINCT domain) FROM transaction_cloud"} {
+				var n int64
+				if e = db.Raw(q).Row().Scan(&n); e != nil || n != 2 {
+					t.Fatal("combined domains/counters", n, e)
+				}
+			}
+			var n int64
+			if e = db.Raw("SELECT count(*) FROM transaction_cloud_outbox WHERE publication_seq BETWEEN 1 AND 4").Row().Scan(&n); e != nil || n != 4 {
+				t.Fatal("combined publication", n, e)
 			}
 		}
 		return
 	}
 	post := func(op string, body any) (int, []byte) {
 		raw, _ := json.Marshal(body)
-		req, _ := http.NewRequest("POST", server.URL+"/api/v1/transaksi-notaris/sync/"+op, bytes.NewReader(raw))
+		req, _ := http.NewRequest("POST", server.URL+"/api/v1/transaksi-"+domain+"/sync/"+op, bytes.NewReader(raw))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+token)
 		resp, err := server.Client().Do(req)
@@ -147,7 +175,7 @@ func TestTransactionCloudHTTPPostgres(t *testing.T) {
 	}
 	request := func(m repositories.TransactionCloudCreate, auth string) (int, []byte) {
 		body, _ := json.Marshal(m)
-		req, _ := http.NewRequest("POST", server.URL+"/api/v1/transaksi-notaris/sync/create", bytes.NewReader(body))
+		req, _ := http.NewRequest("POST", server.URL+"/api/v1/transaksi-"+domain+"/sync/create", bytes.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		if auth != "" {
 			req.Header.Set("Authorization", "Bearer "+auth)
@@ -162,7 +190,11 @@ func TestTransactionCloudHTTPPostgres(t *testing.T) {
 	}
 	sample := func(i int) repositories.TransactionCloudCreate {
 		uuid := func(offset int) string { return fmt.Sprintf("00000000-0000-4000-8000-%012d", i*10+offset) }
-		return repositories.TransactionCloudCreate{MutationID: uuid(0), UUID: uuid(1), PemohonUUID: "00000000-0000-4000-8000-000000000001", PetugasUUID: "00000000-0000-4000-8000-000000000003", Header: repositories.TransactionCloudHeader{Date: time.Now().UTC(), Status: "Baru", Total: 100, InitialPayment: 25, Method: "Cash"}, Details: []repositories.TransactionCloudDetail{{UUID: uuid(2), JobUUID: "00000000-0000-4000-8000-000000000004", PriceUUID: "00000000-0000-4000-8000-000000000005", CategoryUUID: "00000000-0000-4000-8000-000000000006", Name: "Snapshot", Category: "Historical", ServiceCost: 100, Total: 100, ProcessSnapshot: json.RawMessage(`[{"id":"old-local-id","name":"Periksa","attributes":["KTP"]}]`), Processes: []repositories.TransactionCloudProcess{{UUID: uuid(3), Name: "Periksa"}}}}, Payments: []repositories.TransactionCloudPayment{{UUID: uuid(4), Date: time.Now().UTC(), Amount: 25, Method: "Cash", Order: 1}}}
+		requestDomain := ""
+		if domain == "ppat" {
+			requestDomain = domain
+		}
+		return repositories.TransactionCloudCreate{Domain: requestDomain, MutationID: uuid(0), UUID: uuid(1), PemohonUUID: "00000000-0000-4000-8000-000000000001", PetugasUUID: "00000000-0000-4000-8000-000000000003", Header: repositories.TransactionCloudHeader{Date: time.Now().UTC(), Status: "Baru", Total: 100, InitialPayment: 25, Method: "Cash"}, Details: []repositories.TransactionCloudDetail{{UUID: uuid(2), JobUUID: "00000000-0000-4000-8000-000000000004", PriceUUID: "00000000-0000-4000-8000-000000000005", CategoryUUID: "00000000-0000-4000-8000-000000000006", Name: "Snapshot", Category: "Historical", ServiceCost: 100, Total: 100, ProcessSnapshot: json.RawMessage(`[{"id":"old-local-id","name":"Periksa","attributes":["KTP"]}]`), Processes: []repositories.TransactionCloudProcess{{UUID: uuid(3), Name: "Periksa"}}}}, Payments: []repositories.TransactionCloudPayment{{UUID: uuid(4), Date: time.Now().UTC(), Amount: 25, Method: "Cash", Order: 1}}}
 	}
 	m := sample(100)
 	if code, _ := request(m, ""); code != 401 {
@@ -176,7 +208,11 @@ func TestTransactionCloudHTTPPostgres(t *testing.T) {
 		Ack repositories.TransactionCloudAck `json:"acknowledgement"`
 	}
 	json.Unmarshal(out, &first)
-	if first.Ack.FinalNumber != "100"+time.Now().In(mustJakarta(t)).Format("020106")+"0001" {
+	prefix := "100"
+	if domain == "ppat" {
+		prefix = "200"
+	}
+	if first.Ack.FinalNumber != prefix+time.Now().In(mustJakarta(t)).Format("020106")+"0001" {
 		t.Fatal(first)
 	}
 	code, replay := request(m, token)
@@ -342,7 +378,7 @@ func TestTransactionCloudHTTPPostgres(t *testing.T) {
 	if e = db.Raw("SELECT count(*) FROM transaction_cloud_process WHERE uuid='00000000-0000-4000-8000-000000008888' AND deleted_at IS NOT NULL").Row().Scan(&removed); e != nil || removed != 1 {
 		t.Fatal("removed process tombstone", removed, e)
 	}
-	del := repositories.TransactionCloudDelete{MutationID: "00000000-0000-4000-8000-000000009201", UUID: m.UUID, ExpectedRevision: 3}
+	del := repositories.TransactionCloudDelete{Domain: domain, MutationID: "00000000-0000-4000-8000-000000009201", UUID: m.UUID, ExpectedRevision: 3}
 	code, deletedReceipt := post("delete", del)
 	if code != 200 {
 		t.Fatalf("delete=%d %s", code, deletedReceipt)
@@ -385,6 +421,76 @@ func TestTransactionCloudHTTPPostgres(t *testing.T) {
 	lastPage, e := repositories.NewTransactionCloudRepository(db).Pull(context.Background(), 5, 1)
 	if e != nil || len(lastPage.Changes) != 1 || lastPage.Changes[0].Operation != "delete" || lastPage.Changes[0].Revision != 4 || lastPage.Changes[0].Aggregate.DeletedAt == nil {
 		t.Fatal("published transaction tombstone", lastPage, e)
+	}
+	if domain == "ppat" {
+		postDomain := func(target, op string, body any) (int, []byte) {
+			raw, _ := json.Marshal(body)
+			req, _ := http.NewRequest("POST", server.URL+"/api/v1/transaksi-"+target+"/sync/"+op, bytes.NewReader(raw))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer "+token)
+			resp, err := server.Client().Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			out, _ := io.ReadAll(resp.Body)
+			return resp.StatusCode, out
+		}
+		// UUID identity is global: a domain switch is rejected, never reconciled by name.
+		collision := clone(m)
+		collision.Domain = "notaris"
+		collision.MutationID = "00000000-0000-4000-8000-000000009701"
+		if code, _ := postDomain("notaris", "create", collision); code != 409 {
+			t.Fatal("cross-domain UUID collision", code)
+		}
+		invalidJob := sample(971)
+		invalidJob.Details[0].JobUUID = "00000000-0000-4000-8000-000000000044"
+		invalidJob.Details[0].PriceUUID = "00000000-0000-4000-8000-000000000045"
+		if code, _ := postDomain("ppat", "create", invalidJob); code != 422 {
+			t.Fatal("Notaris-only reference accepted for PPAT", code)
+		}
+		independent := sample(972)
+		independent.Domain = "notaris"
+		code, body := postDomain("notaris", "create", independent)
+		if code != 200 {
+			t.Fatalf("Notaris alongside PPAT=%d %s", code, body)
+		}
+		var separate struct {
+			Ack repositories.TransactionCloudAck `json:"acknowledgement"`
+		}
+		json.Unmarshal(body, &separate)
+		if separate.Ack.FinalNumber != "100"+time.Now().In(mustJakarta(t)).Format("020106")+"0001" {
+			t.Fatal("domain counter leaked", separate)
+		}
+		var ppatCounter int64
+		if err := db.Raw("SELECT last_number FROM transaction_cloud_number_counter WHERE domain='ppat'").Row().Scan(&ppatCounter); err != nil || ppatCounter != 3 {
+			t.Fatal("PPAT counter changed", ppatCounter, err)
+		}
+		attack := clone(independent)
+		attack.Domain = "ppat"
+		attack.ExpectedRevision = 1
+		attack.MutationID = "00000000-0000-4000-8000-000000009702"
+		if code, _ := postDomain("ppat", "update", attack); code != 409 {
+			t.Fatal("PPAT updated Notaris UUID", code)
+		}
+		if code, _ := postDomain("ppat", "delete", repositories.TransactionCloudDelete{Domain: "ppat", MutationID: "00000000-0000-4000-8000-000000009703", UUID: independent.UUID, ExpectedRevision: 1}); code != 409 {
+			t.Fatal("PPAT deleted Notaris UUID", code)
+		}
+		var preserved int64
+		if err := db.Raw("SELECT count(*) FROM transaction_cloud WHERE uuid=?::uuid AND domain='notaris' AND revision=1 AND deleted_at IS NULL", independent.UUID).Row().Scan(&preserved); err != nil || preserved != 1 {
+			t.Fatal("Notaris modified by PPAT", preserved, err)
+		}
+		var correct int64
+		if err := db.Raw("SELECT count(*) FROM transaction_cloud_detail WHERE domain='ppat' AND pekerjaan_notaris_id IS NULL AND harga_id IS NULL AND pekerjaan_ppat_id=1901 AND harga_ppat_id=1701").Row().Scan(&correct); err != nil || correct != 3 {
+			t.Fatal("domain references mixed", correct, err)
+		}
+		if n, err := repositories.NewTransactionCloudRepository(db).Publish(context.Background(), 2); err != nil || n != 1 {
+			t.Fatal("combined publication", n, err)
+		}
+		page, err := repositories.NewTransactionCloudRepository(db).Pull(context.Background(), 6, 1)
+		if err != nil || len(page.Changes) != 1 || page.Changes[0].Aggregate.Domain != "notaris" || page.NextCursor != 7 {
+			t.Fatal("shared domain-tagged feed", page, err)
+		}
 	}
 	if e = db.Exec(`UPDATE sidebar_akses SET "create"=0,"read"=0`).Error; e != nil {
 		t.Fatal(e)

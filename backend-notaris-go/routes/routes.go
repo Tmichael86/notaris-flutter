@@ -86,11 +86,14 @@ func SetupRouter(
 			petugas.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionDelete), petugasController.Delete)
 		}
 		pekerjaanNotarisSync := v1.Group("/pekerjaan-notaris/sync")
-		transactionSync := v1.Group("/transaksi-notaris/sync")
-		transactionSync.POST("/create", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionCreate), controllers.TransactionCloudCreate)
-		transactionSync.POST("/update", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionUpdate), controllers.TransactionCloudUpdate)
-		transactionSync.POST("/delete", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionDelete), controllers.TransactionCloudDelete)
-		transactionSync.GET("/pull", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionRead), controllers.TransactionCloudPull)
+		for _, domain := range []string{"notaris", "ppat"} {
+			domain := domain
+			transactionSync := v1.Group("/transaksi-"+domain+"/sync", func(c *gin.Context) { c.Set("transaction_domain", domain); c.Next() })
+			transactionSync.POST("/create", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionCreate), controllers.TransactionCloudCreate)
+			transactionSync.POST("/update", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionUpdate), controllers.TransactionCloudUpdate)
+			transactionSync.POST("/delete", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionDelete), controllers.TransactionCloudDelete)
+			transactionSync.GET("/pull", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionRead), controllers.TransactionCloudPull)
+		}
 		{
 			pekerjaanNotarisSync.POST("/create", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionCreate), controllers.PekerjaanNotarisCloudCreate)
 			pekerjaanNotarisSync.POST("/update", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionUpdate), controllers.PekerjaanNotarisCloudUpdate)

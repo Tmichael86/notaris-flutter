@@ -167,3 +167,52 @@ No permanent PostgreSQL migration, existing SQLite profile upgrade, operational
 sync activation or publisher activation follows from this checkpoint. PPAT
 transaction cloud, explicit conflict resolution and payment/process actor
 contracts remain separate work.
+
+## PPAT transaction CRUD checkpoint (2026-11-05)
+
+The existing transaction repository, receipt/outbox, publisher and Drift apply
+now support both domains. PPAT uses `/transaksi-ppat/sync/{create,update,delete,pull}`
+with the same authenticated `transaksi` operation permissions. Mutation domain
+must match the endpoint; omitted domain remains supported for legacy Notaris
+requests without changing their receipt fingerprint. New events carry domain.
+
+`20261105_transaction_ppat_domain.sql` follows the three transaction proposals
+(numbering, CREATE, mutations) and both Master schema proposals. It adds parent
+domain and PPAT-specific detail/price FKs, plus a composite parent/domain FK and
+checks forbidding mixed-domain references. All applications so far were to
+disposable schemas only. Drift remains v18; local tables already store domain.
+
+Transaction UUID remains deployment-global: same UUID submitted in the other
+domain is rejected (409), never relinked or reconciled. Master job/price UUIDs may
+be identical across their separate domains; resolution uses the correct domain
+tables. Domain cannot change on UPDATE. PPAT numbers use `200{ddMMyy}{seq4}` with
+the existing independent daily WIB counter. Receipt, revision, payment, actor
+audit and dirty/tombstone protections are shared with Notaris.
+
+There is ONE authorized transaction feed/cursor for both domains, not a filtered
+feed with hidden sequence gaps. Either pull route returns complete domain-tagged
+events; the common Drift adapter applies each to its proper local references.
+`otherMasterScope` can provide a distinct reference scope for the other domain.
+
+Validation: 389 Flutter tests passed / 6 opt-in skipped; analyzer clean. Focused
+Go reference/numbering, both transaction HTTP CRUD and both Master HTTP regressions
+passed. Real HTTP A/B E2E passed separately for Notaris and PPAT. The PPAT case
+also imports a new Notaris CREATE through the same SQLite/feed: PPAT lifecycle
+is seq 1–3 and Notaris CREATE seq 4; each domain allocates only number 0001.
+Tests cover same aggregate UUID rejection, Notaris-only reference rejection on
+PPAT, cross-domain update/delete rejection, correct server/local job FKs despite
+identical Master UUIDs, conflict retention, replay/restart and FK/integrity.
+Logs: `.local/transaction-ppat-{go,e2e,flutter-full}.log`.
+
+```powershell
+# backend-notaris-go; same owned disposable DSN as above
+$env:NOTARIS_TRANSACTION_E2E='1'
+$env:NOTARIS_TRANSACTION_MUTATIONS_E2E='1'
+go test ./routes -run '^TestTransaction(Ppat)?CloudHTTPPostgres$' -count=1 -v
+```
+
+Next checkpoint is combined Transaction rollout preflight, backup/restore
+simulation, legacy preservation and least-privilege grant review. Existing
+PostgreSQL/SQLite profiles have NOT been upgraded, and this is not permission
+to apply or activate synchronization. Payment corrections/additions, process
+actor provenance and conflict resolution UI remain separate contracts.
