@@ -20,6 +20,15 @@ func TestManualPublisherOptions(t *testing.T) {
 		t.Fatal("permanent apply without separate live flag accepted")
 	}
 	base.liveApproved = true
+	if err := base.validate(target); err == nil {
+		t.Fatal("permanent apply without exact event accepted")
+	}
+	base.domain = "notaris"
+	base.batch = 1
+	base.maxBatches = 1
+	base.onlyUUID = "00000000-0000-4000-8000-000000000001"
+	base.operation = "create"
+	base.revision = 1
 	if err := base.validate(target); err != nil {
 		t.Fatal(err)
 	}

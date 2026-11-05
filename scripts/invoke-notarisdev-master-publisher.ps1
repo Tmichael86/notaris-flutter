@@ -5,11 +5,17 @@ param(
  [ValidateRange(1,300)][int]$TimeoutSeconds=60,
  [switch]$Apply,
  [switch]$LiveApproved,
- [string]$ConfirmTarget=''
+ [string]$ConfirmTarget='',
+ [string]$OnlyUuid='',
+ [ValidateSet('create','update','delete')][string]$ExpectedOperation='create',
+ [long]$ExpectedRevision=0
 )
 $ErrorActionPreference='Stop'
 if($Apply -and (!$LiveApproved -or $ConfirmTarget -cne '127.0.0.1:5432/notarisdev')) {
  throw 'Apply requires separate live approval and exact ConfirmTarget'
+}
+if($Apply -and ($Domain -eq 'both' -or $BatchSize -ne 1 -or $MaxBatches -ne 1 -or !$OnlyUuid -or $ExpectedRevision -lt 1)) {
+ throw 'Live apply requires one domain and one exact synthetic event'
 }
 $repo=Split-Path $PSScriptRoot -Parent
 Set-Location $repo
@@ -25,7 +31,7 @@ try {
  $env:PGUSER=$settings.DB_USER;$env:PGPASSWORD=$settings.DB_PASSWORD
  $env:PGHOST='127.0.0.1';$env:PGPORT='5432';$env:PGDATABASE='notarisdev'
  $publisherArgs=@('run','./cmd/masterpublish','--domain',$Domain,'--batch-size',"$BatchSize",'--max-batches',"$MaxBatches",'--timeout',("${TimeoutSeconds}s"))
- if($Apply){$publisherArgs+=@('--apply','--live-approved','--confirm-target',$ConfirmTarget)}
+ if($Apply){$publisherArgs+=@('--apply','--live-approved','--confirm-target',$ConfirmTarget,'--only-uuid',$OnlyUuid,'--expected-operation',$ExpectedOperation,'--expected-revision',"$ExpectedRevision")}
  Push-Location './backend-notaris-go'
  try {
   & go @publisherArgs

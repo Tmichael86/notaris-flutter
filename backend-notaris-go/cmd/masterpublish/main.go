@@ -27,6 +27,8 @@ import (
 
 type options struct {
 	domain, confirm     string
+	onlyUUID, operation string
+	revision            int64
 	batch, maxBatches   int
 	timeout             time.Duration
 	apply, liveApproved bool
@@ -44,6 +46,13 @@ func (o options) validate(target string) error {
 	}
 	if target == "127.0.0.1:5432/notarisdev" && o.apply && !o.liveApproved {
 		return errors.New("permanent development apply requires separate live approval and --live-approved")
+	}
+	if target == "127.0.0.1:5432/notarisdev" && o.apply &&
+		(o.domain == "both" || o.batch != 1 || o.maxBatches != 1 || o.onlyUUID == "" || o.revision < 1 || o.operation == "") {
+		return errors.New("live apply requires one domain and one exact synthetic event")
+	}
+	if o.onlyUUID != "" && (o.domain == "both" || o.batch != 1 || o.maxBatches != 1 || o.revision < 1 || o.operation == "") {
+		return errors.New("expected-event publication requires one domain, batch and revision")
 	}
 	return nil
 }
@@ -64,6 +73,9 @@ func run() error {
 	flag.BoolVar(&o.apply, "apply", false, "explicitly publish pending events")
 	flag.BoolVar(&o.liveApproved, "live-approved", false, "separately approved notarisdev publication")
 	flag.StringVar(&o.confirm, "confirm-target", "", "exact host:port/database required for apply")
+	flag.StringVar(&o.onlyUUID, "only-uuid", "", "publish exactly one event for this aggregate UUID")
+	flag.StringVar(&o.operation, "expected-operation", "", "expected create, update, or delete event")
+	flag.Int64Var(&o.revision, "expected-revision", 0, "expected event revision")
 	flag.Parse()
 	if flag.NArg() != 0 {
 		return errors.New("unexpected positional arguments")
@@ -139,6 +151,14 @@ func run() error {
 		}
 		if !o.apply {
 			_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"domain": domain, "target": target, "mode": "read_only", "pending": pending})
+			continue
+		}
+		if o.onlyUUID != "" {
+			seq, err := repositories.PublishExpectedMaster(ctx, db, domain, o.onlyUUID, o.operation, o.revision)
+			if err != nil {
+				return fmt.Errorf("%s expected publication stopped; inspect database before any retry: %w", domain, err)
+			}
+			_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"domain": domain, "target": target, "mode": "apply_expected", "published": 1, "last_seq": seq, "aggregate_uuid": o.onlyUUID, "operation": o.operation, "revision": o.revision})
 			continue
 		}
 		published := 0

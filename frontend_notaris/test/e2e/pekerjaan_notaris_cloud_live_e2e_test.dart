@@ -137,6 +137,7 @@ void main() {
         '/pekerjaan-notaris/testing/publish',
       );
       expect(published.data!['published'], 1);
+      expect(await sender.pullPage(), 1);
       expect(await receiver.pullPage(), 1);
       final received = (await b.pekerjaanDao.getPekerjaanNotaris()).single;
       expect(received.uuid, ack['uuid']);
@@ -223,6 +224,7 @@ void main() {
         )).data!['published'],
         1,
       );
+      expect(await sender.pullPage(), 2);
       expect(await receiver.pullPage(), 2);
       final updatedB = (await b.pekerjaanDao.getPekerjaanNotaris()).single;
       expect(updatedB.nama, 'E2E Notaris updated');
@@ -327,6 +329,7 @@ void main() {
         )).data!['published'],
         1,
       );
+      expect(await sender.pullPage(), 3);
       await b.customStatement(
         "UPDATE pekerjaan_notaris SET nama='Device B pending edit',is_sync_dirty=1 WHERE id=?",
         [updatedB.id],
