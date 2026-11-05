@@ -40,10 +40,42 @@ schema, permission and recovery contract. Dirty local records are retained.
   account, device, deployment and generation.
 - Server allocates final business number on accepted create; offline number is
   a temporary display value, never the cloud identity or idempotency key.
-  Final numbering, amendment rules and collision handling require an approved
-  business contract before enabling transaction push.
+  Final CREATE numbering follows the approved 2026-11-05 contract below.
 
 No transaction aggregate endpoint, PostgreSQL child schema or Master identity
 feed exists yet. A disposable end-to-end transaction write would have to invent
 those contracts and cannot be described as a tested slice today. Do not enable
 normal/global sync or publisher on the basis of this document.
+
+## 2026-11-05: approved numbering and implemented reference foundation
+
+Business decision FINAL: administrative transaction number (not official deed
+number) is `{jenis}00{ddMMyy}{urutan4}`, type 1 Notaris / 2 PPAT. Code 00 means
+single-office deployment. Each domain has its own daily sequence 0001–9999,
+reset by Asia/Jakarta calendar date at server CREATE issuance, independent of
+the user-entered transaction date. Reject exhaustion without wrap. PostgreSQL
+must allocate in the same transaction as aggregate, mutation receipt and outbox;
+identical mutation retry returns its saved number before allocating. Final number
+needs a unique constraint; UPDATE/delete never recycle it. Ack stores the final
+number locally without replacing UUID or local PK.
+
+Implemented independently, not yet wired to an accepted CREATE:
+
+- Go `ResolveTransactionCloudReferences`: active exact UUID resolution and SHARE
+  locks in an explicit transaction, separate domain tables, selected price UUID
+  must belong to the selected job and category. Reject unresolved/ambiguous refs.
+- Flutter `TransactionCloudReferences.prepare`: read-only scoped Master/Petugas
+  mapping checks, clean/acknowledged dependency checks and explicit selected price
+  provenance. Returns candidate cloud references; server must revalidate them.
+  Petugas local/cloud UUIDs remain distinct. Normal synchronization stays OFF.
+- Private server number allocator plus counter migration proposal, tested only on
+  disposable PostgreSQL for concurrent allocation, WIB reset, exhaustion and
+  rollback. This is not a migrated/operational aggregate table or CREATE API.
+
+Existing transaction details preserve category labels but not selected price UUID.
+They MUST NOT be mapped using label, current price, name or integer-ID guessing.
+The new resolver requires explicit reviewed price selection per detail. A future
+CREATE journal must persist that provenance with the immutable aggregate snapshot.
+No receipt/outbox/HTTP transaction CREATE or Device A→B aggregate acceptance is
+claimed by these helper tests. Aggregate storage/API, durable snapshot, local
+atomic apply/cursor and real HTTP E2E remain to implement; no permanent DB touched.
