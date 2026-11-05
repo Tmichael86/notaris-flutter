@@ -14,6 +14,12 @@ import (
 // Shared single-office catalog, authenticated transaksi permission at the router.
 // There is no worker, publication route, or global synchronization activation.
 func TransactionCloudCreate(ctx *gin.Context) {
+	transactionCloudWrite(ctx, false)
+}
+func TransactionCloudUpdate(ctx *gin.Context) {
+	transactionCloudWrite(ctx, true)
+}
+func transactionCloudWrite(ctx *gin.Context, update bool) {
 	actor, ok := getAuthenticatedUserID(ctx)
 	if !ok {
 		ctx.JSON(401, gin.H{"code": "invalid_actor"})
@@ -26,7 +32,33 @@ func TransactionCloudCreate(ctx *gin.Context) {
 		ctx.JSON(400, gin.H{"code": "invalid_payload"})
 		return
 	}
-	ack, err := repositories.NewTransactionCloudRepository(database.DB).Create(ctx.Request.Context(), m, int64(actor))
+	repo := repositories.NewTransactionCloudRepository(database.DB)
+	var ack *repositories.TransactionCloudAck
+	var err error
+	if update {
+		ack, err = repo.Update(ctx.Request.Context(), m, int64(actor))
+	} else {
+		ack, err = repo.Create(ctx.Request.Context(), m, int64(actor))
+	}
+	transactionCloudResponse(ctx, ack, err)
+}
+func TransactionCloudDelete(ctx *gin.Context) {
+	actor, ok := getAuthenticatedUserID(ctx)
+	if !ok {
+		ctx.JSON(401, gin.H{"code": "invalid_actor"})
+		return
+	}
+	var m repositories.TransactionCloudDelete
+	d := json.NewDecoder(http.MaxBytesReader(ctx.Writer, ctx.Request.Body, 2<<20))
+	d.DisallowUnknownFields()
+	if d.Decode(&m) != nil || d.Decode(new(any)) != io.EOF {
+		ctx.JSON(400, gin.H{"code": "invalid_payload"})
+		return
+	}
+	ack, err := repositories.NewTransactionCloudRepository(database.DB).Delete(ctx.Request.Context(), m, int64(actor))
+	transactionCloudResponse(ctx, ack, err)
+}
+func transactionCloudResponse(ctx *gin.Context, ack *repositories.TransactionCloudAck, err error) {
 	switch {
 	case errors.Is(err, repositories.ErrTransactionCloudInvalid), errors.Is(err, repositories.ErrTransactionCloudReference):
 		ctx.JSON(422, gin.H{"code": "invalid_reference_or_payload"})
@@ -34,6 +66,12 @@ func TransactionCloudCreate(ctx *gin.Context) {
 		ctx.JSON(409, gin.H{"code": "mutation_reuse"})
 	case errors.Is(err, repositories.ErrTransactionCloudConflict):
 		ctx.JSON(409, gin.H{"code": "aggregate_exists"})
+	case errors.Is(err, repositories.ErrTransactionCloudRevision):
+		ctx.JSON(409, gin.H{"code": "revision_conflict"})
+	case errors.Is(err, repositories.ErrTransactionCloudPayment):
+		ctx.JSON(422, gin.H{"code": "payment_history_immutable"})
+	case errors.Is(err, repositories.ErrTransactionCloudAudit):
+		ctx.JSON(422, gin.H{"code": "actor_provenance_unresolved"})
 	case errors.Is(err, repositories.ErrTransactionNumberExhausted):
 		ctx.JSON(409, gin.H{"code": "number_exhausted"})
 	case err != nil:

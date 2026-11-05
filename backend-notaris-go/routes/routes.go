@@ -88,6 +88,8 @@ func SetupRouter(
 		pekerjaanNotarisSync := v1.Group("/pekerjaan-notaris/sync")
 		transactionSync := v1.Group("/transaksi-notaris/sync")
 		transactionSync.POST("/create", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionCreate), controllers.TransactionCloudCreate)
+		transactionSync.POST("/update", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionUpdate), controllers.TransactionCloudUpdate)
+		transactionSync.POST("/delete", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionDelete), controllers.TransactionCloudDelete)
 		transactionSync.GET("/pull", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionRead), controllers.TransactionCloudPull)
 		{
 			pekerjaanNotarisSync.POST("/create", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionCreate), controllers.PekerjaanNotarisCloudCreate)

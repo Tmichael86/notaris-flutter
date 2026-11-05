@@ -258,6 +258,178 @@ class TransactionCloudRepository {
     }
   }
 
+  Future<Map<String, dynamic>> pushUpdate(int id) =>
+      _pushMutation(id, 'update');
+  Future<Map<String, dynamic>> pushDelete(int id) =>
+      _pushMutation(id, 'delete');
+  Future<List<Map<String, dynamic>>> _payments(int id) async {
+    final rows =
+        await (db.select(db.transaksiRiwayatPembayarans)
+              ..where(
+                (t) =>
+                    t.transaksiId.equals(id) &
+                    t.deletedAt.isNull() &
+                    t.status.equals(1),
+              )
+              ..orderBy([(t) => OrderingTerm.asc(t.uuid)]))
+            .get();
+    return [
+      for (final p in rows)
+        {
+          'uuid': p.uuid,
+          'date': p.tanggalPembayaran.toUtc().toIso8601String(),
+          'amount': p.nominal,
+          'method': p.metodePembayaran,
+          'description': p.keterangan,
+          'order': p.urutanPembayaran,
+        },
+    ];
+  }
+
+  Future<void> _guardDeleteAudit(int id) async {
+    final audit = await db
+        .customSelect(
+          'SELECT p.id FROM transaksi_proses p WHERE p.transaksi_id=? AND (p.submitted_by_user_id IS NOT NULL OR p.validated_by_user_id IS NOT NULL OR p.submitted_at IS NOT NULL OR p.validated_at IS NOT NULL OR EXISTS(SELECT 1 FROM transaksi_proses_riwayat h WHERE h.transaksi_proses_id=p.id))',
+          variables: [Variable(id)],
+        )
+        .get();
+    if (audit.isNotEmpty) {
+      throw StateError(
+        'Process transition audit requires verified cloud actor provenance',
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>> _pushMutation(int id, String operation) async {
+    final payload = await db.transaction(() async {
+      await _bind();
+      final h = await (db.select(
+        db.transaksis,
+      )..where((t) => t.id.equals(id))).getSingle();
+      final identity = await db
+          .customSelect(
+            'SELECT * FROM transaction_cloud_identity WHERE local_uuid=?',
+            variables: [Variable(h.uuid)],
+          )
+          .getSingle();
+      if (identity.read<String>('scope') != scope) {
+        throw StateError('Transaction identity scope mismatch');
+      }
+      final pending = await db
+          .customSelect(
+            "SELECT payload,operation FROM transaction_cloud_pending WHERE local_uuid=? AND state='pending'",
+            variables: [Variable(h.uuid)],
+          )
+          .getSingleOrNull();
+      if (pending != null) {
+        if (pending.read<String>('operation') != operation) {
+          throw StateError('Unresolved mutation must not be replaced');
+        }
+        return pending.read<String>('payload');
+      }
+      final accepted =
+          jsonDecode(identity.read<String>('snapshot')) as Map<String, dynamic>;
+      if (accepted['deleted_at'] != null) {
+        throw StateError('Transaction already deleted in cloud');
+      }
+      if (!_same(await _payments(id), accepted['payments'])) {
+        throw StateError(
+          'Committed payments need an explicit payment contract',
+        );
+      }
+      await _guardDeleteAudit(id);
+      final Map<String, dynamic> request;
+      if (operation == 'delete') {
+        if (h.deletedAt == null) {
+          throw StateError('Local soft deletion required before cloud delete');
+        }
+        request = {
+          'mutation_id': const Uuid().v4(),
+          'uuid': h.uuid,
+          'expected_revision': identity.read<int>('revision'),
+        };
+      } else {
+        request = await _snapshot(id, const Uuid().v4());
+        request['expected_revision'] = identity.read<int>('revision');
+      }
+      final body = jsonEncode(request);
+      await db.customStatement(
+        "INSERT INTO transaction_cloud_pending(local_uuid,mutation_id,payload,state,operation) VALUES(?,?,?,'pending',?) ON CONFLICT(local_uuid) DO UPDATE SET mutation_id=excluded.mutation_id,payload=excluded.payload,state='pending',operation=excluded.operation WHERE transaction_cloud_pending.state='acked'",
+        [h.uuid, request['mutation_id'], body, operation],
+      );
+      return body;
+    });
+    final sent = jsonDecode(payload) as Map<String, dynamic>;
+    // 409 leaves the immutable request and all dirty state intact.
+    final response = await dio.post<Map<String, dynamic>>(
+      '/transaksi-notaris/sync/$operation',
+      data: sent,
+    );
+    final ack = Map<String, dynamic>.from(
+      response.data!['acknowledgement'] as Map,
+    );
+    if (ack['uuid'] != sent['uuid'] ||
+        ack['mutation_id'] != sent['mutation_id'] ||
+        ack['revision'] != (sent['expected_revision'] as int) + 1) {
+      throw StateError('Invalid transaction acknowledgement');
+    }
+    await db.transaction(() async {
+      final identity = await db
+          .customSelect(
+            'SELECT * FROM transaction_cloud_identity WHERE local_uuid=?',
+            variables: [Variable(sent['uuid'] as String)],
+          )
+          .getSingle();
+      if (identity.read<String>('scope') != scope ||
+          identity.read<String>('final_number') != ack['final_number']) {
+        throw StateError('Immutable transaction identity mismatch');
+      }
+      if (identity.read<int>('revision') == ack['revision']) return;
+      if (identity.read<int>('revision') != sent['expected_revision']) {
+        throw StateError('Concurrent acknowledgement revision mismatch');
+      }
+      final prior =
+          jsonDecode(identity.read<String>('snapshot')) as Map<String, dynamic>;
+      Map<String, dynamic> aggregate;
+      var unchanged = false;
+      if (operation == 'delete') {
+        if (ack['deleted_at'] == null) {
+          throw StateError('Missing tombstone receipt');
+        }
+        aggregate = {...prior, ...sent, 'deleted_at': ack['deleted_at']};
+        final h = await (db.select(
+          db.transaksis,
+        )..where((t) => t.id.equals(id))).getSingle();
+        unchanged =
+            h.deletedAt != null &&
+            _same(await _payments(id), prior['payments']);
+      } else {
+        aggregate = {...sent, 'final_number': ack['final_number']};
+        try {
+          final current = await _snapshot(id, sent['mutation_id'] as String);
+          current['expected_revision'] = sent['expected_revision'];
+          unchanged = _same(current, sent);
+        } on StateError {
+          unchanged = false;
+        }
+      }
+      await db.customStatement(
+        'UPDATE transaction_cloud_identity SET revision=?,snapshot=? WHERE local_uuid=?',
+        [ack['revision'], jsonEncode(aggregate), sent['uuid']],
+      );
+      await db.customStatement(
+        'UPDATE transaksis SET no_akta=?,is_sync_dirty=? WHERE id=?',
+        [ack['final_number'], unchanged ? 0 : 1, id],
+      );
+      if (unchanged && operation == 'update') await _cleanChildren(id);
+      await db.customStatement(
+        "UPDATE transaction_cloud_pending SET state='acked' WHERE local_uuid=? AND payload=?",
+        [sent['uuid'], payload],
+      );
+    });
+    return ack;
+  }
+
   Future<int> pullPage({int limit = 100}) async {
     await db.transaction(_bind);
     final before =
@@ -287,11 +459,15 @@ class TransactionCloudRepository {
       for (final raw in page['changes'] as List) {
         final event = Map<String, dynamic>.from(raw as Map);
         if (event['sequence'] != next + 1 ||
-            event['revision'] != 1 ||
-            event['operation'] != 'create') {
+            event['revision'] is! int ||
+            !{'create', 'update', 'delete'}.contains(event['operation'])) {
           throw StateError('Transaction publication gap');
         }
-        await _apply(Map<String, dynamic>.from(event['aggregate'] as Map));
+        await _apply(
+          Map<String, dynamic>.from(event['aggregate'] as Map),
+          event['revision'] as int,
+          event['operation'] as String,
+        );
         next++;
       }
       if (page['next_cursor'] != next) {
@@ -307,28 +483,104 @@ class TransactionCloudRepository {
 
   int _date(dynamic value) =>
       DateTime.parse(value as String).millisecondsSinceEpoch ~/ 1000;
-  Future<void> _apply(Map<String, dynamic> aggregate) async {
+  Future<void> _apply(
+    Map<String, dynamic> aggregate,
+    int revision,
+    String operation,
+  ) async {
     final uuid = aggregate['uuid'] as String;
     final identity = await db
         .customSelect(
-          'SELECT scope,snapshot FROM transaction_cloud_identity WHERE cloud_uuid=?',
+          'SELECT scope,snapshot,revision,final_number FROM transaction_cloud_identity WHERE cloud_uuid=?',
           variables: [Variable(uuid)],
         )
         .getSingleOrNull();
     if (identity != null) {
       if (identity.read<String>('scope') != scope ||
-          !_same(jsonDecode(identity.read<String>('snapshot')), aggregate)) {
+          identity.read<String>('final_number') != aggregate['final_number']) {
         throw StateError('Transaction replay disagrees');
       }
-      return;
+      final prior = identity.read<int>('revision');
+      if (revision <= prior) {
+        if (revision == prior &&
+            !_same(jsonDecode(identity.read<String>('snapshot')), aggregate)) {
+          throw StateError('Transaction replay disagrees');
+        }
+        return;
+      }
+      if (revision != prior + 1 || operation == 'create') {
+        throw StateError('Transaction revision gap');
+      }
+    } else if (revision != 1 || operation != 'create') {
+      throw StateError('Transaction CREATE baseline missing');
     }
     final existing = await (db.select(
       db.transaksis,
     )..where((t) => t.uuid.equals(uuid))).get();
-    if (existing.isNotEmpty) {
+    if (existing.length > 1 ||
+        (identity == null && existing.isNotEmpty) ||
+        (identity != null && existing.length != 1)) {
       throw StateError(
         'Existing local transaction requires explicit reconciliation',
       );
+    }
+    final updating = identity != null;
+    if (updating) {
+      final id = existing.single.id;
+      final pending = await db
+          .customSelect(
+            "SELECT local_uuid FROM transaction_cloud_pending WHERE local_uuid=? AND state='pending'",
+            variables: [Variable(uuid)],
+          )
+          .get();
+      if (existing.single.isSyncDirty ||
+          existing.single.deletedAt != null ||
+          pending.isNotEmpty) {
+        throw StateError('Dirty transaction protected');
+      }
+      for (final table in [
+        'transaksi_details',
+        'transaksi_proses',
+        'transaksi_riwayat_pembayaran',
+      ]) {
+        final dirty = await db
+            .customSelect(
+              'SELECT id FROM $table WHERE transaksi_id=? AND is_sync_dirty=1',
+              variables: [Variable(id)],
+            )
+            .get();
+        if (dirty.isNotEmpty) {
+          throw StateError('Dirty transaction child protected');
+        }
+      }
+      await _guardDeleteAudit(id);
+      if (!_same(await _payments(id), aggregate['payments'])) {
+        throw StateError('Committed payment history mismatch');
+      }
+      if (operation == 'delete') {
+        final deleted = aggregate['deleted_at'];
+        if (deleted == null) throw StateError('Tombstone missing');
+        await db.customStatement(
+          "UPDATE transaksis SET deleted_at=?,status_transaksi='Dihapus',is_sync_dirty=0 WHERE id=?",
+          [_date(deleted), id],
+        );
+        await db.customStatement(
+          'UPDATE transaksi_details SET deleted_at=COALESCE(deleted_at,?),status=0,is_sync_dirty=0 WHERE transaksi_id=?',
+          [_date(deleted), id],
+        );
+        await db.customStatement(
+          'UPDATE transaksi_proses SET deleted_at=COALESCE(deleted_at,?),is_sync_dirty=0 WHERE transaksi_id=?',
+          [_date(deleted), id],
+        );
+        await db.customStatement(
+          'UPDATE transaction_cloud_identity SET revision=?,snapshot=? WHERE local_uuid=?',
+          [revision, jsonEncode(aggregate), uuid],
+        );
+        return;
+      }
+      if (aggregate['deleted_at'] != null) {
+        throw StateError('Unexpected tombstone');
+      }
     }
     final applicants =
         await (db.select(db.pemohons)..where(
@@ -352,31 +604,72 @@ class TransactionCloudRepository {
       throw StateError('Transaction pull dependencies unresolved');
     }
     final h = Map<String, dynamic>.from(aggregate['header'] as Map);
-    await db.customStatement(
-      'INSERT INTO transaksis(uuid,no_akta,total,pemohon_id,pemohon_uuid,petugas_id,petugas_uuid,jenis_transaksi,status_transaksi,tanggal_transaksi,tanggal_jatuh_tempo,diskon,pembayaran_sekarang,metode_pembayaran,jumlah_materai,catatan,is_sync_dirty) VALUES(?,?,?,?,?,?,?,\'notaris\',?,?,?,?,?,?,?,?,0)',
-      [
-        uuid,
-        aggregate['final_number'],
-        h['total'],
-        applicants.single.id,
-        applicants.single.uuid,
-        officer.single.read<int>('id'),
-        officer.single.read<String>('uuid'),
-        h['status'],
-        _date(h['date']),
-        h['due'] == null ? null : _date(h['due']),
-        h['discount'],
-        h['initial_payment'],
-        h['method'],
-        h['materai'],
-        h['note'],
-      ],
-    );
+    if (!updating) {
+      await db.customStatement(
+        'INSERT INTO transaksis(uuid,no_akta,total,pemohon_id,pemohon_uuid,petugas_id,petugas_uuid,jenis_transaksi,status_transaksi,tanggal_transaksi,tanggal_jatuh_tempo,diskon,pembayaran_sekarang,metode_pembayaran,jumlah_materai,catatan,is_sync_dirty) VALUES(?,?,?,?,?,?,?,\'notaris\',?,?,?,?,?,?,?,?,0)',
+        [
+          uuid,
+          aggregate['final_number'],
+          h['total'],
+          applicants.single.id,
+          applicants.single.uuid,
+          officer.single.read<int>('id'),
+          officer.single.read<String>('uuid'),
+          h['status'],
+          _date(h['date']),
+          h['due'] == null ? null : _date(h['due']),
+          h['discount'],
+          h['initial_payment'],
+          h['method'],
+          h['materai'],
+          h['note'],
+        ],
+      );
+    }
     final id = (await (db.select(
       db.transaksis,
     )..where((t) => t.uuid.equals(uuid))).getSingle()).id;
+    if (updating) {
+      await db.customStatement(
+        'UPDATE transaksis SET total=?,pemohon_id=?,pemohon_uuid=?,petugas_id=?,petugas_uuid=?,status_transaksi=?,tanggal_transaksi=?,tanggal_jatuh_tempo=?,diskon=?,pembayaran_sekarang=?,metode_pembayaran=?,jumlah_materai=?,catatan=?,is_sync_dirty=0 WHERE id=?',
+        [
+          h['total'],
+          applicants.single.id,
+          applicants.single.uuid,
+          officer.single.read<int>('id'),
+          officer.single.read<String>('uuid'),
+          h['status'],
+          _date(h['date']),
+          h['due'] == null ? null : _date(h['due']),
+          h['discount'],
+          h['initial_payment'],
+          h['method'],
+          h['materai'],
+          h['note'],
+          id,
+        ],
+      );
+      final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      await db.customStatement(
+        'UPDATE transaksi_details SET status=0,deleted_at=? WHERE transaksi_id=? AND deleted_at IS NULL',
+        [now, id],
+      );
+      await db.customStatement(
+        'UPDATE transaksi_proses SET deleted_at=? WHERE transaksi_id=? AND deleted_at IS NULL',
+        [now, id],
+      );
+    }
     for (final raw in aggregate['details'] as List) {
       final d = Map<String, dynamic>.from(raw as Map);
+      final owned = await db
+          .customSelect(
+            'SELECT transaksi_id FROM transaksi_details WHERE uuid=?',
+            variables: [Variable(d['uuid'] as String)],
+          )
+          .getSingleOrNull();
+      if (owned != null && owned.read<int>('transaksi_id') != id) {
+        throw StateError('Detail UUID belongs to another transaction');
+      }
       final jobs = await db
           .customSelect(
             "SELECT p.id FROM pekerjaan_notaris p JOIN pekerjaan_notaris_sync_identity i ON i.local_uuid=p.uuid JOIN pekerjaan_notaris_harga h ON h.pekerjaan_notaris_id=p.id JOIN pekerjaan_kategori c ON c.id=h.kategori_pekerjaan_id WHERE i.cloud_uuid=? AND i.scope=? AND i.revision>0 AND p.status=1 AND p.deleted_at IS NULL AND p.is_sync_dirty=0 AND h.uuid=? AND h.status=1 AND h.deleted_at IS NULL AND h.is_sync_dirty=0 AND c.uuid=? AND c.status=1 AND c.deleted_at IS NULL AND c.is_sync_dirty=0 AND NOT EXISTS(SELECT 1 FROM pekerjaan_notaris_sync_pending m WHERE m.local_uuid=p.uuid AND m.state='pending')",
@@ -392,7 +685,7 @@ class TransactionCloudRepository {
         throw StateError('Transaction job reference unresolved');
       }
       await db.customStatement(
-        "INSERT INTO transaksi_details(uuid,transaksi_id,jenis_pekerjaan,pekerjaan_notaris_id,nama_pekerjaan_snapshot,kategori_snapshot,estimasi_waktu_snapshot,proses_snapshot,biaya_layanan,biaya_lainnya,total_snapshot,harga_uuid,kategori_uuid,is_sync_dirty) VALUES(?,?,'notaris',?,?,?,?,?,?,?,?,?,?,0)",
+        "INSERT INTO transaksi_details(uuid,transaksi_id,jenis_pekerjaan,pekerjaan_notaris_id,nama_pekerjaan_snapshot,kategori_snapshot,estimasi_waktu_snapshot,proses_snapshot,biaya_layanan,biaya_lainnya,total_snapshot,harga_uuid,kategori_uuid,is_sync_dirty) VALUES(?,?,'notaris',?,?,?,?,?,?,?,?,?,?,0) ON CONFLICT(uuid) DO UPDATE SET pekerjaan_notaris_id=excluded.pekerjaan_notaris_id,nama_pekerjaan_snapshot=excluded.nama_pekerjaan_snapshot,kategori_snapshot=excluded.kategori_snapshot,estimasi_waktu_snapshot=excluded.estimasi_waktu_snapshot,proses_snapshot=excluded.proses_snapshot,biaya_layanan=excluded.biaya_layanan,biaya_lainnya=excluded.biaya_lainnya,total_snapshot=excluded.total_snapshot,harga_uuid=excluded.harga_uuid,kategori_uuid=excluded.kategori_uuid,status=1,deleted_at=NULL,is_sync_dirty=0",
         [
           d['uuid'],
           id,
@@ -412,8 +705,18 @@ class TransactionCloudRepository {
       );
       for (final rawProcess in d['processes'] as List) {
         final p = rawProcess as Map;
+        final owned = await db
+            .customSelect(
+              'SELECT transaksi_detail_uuid FROM transaksi_proses WHERE uuid=?',
+              variables: [Variable(p['uuid'] as String)],
+            )
+            .getSingleOrNull();
+        if (owned != null &&
+            owned.read<String>('transaksi_detail_uuid') != d['uuid']) {
+          throw StateError('Process UUID belongs to another detail');
+        }
         await db.customStatement(
-          'INSERT INTO transaksi_proses(uuid,transaksi_id,transaksi_detail_uuid,source_process_id,nama_proses_snapshot,status_proses,legacy_status,legacy_data,catatan,is_sync_dirty) VALUES(?,?,?,?,?,?,?,?,?,0)',
+          'INSERT INTO transaksi_proses(uuid,transaksi_id,transaksi_detail_uuid,source_process_id,nama_proses_snapshot,status_proses,legacy_status,legacy_data,catatan,is_sync_dirty) VALUES(?,?,?,?,?,?,?,?,?,0) ON CONFLICT(uuid) DO UPDATE SET source_process_id=excluded.source_process_id,nama_proses_snapshot=excluded.nama_proses_snapshot,status_proses=excluded.status_proses,legacy_status=excluded.legacy_status,legacy_data=excluded.legacy_data,catatan=excluded.catatan,deleted_at=NULL,is_sync_dirty=0',
           [
             p['uuid'],
             id,
@@ -428,7 +731,7 @@ class TransactionCloudRepository {
         );
       }
     }
-    for (final raw in aggregate['payments'] as List) {
+    for (final raw in updating ? const [] : aggregate['payments'] as List) {
       final p = raw as Map;
       await db.customStatement(
         'INSERT INTO transaksi_riwayat_pembayaran(uuid,transaksi_id,tanggal_pembayaran,nominal,metode_pembayaran,keterangan,urutan_pembayaran,is_sync_dirty) VALUES(?,?,?,?,?,?,?,0)',
@@ -444,8 +747,15 @@ class TransactionCloudRepository {
       );
     }
     await db.customStatement(
-      'INSERT INTO transaction_cloud_identity(local_uuid,cloud_uuid,scope,revision,final_number,snapshot) VALUES(?,?,?,1,?,?)',
-      [uuid, uuid, scope, aggregate['final_number'], jsonEncode(aggregate)],
+      'INSERT INTO transaction_cloud_identity(local_uuid,cloud_uuid,scope,revision,final_number,snapshot) VALUES(?,?,?,?,?,?) ON CONFLICT(local_uuid) DO UPDATE SET revision=excluded.revision,snapshot=excluded.snapshot',
+      [
+        uuid,
+        uuid,
+        scope,
+        revision,
+        aggregate['final_number'],
+        jsonEncode(aggregate),
+      ],
     );
   }
 

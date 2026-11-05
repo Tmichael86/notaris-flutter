@@ -224,6 +224,213 @@ void main() {
     expect(await receiver.pullPage(), 1);
     expect(await receiver.pullPage(), 1);
     expect(await b.select(b.transaksiRiwayatPembayarans).get(), hasLength(1));
+    var expectedCursor = 1;
+    if (Platform.environment['TRANSACTION_MUTATIONS'] == '1') {
+      await TransactionRepository(a).save(
+        id: id,
+        nomorTransaksi: ack['final_number'] as String,
+        jenisTransaksi: 'notaris',
+        pemohonId: 10,
+        pemohonUuid: applicant,
+        petugasId: 20,
+        petugasUuid: officer,
+        status: 'Baru',
+        tanggalTransaksi: DateTime.utc(2020, 1, 1),
+        jobs: [
+          const TransactionJobInput(
+            jenisPekerjaan: 'notaris',
+            namaPekerjaan: 'Updated historical job',
+            pekerjaanNotarisId: 40,
+            hargaUuid: price,
+            kategoriUuid: category,
+            detailUuid: detail,
+            biayaLayanan: 150,
+            kategoriSnapshot: 'Historical category',
+            estimasiWaktuSnapshot: '2 hari',
+            prosesSnapshot: '[{"id":"manual-process","name":"Periksa updated","attributes":["KTP","Akta","Updated"]}]',
+          ),
+        ],
+      );
+      final updated = await sender.pushUpdate(id);
+      expect(updated['revision'], 2);
+      expect(updated['final_number'], ack['final_number']);
+      final updatePayload =
+          (await a
+                  .customSelect(
+                    "SELECT payload FROM transaction_cloud_pending WHERE operation='update'",
+                  )
+                  .getSingle())
+              .read<String>('payload');
+      final retry = await dio.post<Map<String, dynamic>>(
+        '/transaksi-notaris/sync/update',
+        data: jsonDecode(updatePayload),
+      );
+      expect(retry.data!['acknowledgement'], updated);
+      final changed = jsonDecode(updatePayload) as Map<String, dynamic>;
+      (changed['header'] as Map)['note'] = 'mutation reuse';
+      await expectLater(
+        dio.post('/transaksi-notaris/sync/update', data: changed),
+        throwsA(
+          isA<DioException>().having(
+            (e) => e.response?.statusCode,
+            'status',
+            409,
+          ),
+        ),
+      );
+      await b.customStatement(
+        "UPDATE transaksis SET catatan='Device B dirty',is_sync_dirty=1",
+      );
+      await expectLater(
+        receiver.pushUpdate(received.id),
+        throwsA(
+          isA<DioException>().having(
+            (e) => e.response?.statusCode,
+            'status',
+            409,
+          ),
+        ),
+      );
+      final conflict = (await b
+          .customSelect(
+            "SELECT payload,state FROM transaction_cloud_pending WHERE operation='update'",
+          )
+          .getSingle());
+      expect(conflict.read<String>('state'), 'pending');
+      expect((await b.select(b.transaksis).getSingle()).isSyncDirty, true);
+      expect(
+        (await dio.post<Map<String, dynamic>>(
+          '/transaksi-notaris/testing/publish',
+        )).data!['published'],
+        1,
+      );
+      await expectLater(receiver.pullPage(limit: 1), throwsStateError);
+      expect(
+        (await b
+                .customSelect('SELECT cursor FROM transaction_cloud_feed')
+                .getSingle())
+            .read<int>('cursor'),
+        1,
+      );
+      expect(
+        (await b
+                .customSelect(
+                  "SELECT payload FROM transaction_cloud_pending WHERE state='pending'",
+                )
+                .getSingle())
+            .read<String>('payload'),
+        conflict.read<String>('payload'),
+      );
+      // Explicit fixture-only conflict resolution; no automatic rebase or overwrite.
+      await b.customStatement('DELETE FROM transaction_cloud_pending');
+      await b.customStatement(
+        'UPDATE transaksis SET catatan=NULL,is_sync_dirty=0',
+      );
+      await b.customStatement('UPDATE pekerjaan_kategori SET is_sync_dirty=1');
+      await expectLater(receiver.pullPage(limit: 1), throwsStateError);
+      expect((await b.select(b.transaksis).getSingle()).total, 100);
+      await b.customStatement('UPDATE pekerjaan_kategori SET is_sync_dirty=0');
+      expect(await receiver.pullPage(limit: 1), 2);
+      expect(await sender.pullPage(limit: 1), 2);
+      final updatedHeader = await b.select(b.transaksis).getSingle(),
+          updatedDetail = await b.select(b.transaksiDetails).getSingle(),
+          updatedProcess = await b.select(b.transaksiProses).getSingle();
+      expect(updatedHeader.id, received.id);
+      expect(updatedHeader.uuid, before.uuid);
+      expect(updatedHeader.noAkta, ack['final_number']);
+      expect(updatedHeader.total, 150);
+      expect(updatedDetail.id, receivedDetail.id);
+      expect(updatedDetail.uuid, detail);
+      expect(updatedDetail.namaPekerjaanSnapshot, 'Updated historical job');
+      expect(updatedProcess.uuid, sourceProcess.uuid);
+      expect(updatedProcess.id, targetProcess.id);
+      expect(updatedProcess.namaProsesSnapshot, 'Periksa updated');
+      expect(
+        (await b.select(b.transaksiRiwayatPembayarans).getSingle()).toJson(),
+        targetPayment.toJson(),
+      );
+      // A local payment edit needs its own contract; aggregate UPDATE cannot erase it.
+      await a.customStatement(
+        "UPDATE transaksi_riwayat_pembayaran SET keterangan='Unresolved correction',is_sync_dirty=1",
+      );
+      await expectLater(sender.pushUpdate(id), throwsStateError);
+      expect(
+        (await a.select(a.transaksiRiwayatPembayarans).getSingle()).isSyncDirty,
+        true,
+      );
+      await a.customStatement(
+        'UPDATE transaksi_riwayat_pembayaran SET keterangan=?,is_sync_dirty=0',
+        [sourcePayment.keterangan],
+      );
+      await a.customStatement(
+        'UPDATE transaksi_proses SET submitted_by_user_id=777,is_sync_dirty=1',
+      );
+      await a.customStatement(
+        'UPDATE transaksis SET is_sync_dirty=1 WHERE id=?',
+        [id],
+      );
+      await expectLater(sender.pushUpdate(id), throwsStateError);
+      expect((await a.select(a.transaksiProses).getSingle()).isSyncDirty, true);
+      expect(
+        await a
+            .customSelect(
+              "SELECT * FROM transaction_cloud_pending WHERE state='pending'",
+            )
+            .get(),
+        isEmpty,
+      );
+      await a.customStatement(
+        'UPDATE transaksi_proses SET submitted_by_user_id=NULL,is_sync_dirty=0',
+      );
+      await a.customStatement(
+        'UPDATE transaksis SET is_sync_dirty=0 WHERE id=?',
+        [id],
+      );
+      expect(await TransactionRepository(a).delete(id), true);
+      final deleted = await sender.pushDelete(id);
+      expect(deleted['revision'], 3);
+      expect(deleted['final_number'], ack['final_number']);
+      expect(deleted['deleted_at'], isNotNull);
+      final deletePayload =
+          (await a
+                  .customSelect(
+                    "SELECT payload FROM transaction_cloud_pending WHERE operation='delete'",
+                  )
+                  .getSingle())
+              .read<String>('payload');
+      final deleteRetry = await dio.post<Map<String, dynamic>>(
+        '/transaksi-notaris/sync/delete',
+        data: jsonDecode(deletePayload),
+      );
+      expect(deleteRetry.data!['acknowledgement'], deleted);
+      expect(
+        (await dio.post<Map<String, dynamic>>(
+          '/transaksi-notaris/testing/publish',
+        )).data!['published'],
+        1,
+      );
+      await b.customStatement('UPDATE transaksis SET is_sync_dirty=1');
+      await expectLater(receiver.pullPage(), throwsStateError);
+      await b.customStatement('UPDATE transaksis SET is_sync_dirty=0');
+      expect(await receiver.pullPage(limit: 1), 3);
+      expect(await sender.pullPage(limit: 1), 3);
+      expect((await b.select(b.transaksis).getSingle()).deletedAt, isNotNull);
+      expect(
+        (await b.select(b.transaksis).getSingle()).noAkta,
+        ack['final_number'],
+      );
+      expect((await b.select(b.transaksiDetails).getSingle()).status, 0);
+      expect(
+        (await b.select(b.transaksiRiwayatPembayarans).getSingle()).toJson(),
+        targetPayment.toJson(),
+      );
+      await b.customStatement('UPDATE transaction_cloud_feed SET cursor=0');
+      expect(await receiver.pullPage(limit: 1), 1);
+      expect(await receiver.pullPage(limit: 1), 2);
+      expect(await receiver.pullPage(limit: 1), 3);
+      expect(await receiver.pullPage(limit: 1), 3);
+      expectedCursor = 3;
+    }
     // Legacy unresolved detail cannot create a new pending request or HTTP mutation.
     final legacyId = await TransactionRepository(a).save(
       nomorTransaksi: 'LEGACY-LOCAL',
@@ -266,7 +473,7 @@ void main() {
     await b.close();
     for (final file in [aFile, bFile]) {
       final reopened = AppDatabase.forTesting(NativeDatabase(file));
-      expect(await cloud(reopened).pullPage(), 1);
+      expect(await cloud(reopened).pullPage(), expectedCursor);
       expect(
         await reopened.select(reopened.transaksiRiwayatPembayarans).get(),
         hasLength(1),

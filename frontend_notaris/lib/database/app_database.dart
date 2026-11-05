@@ -263,7 +263,7 @@ class AppDatabase extends _$AppDatabase {
   final String? petugasBaselinePath;
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -435,6 +435,21 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(transaksiDetails, transaksiDetails.kategoriUuid);
           await _createTransactionCloudStorage();
         }
+        if (from == 17) {
+          await customStatement(
+            'ALTER TABLE transaction_cloud_identity RENAME TO transaction_cloud_identity_v17',
+          );
+          await customStatement(
+            'CREATE TABLE transaction_cloud_identity (local_uuid TEXT PRIMARY KEY REFERENCES transaksis(uuid), cloud_uuid TEXT NOT NULL UNIQUE, scope TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision>0), final_number TEXT NOT NULL UNIQUE, snapshot TEXT NOT NULL)',
+          );
+          await customStatement(
+            'INSERT INTO transaction_cloud_identity SELECT * FROM transaction_cloud_identity_v17',
+          );
+          await customStatement('DROP TABLE transaction_cloud_identity_v17');
+          await customStatement(
+            "ALTER TABLE transaction_cloud_pending ADD COLUMN operation TEXT NOT NULL DEFAULT 'create' CHECK(operation IN ('create','update','delete'))",
+          );
+        }
       });
     },
   );
@@ -499,10 +514,10 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> _createTransactionCloudStorage() async {
     await customStatement(
-      'CREATE TABLE transaction_cloud_identity (local_uuid TEXT PRIMARY KEY REFERENCES transaksis(uuid), cloud_uuid TEXT NOT NULL UNIQUE, scope TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision=1), final_number TEXT NOT NULL UNIQUE, snapshot TEXT NOT NULL)',
+      'CREATE TABLE transaction_cloud_identity (local_uuid TEXT PRIMARY KEY REFERENCES transaksis(uuid), cloud_uuid TEXT NOT NULL UNIQUE, scope TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision>0), final_number TEXT NOT NULL UNIQUE, snapshot TEXT NOT NULL)',
     );
     await customStatement(
-      'CREATE TABLE transaction_cloud_pending (local_uuid TEXT PRIMARY KEY REFERENCES transaksis(uuid), mutation_id TEXT NOT NULL UNIQUE, payload TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN (\'pending\',\'acked\')))',
+      'CREATE TABLE transaction_cloud_pending (local_uuid TEXT PRIMARY KEY REFERENCES transaksis(uuid), mutation_id TEXT NOT NULL UNIQUE, payload TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN (\'pending\',\'acked\')), operation TEXT NOT NULL DEFAULT \'create\' CHECK(operation IN (\'create\',\'update\',\'delete\')))',
     );
     await customStatement(
       'CREATE TABLE transaction_cloud_feed (scope TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0 CHECK(cursor>=0))',

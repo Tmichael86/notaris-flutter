@@ -123,3 +123,47 @@ rollback and dirty protection. Go HTTP tests passed idempotent receipt/number,
 changed-payload rejection, failed child rollback after allocation, concurrent
 CREATE, bounded publication and permission rejection; existing Master route
 tests also passed. Logs remain in `.local/transaction-cloud-*.log`.
+
+## UPDATE / soft DELETE Notaris checkpoint (2026-11-05)
+
+Implemented using the CREATE adapter and authenticated `transaksi` update/delete
+permissions: `/transaksi-notaris/sync/update` and `/transaksi-notaris/sync/delete`.
+The additive `20261105_transaction_notaris_mutations.sql` proposal raises the
+revision constraint, retains removed children with tombstones and permits one
+complete outbox event per aggregate revision. All testing uses disposable schemas.
+
+- Parent row lock + expected revision; mutation fingerprint includes operation,
+  and durable actor-bound receipt is checked before the revision. Identical retry
+  returns the same receipt. Conflict 409 keeps the immutable local pending request.
+- Final number is never reassigned. Committed payment rows must match exactly;
+  UPDATE never replaces, deletes, corrects or adds payments. Payment operations
+  need a separate contract. Removed details/processes are retained, never reparented.
+- Process transitions without cloud actor provenance are blocked before push;
+  the server also rejects changes to process validation status without a contract.
+  Existing local audit rows remain untouched. Non-transition snapshot edits work.
+- DELETE follows existing unconditional local soft deletion, retains historical
+  payment/process snapshots and mutation actors, and publishes a full tombstone.
+- Drift v18 preserves existing mapping, cursor, pending payload and final number,
+  enables revisions >1 and records pending operation. Pull updates existing local
+  PKs atomically with children/journal/cursor, checks dependencies and payments,
+  and refuses dirty/pending local rows. Unsent local child tombstones are retained
+  conservatively rather than implicitly clearing their dirty flags.
+
+Validation: 389 Flutter tests passed / 6 opt-in skipped, analyzer clean, focused
+Go PostgreSQL/HTTP tests plus Master route regression passed. Separate real HTTP
+Device A/B E2E passed CREATE→UPDATE→DELETE, receipt replay, local conflict retention,
+atomic rollback, payment/actor guards, pagination/replay/restart and SQLite FK /
+integrity. In the A/B slice there are three receipts/events, cursor 3 on both
+devices and only one number allocation. Logs: `.local/transaction-mutations-*.log`.
+
+```powershell
+# Same owned disposable DSN and Go test as CREATE, with these opt-in flags:
+$env:NOTARIS_TRANSACTION_E2E='1'
+$env:NOTARIS_TRANSACTION_MUTATIONS_E2E='1'
+go test ./routes -run '^TestTransactionCloudHTTPPostgres$' -count=1 -v
+```
+
+No permanent PostgreSQL migration, existing SQLite profile upgrade, operational
+sync activation or publisher activation follows from this checkpoint. PPAT
+transaction cloud, explicit conflict resolution and payment/process actor
+contracts remain separate work.

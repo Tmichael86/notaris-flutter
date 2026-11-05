@@ -73,11 +73,11 @@ func TestTransactionCloudHTTPPostgres(t *testing.T) {
  INSERT INTO pekerjaan_notaris_harga VALUES(701,'00000000-0000-4000-8000-000000000005',901,801,1,NULL);
  INSERT INTO groups(id,status) VALUES(1,1); INSERT INTO users(id,group_id,status) VALUES(1,1,1);
  INSERT INTO sidebar(id,sidebar_kode,sidebar_route,status) VALUES(1,'transaksi','/transaksi',1);
- INSERT INTO sidebar_akses(id,group_id,sidebar_id,"read","create","update","delete") VALUES(1,1,1,1,1,0,0);`
+ INSERT INTO sidebar_akses(id,group_id,sidebar_id,"read","create","update","delete") VALUES(1,1,1,1,1,1,1);`
 	if e = db.Exec(ddl).Error; e != nil {
 		t.Fatal(e)
 	}
-	for _, name := range []string{"20261105_transaction_cloud_numbering.sql", "20261105_transaction_notaris_create.sql"} {
+	for _, name := range []string{"20261105_transaction_cloud_numbering.sql", "20261105_transaction_notaris_create.sql", "20261105_transaction_notaris_mutations.sql"} {
 		sql, e := os.ReadFile("../migration_proposals/" + name)
 		if e != nil {
 			t.Fatal(e)
@@ -113,7 +113,7 @@ func TestTransactionCloudHTTPPostgres(t *testing.T) {
 			cmd = exec.CommandContext(ctx, "flutter", args...)
 		}
 		cmd.Dir = "../../frontend_notaris"
-		cmd.Env = append(os.Environ(), "TRANSACTION_E2E_URL="+server.URL+"/api/v1", "TRANSACTION_E2E_TOKEN="+token)
+		cmd.Env = append(os.Environ(), "TRANSACTION_E2E_URL="+server.URL+"/api/v1", "TRANSACTION_E2E_TOKEN="+token, "TRANSACTION_MUTATIONS="+os.Getenv("NOTARIS_TRANSACTION_MUTATIONS_E2E"))
 		out, e := cmd.CombinedOutput()
 		t.Log(strings.ReplaceAll(string(out), token, "[redacted]"))
 		if e != nil {
@@ -121,11 +121,29 @@ func TestTransactionCloudHTTPPostgres(t *testing.T) {
 		}
 		for _, q := range []string{"SELECT count(*) FROM transaction_cloud", "SELECT count(*) FROM transaction_cloud_payment", "SELECT count(*) FROM transaction_cloud_mutation", "SELECT count(*) FROM transaction_cloud_outbox WHERE publication_seq=1", "SELECT last_number FROM transaction_cloud_number_counter"} {
 			var n int64
-			if e = db.Raw(q).Row().Scan(&n); e != nil || n != 1 {
+			want := int64(1)
+			if os.Getenv("NOTARIS_TRANSACTION_MUTATIONS_E2E") == "1" && q == "SELECT count(*) FROM transaction_cloud_mutation" {
+				want = 3
+			}
+			if e = db.Raw(q).Row().Scan(&n); e != nil || n != want {
 				t.Fatalf("%s=%d err=%v", q, n, e)
 			}
 		}
 		return
+	}
+	post := func(op string, body any) (int, []byte) {
+		raw, _ := json.Marshal(body)
+		req, _ := http.NewRequest("POST", server.URL+"/api/v1/transaksi-notaris/sync/"+op, bytes.NewReader(raw))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+token)
+		resp, err := server.Client().Do(req)
+		if err != nil {
+			t.Error(err)
+			return 0, nil
+		}
+		defer resp.Body.Close()
+		out, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, out
 	}
 	request := func(m repositories.TransactionCloudCreate, auth string) (int, []byte) {
 		body, _ := json.Marshal(m)
@@ -220,17 +238,141 @@ func TestTransactionCloudHTTPPostgres(t *testing.T) {
 	if len(seen) != 2 {
 		t.Fatal("concurrent create incomplete")
 	}
+	update := m
+	update.Details = append([]repositories.TransactionCloudDetail{}, m.Details...)
+	update.Details[0].Processes = append(append([]repositories.TransactionCloudProcess{}, m.Details[0].Processes...), repositories.TransactionCloudProcess{UUID: "00000000-0000-4000-8000-000000008888", Name: "Temporary process"})
+	update.Details[0].ProcessSnapshot = json.RawMessage(`[{"id":"old-local-id","name":"Periksa","attributes":["KTP"]},{"id":"temporary","name":"Temporary process","attributes":[]}]`)
+	update.ExpectedRevision = 1
+	update.MutationID = "00000000-0000-4000-8000-000000009001"
+	note := "updated"
+	update.Header.Note = &note
+	code, updatedReceipt := post("update", update)
+	if code != 200 {
+		t.Fatalf("update=%d %s", code, updatedReceipt)
+	}
+	if code, replayed := post("update", update); code != 200 || !bytes.Equal(updatedReceipt, replayed) {
+		t.Fatalf("update retry=%d %s", code, replayed)
+	}
+	changed = update
+	other := "different"
+	changed.Header.Note = &other
+	if code, _ := post("update", changed); code != 409 {
+		t.Fatal("update reuse", code)
+	}
+	stale := update
+	stale.MutationID = "00000000-0000-4000-8000-000000009002"
+	if code, _ := post("update", stale); code != 409 {
+		t.Fatal("stale update", code)
+	}
+	clone := func(m repositories.TransactionCloudCreate) repositories.TransactionCloudCreate {
+		raw, _ := json.Marshal(m)
+		var c repositories.TransactionCloudCreate
+		json.Unmarshal(raw, &c)
+		return c
+	}
+	badPayment := clone(update)
+	badPayment.ExpectedRevision = 2
+	badPayment.MutationID = "00000000-0000-4000-8000-000000009003"
+	badPayment.Payments[0].Amount = 26
+	badPayment.Header.InitialPayment = 26
+	if code, out := post("update", badPayment); code != 422 {
+		t.Fatalf("payment mutation=%d %s", code, out)
+	}
+	badActor := clone(update)
+	badActor.ExpectedRevision = 2
+	badActor.MutationID = "00000000-0000-4000-8000-000000009004"
+	state := "Valid"
+	badActor.Details[0].Processes[0].Status = &state
+	if code, _ := post("update", badActor); code != 422 {
+		t.Fatal("unresolved process actor", code)
+	}
+	badChild := clone(update)
+	badChild.ExpectedRevision = 2
+	badChild.MutationID = "00000000-0000-4000-8000-000000009005"
+	badChild.Details[0].UUID = sample(103).Details[0].UUID
+	rolledBackNote := "MUST_ROLL_BACK"
+	badChild.Header.Note = &rolledBackNote
+	if code, _ := post("update", badChild); code != 422 {
+		t.Fatal("child reparenting", code)
+	}
+	var revision int64
+	if e = db.Raw("SELECT revision FROM transaction_cloud WHERE uuid=?::uuid", m.UUID).Row().Scan(&revision); e != nil || revision != 2 {
+		t.Fatal("failed update partial write", revision, e)
+	}
+	var actualNote string
+	var activeChildren int64
+	if e = db.Raw("SELECT header->>'note' FROM transaction_cloud WHERE uuid=?::uuid", m.UUID).Row().Scan(&actualNote); e != nil || actualNote != "updated" {
+		t.Fatal("failed update changed header", actualNote, e)
+	}
+	if e = db.Raw("SELECT count(*) FROM transaction_cloud_process WHERE detail_uuid=?::uuid AND deleted_at IS NULL", m.Details[0].UUID).Row().Scan(&activeChildren); e != nil || activeChildren != 2 {
+		t.Fatal("failed update changed children", activeChildren, e)
+	}
+	var paymentSnapshotBefore []byte
+	db.Raw("SELECT snapshot FROM transaction_cloud_payment WHERE transaction_id=?", first.Ack.ServerID).Row().Scan(&paymentSnapshotBefore)
+	statuses := make(chan int, 2)
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			u := clone(update)
+			u.Details[0].Processes = u.Details[0].Processes[:1]
+			u.Details[0].ProcessSnapshot = m.Details[0].ProcessSnapshot
+			u.ExpectedRevision = 2
+			u.MutationID = fmt.Sprintf("00000000-0000-4000-8000-%012d", 9100+i)
+			s, _ := post("update", u)
+			statuses <- s
+		}(i)
+	}
+	wg.Wait()
+	close(statuses)
+	wins, conflicts := 0, 0
+	for s := range statuses {
+		if s == 200 {
+			wins++
+		} else if s == 409 {
+			conflicts++
+		} else {
+			t.Fatal("concurrent update", s)
+		}
+	}
+	if wins != 1 || conflicts != 1 {
+		t.Fatal("optimistic concurrency", wins, conflicts)
+	}
+	var removed int64
+	if e = db.Raw("SELECT count(*) FROM transaction_cloud_process WHERE uuid='00000000-0000-4000-8000-000000008888' AND deleted_at IS NOT NULL").Row().Scan(&removed); e != nil || removed != 1 {
+		t.Fatal("removed process tombstone", removed, e)
+	}
+	del := repositories.TransactionCloudDelete{MutationID: "00000000-0000-4000-8000-000000009201", UUID: m.UUID, ExpectedRevision: 3}
+	code, deletedReceipt := post("delete", del)
+	if code != 200 {
+		t.Fatalf("delete=%d %s", code, deletedReceipt)
+	}
+	if code, replay := post("delete", del); code != 200 || !bytes.Equal(deletedReceipt, replay) {
+		t.Fatal("delete retry", code)
+	}
+	var paymentSnapshotAfter []byte
+	db.Raw("SELECT snapshot FROM transaction_cloud_payment WHERE transaction_id=?", first.Ack.ServerID).Row().Scan(&paymentSnapshotAfter)
+	if !bytes.Equal(paymentSnapshotBefore, paymentSnapshotAfter) {
+		t.Fatal("committed payment rewritten")
+	}
 	for _, table := range []string{"transaction_cloud", "transaction_cloud_detail", "transaction_cloud_process", "transaction_cloud_payment", "transaction_cloud_mutation", "transaction_cloud_outbox"} {
 		if e = db.Table(table).Count(new(int64)).Error; e != nil {
 			t.Fatal(e)
 		}
 		var n int64
 		db.Table(table).Count(&n)
-		if n != 3 {
+		want := int64(3)
+		if table == "transaction_cloud_process" {
+			want = 4
+		}
+		if table == "transaction_cloud_mutation" || table == "transaction_cloud_outbox" {
+			want = 6
+		}
+		if n != want {
 			t.Fatal(table, n)
 		}
 	}
-	for i, want := range []int{2, 1, 0} {
+	for i, want := range []int{2, 2, 2, 0} {
 		n, e := repositories.NewTransactionCloudRepository(db).Publish(context.Background(), 2)
 		if e != nil || n != want {
 			t.Fatal("publish", i, n, e)
@@ -240,11 +382,24 @@ func TestTransactionCloudHTTPPostgres(t *testing.T) {
 	if e != nil || len(page.Changes) != 2 || !page.HasMore || page.NextCursor != 2 || len(page.Changes[0].Aggregate.Payments) != 1 || len(page.Changes[0].Aggregate.Details[0].Processes) != 1 {
 		t.Fatal("aggregate page", page, e)
 	}
+	lastPage, e := repositories.NewTransactionCloudRepository(db).Pull(context.Background(), 5, 1)
+	if e != nil || len(lastPage.Changes) != 1 || lastPage.Changes[0].Operation != "delete" || lastPage.Changes[0].Revision != 4 || lastPage.Changes[0].Aggregate.DeletedAt == nil {
+		t.Fatal("published transaction tombstone", lastPage, e)
+	}
 	if e = db.Exec(`UPDATE sidebar_akses SET "create"=0,"read"=0`).Error; e != nil {
 		t.Fatal(e)
 	}
 	if code, _ := request(sample(105), token); code != 403 {
 		t.Fatal("permission", code)
+	}
+	if e = db.Exec(`UPDATE sidebar_akses SET "update"=0,"delete"=0`).Error; e != nil {
+		t.Fatal(e)
+	}
+	if code, _ := post("update", update); code != 403 {
+		t.Fatal("update permission", code)
+	}
+	if code, _ := post("delete", del); code != 403 {
+		t.Fatal("delete permission", code)
 	}
 }
 func mustJakarta(t *testing.T) *time.Location {

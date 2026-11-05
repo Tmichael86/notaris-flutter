@@ -22,6 +22,89 @@ Future<void> stripV17(AppDatabase db) async {
 
 void main() {
   test(
+    'V17 to V18 preserves identity pending intent cursor and final number',
+    () async {
+      final folder = await Directory.systemTemp.createTemp('transaction_v17_');
+      addTearDown(() => folder.delete(recursive: true));
+      final file = File('${folder.path}/fixture.sqlite');
+      final before = AppDatabase.forTesting(NativeDatabase(file));
+      await before.customStatement(
+        "INSERT INTO transaksis(uuid,no_akta,total,is_sync_dirty) VALUES('stable-tx','1000511260001',100,1)",
+      );
+      await before.customStatement('DROP TABLE transaction_cloud_identity');
+      await before.customStatement(
+        'CREATE TABLE transaction_cloud_identity (local_uuid TEXT PRIMARY KEY REFERENCES transaksis(uuid),cloud_uuid TEXT NOT NULL UNIQUE,scope TEXT NOT NULL,revision INTEGER NOT NULL CHECK(revision=1),final_number TEXT NOT NULL UNIQUE,snapshot TEXT NOT NULL)',
+      );
+      await before.customStatement(
+        "INSERT INTO transaction_cloud_identity VALUES('stable-tx','stable-tx','scope',1,'1000511260001','{}')",
+      );
+      await before.customStatement(
+        'ALTER TABLE transaction_cloud_pending DROP COLUMN operation',
+      );
+      await before.customStatement(
+        "INSERT INTO transaction_cloud_pending VALUES('stable-tx','immutable-mutation','immutable-payload','pending')",
+      );
+      await before.customStatement(
+        "INSERT INTO transaction_cloud_feed VALUES('scope',2)",
+      );
+      await before.customStatement('PRAGMA user_version=17');
+      await before.close();
+      final after = AppDatabase.forTesting(NativeDatabase(file));
+      try {
+        expect(
+          (await after
+                  .customSelect('SELECT payload FROM transaction_cloud_pending')
+                  .getSingle())
+              .read<String>('payload'),
+          'immutable-payload',
+        );
+        expect(
+          (await after
+                  .customSelect(
+                    'SELECT operation FROM transaction_cloud_pending',
+                  )
+                  .getSingle())
+              .read<String>('operation'),
+          'create',
+        );
+        expect(
+          (await after.select(after.transaksis).getSingle()).isSyncDirty,
+          true,
+        );
+        expect(
+          (await after
+                  .customSelect('SELECT cursor FROM transaction_cloud_feed')
+                  .getSingle())
+              .read<int>('cursor'),
+          2,
+        );
+        await after.customStatement(
+          'UPDATE transaction_cloud_identity SET revision=2',
+        );
+        expect(
+          (await after
+                  .customSelect(
+                    'SELECT final_number FROM transaction_cloud_identity',
+                  )
+                  .getSingle())
+              .read<String>('final_number'),
+          '1000511260001',
+        );
+        expect(
+          await after.customSelect('PRAGMA foreign_key_check').get(),
+          isEmpty,
+        );
+        expect(
+          (await after.customSelect('PRAGMA integrity_check').getSingle())
+              .read<String>('integrity_check'),
+          'ok',
+        );
+      } finally {
+        await after.close();
+      }
+    },
+  );
+  test(
     'V16 to V17 preserves legacy unresolved provenance and local data',
     () async {
       final folder = await Directory.systemTemp.createTemp('transaction_v16_');
@@ -127,7 +210,7 @@ void main() {
         (await after.customSelect('PRAGMA user_version').getSingle()).read<int>(
           'user_version',
         ),
-        17,
+        18,
       );
       expect(
         await after.customSelect('PRAGMA foreign_key_check').get(),
@@ -178,7 +261,7 @@ void main() {
         (await after.customSelect('PRAGMA user_version').getSingle()).read<int>(
           'user_version',
         ),
-        17,
+        18,
       );
       expect(
         await after.customSelect('PRAGMA foreign_key_check').get(),
@@ -510,7 +593,7 @@ void main() {
       final version = await inspectionDb
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 17);
+      expect(version.read<int>('user_version'), 18);
     } finally {
       await inspectionDb.close();
     }

@@ -71,15 +71,17 @@ type TransactionCloudCreate struct {
 	Payments         []TransactionCloudPayment `json:"payments"`
 }
 type TransactionCloudAck struct {
-	MutationID  string `json:"mutation_id"`
-	UUID        string `json:"uuid"`
-	ServerID    int64  `json:"server_id"`
-	Revision    int64  `json:"revision"`
-	FinalNumber string `json:"final_number"`
+	MutationID  string     `json:"mutation_id"`
+	UUID        string     `json:"uuid"`
+	ServerID    int64      `json:"server_id"`
+	Revision    int64      `json:"revision"`
+	FinalNumber string     `json:"final_number"`
+	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
 }
 type TransactionCloudAggregate struct {
 	TransactionCloudCreate
-	FinalNumber string `json:"final_number"`
+	FinalNumber string     `json:"final_number"`
+	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
 }
 type TransactionCloudEvent struct {
 	Sequence  int64                     `json:"sequence"`
@@ -272,8 +274,10 @@ func (r *TransactionCloudRepository) Pull(ctx context.Context, cursor int64, lim
 		var rows []struct {
 			PublicationSeq int64
 			Payload        []byte
+			Revision       int64
+			Operation      string
 		}
-		if e := tx.Raw("SELECT publication_seq,payload FROM transaction_cloud_outbox WHERE publication_seq>? ORDER BY publication_seq LIMIT ?", cursor, limit+1).Scan(&rows).Error; e != nil {
+		if e := tx.Raw("SELECT publication_seq,payload,revision,operation FROM transaction_cloud_outbox WHERE publication_seq>? ORDER BY publication_seq LIMIT ?", cursor, limit+1).Scan(&rows).Error; e != nil {
 			return e
 		}
 		page.HasMore = len(rows) > limit
@@ -285,7 +289,7 @@ func (r *TransactionCloudRepository) Pull(ctx context.Context, cursor int64, lim
 			if e := json.Unmarshal(row.Payload, &a); e != nil {
 				return e
 			}
-			page.Changes = append(page.Changes, TransactionCloudEvent{Sequence: row.PublicationSeq, Aggregate: a, Revision: 1, Operation: "create"})
+			page.Changes = append(page.Changes, TransactionCloudEvent{Sequence: row.PublicationSeq, Aggregate: a, Revision: row.Revision, Operation: row.Operation})
 			page.NextCursor = row.PublicationSeq
 		}
 		return nil
