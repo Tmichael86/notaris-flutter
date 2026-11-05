@@ -76,11 +76,33 @@ func SetupRouter(
 
 		petugas := v1.Group("/petugas")
 		{
+			petugas.GET("/references/jenis-kelamin", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), controllers.PetugasGenderCatalog)
+			petugas.PUT("/sync/:uuid", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), controllers.PetugasSyncPush)
+			petugas.GET("/sync/pull", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), controllers.PetugasSyncPull)
 			petugas.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), petugasController.GetAll)
 			petugas.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), petugasController.GetByID)
 			petugas.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionCreate), petugasController.Create)
 			petugas.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionUpdate), petugasController.Update)
 			petugas.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionDelete), petugasController.Delete)
+		}
+		pekerjaanNotarisSync := v1.Group("/pekerjaan-notaris/sync")
+		transactionSync := v1.Group("/transaksi-notaris/sync")
+		transactionSync.POST("/create", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionCreate), controllers.TransactionCloudCreate)
+		transactionSync.POST("/update", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionUpdate), controllers.TransactionCloudUpdate)
+		transactionSync.POST("/delete", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionDelete), controllers.TransactionCloudDelete)
+		transactionSync.GET("/pull", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionRead), controllers.TransactionCloudPull)
+		{
+			pekerjaanNotarisSync.POST("/create", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionCreate), controllers.PekerjaanNotarisCloudCreate)
+			pekerjaanNotarisSync.POST("/update", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionUpdate), controllers.PekerjaanNotarisCloudUpdate)
+			pekerjaanNotarisSync.POST("/delete", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionDelete), controllers.PekerjaanNotarisCloudDelete)
+			pekerjaanNotarisSync.GET("/pull", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionRead), controllers.PekerjaanNotarisCloudPull)
+		}
+		pekerjaanPpatSync := v1.Group("/pekerjaan-ppat/sync")
+		{
+			pekerjaanPpatSync.POST("/create", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionCreate), controllers.PekerjaanPpatCloudCreate)
+			pekerjaanPpatSync.POST("/update", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionUpdate), controllers.PekerjaanPpatCloudUpdate)
+			pekerjaanPpatSync.POST("/delete", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionDelete), controllers.PekerjaanPpatCloudDelete)
+			pekerjaanPpatSync.GET("/pull", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionRead), controllers.PekerjaanPpatCloudPull)
 		}
 
 		masterRoutes := []struct {

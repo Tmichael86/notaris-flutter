@@ -67,12 +67,14 @@ class PekerjaanAggregateData {
 
 class PekerjaanHargaData {
   final int id;
+  final String uuid;
   final int kategoriPekerjaanId;
   final String harga;
   final String estimasiWaktu;
 
   const PekerjaanHargaData({
     required this.id,
+    required this.uuid,
     required this.kategoriPekerjaanId,
     required this.harga,
     required this.estimasiWaktu,
@@ -131,6 +133,7 @@ class PekerjaanNotarisRepository {
         for (final item in harga)
           PekerjaanHargaData(
             id: item.id,
+            uuid: item.uuid,
             kategoriPekerjaanId: item.kategoriPekerjaanId,
             harga: item.harga,
             estimasiWaktu: item.estimasiWaktu,
@@ -330,6 +333,7 @@ class PekerjaanNotarisRepository {
     final now = DateTime.now();
 
     return dao.attachedDatabase.transaction(() async {
+      await _validateCategories(dao, input);
       final pekerjaanId = await dao.insertPekerjaanNotaris(
         PekerjaanNotarisLocalsCompanion.insert(
           uuid: _uuid.v4(),
@@ -607,6 +611,7 @@ class PekerjaanPpatRepository {
         for (final item in harga)
           PekerjaanHargaData(
             id: item.id,
+            uuid: item.uuid,
             kategoriPekerjaanId: item.kategoriPekerjaanId,
             harga: item.harga,
             estimasiWaktu: item.estimasiWaktu,
@@ -804,6 +809,7 @@ class PekerjaanPpatRepository {
     final now = DateTime.now();
 
     return dao.attachedDatabase.transaction(() async {
+      await _validateCategories(dao, input);
       final pekerjaanId = await dao.insertPekerjaanPpat(
         PekerjaanPpatLocalsCompanion.insert(
           uuid: _uuid.v4(),
@@ -1044,5 +1050,20 @@ class PekerjaanPpatRepository {
 
       return dao.softDeletePekerjaanPpat(id, now);
     });
+  }
+}
+
+Future<void> _validateCategories(
+  PekerjaanDao dao,
+  PekerjaanAggregateInput input,
+) async {
+  final db = dao.attachedDatabase;
+  for (final harga in input.harga) {
+    final row = await (db.select(
+      db.pekerjaanKategoris,
+    )..where((t) => t.id.equals(harga.kategoriPekerjaanId))).getSingleOrNull();
+    if (row == null || row.status != 1 || row.deletedAt != null) {
+      throw ArgumentError('Kategori pekerjaan harus ada dan aktif.');
+    }
   }
 }

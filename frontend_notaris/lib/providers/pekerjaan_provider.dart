@@ -10,11 +10,22 @@ import '../services/group_api_service.dart';
 import '../services/group_sidebar_access_api_service.dart';
 import '../services/sidebar_api_service.dart';
 import 'authenticated_api_provider.dart';
+import 'development_smoke_provider.dart';
+import 'sync_log_provider.dart';
+
+import 'package:uuid/uuid.dart';
+
 import '../database/app_database.dart';
 import '../repositories/pekerjaan_repository.dart';
 import '../repositories/pekerjaan_kategori_repository.dart';
 import '../repositories/pengeluaran_jenis_repository.dart';
+import '../repositories/people_repository.dart';
+
+import 'package:flutter/foundation.dart';
+
 import 'database_provider.dart';
+import 'app_providers.dart' show pemohonGenderReferencesProvider;
+import '../repositories/pemohon_gender_references.dart';
 
 final pekerjaanNotarisRepositoryProvider = Provider<PekerjaanNotarisRepository>(
   (ref) {
@@ -115,6 +126,13 @@ class SyncCoordinator {
 
   static SyncFailure mapSyncFailure(Object error) {
     if (error is SyncFailure) return error;
+    if (error is PemohonReferenceBlocked) {
+      return SyncFailure(
+        SyncFailureKind.validation,
+        'blocked_reference: referensi jenis kelamin Pemohon belum tervalidasi. Periksa manifest development dan akses katalog; data lokal tetap tersimpan.',
+        cause: error,
+      );
+    }
 
     if (error is DioException) {
       if (error.type == DioExceptionType.connectionError) {
@@ -186,6 +204,44 @@ final syncStatusProvider = StateProvider<SyncStatus>((ref) => SyncStatus.idle);
 final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
   return SyncCoordinator(
     runSync: () async {
+      if (ref.read(developmentUiSmokeProvider)) return;
+      final logger = ref.read(syncLogRepositoryProvider);
+      final attempt = const Uuid().v4();
+      Future<void> record(
+        String module,
+        String direction,
+        Future<int?> Function() action,
+      ) => logger.track(
+        module: module,
+        direction: direction,
+        attemptId: attempt,
+        action: action,
+        errorCode: (error) => SyncCoordinator.mapSyncFailure(error).kind.name,
+      );
+      Future<void> push(
+        String module,
+        String table,
+        Future<int?> Function() action,
+      ) async {
+        final dirty = await ref
+            .read(appDatabaseProvider)
+            .customSelect(
+              'SELECT count(*) AS n FROM $table WHERE is_sync_dirty=1',
+            )
+            .getSingle();
+        if (dirty.read<int>('n') == 0) {
+          try {
+            await action();
+          } catch (error) {
+            // Reference/auth preparation may fail even without queued rows.
+            // Record that real failure without repeating the network operation.
+            await record(module, 'push', () async => throw error);
+          }
+          return;
+        }
+        await record(module, 'push', action);
+      }
+
       final kategoriRepository = ref.read(pekerjaanKategoriRepositoryProvider);
       final kategoriApi = ref.read(kategoriPekerjaanApiServiceProvider);
       final pengeluaranRepository = ref.read(
@@ -194,14 +250,52 @@ final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
       final pengeluaranApi = ref.read(jenisPengeluaranApiServiceProvider);
 
       // Push local changes first, then pull the authoritative cloud snapshot.
-      await kategoriRepository.syncToCloud(kategoriApi);
-      await pengeluaranRepository.syncToCloud(pengeluaranApi);
+      debugPrint('[SYNC] Mulai sync kategori pekerjaan');
+      await push(
+        'kategori',
+        'pekerjaan_kategori',
+        () => kategoriRepository.syncToCloud(kategoriApi),
+      );
+      debugPrint('[SYNC] Mulai sync jenis pengeluaran');
+      await push(
+        'pengeluaran',
+        'pengeluaran_jenis',
+        () => pengeluaranRepository.syncToCloud(pengeluaranApi),
+      );
 
-      final remoteKategori = await kategoriApi.getAllPages();
-      await kategoriRepository.syncFromCloud(remoteKategori);
+      final pemohonRepository = PemohonRepository(
+        ref.read(appDatabaseProvider),
+        genderReferences: ref.read(pemohonGenderReferencesProvider),
+      );
+      final pemohonApi = ref.read(pemohonApiServiceProvider);
+      debugPrint('[SYNC] Mulai push Pemohon');
+      await push('pemohon', 'pemohons', () async {
+        await pemohonRepository.syncToCloud(pemohonApi);
+        return null;
+      });
 
-      final remotePengeluaran = await pengeluaranApi.getAllPages();
-      await pengeluaranRepository.syncFromCloud(remotePengeluaran);
+      debugPrint('[SYNC] Mulai pull kategori pekerjaan');
+      await record('kategori', 'pull', () async {
+        final rows = await kategoriApi.getAllPages();
+        await kategoriRepository.syncFromCloud(rows);
+        return rows.length;
+      });
+
+      debugPrint('[SYNC] Mulai pull jenis pengeluaran');
+      await record('pengeluaran', 'pull', () async {
+        final rows = await pengeluaranApi.getAllPages();
+        await pengeluaranRepository.syncFromCloud(rows);
+        return rows.length;
+      });
+
+      debugPrint('[SYNC] Mulai pull Pemohon');
+      await record('pemohon', 'pull', () async {
+        final rows = await pemohonApi.getAllPages();
+        await pemohonRepository.syncFromCloud(rows);
+        return rows.length;
+      });
+
+      debugPrint('[SYNC] Pemohon berhasil disimpan ke SQLite');
     },
     onStatusChanged: (status) {
       ref.read(syncStatusProvider.notifier).state = status;

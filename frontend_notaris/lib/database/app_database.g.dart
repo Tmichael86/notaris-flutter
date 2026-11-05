@@ -4162,6 +4162,28 @@ class $TransaksiDetailsTable extends TransaksiDetails
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _hargaUuidMeta = const VerificationMeta(
+    'hargaUuid',
+  );
+  @override
+  late final GeneratedColumn<String> hargaUuid = GeneratedColumn<String>(
+    'harga_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _kategoriUuidMeta = const VerificationMeta(
+    'kategoriUuid',
+  );
+  @override
+  late final GeneratedColumn<String> kategoriUuid = GeneratedColumn<String>(
+    'kategori_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _estimasiWaktuSnapshotMeta =
       const VerificationMeta('estimasiWaktuSnapshot');
   @override
@@ -4299,6 +4321,8 @@ class $TransaksiDetailsTable extends TransaksiDetails
     pekerjaanPpatId,
     namaPekerjaanSnapshot,
     kategoriSnapshot,
+    hargaUuid,
+    kategoriUuid,
     estimasiWaktuSnapshot,
     prosesSnapshot,
     biayaLayanan,
@@ -4391,6 +4415,21 @@ class $TransaksiDetailsTable extends TransaksiDetails
         kategoriSnapshot.isAcceptableOrUnknown(
           data['kategori_snapshot']!,
           _kategoriSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('harga_uuid')) {
+      context.handle(
+        _hargaUuidMeta,
+        hargaUuid.isAcceptableOrUnknown(data['harga_uuid']!, _hargaUuidMeta),
+      );
+    }
+    if (data.containsKey('kategori_uuid')) {
+      context.handle(
+        _kategoriUuidMeta,
+        kategoriUuid.isAcceptableOrUnknown(
+          data['kategori_uuid']!,
+          _kategoriUuidMeta,
         ),
       );
     }
@@ -4522,6 +4561,14 @@ class $TransaksiDetailsTable extends TransaksiDetails
         DriftSqlType.string,
         data['${effectivePrefix}kategori_snapshot'],
       ),
+      hargaUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}harga_uuid'],
+      ),
+      kategoriUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kategori_uuid'],
+      ),
       estimasiWaktuSnapshot: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}estimasi_waktu_snapshot'],
@@ -4584,6 +4631,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
   final int? pekerjaanPpatId;
   final String namaPekerjaanSnapshot;
   final String? kategoriSnapshot;
+  final String? hargaUuid;
+  final String? kategoriUuid;
   final String? estimasiWaktuSnapshot;
   final String? prosesSnapshot;
   final double biayaLayanan;
@@ -4604,6 +4653,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     this.pekerjaanPpatId,
     required this.namaPekerjaanSnapshot,
     this.kategoriSnapshot,
+    this.hargaUuid,
+    this.kategoriUuid,
     this.estimasiWaktuSnapshot,
     this.prosesSnapshot,
     required this.biayaLayanan,
@@ -4632,6 +4683,12 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     map['nama_pekerjaan_snapshot'] = Variable<String>(namaPekerjaanSnapshot);
     if (!nullToAbsent || kategoriSnapshot != null) {
       map['kategori_snapshot'] = Variable<String>(kategoriSnapshot);
+    }
+    if (!nullToAbsent || hargaUuid != null) {
+      map['harga_uuid'] = Variable<String>(hargaUuid);
+    }
+    if (!nullToAbsent || kategoriUuid != null) {
+      map['kategori_uuid'] = Variable<String>(kategoriUuid);
     }
     if (!nullToAbsent || estimasiWaktuSnapshot != null) {
       map['estimasi_waktu_snapshot'] = Variable<String>(estimasiWaktuSnapshot);
@@ -4675,6 +4732,12 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       kategoriSnapshot: kategoriSnapshot == null && nullToAbsent
           ? const Value.absent()
           : Value(kategoriSnapshot),
+      hargaUuid: hargaUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(hargaUuid),
+      kategoriUuid: kategoriUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(kategoriUuid),
       estimasiWaktuSnapshot: estimasiWaktuSnapshot == null && nullToAbsent
           ? const Value.absent()
           : Value(estimasiWaktuSnapshot),
@@ -4717,6 +4780,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
         json['namaPekerjaanSnapshot'],
       ),
       kategoriSnapshot: serializer.fromJson<String?>(json['kategoriSnapshot']),
+      hargaUuid: serializer.fromJson<String?>(json['hargaUuid']),
+      kategoriUuid: serializer.fromJson<String?>(json['kategoriUuid']),
       estimasiWaktuSnapshot: serializer.fromJson<String?>(
         json['estimasiWaktuSnapshot'],
       ),
@@ -4744,6 +4809,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       'pekerjaanPpatId': serializer.toJson<int?>(pekerjaanPpatId),
       'namaPekerjaanSnapshot': serializer.toJson<String>(namaPekerjaanSnapshot),
       'kategoriSnapshot': serializer.toJson<String?>(kategoriSnapshot),
+      'hargaUuid': serializer.toJson<String?>(hargaUuid),
+      'kategoriUuid': serializer.toJson<String?>(kategoriUuid),
       'estimasiWaktuSnapshot': serializer.toJson<String?>(
         estimasiWaktuSnapshot,
       ),
@@ -4769,6 +4836,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     Value<int?> pekerjaanPpatId = const Value.absent(),
     String? namaPekerjaanSnapshot,
     Value<String?> kategoriSnapshot = const Value.absent(),
+    Value<String?> hargaUuid = const Value.absent(),
+    Value<String?> kategoriUuid = const Value.absent(),
     Value<String?> estimasiWaktuSnapshot = const Value.absent(),
     Value<String?> prosesSnapshot = const Value.absent(),
     double? biayaLayanan,
@@ -4795,6 +4864,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     kategoriSnapshot: kategoriSnapshot.present
         ? kategoriSnapshot.value
         : this.kategoriSnapshot,
+    hargaUuid: hargaUuid.present ? hargaUuid.value : this.hargaUuid,
+    kategoriUuid: kategoriUuid.present ? kategoriUuid.value : this.kategoriUuid,
     estimasiWaktuSnapshot: estimasiWaktuSnapshot.present
         ? estimasiWaktuSnapshot.value
         : this.estimasiWaktuSnapshot,
@@ -4833,6 +4904,10 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       kategoriSnapshot: data.kategoriSnapshot.present
           ? data.kategoriSnapshot.value
           : this.kategoriSnapshot,
+      hargaUuid: data.hargaUuid.present ? data.hargaUuid.value : this.hargaUuid,
+      kategoriUuid: data.kategoriUuid.present
+          ? data.kategoriUuid.value
+          : this.kategoriUuid,
       estimasiWaktuSnapshot: data.estimasiWaktuSnapshot.present
           ? data.estimasiWaktuSnapshot.value
           : this.estimasiWaktuSnapshot,
@@ -4872,6 +4947,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
           ..write('pekerjaanPpatId: $pekerjaanPpatId, ')
           ..write('namaPekerjaanSnapshot: $namaPekerjaanSnapshot, ')
           ..write('kategoriSnapshot: $kategoriSnapshot, ')
+          ..write('hargaUuid: $hargaUuid, ')
+          ..write('kategoriUuid: $kategoriUuid, ')
           ..write('estimasiWaktuSnapshot: $estimasiWaktuSnapshot, ')
           ..write('prosesSnapshot: $prosesSnapshot, ')
           ..write('biayaLayanan: $biayaLayanan, ')
@@ -4888,7 +4965,7 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     uuid,
     transaksiId,
@@ -4897,6 +4974,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     pekerjaanPpatId,
     namaPekerjaanSnapshot,
     kategoriSnapshot,
+    hargaUuid,
+    kategoriUuid,
     estimasiWaktuSnapshot,
     prosesSnapshot,
     biayaLayanan,
@@ -4908,7 +4987,7 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     isSyncDirty,
     lastSyncedAt,
     deletedAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4921,6 +5000,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
           other.pekerjaanPpatId == this.pekerjaanPpatId &&
           other.namaPekerjaanSnapshot == this.namaPekerjaanSnapshot &&
           other.kategoriSnapshot == this.kategoriSnapshot &&
+          other.hargaUuid == this.hargaUuid &&
+          other.kategoriUuid == this.kategoriUuid &&
           other.estimasiWaktuSnapshot == this.estimasiWaktuSnapshot &&
           other.prosesSnapshot == this.prosesSnapshot &&
           other.biayaLayanan == this.biayaLayanan &&
@@ -4943,6 +5024,8 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
   final Value<int?> pekerjaanPpatId;
   final Value<String> namaPekerjaanSnapshot;
   final Value<String?> kategoriSnapshot;
+  final Value<String?> hargaUuid;
+  final Value<String?> kategoriUuid;
   final Value<String?> estimasiWaktuSnapshot;
   final Value<String?> prosesSnapshot;
   final Value<double> biayaLayanan;
@@ -4963,6 +5046,8 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     this.pekerjaanPpatId = const Value.absent(),
     this.namaPekerjaanSnapshot = const Value.absent(),
     this.kategoriSnapshot = const Value.absent(),
+    this.hargaUuid = const Value.absent(),
+    this.kategoriUuid = const Value.absent(),
     this.estimasiWaktuSnapshot = const Value.absent(),
     this.prosesSnapshot = const Value.absent(),
     this.biayaLayanan = const Value.absent(),
@@ -4984,6 +5069,8 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     this.pekerjaanPpatId = const Value.absent(),
     required String namaPekerjaanSnapshot,
     this.kategoriSnapshot = const Value.absent(),
+    this.hargaUuid = const Value.absent(),
+    this.kategoriUuid = const Value.absent(),
     this.estimasiWaktuSnapshot = const Value.absent(),
     this.prosesSnapshot = const Value.absent(),
     this.biayaLayanan = const Value.absent(),
@@ -5008,6 +5095,8 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     Expression<int>? pekerjaanPpatId,
     Expression<String>? namaPekerjaanSnapshot,
     Expression<String>? kategoriSnapshot,
+    Expression<String>? hargaUuid,
+    Expression<String>? kategoriUuid,
     Expression<String>? estimasiWaktuSnapshot,
     Expression<String>? prosesSnapshot,
     Expression<double>? biayaLayanan,
@@ -5031,6 +5120,8 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
       if (namaPekerjaanSnapshot != null)
         'nama_pekerjaan_snapshot': namaPekerjaanSnapshot,
       if (kategoriSnapshot != null) 'kategori_snapshot': kategoriSnapshot,
+      if (hargaUuid != null) 'harga_uuid': hargaUuid,
+      if (kategoriUuid != null) 'kategori_uuid': kategoriUuid,
       if (estimasiWaktuSnapshot != null)
         'estimasi_waktu_snapshot': estimasiWaktuSnapshot,
       if (prosesSnapshot != null) 'proses_snapshot': prosesSnapshot,
@@ -5055,6 +5146,8 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     Value<int?>? pekerjaanPpatId,
     Value<String>? namaPekerjaanSnapshot,
     Value<String?>? kategoriSnapshot,
+    Value<String?>? hargaUuid,
+    Value<String?>? kategoriUuid,
     Value<String?>? estimasiWaktuSnapshot,
     Value<String?>? prosesSnapshot,
     Value<double>? biayaLayanan,
@@ -5077,6 +5170,8 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
       namaPekerjaanSnapshot:
           namaPekerjaanSnapshot ?? this.namaPekerjaanSnapshot,
       kategoriSnapshot: kategoriSnapshot ?? this.kategoriSnapshot,
+      hargaUuid: hargaUuid ?? this.hargaUuid,
+      kategoriUuid: kategoriUuid ?? this.kategoriUuid,
       estimasiWaktuSnapshot:
           estimasiWaktuSnapshot ?? this.estimasiWaktuSnapshot,
       prosesSnapshot: prosesSnapshot ?? this.prosesSnapshot,
@@ -5120,6 +5215,12 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     }
     if (kategoriSnapshot.present) {
       map['kategori_snapshot'] = Variable<String>(kategoriSnapshot.value);
+    }
+    if (hargaUuid.present) {
+      map['harga_uuid'] = Variable<String>(hargaUuid.value);
+    }
+    if (kategoriUuid.present) {
+      map['kategori_uuid'] = Variable<String>(kategoriUuid.value);
     }
     if (estimasiWaktuSnapshot.present) {
       map['estimasi_waktu_snapshot'] = Variable<String>(
@@ -5170,6 +5271,8 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
           ..write('pekerjaanPpatId: $pekerjaanPpatId, ')
           ..write('namaPekerjaanSnapshot: $namaPekerjaanSnapshot, ')
           ..write('kategoriSnapshot: $kategoriSnapshot, ')
+          ..write('hargaUuid: $hargaUuid, ')
+          ..write('kategoriUuid: $kategoriUuid, ')
           ..write('estimasiWaktuSnapshot: $estimasiWaktuSnapshot, ')
           ..write('prosesSnapshot: $prosesSnapshot, ')
           ..write('biayaLayanan: $biayaLayanan, ')
@@ -10159,6 +10262,481 @@ class PetugasLocalsCompanion extends UpdateCompanion<PetugasLocal> {
   }
 }
 
+class $PetugasIdentityMapsTable extends PetugasIdentityMaps
+    with TableInfo<$PetugasIdentityMapsTable, PetugasIdentityMap> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PetugasIdentityMapsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localUuidMeta = const VerificationMeta(
+    'localUuid',
+  );
+  @override
+  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
+    'local_uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES petugas (uuid)',
+    ),
+  );
+  static const VerificationMeta _cloudUuidMeta = const VerificationMeta(
+    'cloudUuid',
+  );
+  @override
+  late final GeneratedColumn<String> cloudUuid = GeneratedColumn<String>(
+    'cloud_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<int> serverId = GeneratedColumn<int>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (state IN (\'local_only\', \'verified\', \'ambiguous\', \'server_only\', \'development\'))',
+  );
+  static const VerificationMeta _evidenceMeta = const VerificationMeta(
+    'evidence',
+  );
+  @override
+  late final GeneratedColumn<String> evidence = GeneratedColumn<String>(
+    'evidence',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    localUuid,
+    cloudUuid,
+    serverId,
+    state,
+    evidence,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'petugas_identity_map';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PetugasIdentityMap> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('local_uuid')) {
+      context.handle(
+        _localUuidMeta,
+        localUuid.isAcceptableOrUnknown(data['local_uuid']!, _localUuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_localUuidMeta);
+    }
+    if (data.containsKey('cloud_uuid')) {
+      context.handle(
+        _cloudUuidMeta,
+        cloudUuid.isAcceptableOrUnknown(data['cloud_uuid']!, _cloudUuidMeta),
+      );
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stateMeta);
+    }
+    if (data.containsKey('evidence')) {
+      context.handle(
+        _evidenceMeta,
+        evidence.isAcceptableOrUnknown(data['evidence']!, _evidenceMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {localUuid};
+  @override
+  PetugasIdentityMap map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PetugasIdentityMap(
+      localUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_uuid'],
+      )!,
+      cloudUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cloud_uuid'],
+      ),
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_id'],
+      ),
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      evidence: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}evidence'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PetugasIdentityMapsTable createAlias(String alias) {
+    return $PetugasIdentityMapsTable(attachedDatabase, alias);
+  }
+}
+
+class PetugasIdentityMap extends DataClass
+    implements Insertable<PetugasIdentityMap> {
+  final String localUuid;
+  final String? cloudUuid;
+  final int? serverId;
+  final String state;
+  final String? evidence;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const PetugasIdentityMap({
+    required this.localUuid,
+    this.cloudUuid,
+    this.serverId,
+    required this.state,
+    this.evidence,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['local_uuid'] = Variable<String>(localUuid);
+    if (!nullToAbsent || cloudUuid != null) {
+      map['cloud_uuid'] = Variable<String>(cloudUuid);
+    }
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<int>(serverId);
+    }
+    map['state'] = Variable<String>(state);
+    if (!nullToAbsent || evidence != null) {
+      map['evidence'] = Variable<String>(evidence);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  PetugasIdentityMapsCompanion toCompanion(bool nullToAbsent) {
+    return PetugasIdentityMapsCompanion(
+      localUuid: Value(localUuid),
+      cloudUuid: cloudUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cloudUuid),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+      state: Value(state),
+      evidence: evidence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(evidence),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory PetugasIdentityMap.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PetugasIdentityMap(
+      localUuid: serializer.fromJson<String>(json['localUuid']),
+      cloudUuid: serializer.fromJson<String?>(json['cloudUuid']),
+      serverId: serializer.fromJson<int?>(json['serverId']),
+      state: serializer.fromJson<String>(json['state']),
+      evidence: serializer.fromJson<String?>(json['evidence']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'localUuid': serializer.toJson<String>(localUuid),
+      'cloudUuid': serializer.toJson<String?>(cloudUuid),
+      'serverId': serializer.toJson<int?>(serverId),
+      'state': serializer.toJson<String>(state),
+      'evidence': serializer.toJson<String?>(evidence),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  PetugasIdentityMap copyWith({
+    String? localUuid,
+    Value<String?> cloudUuid = const Value.absent(),
+    Value<int?> serverId = const Value.absent(),
+    String? state,
+    Value<String?> evidence = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => PetugasIdentityMap(
+    localUuid: localUuid ?? this.localUuid,
+    cloudUuid: cloudUuid.present ? cloudUuid.value : this.cloudUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    state: state ?? this.state,
+    evidence: evidence.present ? evidence.value : this.evidence,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  PetugasIdentityMap copyWithCompanion(PetugasIdentityMapsCompanion data) {
+    return PetugasIdentityMap(
+      localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
+      cloudUuid: data.cloudUuid.present ? data.cloudUuid.value : this.cloudUuid,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      state: data.state.present ? data.state.value : this.state,
+      evidence: data.evidence.present ? data.evidence.value : this.evidence,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PetugasIdentityMap(')
+          ..write('localUuid: $localUuid, ')
+          ..write('cloudUuid: $cloudUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('state: $state, ')
+          ..write('evidence: $evidence, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    localUuid,
+    cloudUuid,
+    serverId,
+    state,
+    evidence,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PetugasIdentityMap &&
+          other.localUuid == this.localUuid &&
+          other.cloudUuid == this.cloudUuid &&
+          other.serverId == this.serverId &&
+          other.state == this.state &&
+          other.evidence == this.evidence &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class PetugasIdentityMapsCompanion extends UpdateCompanion<PetugasIdentityMap> {
+  final Value<String> localUuid;
+  final Value<String?> cloudUuid;
+  final Value<int?> serverId;
+  final Value<String> state;
+  final Value<String?> evidence;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const PetugasIdentityMapsCompanion({
+    this.localUuid = const Value.absent(),
+    this.cloudUuid = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.state = const Value.absent(),
+    this.evidence = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PetugasIdentityMapsCompanion.insert({
+    required String localUuid,
+    this.cloudUuid = const Value.absent(),
+    this.serverId = const Value.absent(),
+    required String state,
+    this.evidence = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : localUuid = Value(localUuid),
+       state = Value(state),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<PetugasIdentityMap> custom({
+    Expression<String>? localUuid,
+    Expression<String>? cloudUuid,
+    Expression<int>? serverId,
+    Expression<String>? state,
+    Expression<String>? evidence,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (localUuid != null) 'local_uuid': localUuid,
+      if (cloudUuid != null) 'cloud_uuid': cloudUuid,
+      if (serverId != null) 'server_id': serverId,
+      if (state != null) 'state': state,
+      if (evidence != null) 'evidence': evidence,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PetugasIdentityMapsCompanion copyWith({
+    Value<String>? localUuid,
+    Value<String?>? cloudUuid,
+    Value<int?>? serverId,
+    Value<String>? state,
+    Value<String?>? evidence,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return PetugasIdentityMapsCompanion(
+      localUuid: localUuid ?? this.localUuid,
+      cloudUuid: cloudUuid ?? this.cloudUuid,
+      serverId: serverId ?? this.serverId,
+      state: state ?? this.state,
+      evidence: evidence ?? this.evidence,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (localUuid.present) {
+      map['local_uuid'] = Variable<String>(localUuid.value);
+    }
+    if (cloudUuid.present) {
+      map['cloud_uuid'] = Variable<String>(cloudUuid.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<int>(serverId.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (evidence.present) {
+      map['evidence'] = Variable<String>(evidence.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PetugasIdentityMapsCompanion(')
+          ..write('localUuid: $localUuid, ')
+          ..write('cloudUuid: $cloudUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('state: $state, ')
+          ..write('evidence: $evidence, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $PekerjaanNotarisHargaLocalsTable extends PekerjaanNotarisHargaLocals
     with
         TableInfo<
@@ -14960,6 +15538,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $PetugasLocalsTable petugasLocals = $PetugasLocalsTable(this);
+  late final $PetugasIdentityMapsTable petugasIdentityMaps =
+      $PetugasIdentityMapsTable(this);
   late final $PekerjaanNotarisHargaLocalsTable pekerjaanNotarisHargaLocals =
       $PekerjaanNotarisHargaLocalsTable(this);
   late final $PekerjaanNotarisProsesLocalsTable pekerjaanNotarisProsesLocals =
@@ -14990,6 +15570,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     pekerjaanKategoris,
     pengeluaranJenis,
     petugasLocals,
+    petugasIdentityMaps,
     pekerjaanNotarisHargaLocals,
     pekerjaanNotarisProsesLocals,
     pekerjaanNotarisAtributLocals,
@@ -18437,6 +19018,8 @@ typedef $$TransaksiDetailsTableCreateCompanionBuilder =
       Value<int?> pekerjaanPpatId,
       required String namaPekerjaanSnapshot,
       Value<String?> kategoriSnapshot,
+      Value<String?> hargaUuid,
+      Value<String?> kategoriUuid,
       Value<String?> estimasiWaktuSnapshot,
       Value<String?> prosesSnapshot,
       Value<double> biayaLayanan,
@@ -18459,6 +19042,8 @@ typedef $$TransaksiDetailsTableUpdateCompanionBuilder =
       Value<int?> pekerjaanPpatId,
       Value<String> namaPekerjaanSnapshot,
       Value<String?> kategoriSnapshot,
+      Value<String?> hargaUuid,
+      Value<String?> kategoriUuid,
       Value<String?> estimasiWaktuSnapshot,
       Value<String?> prosesSnapshot,
       Value<double> biayaLayanan,
@@ -18591,6 +19176,16 @@ class $$TransaksiDetailsTableFilterComposer
 
   ColumnFilters<String> get kategoriSnapshot => $composableBuilder(
     column: $table.kategoriSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get hargaUuid => $composableBuilder(
+    column: $table.hargaUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kategoriUuid => $composableBuilder(
+    column: $table.kategoriUuid,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -18779,6 +19374,16 @@ class $$TransaksiDetailsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get hargaUuid => $composableBuilder(
+    column: $table.hargaUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kategoriUuid => $composableBuilder(
+    column: $table.kategoriUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get estimasiWaktuSnapshot => $composableBuilder(
     column: $table.estimasiWaktuSnapshot,
     builder: (column) => ColumnOrderings(column),
@@ -18933,6 +19538,14 @@ class $$TransaksiDetailsTableAnnotationComposer
 
   GeneratedColumn<String> get kategoriSnapshot => $composableBuilder(
     column: $table.kategoriSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get hargaUuid =>
+      $composableBuilder(column: $table.hargaUuid, builder: (column) => column);
+
+  GeneratedColumn<String> get kategoriUuid => $composableBuilder(
+    column: $table.kategoriUuid,
     builder: (column) => column,
   );
 
@@ -19123,6 +19736,8 @@ class $$TransaksiDetailsTableTableManager
                 Value<int?> pekerjaanPpatId = const Value.absent(),
                 Value<String> namaPekerjaanSnapshot = const Value.absent(),
                 Value<String?> kategoriSnapshot = const Value.absent(),
+                Value<String?> hargaUuid = const Value.absent(),
+                Value<String?> kategoriUuid = const Value.absent(),
                 Value<String?> estimasiWaktuSnapshot = const Value.absent(),
                 Value<String?> prosesSnapshot = const Value.absent(),
                 Value<double> biayaLayanan = const Value.absent(),
@@ -19143,6 +19758,8 @@ class $$TransaksiDetailsTableTableManager
                 pekerjaanPpatId: pekerjaanPpatId,
                 namaPekerjaanSnapshot: namaPekerjaanSnapshot,
                 kategoriSnapshot: kategoriSnapshot,
+                hargaUuid: hargaUuid,
+                kategoriUuid: kategoriUuid,
                 estimasiWaktuSnapshot: estimasiWaktuSnapshot,
                 prosesSnapshot: prosesSnapshot,
                 biayaLayanan: biayaLayanan,
@@ -19165,6 +19782,8 @@ class $$TransaksiDetailsTableTableManager
                 Value<int?> pekerjaanPpatId = const Value.absent(),
                 required String namaPekerjaanSnapshot,
                 Value<String?> kategoriSnapshot = const Value.absent(),
+                Value<String?> hargaUuid = const Value.absent(),
+                Value<String?> kategoriUuid = const Value.absent(),
                 Value<String?> estimasiWaktuSnapshot = const Value.absent(),
                 Value<String?> prosesSnapshot = const Value.absent(),
                 Value<double> biayaLayanan = const Value.absent(),
@@ -19185,6 +19804,8 @@ class $$TransaksiDetailsTableTableManager
                 pekerjaanPpatId: pekerjaanPpatId,
                 namaPekerjaanSnapshot: namaPekerjaanSnapshot,
                 kategoriSnapshot: kategoriSnapshot,
+                hargaUuid: hargaUuid,
+                kategoriUuid: kategoriUuid,
                 estimasiWaktuSnapshot: estimasiWaktuSnapshot,
                 prosesSnapshot: prosesSnapshot,
                 biayaLayanan: biayaLayanan,
@@ -22061,6 +22682,30 @@ final class $$PetugasLocalsTableReferences
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
+
+  static MultiTypedResultKey<
+    $PetugasIdentityMapsTable,
+    List<PetugasIdentityMap>
+  >
+  _petugasIdentityMapsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.petugasIdentityMaps,
+        aliasName: 'petugas__uuid__petugas_identity_map__local_uuid',
+      );
+
+  $$PetugasIdentityMapsTableProcessedTableManager get petugasIdentityMapsRefs {
+    final manager = $$PetugasIdentityMapsTableTableManager(
+      $_db,
+      $_db.petugasIdentityMaps,
+    ).filter((f) => f.localUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _petugasIdentityMapsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 }
 
 class $$PetugasLocalsTableFilterComposer
@@ -22183,6 +22828,31 @@ class $$PetugasLocalsTableFilterComposer
           ),
     );
     return composer;
+  }
+
+  Expression<bool> petugasIdentityMapsRefs(
+    Expression<bool> Function($$PetugasIdentityMapsTableFilterComposer f) f,
+  ) {
+    final $$PetugasIdentityMapsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.petugasIdentityMaps,
+      getReferencedColumn: (t) => t.localUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PetugasIdentityMapsTableFilterComposer(
+            $db: $db,
+            $table: $db.petugasIdentityMaps,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 }
 
@@ -22402,6 +23072,32 @@ class $$PetugasLocalsTableAnnotationComposer
     );
     return composer;
   }
+
+  Expression<T> petugasIdentityMapsRefs<T extends Object>(
+    Expression<T> Function($$PetugasIdentityMapsTableAnnotationComposer a) f,
+  ) {
+    final $$PetugasIdentityMapsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.uuid,
+          referencedTable: $db.petugasIdentityMaps,
+          getReferencedColumn: (t) => t.localUuid,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PetugasIdentityMapsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.petugasIdentityMaps,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$PetugasLocalsTableTableManager
@@ -22417,7 +23113,10 @@ class $$PetugasLocalsTableTableManager
           $$PetugasLocalsTableUpdateCompanionBuilder,
           (PetugasLocal, $$PetugasLocalsTableReferences),
           PetugasLocal,
-          PrefetchHooks Function({bool jenisKelamin})
+          PrefetchHooks Function({
+            bool jenisKelamin,
+            bool petugasIdentityMapsRefs,
+          })
         > {
   $$PetugasLocalsTableTableManager(_$AppDatabase db, $PetugasLocalsTable table)
     : super(
@@ -22522,7 +23221,405 @@ class $$PetugasLocalsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({jenisKelamin = false}) {
+          prefetchHooksCallback:
+              ({jenisKelamin = false, petugasIdentityMapsRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (petugasIdentityMapsRefs) db.petugasIdentityMaps,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (jenisKelamin) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.jenisKelamin,
+                            referencedTable: $$PetugasLocalsTableReferences
+                                ._jenisKelaminTable(db),
+                            referencedColumn: $$PetugasLocalsTableReferences
+                                ._jenisKelaminTable(db)
+                                .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (petugasIdentityMapsRefs)
+                        await $_getPrefetchedData<
+                          PetugasLocal,
+                          $PetugasLocalsTable,
+                          PetugasIdentityMap
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PetugasLocalsTableReferences
+                              ._petugasIdentityMapsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PetugasLocalsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).petugasIdentityMapsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.localUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$PetugasLocalsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PetugasLocalsTable,
+      PetugasLocal,
+      $$PetugasLocalsTableFilterComposer,
+      $$PetugasLocalsTableOrderingComposer,
+      $$PetugasLocalsTableAnnotationComposer,
+      $$PetugasLocalsTableCreateCompanionBuilder,
+      $$PetugasLocalsTableUpdateCompanionBuilder,
+      (PetugasLocal, $$PetugasLocalsTableReferences),
+      PetugasLocal,
+      PrefetchHooks Function({bool jenisKelamin, bool petugasIdentityMapsRefs})
+    >;
+typedef $$PetugasIdentityMapsTableCreateCompanionBuilder =
+    PetugasIdentityMapsCompanion Function({
+      required String localUuid,
+      Value<String?> cloudUuid,
+      Value<int?> serverId,
+      required String state,
+      Value<String?> evidence,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$PetugasIdentityMapsTableUpdateCompanionBuilder =
+    PetugasIdentityMapsCompanion Function({
+      Value<String> localUuid,
+      Value<String?> cloudUuid,
+      Value<int?> serverId,
+      Value<String> state,
+      Value<String?> evidence,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$PetugasIdentityMapsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $PetugasIdentityMapsTable,
+          PetugasIdentityMap
+        > {
+  $$PetugasIdentityMapsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $PetugasLocalsTable _localUuidTable(_$AppDatabase db) => db
+      .petugasLocals
+      .createAlias('petugas_identity_map__local_uuid__petugas__uuid');
+
+  $$PetugasLocalsTableProcessedTableManager get localUuid {
+    final $_column = $_itemColumn<String>('local_uuid')!;
+
+    final manager = $$PetugasLocalsTableTableManager(
+      $_db,
+      $_db.petugasLocals,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_localUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PetugasIdentityMapsTableFilterComposer
+    extends Composer<_$AppDatabase, $PetugasIdentityMapsTable> {
+  $$PetugasIdentityMapsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get cloudUuid => $composableBuilder(
+    column: $table.cloudUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get evidence => $composableBuilder(
+    column: $table.evidence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$PetugasLocalsTableFilterComposer get localUuid {
+    final $$PetugasLocalsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localUuid,
+      referencedTable: $db.petugasLocals,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PetugasLocalsTableFilterComposer(
+            $db: $db,
+            $table: $db.petugasLocals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PetugasIdentityMapsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PetugasIdentityMapsTable> {
+  $$PetugasIdentityMapsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get cloudUuid => $composableBuilder(
+    column: $table.cloudUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get evidence => $composableBuilder(
+    column: $table.evidence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$PetugasLocalsTableOrderingComposer get localUuid {
+    final $$PetugasLocalsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localUuid,
+      referencedTable: $db.petugasLocals,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PetugasLocalsTableOrderingComposer(
+            $db: $db,
+            $table: $db.petugasLocals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PetugasIdentityMapsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PetugasIdentityMapsTable> {
+  $$PetugasIdentityMapsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get cloudUuid =>
+      $composableBuilder(column: $table.cloudUuid, builder: (column) => column);
+
+  GeneratedColumn<int> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<String> get evidence =>
+      $composableBuilder(column: $table.evidence, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$PetugasLocalsTableAnnotationComposer get localUuid {
+    final $$PetugasLocalsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localUuid,
+      referencedTable: $db.petugasLocals,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PetugasLocalsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.petugasLocals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PetugasIdentityMapsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PetugasIdentityMapsTable,
+          PetugasIdentityMap,
+          $$PetugasIdentityMapsTableFilterComposer,
+          $$PetugasIdentityMapsTableOrderingComposer,
+          $$PetugasIdentityMapsTableAnnotationComposer,
+          $$PetugasIdentityMapsTableCreateCompanionBuilder,
+          $$PetugasIdentityMapsTableUpdateCompanionBuilder,
+          (PetugasIdentityMap, $$PetugasIdentityMapsTableReferences),
+          PetugasIdentityMap,
+          PrefetchHooks Function({bool localUuid})
+        > {
+  $$PetugasIdentityMapsTableTableManager(
+    _$AppDatabase db,
+    $PetugasIdentityMapsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PetugasIdentityMapsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PetugasIdentityMapsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PetugasIdentityMapsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> localUuid = const Value.absent(),
+                Value<String?> cloudUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<String?> evidence = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PetugasIdentityMapsCompanion(
+                localUuid: localUuid,
+                cloudUuid: cloudUuid,
+                serverId: serverId,
+                state: state,
+                evidence: evidence,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String localUuid,
+                Value<String?> cloudUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                required String state,
+                Value<String?> evidence = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => PetugasIdentityMapsCompanion.insert(
+                localUuid: localUuid,
+                cloudUuid: cloudUuid,
+                serverId: serverId,
+                state: state,
+                evidence: evidence,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PetugasIdentityMapsTable, PetugasIdentityMap>(
+                    table,
+                  ),
+                  $$PetugasIdentityMapsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({localUuid = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -22542,15 +23639,15 @@ class $$PetugasLocalsTableTableManager
                       dynamic
                     >
                   >(state) {
-                    if (jenisKelamin) {
+                    if (localUuid) {
                       state = state.withJoin(
                         currentTable: table,
-                        currentColumn: table.jenisKelamin,
-                        referencedTable: $$PetugasLocalsTableReferences
-                            ._jenisKelaminTable(db),
-                        referencedColumn: $$PetugasLocalsTableReferences
-                            ._jenisKelaminTable(db)
-                            .id,
+                        currentColumn: table.localUuid,
+                        referencedTable: $$PetugasIdentityMapsTableReferences
+                            ._localUuidTable(db),
+                        referencedColumn: $$PetugasIdentityMapsTableReferences
+                            ._localUuidTable(db)
+                            .uuid,
                       ) as T;
                     }
 
@@ -22565,19 +23662,19 @@ class $$PetugasLocalsTableTableManager
       );
 }
 
-typedef $$PetugasLocalsTableProcessedTableManager =
+typedef $$PetugasIdentityMapsTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $PetugasLocalsTable,
-      PetugasLocal,
-      $$PetugasLocalsTableFilterComposer,
-      $$PetugasLocalsTableOrderingComposer,
-      $$PetugasLocalsTableAnnotationComposer,
-      $$PetugasLocalsTableCreateCompanionBuilder,
-      $$PetugasLocalsTableUpdateCompanionBuilder,
-      (PetugasLocal, $$PetugasLocalsTableReferences),
-      PetugasLocal,
-      PrefetchHooks Function({bool jenisKelamin})
+      $PetugasIdentityMapsTable,
+      PetugasIdentityMap,
+      $$PetugasIdentityMapsTableFilterComposer,
+      $$PetugasIdentityMapsTableOrderingComposer,
+      $$PetugasIdentityMapsTableAnnotationComposer,
+      $$PetugasIdentityMapsTableCreateCompanionBuilder,
+      $$PetugasIdentityMapsTableUpdateCompanionBuilder,
+      (PetugasIdentityMap, $$PetugasIdentityMapsTableReferences),
+      PetugasIdentityMap,
+      PrefetchHooks Function({bool localUuid})
     >;
 typedef $$PekerjaanNotarisHargaLocalsTableCreateCompanionBuilder =
     PekerjaanNotarisHargaLocalsCompanion Function({
@@ -26290,6 +27387,8 @@ class $AppDatabaseManager {
       $$PengeluaranJenisTableTableManager(_db, _db.pengeluaranJenis);
   $$PetugasLocalsTableTableManager get petugasLocals =>
       $$PetugasLocalsTableTableManager(_db, _db.petugasLocals);
+  $$PetugasIdentityMapsTableTableManager get petugasIdentityMaps =>
+      $$PetugasIdentityMapsTableTableManager(_db, _db.petugasIdentityMaps);
   $$PekerjaanNotarisHargaLocalsTableTableManager
   get pekerjaanNotarisHargaLocals =>
       $$PekerjaanNotarisHargaLocalsTableTableManager(

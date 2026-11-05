@@ -17,6 +17,77 @@ import '../widgets/transaksi_proses_list.dart';
 
 enum TransactionType { notaris, ppat }
 
+class TransactionPaymentHistoryDialog extends StatelessWidget {
+  const TransactionPaymentHistoryDialog({
+    super.key,
+    required this.transactionNumber,
+    required this.history,
+    required this.saved,
+  });
+
+  final String transactionNumber;
+  final Future<List<TransaksiRiwayatPembayaran>> history;
+  final bool saved;
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text('Riwayat Pembayaran $transactionNumber'),
+    content: SizedBox(
+      width: 520,
+      height: 300,
+      child: !saved
+          ? const Center(
+              child: Text('Simpan transaksi untuk melihat riwayat pembayaran.'),
+            )
+          : FutureBuilder<List<TransaksiRiwayatPembayaran>>(
+              future: history,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return const Center(
+                    child: Text('Gagal memuat riwayat pembayaran.'),
+                  );
+                }
+                final rows =
+                    snapshot.data ?? const <TransaksiRiwayatPembayaran>[];
+                if (rows.isEmpty) {
+                  return const Center(
+                    child: Text('Belum ada riwayat pembayaran.'),
+                  );
+                }
+                return ListView.separated(
+                  itemCount: rows.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final row = rows[index];
+                    final date = row.tanggalPembayaran;
+                    return ListTile(
+                      title: Text(
+                        'Rp ${_formatCurrencyDigits(row.nominal.toStringAsFixed(0))}',
+                      ),
+                      subtitle: Text(
+                        '${date.day.toString().padLeft(2, '0')}/'
+                        '${date.month.toString().padLeft(2, '0')}/${date.year} · '
+                        '${row.metodePembayaran}'
+                        '${row.keterangan == null ? '' : ' · ${row.keterangan}'}',
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Tutup'),
+      ),
+    ],
+  );
+}
+
 final _transactionJobUuid = Uuid();
 
 /// Formats numeric currency input using Indonesian thousands separators.
@@ -70,11 +141,13 @@ class DummyProcess {
   final String id;
   final String name;
   final String status;
+  final List<String> attributes;
 
   const DummyProcess({
     required this.id,
     required this.name,
     this.status = 'Belum Valid',
+    this.attributes = const [],
   });
 }
 
@@ -127,6 +200,8 @@ class DummyTransactionJob {
   final int? masterPpatId;
   final int? masterPriceId;
   final int? masterCategoryId;
+  final String? priceUuid;
+  final String? categoryUuid;
 
   /// Stable local detail UUID; null for a newly added job.
   final String localDetailUuid;
@@ -144,6 +219,8 @@ class DummyTransactionJob {
     this.masterPpatId,
     this.masterPriceId,
     this.masterCategoryId,
+    this.priceUuid,
+    this.categoryUuid,
     String? localDetailUuid,
   }) : localDetailUuid = localDetailUuid ?? _transactionJobUuid.v4();
 
@@ -658,6 +735,13 @@ class _TransactionDesktopScreenState
                       id: value['id']?.toString() ?? '',
                       name: value['name']?.toString() ?? '',
                       status: value['status']?.toString() ?? 'Belum Valid',
+                      attributes: [
+                        for (final attribute
+                            in (value['attributes'] is List
+                                ? value['attributes'] as List
+                                : const []))
+                          attribute.toString(),
+                      ],
                     ),
               ];
             } on FormatException {
@@ -670,7 +754,7 @@ class _TransactionDesktopScreenState
 
           // Existing transactions created before schema v6 have no snapshot,
           // so retain the old Master-based fallback for those records.
-          if (processes.isEmpty && detail.pekerjaanNotarisId != null) {
+          if (savedProcesses == null && detail.pekerjaanNotarisId != null) {
             final aggregate = await ref
                 .read(pekerjaanNotarisRepositoryProvider)
                 .getAggregate(detail.pekerjaanNotarisId!);
@@ -682,7 +766,7 @@ class _TransactionDesktopScreenState
                   status: item.detail,
                 ),
             ];
-          } else if (processes.isEmpty && detail.pekerjaanPpatId != null) {
+          } else if (savedProcesses == null && detail.pekerjaanPpatId != null) {
             final aggregate = await ref
                 .read(pekerjaanPpatRepositoryProvider)
                 .getAggregate(detail.pekerjaanPpatId!);
@@ -709,6 +793,8 @@ class _TransactionDesktopScreenState
               localDetailUuid: detail.uuid,
               masterNotarisId: detail.pekerjaanNotarisId,
               masterPpatId: detail.pekerjaanPpatId,
+              priceUuid: detail.hargaUuid,
+              categoryUuid: detail.kategoriUuid,
             ),
           );
         }
@@ -1451,10 +1537,7 @@ class _TransactionDesktopScreenState
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () => _showSimpleInfoDialog(
-                'Riwayat Pembayaran',
-                'Prototype riwayat pembayaran untuk transaksi $transactionNumber.',
-              ),
+              onPressed: _showPaymentHistory,
               style: outlinedButtonStyle(),
               icon: const Icon(Icons.history, size: 18),
               label: const Text('Lihat Riwayat Pembayaran'),
@@ -1651,6 +1734,8 @@ class _TransactionDesktopScreenState
                     detailUuid: job.localDetailUuid,
                     pekerjaanNotarisId: job.masterNotarisId,
                     pekerjaanPpatId: job.masterPpatId,
+                    hargaUuid: job.priceUuid,
+                    kategoriUuid: job.categoryUuid,
                     kategoriSnapshot: job.categories
                         .map((category) => category.name)
                         .join(', '),
@@ -1662,6 +1747,7 @@ class _TransactionDesktopScreenState
                               'id': process.id,
                               'name': process.name,
                               'status': process.status,
+                              'attributes': process.attributes,
                             },
                           )
                           .toList(),
@@ -1703,7 +1789,8 @@ class _TransactionDesktopScreenState
       if (!mounted) return;
       setState(() => _isSaving = false);
       final errorText = error.toString();
-      final duplicateNumber = errorText.contains('Nomor transaksi') ||
+      final duplicateNumber =
+          errorText.contains('Nomor transaksi') ||
           errorText.contains('idx_transaksis_no_akta_unique');
       if (duplicateNumber && _editingTransactionId == null) {
         await _refreshTransactionNumber();
@@ -2325,6 +2412,20 @@ class _TransactionDesktopScreenState
     );
   }
 
+  void _showPaymentHistory() {
+    final id = int.tryParse(_editingTransactionId ?? '');
+    showDialog<void>(
+      context: context,
+      builder: (_) => TransactionPaymentHistoryDialog(
+        transactionNumber: transactionNumber,
+        history: id == null
+            ? Future.value(const <TransaksiRiwayatPembayaran>[])
+            : ref.read(transactionRepositoryProvider).getPaymentHistory(id),
+        saved: id != null,
+      ),
+    );
+  }
+
   void _showSimpleInfoDialog(String title, String message) {
     showDialog<void>(
       context: context,
@@ -2482,7 +2583,19 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
   late List<DummyProcess> selectedProcesses;
   int? selectedMasterJobId;
   int? selectedMasterPriceId;
-  List<({int id, int categoryId, String name, String price, String estimate})>
+  String? selectedPriceUuid;
+  String? selectedCategoryUuid;
+  List<
+    ({
+      int id,
+      String uuid,
+      int categoryId,
+      String categoryUuid,
+      String name,
+      String price,
+      String estimate,
+    })
+  >
   _masterPriceOptions = [];
   bool _loadingMasterDetails = false;
   String? _masterLoadError;
@@ -2492,6 +2605,8 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
     super.initState();
 
     final job = widget.initialJob;
+    selectedPriceUuid = job?.priceUuid;
+    selectedCategoryUuid = job?.categoryUuid;
 
     nameController = TextEditingController(text: job?.name ?? '');
     codeController = TextEditingController(text: job?.jobCode ?? '');
@@ -2527,9 +2642,16 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
     final preserveSavedProcesses =
         widget.initialJob != null && id == originalMasterId;
     final savedProcesses = List<DummyProcess>.from(selectedProcesses);
+    final savedCategories = List<DummyCategory>.from(selectedCategories);
+    final savedEstimate = estimatedController.text;
+    final savedPrice = serviceCostController.text;
     setState(() {
       selectedMasterJobId = id;
       selectedMasterPriceId = null;
+      if (!preserveSavedProcesses) {
+        selectedPriceUuid = null;
+        selectedCategoryUuid = null;
+      }
       _masterPriceOptions = [];
       selectedCategories = [];
       estimatedController.clear();
@@ -2560,24 +2682,40 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
           if (categoryNames.containsKey(item.kategoriPekerjaanId))
             (
               id: item.id,
+              uuid: item.uuid,
               categoryId: item.kategoriPekerjaanId,
+              categoryUuid: categoryData
+                  .singleWhere((c) => c.id == item.kategoriPekerjaanId)
+                  .uuid,
               name: categoryNames[item.kategoriPekerjaanId]!,
               price: item.harga,
               estimate: item.estimasiWaktu,
             ),
       ];
       setState(() {
-        nameController.text = aggregate.nama;
+        if (!preserveSavedProcesses) nameController.text = aggregate.nama;
         codeController.text =
             '${widget.type == TransactionType.notaris ? 'N' : 'P'}-${aggregate.id}';
         _masterPriceOptions = priceOptions;
-        final currentPrice = priceOptions
-            .where((item) => item.id == widget.initialJob?.masterPriceId)
-            .firstOrNull;
+        final currentPrice =
+            priceOptions
+                .where((item) => item.uuid == selectedPriceUuid)
+                .firstOrNull ??
+            (!preserveSavedProcesses && priceOptions.length == 1
+                ? priceOptions.first
+                : null);
+        if (!preserveSavedProcesses && currentPrice != null) {
+          selectedPriceUuid = currentPrice.uuid;
+          selectedCategoryUuid = currentPrice.categoryUuid;
+        }
         selectedMasterPriceId =
             currentPrice?.id ??
-            (priceOptions.length == 1 ? priceOptions.first.id : null);
-        selectedCategories = currentPrice == null
+            (!preserveSavedProcesses && priceOptions.length == 1
+                ? priceOptions.first.id
+                : null);
+        selectedCategories = preserveSavedProcesses
+            ? savedCategories
+            : currentPrice == null
             ? []
             : [
                 DummyCategory(
@@ -2585,13 +2723,17 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                   name: currentPrice.name,
                 ),
               ];
-        estimatedController.text = currentPrice?.estimate ?? '';
-        serviceCostController.text = currentPrice == null
+        estimatedController.text = preserveSavedProcesses
+            ? savedEstimate
+            : currentPrice?.estimate ?? '';
+        serviceCostController.text = preserveSavedProcesses
+            ? savedPrice
+            : currentPrice == null
             ? ''
             : _formatCurrencyDigits(
                 _parseCurrency(currentPrice.price).toStringAsFixed(0),
               );
-        selectedProcesses = preserveSavedProcesses && savedProcesses.isNotEmpty
+        selectedProcesses = preserveSavedProcesses
             ? savedProcesses
             : [
                 for (final item in aggregate.proses)
@@ -2599,6 +2741,10 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                     id: item.id.toString(),
                     name: item.nama,
                     status: item.detail,
+                    attributes: [
+                      for (final attribute in item.atribut)
+                        attribute.atribut ?? '',
+                    ],
                   ),
               ];
         _loadingMasterDetails = false;
@@ -2673,7 +2819,8 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
       return;
     }
 
-    if (selectedMasterJobId == null || selectedMasterPriceId == null) {
+    if (selectedMasterJobId == null ||
+        (selectedMasterPriceId == null && widget.initialJob == null)) {
       _showValidation(
         'Pilih pekerjaan dan kategori/harga dari Master terlebih dahulu.',
       );
@@ -2707,6 +2854,9 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
           ? selectedMasterJobId
           : null,
       masterPriceId: selectedMasterPriceId,
+      priceUuid: selectedPriceUuid,
+      categoryUuid: selectedCategoryUuid,
+      localDetailUuid: widget.initialJob?.localDetailUuid,
       masterCategoryId: selectedCategories.isEmpty
           ? null
           : int.tryParse(selectedCategories.first.id),
@@ -2934,6 +3084,8 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                               if (selected == null) return;
                               setState(() {
                                 selectedMasterPriceId = selected.id;
+                                selectedPriceUuid = selected.uuid;
+                                selectedCategoryUuid = selected.categoryUuid;
                                 selectedCategories = [
                                   DummyCategory(
                                     id: selected.categoryId.toString(),

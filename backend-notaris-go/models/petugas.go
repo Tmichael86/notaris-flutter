@@ -4,6 +4,8 @@ import "time"
 
 type Petugas struct {
 	ID               uint       `gorm:"primaryKey;column:id" json:"id"`
+	UUID             *string    `gorm:"column:uuid" json:"uuid,omitempty"`
+	RowVersion       int64      `gorm:"column:row_version" json:"row_version"`
 	NIK              *string    `gorm:"column:nik" json:"nik"`
 	Nama             string     `gorm:"column:nama" json:"nama"`
 	Alamat           *string    `gorm:"column:alamat" json:"alamat"`
@@ -18,6 +20,7 @@ type Petugas struct {
 	UpdatedBy        *uint      `gorm:"column:updated_by" json:"updated_by"`
 	CreatedAt        *time.Time `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt        *time.Time `gorm:"column:updated_at" json:"updated_at"`
+	DeletedAt        *time.Time `gorm:"column:deleted_at" json:"deleted_at,omitempty"`
 	Status           int16      `gorm:"column:status" json:"status"`
 }
 
