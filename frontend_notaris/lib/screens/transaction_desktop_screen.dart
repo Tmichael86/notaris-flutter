@@ -200,6 +200,8 @@ class DummyTransactionJob {
   final int? masterPpatId;
   final int? masterPriceId;
   final int? masterCategoryId;
+  final String? priceUuid;
+  final String? categoryUuid;
 
   /// Stable local detail UUID; null for a newly added job.
   final String localDetailUuid;
@@ -217,6 +219,8 @@ class DummyTransactionJob {
     this.masterPpatId,
     this.masterPriceId,
     this.masterCategoryId,
+    this.priceUuid,
+    this.categoryUuid,
     String? localDetailUuid,
   }) : localDetailUuid = localDetailUuid ?? _transactionJobUuid.v4();
 
@@ -750,7 +754,7 @@ class _TransactionDesktopScreenState
 
           // Existing transactions created before schema v6 have no snapshot,
           // so retain the old Master-based fallback for those records.
-          if (processes.isEmpty && detail.pekerjaanNotarisId != null) {
+          if (savedProcesses == null && detail.pekerjaanNotarisId != null) {
             final aggregate = await ref
                 .read(pekerjaanNotarisRepositoryProvider)
                 .getAggregate(detail.pekerjaanNotarisId!);
@@ -762,7 +766,7 @@ class _TransactionDesktopScreenState
                   status: item.detail,
                 ),
             ];
-          } else if (processes.isEmpty && detail.pekerjaanPpatId != null) {
+          } else if (savedProcesses == null && detail.pekerjaanPpatId != null) {
             final aggregate = await ref
                 .read(pekerjaanPpatRepositoryProvider)
                 .getAggregate(detail.pekerjaanPpatId!);
@@ -789,6 +793,8 @@ class _TransactionDesktopScreenState
               localDetailUuid: detail.uuid,
               masterNotarisId: detail.pekerjaanNotarisId,
               masterPpatId: detail.pekerjaanPpatId,
+              priceUuid: detail.hargaUuid,
+              categoryUuid: detail.kategoriUuid,
             ),
           );
         }
@@ -1728,6 +1734,8 @@ class _TransactionDesktopScreenState
                     detailUuid: job.localDetailUuid,
                     pekerjaanNotarisId: job.masterNotarisId,
                     pekerjaanPpatId: job.masterPpatId,
+                    hargaUuid: job.priceUuid,
+                    kategoriUuid: job.categoryUuid,
                     kategoriSnapshot: job.categories
                         .map((category) => category.name)
                         .join(', '),
@@ -2575,7 +2583,19 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
   late List<DummyProcess> selectedProcesses;
   int? selectedMasterJobId;
   int? selectedMasterPriceId;
-  List<({int id, int categoryId, String name, String price, String estimate})>
+  String? selectedPriceUuid;
+  String? selectedCategoryUuid;
+  List<
+    ({
+      int id,
+      String uuid,
+      int categoryId,
+      String categoryUuid,
+      String name,
+      String price,
+      String estimate,
+    })
+  >
   _masterPriceOptions = [];
   bool _loadingMasterDetails = false;
   String? _masterLoadError;
@@ -2585,6 +2605,8 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
     super.initState();
 
     final job = widget.initialJob;
+    selectedPriceUuid = job?.priceUuid;
+    selectedCategoryUuid = job?.categoryUuid;
 
     nameController = TextEditingController(text: job?.name ?? '');
     codeController = TextEditingController(text: job?.jobCode ?? '');
@@ -2626,6 +2648,10 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
     setState(() {
       selectedMasterJobId = id;
       selectedMasterPriceId = null;
+      if (!preserveSavedProcesses) {
+        selectedPriceUuid = null;
+        selectedCategoryUuid = null;
+      }
       _masterPriceOptions = [];
       selectedCategories = [];
       estimatedController.clear();
@@ -2656,23 +2682,37 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
           if (categoryNames.containsKey(item.kategoriPekerjaanId))
             (
               id: item.id,
+              uuid: item.uuid,
               categoryId: item.kategoriPekerjaanId,
+              categoryUuid: categoryData
+                  .singleWhere((c) => c.id == item.kategoriPekerjaanId)
+                  .uuid,
               name: categoryNames[item.kategoriPekerjaanId]!,
               price: item.harga,
               estimate: item.estimasiWaktu,
             ),
       ];
       setState(() {
-        nameController.text = aggregate.nama;
+        if (!preserveSavedProcesses) nameController.text = aggregate.nama;
         codeController.text =
             '${widget.type == TransactionType.notaris ? 'N' : 'P'}-${aggregate.id}';
         _masterPriceOptions = priceOptions;
-        final currentPrice = priceOptions
-            .where((item) => item.id == widget.initialJob?.masterPriceId)
-            .firstOrNull;
+        final currentPrice =
+            priceOptions
+                .where((item) => item.uuid == selectedPriceUuid)
+                .firstOrNull ??
+            (!preserveSavedProcesses && priceOptions.length == 1
+                ? priceOptions.first
+                : null);
+        if (!preserveSavedProcesses && currentPrice != null) {
+          selectedPriceUuid = currentPrice.uuid;
+          selectedCategoryUuid = currentPrice.categoryUuid;
+        }
         selectedMasterPriceId =
             currentPrice?.id ??
-            (priceOptions.length == 1 ? priceOptions.first.id : null);
+            (!preserveSavedProcesses && priceOptions.length == 1
+                ? priceOptions.first.id
+                : null);
         selectedCategories = preserveSavedProcesses
             ? savedCategories
             : currentPrice == null
@@ -2693,7 +2733,7 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
             : _formatCurrencyDigits(
                 _parseCurrency(currentPrice.price).toStringAsFixed(0),
               );
-        selectedProcesses = preserveSavedProcesses && savedProcesses.isNotEmpty
+        selectedProcesses = preserveSavedProcesses
             ? savedProcesses
             : [
                 for (final item in aggregate.proses)
@@ -2779,7 +2819,8 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
       return;
     }
 
-    if (selectedMasterJobId == null || selectedMasterPriceId == null) {
+    if (selectedMasterJobId == null ||
+        (selectedMasterPriceId == null && widget.initialJob == null)) {
       _showValidation(
         'Pilih pekerjaan dan kategori/harga dari Master terlebih dahulu.',
       );
@@ -2813,6 +2854,9 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
           ? selectedMasterJobId
           : null,
       masterPriceId: selectedMasterPriceId,
+      priceUuid: selectedPriceUuid,
+      categoryUuid: selectedCategoryUuid,
+      localDetailUuid: widget.initialJob?.localDetailUuid,
       masterCategoryId: selectedCategories.isEmpty
           ? null
           : int.tryParse(selectedCategories.first.id),
@@ -3040,6 +3084,8 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                               if (selected == null) return;
                               setState(() {
                                 selectedMasterPriceId = selected.id;
+                                selectedPriceUuid = selected.uuid;
+                                selectedCategoryUuid = selected.categoryUuid;
                                 selectedCategories = [
                                   DummyCategory(
                                     id: selected.categoryId.toString(),

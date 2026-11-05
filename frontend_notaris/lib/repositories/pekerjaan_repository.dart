@@ -67,12 +67,14 @@ class PekerjaanAggregateData {
 
 class PekerjaanHargaData {
   final int id;
+  final String uuid;
   final int kategoriPekerjaanId;
   final String harga;
   final String estimasiWaktu;
 
   const PekerjaanHargaData({
     required this.id,
+    required this.uuid,
     required this.kategoriPekerjaanId,
     required this.harga,
     required this.estimasiWaktu,
@@ -131,6 +133,7 @@ class PekerjaanNotarisRepository {
         for (final item in harga)
           PekerjaanHargaData(
             id: item.id,
+            uuid: item.uuid,
             kategoriPekerjaanId: item.kategoriPekerjaanId,
             harga: item.harga,
             estimasiWaktu: item.estimasiWaktu,
@@ -608,6 +611,7 @@ class PekerjaanPpatRepository {
         for (final item in harga)
           PekerjaanHargaData(
             id: item.id,
+            uuid: item.uuid,
             kategoriPekerjaanId: item.kategoriPekerjaanId,
             harga: item.harga,
             estimasiWaktu: item.estimasiWaktu,

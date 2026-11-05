@@ -85,6 +85,8 @@ class TransaksiDetails extends Table {
       integer().nullable().references(PekerjaanPpatLocals, #id)();
   TextColumn get namaPekerjaanSnapshot => text()();
   TextColumn get kategoriSnapshot => text().nullable()();
+  TextColumn get hargaUuid => text().nullable()();
+  TextColumn get kategoriUuid => text().nullable()();
   TextColumn get estimasiWaktuSnapshot => text().nullable()();
   // Process checklist captured when this job is attached to a transaction.
   // Keep it as a snapshot so manually-added processes survive reloads.
@@ -261,7 +263,7 @@ class AppDatabase extends _$AppDatabase {
   final String? petugasBaselinePath;
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -276,6 +278,7 @@ class AppDatabase extends _$AppDatabase {
       await _createSyncLogStorage();
       await _createNotarisCloudStorage();
       await _createPpatCloudStorage();
+      await _createTransactionCloudStorage();
     },
     onUpgrade: (Migrator m, int from, int to) async {
       // Keep all pending migration steps atomic. If V8 UUID validation fails,
@@ -427,6 +430,11 @@ class AppDatabase extends _$AppDatabase {
         if (from < 16) {
           await _createPpatCloudStorage();
         }
+        if (from < 17) {
+          await m.addColumn(transaksiDetails, transaksiDetails.hargaUuid);
+          await m.addColumn(transaksiDetails, transaksiDetails.kategoriUuid);
+          await _createTransactionCloudStorage();
+        }
       });
     },
   );
@@ -486,6 +494,18 @@ class AppDatabase extends _$AppDatabase {
       'local_uuid TEXT PRIMARY KEY REFERENCES pekerjaan_ppat(uuid), '
       'mutation_id TEXT NOT NULL UNIQUE, payload TEXT NOT NULL, '
       'state TEXT NOT NULL CHECK(state IN (\'pending\',\'acked\')))',
+    );
+  }
+
+  Future<void> _createTransactionCloudStorage() async {
+    await customStatement(
+      'CREATE TABLE transaction_cloud_identity (local_uuid TEXT PRIMARY KEY REFERENCES transaksis(uuid), cloud_uuid TEXT NOT NULL UNIQUE, scope TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision=1), final_number TEXT NOT NULL UNIQUE, snapshot TEXT NOT NULL)',
+    );
+    await customStatement(
+      'CREATE TABLE transaction_cloud_pending (local_uuid TEXT PRIMARY KEY REFERENCES transaksis(uuid), mutation_id TEXT NOT NULL UNIQUE, payload TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN (\'pending\',\'acked\')))',
+    );
+    await customStatement(
+      'CREATE TABLE transaction_cloud_feed (scope TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0 CHECK(cursor>=0))',
     );
   }
 

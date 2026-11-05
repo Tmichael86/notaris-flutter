@@ -21,7 +21,7 @@ class TransactionCloudReferences {
   /// prices and integer IDs cannot reconstruct a lost historical selection.
   Future<Map<String, dynamic>> prepare(
     int transactionId, {
-    required Map<String, String> selectedPriceUuids,
+    Map<String, String> selectedPriceUuids = const {},
   }) => db.transaction(() async {
     if (petugasScope.isEmpty || masterScope.isEmpty) {
       throw StateError('Reference scopes required');
@@ -95,8 +95,10 @@ class TransactionCloudReferences {
             ))
             .get();
     if (details.isEmpty ||
-        details.length != selectedPriceUuids.length ||
-        details.any((d) => !selectedPriceUuids.containsKey(d.uuid))) {
+        details.any((d) => d.hargaUuid == null || d.kategoriUuid == null) ||
+        selectedPriceUuids.entries.any(
+          (e) => !details.any((d) => d.uuid == e.key && d.hargaUuid == e.value),
+        )) {
       throw StateError(
         'Explicit price/category provenance required for every detail',
       );
@@ -125,7 +127,7 @@ class TransactionCloudReferences {
           !_uuid.hasMatch(rows.single.read<String>('cloud_uuid'))) {
         throw StateError('Job cloud identity unresolved');
       }
-      final priceUuid = selectedPriceUuids[detail.uuid]!;
+      final priceUuid = detail.hargaUuid!;
       if (!_uuid.hasMatch(priceUuid)) {
         throw StateError('Invalid selected price UUID');
       }
@@ -136,7 +138,8 @@ class TransactionCloudReferences {
           )
           .get();
       if (price.length != 1 ||
-          !_uuid.hasMatch(price.single.read<String>('category_uuid'))) {
+          !_uuid.hasMatch(price.single.read<String>('category_uuid')) ||
+          price.single.read<String>('category_uuid') != detail.kategoriUuid) {
         throw StateError('Price/category reference unresolved');
       }
       jobs.add({

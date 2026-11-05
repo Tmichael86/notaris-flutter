@@ -4,7 +4,77 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/database/app_database.dart';
 
+Future<void> stripV17(AppDatabase db) async {
+  for (final table in [
+    'transaction_cloud_pending',
+    'transaction_cloud_identity',
+    'transaction_cloud_feed',
+  ]) {
+    await db.customStatement('DROP TABLE $table');
+  }
+  await db.customStatement(
+    'ALTER TABLE transaksi_details DROP COLUMN harga_uuid',
+  );
+  await db.customStatement(
+    'ALTER TABLE transaksi_details DROP COLUMN kategori_uuid',
+  );
+}
+
 void main() {
+  test(
+    'V16 to V17 preserves legacy unresolved provenance and local data',
+    () async {
+      final folder = await Directory.systemTemp.createTemp('transaction_v16_');
+      addTearDown(() => folder.delete(recursive: true));
+      final file = File('${folder.path}/fixture.sqlite');
+      final before = AppDatabase.forTesting(NativeDatabase(file));
+      await before.customStatement(
+        "INSERT INTO transaksis(id,uuid,no_akta,total) VALUES(1,'legacy-tx','LEGACY-1',100)",
+      );
+      await before.customStatement(
+        "INSERT INTO transaksi_details(uuid,transaksi_id,jenis_pekerjaan,nama_pekerjaan_snapshot,kategori_snapshot,biaya_layanan,total_snapshot) VALUES('legacy-detail',1,'notaris','historical job','historical category',100,100)",
+      );
+      await before.customStatement(
+        "INSERT INTO transaksi_riwayat_pembayaran(uuid,transaksi_id,tanggal_pembayaran,nominal) VALUES('legacy-payment',1,1,25)",
+      );
+      await stripV17(before);
+      await before.customStatement('PRAGMA user_version=16');
+      await before.close();
+      final after = AppDatabase.forTesting(NativeDatabase(file));
+      try {
+        final detail = await after.select(after.transaksiDetails).getSingle();
+        expect(detail.hargaUuid, isNull);
+        expect(detail.kategoriUuid, isNull);
+        expect(detail.kategoriSnapshot, 'historical category');
+        expect(detail.isSyncDirty, true);
+        expect(
+          (await after.select(after.transaksis).getSingle()).noAkta,
+          'LEGACY-1',
+        );
+        expect(
+          await after.select(after.transaksiRiwayatPembayarans).get(),
+          hasLength(1),
+        );
+        expect(
+          await after
+              .customSelect('SELECT * FROM transaction_cloud_pending')
+              .get(),
+          isEmpty,
+        );
+        expect(
+          await after.customSelect('PRAGMA foreign_key_check').get(),
+          isEmpty,
+        );
+        expect(
+          (await after.customSelect('PRAGMA integrity_check').getSingle())
+              .read<String>('integrity_check'),
+          'ok',
+        );
+      } finally {
+        await after.close();
+      }
+    },
+  );
   test(
     'V15 to V16 preserves Notaris and PPAT rows and separates PPAT feed',
     () async {
@@ -28,6 +98,7 @@ void main() {
       ]) {
         await before.customStatement('DROP TABLE $table');
       }
+      await stripV17(before);
       await before.customStatement('PRAGMA user_version=15');
       await before.close();
       final after = AppDatabase.forTesting(NativeDatabase(file));
@@ -56,7 +127,7 @@ void main() {
         (await after.customSelect('PRAGMA user_version').getSingle()).read<int>(
           'user_version',
         ),
-        16,
+        17,
       );
       expect(
         await after.customSelect('PRAGMA foreign_key_check').get(),
@@ -85,6 +156,7 @@ void main() {
         'DROP TABLE pekerjaan_notaris_sync_identity',
       );
       await before.customStatement('DROP TABLE pekerjaan_notaris_sync_feed');
+      await stripV17(before);
       await before.customStatement('PRAGMA user_version=14');
       await before.close();
       final after = AppDatabase.forTesting(NativeDatabase(file));
@@ -106,7 +178,7 @@ void main() {
         (await after.customSelect('PRAGMA user_version').getSingle()).read<int>(
           'user_version',
         ),
-        16,
+        17,
       );
       expect(
         await after.customSelect('PRAGMA foreign_key_check').get(),
@@ -145,6 +217,7 @@ void main() {
     await setup.customStatement('DROP TABLE petugas_gender_reference');
     await setup.customStatement('DROP TABLE petugas_user_reference');
     await setup.customStatement('DROP TABLE petugas_sync_conflict');
+    await stripV17(setup);
     await setup.customStatement('PRAGMA user_version=10');
     await setup.close();
     final db = AppDatabase(NativeDatabase(file));
@@ -183,6 +256,7 @@ void main() {
     await setup.customStatement('DROP TABLE petugas_gender_reference');
     await setup.customStatement('DROP TABLE petugas_user_reference');
     await setup.customStatement('DROP TABLE petugas_sync_conflict');
+    await stripV17(setup);
     await setup.customStatement('PRAGMA user_version=11');
     await setup.close();
     final db = AppDatabase(NativeDatabase(file));
@@ -233,6 +307,7 @@ void main() {
         "INSERT INTO petugas_user_reference(scope,server_id,evidence) VALUES('deployment/account',20,'authenticated selection')",
       );
       await setup.customStatement('DROP TABLE petugas_sync_conflict');
+      await stripV17(setup);
       await setup.customStatement('PRAGMA user_version=12');
       await setup.close();
       final db = AppDatabase(NativeDatabase(file));
@@ -435,7 +510,7 @@ void main() {
       final version = await inspectionDb
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 16);
+      expect(version.read<int>('user_version'), 17);
     } finally {
       await inspectionDb.close();
     }
@@ -481,6 +556,9 @@ void main() {
                   : 'transaksi-1'}')",
             );
           }
+          database.execute(
+            'CREATE TABLE transaksi_details (uuid TEXT PRIMARY KEY, transaksi_id INTEGER REFERENCES transaksis(id))',
+          );
           database.execute('PRAGMA user_version = 7');
         },
       ),
@@ -651,7 +729,8 @@ void main() {
             CREATE TABLE transaksis (
               id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
               petugas_id INTEGER,
-              petugas_uuid TEXT
+              petugas_uuid TEXT,
+              uuid TEXT NOT NULL UNIQUE DEFAULT 'transaction-11'
             )
           ''');
           database.execute(
@@ -664,6 +743,9 @@ void main() {
             INSERT INTO transaksis (id, petugas_id, petugas_uuid)
             VALUES (11, 7, 'local-petugas-uuid')
           ''');
+          database.execute(
+            'CREATE TABLE transaksi_details (uuid TEXT PRIMARY KEY, transaksi_id INTEGER REFERENCES transaksis(id))',
+          );
           database.execute('PRAGMA user_version = 9');
         },
       ),

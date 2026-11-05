@@ -79,6 +79,8 @@ void main() {
               biayaLayanan: 100,
               detailUuid: detail,
               kategoriSnapshot: 'historical label',
+              hargaUuid: price,
+              kategoriUuid: category,
             ),
           ],
         );
@@ -121,6 +123,9 @@ void main() {
         );
       });
       test('does not infer category from historical labels', () async {
+        await db.customStatement(
+          'UPDATE transaksi_details SET harga_uuid=NULL,kategori_uuid=NULL',
+        );
         await expectLater(
           references.prepare(transactionId, selectedPriceUuids: {}),
           throwsStateError,
@@ -133,6 +138,81 @@ void main() {
           throwsStateError,
         );
       });
+      test('edit retains original price provenance and historical snapshot after Master changes', () async {
+        await db.customStatement(
+          "UPDATE pekerjaan_${domain}_harga SET harga='900',estimasi_waktu='changed'",
+        );
+        await TransactionRepository(db).save(
+          id: transactionId,
+          nomorTransaksi: 'OFFLINE-ONLY',
+          jenisTransaksi: domain,
+          pemohonId: 10,
+          pemohonUuid: applicant,
+          petugasId: 20,
+          petugasUuid: officer,
+          status: 'Baru',
+          tanggalTransaksi: DateTime(2026, 11, 5),
+          jobs: [
+            TransactionJobInput(
+              jenisPekerjaan: domain,
+              namaPekerjaan: 'snapshot',
+              pekerjaanNotarisId: domain == 'notaris' ? 40 : null,
+              pekerjaanPpatId: domain == 'ppat' ? 40 : null,
+              biayaLayanan: 100,
+              detailUuid: detail,
+              kategoriSnapshot: 'historical label',
+            ),
+          ],
+        );
+        final saved = await db.select(db.transaksiDetails).getSingle();
+        expect(saved.hargaUuid, price);
+        expect(saved.kategoriUuid, category);
+        expect(saved.biayaLayanan, 100);
+        expect(saved.kategoriSnapshot, 'historical label');
+        expect(
+          await TransactionRepository(db).getPaymentHistory(transactionId),
+          hasLength(1),
+        );
+      });
+      test(
+        'wrong price/category provenance rolls back header and children',
+        () async {
+          await expectLater(
+            TransactionRepository(db).save(
+              id: transactionId,
+              nomorTransaksi: 'MUST-ROLLBACK',
+              jenisTransaksi: domain,
+              pemohonId: 10,
+              pemohonUuid: applicant,
+              petugasId: 20,
+              petugasUuid: officer,
+              status: 'Baru',
+              tanggalTransaksi: DateTime(2026, 11, 5),
+              jobs: [
+                TransactionJobInput(
+                  jenisPekerjaan: domain,
+                  namaPekerjaan: 'wrong',
+                  pekerjaanNotarisId: domain == 'notaris' ? 40 : null,
+                  pekerjaanPpatId: domain == 'ppat' ? 40 : null,
+                  biayaLayanan: 100,
+                  detailUuid: detail,
+                  hargaUuid: price,
+                  kategoriUuid: applicant,
+                ),
+              ],
+            ),
+            throwsStateError,
+          );
+          expect(
+            (await TransactionRepository(db).findById(transactionId))!.noAkta,
+            'OFFLINE-ONLY',
+          );
+          expect(
+            (await db.select(db.transaksiDetails).getSingle()).kategoriUuid,
+            category,
+          );
+        },
+      );
       test('rejects dirty master or pending mutation', () async {
         await db.customStatement(
           'UPDATE pekerjaan_$domain SET is_sync_dirty=1',

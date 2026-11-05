@@ -17,6 +17,8 @@ class TransactionJobInput {
     this.kategoriSnapshot,
     this.estimasiWaktuSnapshot,
     this.prosesSnapshot,
+    this.hargaUuid,
+    this.kategoriUuid,
     required this.detailUuid,
   });
 
@@ -30,6 +32,8 @@ class TransactionJobInput {
 
   /// JSON snapshot of the selected process checklist for this transaction job.
   final String? prosesSnapshot;
+  final String? hargaUuid;
+  final String? kategoriUuid;
 
   /// Stable detail UUID generated when the job is selected, and preserved
   /// across subsequent edits of the same transaction.
@@ -381,6 +385,40 @@ class TransactionRepository {
 
       for (final job in jobs) {
         final existing = existingByUuid[job.detailUuid];
+        // Null provenance on an unchanged legacy detail stays unresolved. Never
+        // infer a historical price from labels, amounts or integer IDs.
+        final priceUuid = job.hargaUuid ?? existing?.hargaUuid;
+        final categoryUuid = job.kategoriUuid ?? existing?.kategoriUuid;
+        final sameJob =
+            existing == null ||
+            (existing.pekerjaanNotarisId == job.pekerjaanNotarisId &&
+                existing.pekerjaanPpatId == job.pekerjaanPpatId);
+        if ((priceUuid == null) != (categoryUuid == null) ||
+            (!sameJob && job.hargaUuid == null)) {
+          throw StateError(
+            'Provenance harga wajib dipilih ulang saat mengganti pekerjaan.',
+          );
+        }
+        if (priceUuid != null &&
+            (existing == null ||
+                !sameJob ||
+                priceUuid != existing.hargaUuid ||
+                categoryUuid != existing.kategoriUuid)) {
+          final domain = job.jenisPekerjaan;
+          final selected = await db
+              .customSelect(
+                'SELECT h.uuid FROM pekerjaan_${domain}_harga h JOIN pekerjaan_kategori c ON c.id=h.kategori_pekerjaan_id WHERE h.uuid=? AND h.pekerjaan_${domain}_id=? AND c.uuid=? AND h.status=1 AND h.deleted_at IS NULL AND c.status=1 AND c.deleted_at IS NULL',
+                variables: [
+                  Variable(priceUuid),
+                  Variable(job.pekerjaanNotarisId ?? job.pekerjaanPpatId!),
+                  Variable(categoryUuid!),
+                ],
+              )
+              .get();
+          if (selected.length != 1) {
+            throw StateError('Provenance harga/kategori tidak sah.');
+          }
+        }
         if (existing != null) {
           await (db.update(db.transaksiDetails)..where(
                 (t) =>
@@ -395,6 +433,8 @@ class TransactionRepository {
                   pekerjaanPpatId: Value(job.pekerjaanPpatId),
                   namaPekerjaanSnapshot: Value(job.namaPekerjaan),
                   kategoriSnapshot: Value(job.kategoriSnapshot),
+                  hargaUuid: Value(priceUuid),
+                  kategoriUuid: Value(categoryUuid),
                   estimasiWaktuSnapshot: Value(job.estimasiWaktuSnapshot),
                   prosesSnapshot: Value(job.prosesSnapshot),
                   biayaLayanan: Value(job.biayaLayanan),
@@ -416,6 +456,8 @@ class TransactionRepository {
                   pekerjaanPpatId: Value(job.pekerjaanPpatId),
                   namaPekerjaanSnapshot: job.namaPekerjaan,
                   kategoriSnapshot: Value(job.kategoriSnapshot),
+                  hargaUuid: Value(priceUuid),
+                  kategoriUuid: Value(categoryUuid),
                   estimasiWaktuSnapshot: Value(job.estimasiWaktuSnapshot),
                   prosesSnapshot: Value(job.prosesSnapshot),
                   biayaLayanan: Value(job.biayaLayanan),

@@ -4162,6 +4162,28 @@ class $TransaksiDetailsTable extends TransaksiDetails
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _hargaUuidMeta = const VerificationMeta(
+    'hargaUuid',
+  );
+  @override
+  late final GeneratedColumn<String> hargaUuid = GeneratedColumn<String>(
+    'harga_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _kategoriUuidMeta = const VerificationMeta(
+    'kategoriUuid',
+  );
+  @override
+  late final GeneratedColumn<String> kategoriUuid = GeneratedColumn<String>(
+    'kategori_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _estimasiWaktuSnapshotMeta =
       const VerificationMeta('estimasiWaktuSnapshot');
   @override
@@ -4299,6 +4321,8 @@ class $TransaksiDetailsTable extends TransaksiDetails
     pekerjaanPpatId,
     namaPekerjaanSnapshot,
     kategoriSnapshot,
+    hargaUuid,
+    kategoriUuid,
     estimasiWaktuSnapshot,
     prosesSnapshot,
     biayaLayanan,
@@ -4391,6 +4415,21 @@ class $TransaksiDetailsTable extends TransaksiDetails
         kategoriSnapshot.isAcceptableOrUnknown(
           data['kategori_snapshot']!,
           _kategoriSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('harga_uuid')) {
+      context.handle(
+        _hargaUuidMeta,
+        hargaUuid.isAcceptableOrUnknown(data['harga_uuid']!, _hargaUuidMeta),
+      );
+    }
+    if (data.containsKey('kategori_uuid')) {
+      context.handle(
+        _kategoriUuidMeta,
+        kategoriUuid.isAcceptableOrUnknown(
+          data['kategori_uuid']!,
+          _kategoriUuidMeta,
         ),
       );
     }
@@ -4522,6 +4561,14 @@ class $TransaksiDetailsTable extends TransaksiDetails
         DriftSqlType.string,
         data['${effectivePrefix}kategori_snapshot'],
       ),
+      hargaUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}harga_uuid'],
+      ),
+      kategoriUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kategori_uuid'],
+      ),
       estimasiWaktuSnapshot: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}estimasi_waktu_snapshot'],
@@ -4584,6 +4631,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
   final int? pekerjaanPpatId;
   final String namaPekerjaanSnapshot;
   final String? kategoriSnapshot;
+  final String? hargaUuid;
+  final String? kategoriUuid;
   final String? estimasiWaktuSnapshot;
   final String? prosesSnapshot;
   final double biayaLayanan;
@@ -4604,6 +4653,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     this.pekerjaanPpatId,
     required this.namaPekerjaanSnapshot,
     this.kategoriSnapshot,
+    this.hargaUuid,
+    this.kategoriUuid,
     this.estimasiWaktuSnapshot,
     this.prosesSnapshot,
     required this.biayaLayanan,
@@ -4632,6 +4683,12 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     map['nama_pekerjaan_snapshot'] = Variable<String>(namaPekerjaanSnapshot);
     if (!nullToAbsent || kategoriSnapshot != null) {
       map['kategori_snapshot'] = Variable<String>(kategoriSnapshot);
+    }
+    if (!nullToAbsent || hargaUuid != null) {
+      map['harga_uuid'] = Variable<String>(hargaUuid);
+    }
+    if (!nullToAbsent || kategoriUuid != null) {
+      map['kategori_uuid'] = Variable<String>(kategoriUuid);
     }
     if (!nullToAbsent || estimasiWaktuSnapshot != null) {
       map['estimasi_waktu_snapshot'] = Variable<String>(estimasiWaktuSnapshot);
@@ -4675,6 +4732,12 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       kategoriSnapshot: kategoriSnapshot == null && nullToAbsent
           ? const Value.absent()
           : Value(kategoriSnapshot),
+      hargaUuid: hargaUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(hargaUuid),
+      kategoriUuid: kategoriUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(kategoriUuid),
       estimasiWaktuSnapshot: estimasiWaktuSnapshot == null && nullToAbsent
           ? const Value.absent()
           : Value(estimasiWaktuSnapshot),
@@ -4717,6 +4780,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
         json['namaPekerjaanSnapshot'],
       ),
       kategoriSnapshot: serializer.fromJson<String?>(json['kategoriSnapshot']),
+      hargaUuid: serializer.fromJson<String?>(json['hargaUuid']),
+      kategoriUuid: serializer.fromJson<String?>(json['kategoriUuid']),
       estimasiWaktuSnapshot: serializer.fromJson<String?>(
         json['estimasiWaktuSnapshot'],
       ),
@@ -4744,6 +4809,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       'pekerjaanPpatId': serializer.toJson<int?>(pekerjaanPpatId),
       'namaPekerjaanSnapshot': serializer.toJson<String>(namaPekerjaanSnapshot),
       'kategoriSnapshot': serializer.toJson<String?>(kategoriSnapshot),
+      'hargaUuid': serializer.toJson<String?>(hargaUuid),
+      'kategoriUuid': serializer.toJson<String?>(kategoriUuid),
       'estimasiWaktuSnapshot': serializer.toJson<String?>(
         estimasiWaktuSnapshot,
       ),
@@ -4769,6 +4836,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     Value<int?> pekerjaanPpatId = const Value.absent(),
     String? namaPekerjaanSnapshot,
     Value<String?> kategoriSnapshot = const Value.absent(),
+    Value<String?> hargaUuid = const Value.absent(),
+    Value<String?> kategoriUuid = const Value.absent(),
     Value<String?> estimasiWaktuSnapshot = const Value.absent(),
     Value<String?> prosesSnapshot = const Value.absent(),
     double? biayaLayanan,
@@ -4795,6 +4864,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     kategoriSnapshot: kategoriSnapshot.present
         ? kategoriSnapshot.value
         : this.kategoriSnapshot,
+    hargaUuid: hargaUuid.present ? hargaUuid.value : this.hargaUuid,
+    kategoriUuid: kategoriUuid.present ? kategoriUuid.value : this.kategoriUuid,
     estimasiWaktuSnapshot: estimasiWaktuSnapshot.present
         ? estimasiWaktuSnapshot.value
         : this.estimasiWaktuSnapshot,
@@ -4833,6 +4904,10 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       kategoriSnapshot: data.kategoriSnapshot.present
           ? data.kategoriSnapshot.value
           : this.kategoriSnapshot,
+      hargaUuid: data.hargaUuid.present ? data.hargaUuid.value : this.hargaUuid,
+      kategoriUuid: data.kategoriUuid.present
+          ? data.kategoriUuid.value
+          : this.kategoriUuid,
       estimasiWaktuSnapshot: data.estimasiWaktuSnapshot.present
           ? data.estimasiWaktuSnapshot.value
           : this.estimasiWaktuSnapshot,
@@ -4872,6 +4947,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
           ..write('pekerjaanPpatId: $pekerjaanPpatId, ')
           ..write('namaPekerjaanSnapshot: $namaPekerjaanSnapshot, ')
           ..write('kategoriSnapshot: $kategoriSnapshot, ')
+          ..write('hargaUuid: $hargaUuid, ')
+          ..write('kategoriUuid: $kategoriUuid, ')
           ..write('estimasiWaktuSnapshot: $estimasiWaktuSnapshot, ')
           ..write('prosesSnapshot: $prosesSnapshot, ')
           ..write('biayaLayanan: $biayaLayanan, ')
@@ -4888,7 +4965,7 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     uuid,
     transaksiId,
@@ -4897,6 +4974,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     pekerjaanPpatId,
     namaPekerjaanSnapshot,
     kategoriSnapshot,
+    hargaUuid,
+    kategoriUuid,
     estimasiWaktuSnapshot,
     prosesSnapshot,
     biayaLayanan,
@@ -4908,7 +4987,7 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     isSyncDirty,
     lastSyncedAt,
     deletedAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4921,6 +5000,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
           other.pekerjaanPpatId == this.pekerjaanPpatId &&
           other.namaPekerjaanSnapshot == this.namaPekerjaanSnapshot &&
           other.kategoriSnapshot == this.kategoriSnapshot &&
+          other.hargaUuid == this.hargaUuid &&
+          other.kategoriUuid == this.kategoriUuid &&
           other.estimasiWaktuSnapshot == this.estimasiWaktuSnapshot &&
           other.prosesSnapshot == this.prosesSnapshot &&
           other.biayaLayanan == this.biayaLayanan &&
@@ -4943,6 +5024,8 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
   final Value<int?> pekerjaanPpatId;
   final Value<String> namaPekerjaanSnapshot;
   final Value<String?> kategoriSnapshot;
+  final Value<String?> hargaUuid;
+  final Value<String?> kategoriUuid;
   final Value<String?> estimasiWaktuSnapshot;
   final Value<String?> prosesSnapshot;
   final Value<double> biayaLayanan;
@@ -4963,6 +5046,8 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     this.pekerjaanPpatId = const Value.absent(),
     this.namaPekerjaanSnapshot = const Value.absent(),
     this.kategoriSnapshot = const Value.absent(),
+    this.hargaUuid = const Value.absent(),
+    this.kategoriUuid = const Value.absent(),
     this.estimasiWaktuSnapshot = const Value.absent(),
     this.prosesSnapshot = const Value.absent(),
     this.biayaLayanan = const Value.absent(),
@@ -4984,6 +5069,8 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     this.pekerjaanPpatId = const Value.absent(),
     required String namaPekerjaanSnapshot,
     this.kategoriSnapshot = const Value.absent(),
+    this.hargaUuid = const Value.absent(),
+    this.kategoriUuid = const Value.absent(),
     this.estimasiWaktuSnapshot = const Value.absent(),
     this.prosesSnapshot = const Value.absent(),
     this.biayaLayanan = const Value.absent(),
@@ -5008,6 +5095,8 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     Expression<int>? pekerjaanPpatId,
     Expression<String>? namaPekerjaanSnapshot,
     Expression<String>? kategoriSnapshot,
+    Expression<String>? hargaUuid,
+    Expression<String>? kategoriUuid,
     Expression<String>? estimasiWaktuSnapshot,
     Expression<String>? prosesSnapshot,
     Expression<double>? biayaLayanan,
@@ -5031,6 +5120,8 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
       if (namaPekerjaanSnapshot != null)
         'nama_pekerjaan_snapshot': namaPekerjaanSnapshot,
       if (kategoriSnapshot != null) 'kategori_snapshot': kategoriSnapshot,
+      if (hargaUuid != null) 'harga_uuid': hargaUuid,
+      if (kategoriUuid != null) 'kategori_uuid': kategoriUuid,
       if (estimasiWaktuSnapshot != null)
         'estimasi_waktu_snapshot': estimasiWaktuSnapshot,
       if (prosesSnapshot != null) 'proses_snapshot': prosesSnapshot,
@@ -5055,6 +5146,8 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     Value<int?>? pekerjaanPpatId,
     Value<String>? namaPekerjaanSnapshot,
     Value<String?>? kategoriSnapshot,
+    Value<String?>? hargaUuid,
+    Value<String?>? kategoriUuid,
     Value<String?>? estimasiWaktuSnapshot,
     Value<String?>? prosesSnapshot,
     Value<double>? biayaLayanan,
@@ -5077,6 +5170,8 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
       namaPekerjaanSnapshot:
           namaPekerjaanSnapshot ?? this.namaPekerjaanSnapshot,
       kategoriSnapshot: kategoriSnapshot ?? this.kategoriSnapshot,
+      hargaUuid: hargaUuid ?? this.hargaUuid,
+      kategoriUuid: kategoriUuid ?? this.kategoriUuid,
       estimasiWaktuSnapshot:
           estimasiWaktuSnapshot ?? this.estimasiWaktuSnapshot,
       prosesSnapshot: prosesSnapshot ?? this.prosesSnapshot,
@@ -5120,6 +5215,12 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     }
     if (kategoriSnapshot.present) {
       map['kategori_snapshot'] = Variable<String>(kategoriSnapshot.value);
+    }
+    if (hargaUuid.present) {
+      map['harga_uuid'] = Variable<String>(hargaUuid.value);
+    }
+    if (kategoriUuid.present) {
+      map['kategori_uuid'] = Variable<String>(kategoriUuid.value);
     }
     if (estimasiWaktuSnapshot.present) {
       map['estimasi_waktu_snapshot'] = Variable<String>(
@@ -5170,6 +5271,8 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
           ..write('pekerjaanPpatId: $pekerjaanPpatId, ')
           ..write('namaPekerjaanSnapshot: $namaPekerjaanSnapshot, ')
           ..write('kategoriSnapshot: $kategoriSnapshot, ')
+          ..write('hargaUuid: $hargaUuid, ')
+          ..write('kategoriUuid: $kategoriUuid, ')
           ..write('estimasiWaktuSnapshot: $estimasiWaktuSnapshot, ')
           ..write('prosesSnapshot: $prosesSnapshot, ')
           ..write('biayaLayanan: $biayaLayanan, ')
@@ -18915,6 +19018,8 @@ typedef $$TransaksiDetailsTableCreateCompanionBuilder =
       Value<int?> pekerjaanPpatId,
       required String namaPekerjaanSnapshot,
       Value<String?> kategoriSnapshot,
+      Value<String?> hargaUuid,
+      Value<String?> kategoriUuid,
       Value<String?> estimasiWaktuSnapshot,
       Value<String?> prosesSnapshot,
       Value<double> biayaLayanan,
@@ -18937,6 +19042,8 @@ typedef $$TransaksiDetailsTableUpdateCompanionBuilder =
       Value<int?> pekerjaanPpatId,
       Value<String> namaPekerjaanSnapshot,
       Value<String?> kategoriSnapshot,
+      Value<String?> hargaUuid,
+      Value<String?> kategoriUuid,
       Value<String?> estimasiWaktuSnapshot,
       Value<String?> prosesSnapshot,
       Value<double> biayaLayanan,
@@ -19069,6 +19176,16 @@ class $$TransaksiDetailsTableFilterComposer
 
   ColumnFilters<String> get kategoriSnapshot => $composableBuilder(
     column: $table.kategoriSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get hargaUuid => $composableBuilder(
+    column: $table.hargaUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kategoriUuid => $composableBuilder(
+    column: $table.kategoriUuid,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -19257,6 +19374,16 @@ class $$TransaksiDetailsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get hargaUuid => $composableBuilder(
+    column: $table.hargaUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kategoriUuid => $composableBuilder(
+    column: $table.kategoriUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get estimasiWaktuSnapshot => $composableBuilder(
     column: $table.estimasiWaktuSnapshot,
     builder: (column) => ColumnOrderings(column),
@@ -19411,6 +19538,14 @@ class $$TransaksiDetailsTableAnnotationComposer
 
   GeneratedColumn<String> get kategoriSnapshot => $composableBuilder(
     column: $table.kategoriSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get hargaUuid =>
+      $composableBuilder(column: $table.hargaUuid, builder: (column) => column);
+
+  GeneratedColumn<String> get kategoriUuid => $composableBuilder(
+    column: $table.kategoriUuid,
     builder: (column) => column,
   );
 
@@ -19601,6 +19736,8 @@ class $$TransaksiDetailsTableTableManager
                 Value<int?> pekerjaanPpatId = const Value.absent(),
                 Value<String> namaPekerjaanSnapshot = const Value.absent(),
                 Value<String?> kategoriSnapshot = const Value.absent(),
+                Value<String?> hargaUuid = const Value.absent(),
+                Value<String?> kategoriUuid = const Value.absent(),
                 Value<String?> estimasiWaktuSnapshot = const Value.absent(),
                 Value<String?> prosesSnapshot = const Value.absent(),
                 Value<double> biayaLayanan = const Value.absent(),
@@ -19621,6 +19758,8 @@ class $$TransaksiDetailsTableTableManager
                 pekerjaanPpatId: pekerjaanPpatId,
                 namaPekerjaanSnapshot: namaPekerjaanSnapshot,
                 kategoriSnapshot: kategoriSnapshot,
+                hargaUuid: hargaUuid,
+                kategoriUuid: kategoriUuid,
                 estimasiWaktuSnapshot: estimasiWaktuSnapshot,
                 prosesSnapshot: prosesSnapshot,
                 biayaLayanan: biayaLayanan,
@@ -19643,6 +19782,8 @@ class $$TransaksiDetailsTableTableManager
                 Value<int?> pekerjaanPpatId = const Value.absent(),
                 required String namaPekerjaanSnapshot,
                 Value<String?> kategoriSnapshot = const Value.absent(),
+                Value<String?> hargaUuid = const Value.absent(),
+                Value<String?> kategoriUuid = const Value.absent(),
                 Value<String?> estimasiWaktuSnapshot = const Value.absent(),
                 Value<String?> prosesSnapshot = const Value.absent(),
                 Value<double> biayaLayanan = const Value.absent(),
@@ -19663,6 +19804,8 @@ class $$TransaksiDetailsTableTableManager
                 pekerjaanPpatId: pekerjaanPpatId,
                 namaPekerjaanSnapshot: namaPekerjaanSnapshot,
                 kategoriSnapshot: kategoriSnapshot,
+                hargaUuid: hargaUuid,
+                kategoriUuid: kategoriUuid,
                 estimasiWaktuSnapshot: estimasiWaktuSnapshot,
                 prosesSnapshot: prosesSnapshot,
                 biayaLayanan: biayaLayanan,

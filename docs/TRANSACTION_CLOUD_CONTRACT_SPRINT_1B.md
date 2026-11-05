@@ -76,6 +76,50 @@ Existing transaction details preserve category labels but not selected price UUI
 They MUST NOT be mapped using label, current price, name or integer-ID guessing.
 The new resolver requires explicit reviewed price selection per detail. A future
 CREATE journal must persist that provenance with the immutable aggregate snapshot.
-No receipt/outbox/HTTP transaction CREATE or Device A→B aggregate acceptance is
-claimed by these helper tests. Aggregate storage/API, durable snapshot, local
-atomic apply/cursor and real HTTP E2E remain to implement; no permanent DB touched.
+Those helper tests alone do not establish Device A→B aggregate acceptance.
+
+## CREATE Notaris slice implementation (2026-11-05)
+
+- Drift v17 adds nullable `harga_uuid` / `kategori_uuid` to transaction details
+  plus private transaction identity, immutable pending request and cursor tables.
+  Legacy rows stay NULL; there is no provenance backfill. Form selection captures
+  actual UUIDs, edit/reopen retains them and historical snapshots.
+- `POST /api/v1/transaksi-notaris/sync/create` and authenticated incremental
+  `GET /api/v1/transaksi-notaris/sync/pull` require the existing `transaksi` menu
+  create/read permissions respectively, in the single-office authorized catalog.
+- The two 20261105 PostgreSQL proposals are applied only to disposable schemas.
+  New `transaction_cloud*` tables store complete header/detail/process/payment
+  snapshots; they do not alias or rewrite the incomplete legacy Go header model.
+  Accepted CREATE commits numbering, children/FKs, fingerprint receipt and whole
+  aggregate outbox together. Publication is a bounded explicit repository call;
+  its HTTP test hook exists only in disposable Go tests.
+- Explicit Flutter `TransactionCloudRepository` persists immutable intent before
+  HTTP, applies final number without replacing UUID/local PK, protects later edits,
+  and applies dependencies/mapping/children/cursor in one Drift transaction.
+  It is not registered with global or normal SyncCoordinator.
+- Process transition audits with unresolved user identities are explicitly blocked
+  before push; this slice covers initial process snapshots and payment history,
+  not a new process validation/actor contract. UPDATE/DELETE/PPAT not implemented.
+
+Validation commands (owned disposable PostgreSQL DSN only):
+
+```powershell
+# backend-notaris-go; never point this at port 5432
+$env:NOTARIS_SYNC_TEST_DSN='host=127.0.0.1 port=55451 user=notaris_test dbname=postgres sslmode=disable'
+go test ./routes -run '^TestTransactionCloudHTTPPostgres$' -count=1
+$env:NOTARIS_TRANSACTION_E2E='1'
+go test ./routes -run '^TestTransactionCloudHTTPPostgres$' -count=1 -v
+```
+
+The HTTP E2E creates two NEW temporary SQLite files; it never opens development
+or daily profiles. Permanent PostgreSQL rollout and existing SQLite profile
+upgrade remain separate approval checkpoints. No normal sync activation follows
+from this test.
+
+Checkpoint validation: 388 Flutter tests passed / 6 opt-in skipped, analyzer
+clean. The opt-in transaction HTTP E2E separately passed against disposable
+PostgreSQL and two fresh SQLite files, including replay/restart, local page
+rollback and dirty protection. Go HTTP tests passed idempotent receipt/number,
+changed-payload rejection, failed child rollback after allocation, concurrent
+CREATE, bounded publication and permission rejection; existing Master route
+tests also passed. Logs remain in `.local/transaction-cloud-*.log`.

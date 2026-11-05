@@ -75,6 +75,19 @@ void main() {
         "INSERT INTO petugas_sync_feed VALUES(1,'fixture-scope',4,NULL)",
       );
       await fileDb.customStatement('DROP TABLE sync_logs');
+      for (final table in [
+        'transaction_cloud_pending',
+        'transaction_cloud_identity',
+        'transaction_cloud_feed',
+      ]) {
+        await fileDb.customStatement('DROP TABLE $table');
+      }
+      await fileDb.customStatement(
+        'ALTER TABLE transaksi_details DROP COLUMN harga_uuid',
+      );
+      await fileDb.customStatement(
+        'ALTER TABLE transaksi_details DROP COLUMN kategori_uuid',
+      );
       await fileDb.customStatement('PRAGMA user_version=13');
       await fileDb.close();
       fileDb = AppDatabase.forTesting(NativeDatabase(file));
@@ -111,7 +124,7 @@ void main() {
       expect(
         (await fileDb.customSelect('PRAGMA user_version').getSingle())
             .read<int>('user_version'),
-        16,
+        17,
       );
       expect(
         await fileDb.customSelect('PRAGMA foreign_key_check').get(),
