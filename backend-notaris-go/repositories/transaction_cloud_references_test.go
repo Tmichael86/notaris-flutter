@@ -83,6 +83,43 @@ func TestTransactionCloudReferencesPostgres(t *testing.T) {
 		t.Fatal("deleted job accepted")
 	}
 	input.Domain = "notaris"
+	for _, table := range []string{"pekerjaan_kategori", "pekerjaan_notaris_harga"} {
+		if err := db.Exec("UPDATE " + table + " SET deleted_at=now()").Error; err != nil {
+			t.Fatal(err)
+		}
+		if !errors.Is(resolve(), ErrTransactionCloudReference) {
+			t.Fatal("optional tombstone accepted", table)
+		}
+		if err := db.Exec("ALTER TABLE " + table + " DROP COLUMN deleted_at").Error; err != nil {
+			t.Fatal(err)
+		}
+		if err := resolve(); err != nil {
+			t.Fatalf("legacy status-only reference %s: %v", table, err)
+		}
+		if err := db.Exec("UPDATE " + table + " SET status=0").Error; err != nil {
+			t.Fatal(err)
+		}
+		if !errors.Is(resolve(), ErrTransactionCloudReference) {
+			t.Fatal("inactive legacy reference accepted", table)
+		}
+		if err := db.Exec("UPDATE " + table + " SET status=1").Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	input.Domain = "ppat"
+	if err := db.Exec("ALTER TABLE pekerjaan_ppat_harga DROP COLUMN deleted_at; UPDATE pekerjaan_ppat SET deleted_at=NULL").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := resolve(); err != nil {
+		t.Fatalf("legacy PPAT status-only price: %v", err)
+	}
+	if err := db.Exec("UPDATE pekerjaan_ppat_harga SET status=0").Error; err != nil {
+		t.Fatal(err)
+	}
+	if !errors.Is(resolve(), ErrTransactionCloudReference) {
+		t.Fatal("inactive legacy PPAT price accepted")
+	}
+	input.Domain = "notaris"
 	if err := db.Exec("INSERT INTO pemohon(uuid,status) VALUES(?,1)", a).Error; err != nil {
 		t.Fatal(err)
 	}

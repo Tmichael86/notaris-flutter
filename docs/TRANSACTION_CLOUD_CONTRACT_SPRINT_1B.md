@@ -216,3 +216,31 @@ simulation, legacy preservation and least-privilege grant review. Existing
 PostgreSQL/SQLite profiles have NOT been upgraded, and this is not permission
 to apply or activate synchronization. Payment corrections/additions, process
 actor provenance and conflict resolution UI remain separate contracts.
+
+## Combined Transaction preflight (2026-11-05)
+
+Read-only audit of notarisdev found four legacy transactions, four process details
+and four payment records. Actual Master category/price schemas use status without
+`deleted_at`; the resolver now accepts that legacy shape while still rejecting
+optional tombstones when present. Focused tests cover both domains; the restricted
+app role also resolved the active legacy Notaris UUID on the restored clone and
+rejected the deleted PPAT UUID. No identity matching by name/PK was introduced.
+
+The PostgreSQL backup restored successfully on isolated port 55452. Combined
+schema/grants simulation passed final-stage failure rollback, successful COMMIT
+and second-apply rejection. All 49 original table fingerprints and 38 old sequence
+states were preserved; eight new tables, two unused sequences, 13 validated FKs,
+least-privilege grants and empty cloud/counter/feed state were verified.
+
+Existing development SQLite remains v16 with two dirty transactions/details and
+no price provenance. A backup-API disposable copy upgraded to v18 with all 31
+original table fingerprints preserved; original file hash remained unchanged.
+Petugas cloud/local UUID proof matched all four server identities; all 20 clean
+Pemohon UUIDs matched active server rows. No source profile migration occurred.
+
+Migration-only readiness does not imply live reference readiness: the active
+legacy Notaris is unpublished, and no active PPAT exists. Later live E2E needs
+separately approved fresh synthetic Master references/publication. Existing local
+dirty data must remain excluded. Backup, combined guarded SQL, hashes, simulation
+receipts and the live plan are under `.local/transaction-rollout-preflight-20261105-071615`.
+No permanent Transaction migration/CRUD/publication has been performed.

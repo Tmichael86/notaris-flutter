@@ -47,7 +47,9 @@ func ResolveTransactionCloudReferences(ctx context.Context, tx *gorm.DB, input T
 			return 0, ErrTransactionCloudReference
 		}
 		var ids []int64
-		if err := tx.WithContext(ctx).Raw("SELECT id FROM "+table+" WHERE uuid=?::uuid AND status=1 AND deleted_at IS NULL FOR SHARE", uuid).Scan(&ids).Error; err != nil {
+		// Legacy Master catalogs use status without a deleted_at column. JSON
+		// projection also rejects tombstones when the additive column is present.
+		if err := tx.WithContext(ctx).Raw("SELECT ref.id FROM "+table+" ref WHERE ref.uuid=?::uuid AND ref.status=1 AND (to_jsonb(ref)->>'deleted_at') IS NULL FOR SHARE OF ref", uuid).Scan(&ids).Error; err != nil {
 			return 0, err
 		}
 		if len(ids) != 1 {
@@ -75,7 +77,7 @@ func ResolveTransactionCloudReferences(ctx context.Context, tx *gorm.DB, input T
 			return nil, ErrTransactionCloudReference
 		}
 		var ids []int64
-		if err = tx.WithContext(ctx).Raw("SELECT id FROM pekerjaan_"+input.Domain+"_harga WHERE uuid=?::uuid AND pekerjaan_"+input.Domain+"_id=? AND kategori_pekerjaan_id=? AND status=1 AND deleted_at IS NULL FOR SHARE", job.PriceUUID, row.JobID, row.CategoryID).Scan(&ids).Error; err != nil {
+		if err = tx.WithContext(ctx).Raw("SELECT ref.id FROM pekerjaan_"+input.Domain+"_harga ref WHERE ref.uuid=?::uuid AND ref.pekerjaan_"+input.Domain+"_id=? AND ref.kategori_pekerjaan_id=? AND ref.status=1 AND (to_jsonb(ref)->>'deleted_at') IS NULL FOR SHARE OF ref", job.PriceUUID, row.JobID, row.CategoryID).Scan(&ids).Error; err != nil {
 			return nil, err
 		}
 		if len(ids) != 1 {
