@@ -111,7 +111,8 @@ class SyncLogRepository {
           'Batas operasi tercapai; halaman berikutnya belum diterapkan',
         'scope' =>
           'Profil, akun atau deployment tidak cocok; sinkronisasi diblokir',
-        'unsupported_domain' => 'Feed memuat jenis transaksi yang tidak dipilih; cursor dipertahankan',
+        'unsupported_domain' =>
+          'Jenis transaksi feed tidak didukung; cursor dipertahankan',
         _ => 'Operasi gagal; periksa konfigurasi dan koneksi',
       };
       await _finish(

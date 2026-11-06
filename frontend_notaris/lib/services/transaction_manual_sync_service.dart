@@ -95,6 +95,7 @@ class TransactionManualProfile {
     for (final table in [
       'transaction_cloud_feed',
       'pekerjaan_notaris_sync_feed',
+      'pekerjaan_ppat_sync_feed',
     ]) {
       final expected = table == 'transaction_cloud_feed'
           ? transactionScope
@@ -149,7 +150,7 @@ class TransactionManualSyncService {
          ),
        ) {
     // clone retains existing auth/smoke interceptors. The final boundary limits
-    // every request to this profile and the selected Notaris operation.
+    // every request to this profile and supported Transaction routes.
     _http.interceptors.add(
       InterceptorsWrapper(
         onRequest: (r, h) {
@@ -157,7 +158,7 @@ class TransactionManualSyncService {
             final current = _authorize();
             if (r.uri.origin != Uri.parse(profile.baseUrl).origin ||
                 !RegExp(
-                  r'^/api/v1/transaksi-notaris/sync/(create|update|delete|pull)$',
+                  r'^/api/v1/transaksi-(notaris|ppat)/sync/(create|update|delete|pull)$',
                 ).hasMatch(r.uri.path) ||
                 ((r.uri.path.endsWith('/pull'))
                     ? r.method != 'GET'
@@ -185,7 +186,11 @@ class TransactionManualSyncService {
   final SyncLogRepository logs;
   final Dio _http;
   static final _inFlight = <String>{};
-  static const module = 'transaksi_notaris';
+  static const uploadModules = {
+    'transaksi_notaris': 'notaris',
+    'transaksi_ppat': 'ppat',
+  };
+  static const feedModule = 'transaksi';
 
   AuthSession _authorize() {
     if (uiSmoke()) throw const ManualTransactionFailure('forbidden');
@@ -219,6 +224,12 @@ class TransactionManualSyncService {
     int pageSize = 20,
     int maxPages = 1,
   }) async {
+    final selectedDomain = uploadModules[selectedModule];
+    if ((direction == ManualSyncDirection.upload && selectedDomain == null) ||
+        (direction == ManualSyncDirection.download &&
+            selectedModule != feedModule)) {
+      throw const ManualTransactionFailure('validation');
+    }
     // Share the flight across service instances and handles for the same file.
     await profile.validate(db);
     final flight = File(profile.sqlitePath).resolveSymbolicLinksSync();
@@ -228,15 +239,14 @@ class TransactionManualSyncService {
       // Refuse a normal/different file before even writing a local attempt log.
       await profile.validate(db);
       await logs.track(
-        module: module,
+        module: selectedModule,
         direction: direction == ManualSyncDirection.upload ? 'push' : 'pull',
         attemptId: const Uuid().v4(),
         errorCode: (e) => e is ManualTransactionFailure ? e.code : 'unknown',
         completedCount: () => result?.count,
         action: () async {
           try {
-            if (selectedModule != module ||
-                pageSize < 1 ||
+            if (pageSize < 1 ||
                 pageSize > 100 ||
                 maxPages < 1 ||
                 maxPages > 10 ||
@@ -250,8 +260,7 @@ class TransactionManualSyncService {
             // cursor or permit a new upload after this profile observed 410.
             final lastPull = await db
                 .customSelect(
-                  "SELECT error_code FROM sync_logs WHERE module=? AND direction='pull' AND finished_at IS NOT NULL ORDER BY id DESC LIMIT 1",
-                  variables: [Variable(module)],
+                  "SELECT error_code FROM sync_logs WHERE module IN ('transaksi','transaksi_notaris','transaksi_ppat') AND direction='pull' AND finished_at IS NOT NULL ORDER BY id DESC LIMIT 1",
                 )
                 .getSingleOrNull();
             if (lastPull?.readNullable<String>('error_code') ==
@@ -264,6 +273,9 @@ class TransactionManualSyncService {
               scope: profile.transactionScope,
               petugasScope: profile.petugasScope,
               masterScope: profile.masterScope,
+              domain:
+                  selectedDomain ??
+                  'notaris', // either pull alias consumes the same feed
             );
             if (direction == ManualSyncDirection.upload) {
               if (transactionId == null) {
@@ -272,8 +284,13 @@ class TransactionManualSyncService {
               final header = await (db.select(
                 db.transaksis,
               )..where((t) => t.id.equals(transactionId))).getSingle();
-              if (header.jenisTransaksi != 'notaris') {
+              if (header.jenisTransaksi != selectedDomain) {
                 throw const ManualTransactionFailure('unsupported_domain');
+              }
+              if (!RegExp(
+                r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+              ).hasMatch(header.uuid)) {
+                throw const ManualTransactionFailure('validation');
               }
               final identity = await db
                   .customSelect(
@@ -350,7 +367,7 @@ class TransactionManualSyncService {
               for (var n = 0; n < maxPages; n++) {
                 final batch = await cloud.pullBatch(
                   limit: pageSize,
-                  allowedDomains: const {'notaris'},
+                  allowedDomains: const {'notaris', 'ppat'},
                   confirmAcknowledgements: true,
                 );
                 count += batch.count;

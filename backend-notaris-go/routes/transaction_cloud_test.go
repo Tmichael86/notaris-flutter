@@ -31,6 +31,14 @@ import (
 
 func TestTransactionCloudHTTPPostgres(t *testing.T)     { runTransactionCloudHTTP(t, "notaris") }
 func TestTransactionPpatCloudHTTPPostgres(t *testing.T) { runTransactionCloudHTTP(t, "ppat") }
+func TestTransactionMixedManualHTTPPostgres(t *testing.T) {
+	if os.Getenv("NOTARIS_TRANSACTION_E2E") != "1" {
+		t.Skip("disposable mixed A/B HTTP opt-in unset")
+	}
+	t.Setenv("NOTARIS_TRANSACTION_MANUAL_BRIDGE", "1")
+	t.Setenv("NOTARIS_TRANSACTION_MIXED_E2E", "1")
+	runTransactionCloudHTTP(t, "notaris")
+}
 func runTransactionCloudHTTP(t *testing.T, domain string) {
 	dsn := os.Getenv("NOTARIS_SYNC_TEST_DSN")
 	if dsn == "" {
@@ -127,11 +135,24 @@ func runTransactionCloudHTTP(t *testing.T, domain string) {
 			cmd = exec.CommandContext(ctx, "flutter", args...)
 		}
 		cmd.Dir = "../../frontend_notaris"
-		cmd.Env = append(os.Environ(), "TRANSACTION_DOMAIN="+domain, "TRANSACTION_E2E_URL="+server.URL+"/api/v1", "TRANSACTION_E2E_TOKEN="+token, "TRANSACTION_MUTATIONS="+os.Getenv("NOTARIS_TRANSACTION_MUTATIONS_E2E"), "TRANSACTION_MANUAL_BRIDGE="+os.Getenv("NOTARIS_TRANSACTION_MANUAL_BRIDGE"), "TRANSACTION_DISPOSABLE_TARGET="+fmt.Sprintf("%s:%d/%s", cfg.Host, cfg.Port, cfg.Database), "TRANSACTION_DISPOSABLE_DEPLOYMENT="+schema)
+		cmd.Env = append(os.Environ(), "TRANSACTION_DOMAIN="+domain, "TRANSACTION_E2E_URL="+server.URL+"/api/v1", "TRANSACTION_E2E_TOKEN="+token, "TRANSACTION_MUTATIONS="+os.Getenv("NOTARIS_TRANSACTION_MUTATIONS_E2E"), "TRANSACTION_MANUAL_BRIDGE="+os.Getenv("NOTARIS_TRANSACTION_MANUAL_BRIDGE"), "TRANSACTION_MIXED_FEED="+os.Getenv("NOTARIS_TRANSACTION_MIXED_E2E"), "TRANSACTION_DISPOSABLE_TARGET="+fmt.Sprintf("%s:%d/%s", cfg.Host, cfg.Port, cfg.Database), "TRANSACTION_DISPOSABLE_DEPLOYMENT="+schema)
 		out, e := cmd.CombinedOutput()
 		t.Log(strings.ReplaceAll(string(out), token, "[redacted]"))
 		if e != nil {
 			t.Fatalf("Flutter Device A/B: %v", e)
+		}
+		if os.Getenv("NOTARIS_TRANSACTION_MIXED_E2E") == "1" {
+			for q, want := range map[string]int64{"SELECT count(*) FROM transaction_cloud": 2, "SELECT count(*) FROM transaction_cloud_payment": 2, "SELECT count(*) FROM transaction_cloud_mutation": 6, "SELECT count(*) FROM transaction_cloud_outbox WHERE publication_seq BETWEEN 1 AND 6": 6, "SELECT last_seq FROM transaction_cloud_publication": 6, "SELECT count(*) FROM transaction_cloud_number_counter WHERE last_number=1": 2} {
+				var got int64
+				if err := db.Raw(q).Row().Scan(&got); err != nil || got != want {
+					t.Fatalf("mixed %s=%d want=%d err=%v", q, got, want, err)
+				}
+			}
+			var domains []string
+			if err := db.Raw("SELECT payload->>'domain' FROM transaction_cloud_outbox ORDER BY publication_seq LIMIT 4").Scan(&domains).Error; err != nil || strings.Join(domains, ",") != "ppat,notaris,ppat,notaris" {
+				t.Fatal("mixed ordering", domains, err)
+			}
+			return
 		}
 		for _, q := range []string{"SELECT count(*) FROM transaction_cloud", "SELECT count(*) FROM transaction_cloud_payment", "SELECT count(*) FROM transaction_cloud_mutation", "SELECT count(*) FROM transaction_cloud_outbox WHERE publication_seq=1", "SELECT last_number FROM transaction_cloud_number_counter"} {
 			var n int64

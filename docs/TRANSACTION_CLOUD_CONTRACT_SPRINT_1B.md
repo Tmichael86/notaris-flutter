@@ -385,3 +385,61 @@ $env:NOTARIS_TRANSACTION_MUTATIONS_E2E='1'
 $env:NOTARIS_TRANSACTION_MANUAL_BRIDGE='1'
 go test ./routes -run '^TestTransactionCloudHTTPPostgres$' -count=1 -v
 ```
+
+## Shared-feed manual service (2026-11-06)
+
+The shared feed decision is final: upload selects one local aggregate/domain;
+download consumes **both** domains in publication order with one shared cursor.
+The same TransactionManualSyncService now accepts these explicit UI contracts:
+
+| selectedModule | direction | transactionId | Behavior |
+|---|---|---|---|
+| `transaksi_notaris` | upload | required | One selected Notaris aggregate |
+| `transaksi_ppat` | upload | required | One selected PPAT aggregate |
+| `transaksi` | download | forbidden | Shared Notaris + PPAT feed |
+
+Download with either domain-specific module and combined upload are rejected,
+never silently reinterpreted. Monitoring labels `Transaksi (feed gabungan)` and
+explains this boundary; execute buttons remain disabled in every mode. The guard
+remains disposable-only; existing development/daily profiles are not opened.
+
+Profile checks now cover both Master feed scopes. Both upload adapters reuse the
+same service/repository, `transaksi` permissions and UUID reference resolver.
+Each incoming aggregate validates explicit domain, parent/reference/mutation/child
+UUIDs, revision, number prefix and tombstone; historical tombstone references and
+snapshots cannot change. Missing verified applicant/officer provenance blocks
+import. Existing domain-aware Master/price/category mappings are reused.
+
+All page events, identity changes, exact-mutation ACK retirement and cursor commit
+share one Drift transaction. An invalid/unknown event, unresolved reference or
+dirty conflict rolls back the **whole page**. Earlier committed pages remain at
+their last safe cursor; no event is skipped. Download never uploads dirty data.
+409 retains pending/dirty state. A 410 on the shared feed blocks operations across
+both upload domains until explicit recovery; no automatic reset or overwrite.
+
+Upload logs remain separate (`transaksi_notaris`, `transaksi_ppat`), while download
+logs use `transaksi`. Monitoring combines shared pull evidence with each domain's
+latest upload result, pending/dirty children and unobserved ACKs. Empty pulls and
+ACKs alone still cannot establish successful publication. Failure history is
+persistent and no unsupported operation is reported as successful.
+
+Disposable validation: 62 focused Flutter tests and analyzer clean; ten focused
+Go tests passed (mixed opt-in skipped there, then explicitly executed). Three real
+HTTP A/B E2Es passed: Notaris lifecycle, PPAT lifecycle and mixed-feed service.
+The mixed test uploads/publishes PPAT CREATE → Notaris CREATE → PPAT UPDATE →
+Notaris UPDATE (seq 1–4), verifies second-event dependency failure rolls back the
+page, then imports four events together. Two tombstones follow (seq 5–6); a dirty
+second record again rolls back both events at cursor 4. Explicit fixture-only
+conflict resolution, replay/restart, two stable numbers/payments, snapshots,
+process UUIDs and integrity/FKs pass. No permanent live E2E is repeated.
+Evidence: `.local/transaction-shared-service-20261106/`.
+
+```powershell
+# Same already-owned disposable DSN and E2E flags as above; no permanent target.
+go test ./routes -run '^TestTransactionMixedManualHTTPPostgres$' -count=1 -v
+```
+
+Service/contract is ready for isolated UI wiring. Enabling UI execution still
+requires a reviewed selected-record binding and profile provisioning, plus the
+separate normal-profile rollout/recovery approval; no global coordinator or
+background publisher is activated by this checkpoint.

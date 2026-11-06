@@ -49,6 +49,8 @@ class _SyncLogState extends ConsumerState<SyncLogDesktopScreen> {
                   'pengeluaran',
                   'pemohon',
                   'transaksi_notaris',
+                  'transaksi_ppat',
+                  'transaksi',
                 ])
                   DropdownMenuItem(
                     value: v,

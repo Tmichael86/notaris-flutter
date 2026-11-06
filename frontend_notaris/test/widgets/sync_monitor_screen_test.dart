@@ -48,6 +48,26 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text('Download').last);
         await tester.pumpAndSettle();
+        if (!smoke) {
+          expect(
+            find.textContaining(
+              'Download menggunakan Transaksi (feed gabungan)',
+            ),
+            findsOneWidget,
+          );
+        }
+        await tester.tap(find.text('Transaksi Notaris').first);
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Transaksi (feed gabungan)').last);
+        await tester.tap(find.text('Transaksi (feed gabungan)').last);
+        await tester.pumpAndSettle();
+        if (!smoke) {
+          expect(
+            find.textContaining('menerima Notaris dan PPAT dengan satu cursor'),
+            findsOneWidget,
+          );
+        }
+
         expect(
           tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
           isNull,

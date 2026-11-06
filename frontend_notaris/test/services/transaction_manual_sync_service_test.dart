@@ -36,13 +36,14 @@ class Transport implements HttpClientAdapter {
       return json({'changes': [], 'next_cursor': 0, 'has_more': false}, 200);
     }
     final body = Map<String, dynamic>.from(o.data as Map);
-    aggregate = {...body, 'final_number': '1000611260001'};
+    final number = body['domain'] == 'ppat' ? '2000611260001' : '1000611260001';
+    aggregate = {...body, 'final_number': number};
     return json({
       'acknowledgement': {
         'uuid': body['uuid'],
         'mutation_id': body['mutation_id'],
         'revision': (body['expected_revision'] as int) + 1,
-        'final_number': '1000611260001',
+        'final_number': number,
       },
     }, 200);
   }
@@ -95,9 +96,11 @@ void main() {
   Future<TransactionManualResult> run(
     ManualSyncDirection d, {
     int? selectedId,
-    String module = 'transaksi_notaris',
+    String? module,
   }) => service().run(
-    selectedModule: module,
+    selectedModule:
+        module ??
+        (d == ManualSyncDirection.download ? 'transaksi' : 'transaksi_notaris'),
     direction: d,
     transactionId: selectedId,
   );
@@ -246,7 +249,7 @@ void main() {
     );
     await expectLater(
       service(target: wrong).run(
-        selectedModule: 'transaksi_notaris',
+        selectedModule: 'transaksi',
         direction: ManualSyncDirection.download,
       ),
       failure('scope'),
@@ -342,6 +345,10 @@ void main() {
       run(ManualSyncDirection.upload, selectedId: id),
       failure('feed_expired'),
     );
+    await expectLater(
+      run(ManualSyncDirection.upload, selectedId: id, module: 'transaksi_ppat'),
+      failure('feed_expired'),
+    );
     expect(transport.calls, 1);
     expect(
       (await db
@@ -353,12 +360,12 @@ void main() {
     expect((await db.select(db.transaksis).get()).length, 1);
     expect((await monitor())['color'], 'red');
   });
-  test('unselected PPAT feed event blocks whole page and cursor', () async {
+  test('unknown feed domain blocks whole page and cursor', () async {
     transport.respond = (_) async => Transport.json({
       'changes': [
         {
           'sequence': 1,
-          'aggregate': {'domain': 'ppat'},
+          'aggregate': {'domain': 'unknown'},
         },
       ],
       'next_cursor': 1,
@@ -399,7 +406,7 @@ void main() {
     expect(status['progress'].toString(), isNot(contains('%')));
     await expectLater(
       service().run(
-        selectedModule: 'transaksi_notaris',
+        selectedModule: 'transaksi',
         direction: ManualSyncDirection.download,
       ),
       failure('busy'),
@@ -424,7 +431,7 @@ void main() {
       'has_more': true,
     }, 200);
     final limited = await service().run(
-      selectedModule: 'transaksi_notaris',
+      selectedModule: 'transaksi',
       direction: ManualSyncDirection.download,
       pageSize: 1,
       maxPages: 1,
@@ -449,42 +456,39 @@ void main() {
     entries = await SyncLogRepository(db).list();
     expect(entries.map((r) => r['status']), ['success', 'pending', 'success']);
   });
-  test(
-    'mixed domain page applies neither selected nor unselected events',
-    () async {
-      await run(ManualSyncDirection.upload, selectedId: id);
-      transport.respond = (_) async => Transport.json({
-        'changes': [
-          {
-            'sequence': 1,
-            'operation': 'create',
-            'revision': 1,
-            'aggregate': transport.aggregate,
-          },
-          {
-            'sequence': 2,
-            'operation': 'create',
-            'revision': 1,
-            'aggregate': {'domain': 'ppat'},
-          },
-        ],
-        'next_cursor': 2,
-        'has_more': false,
-      }, 200);
-      await expectLater(
-        run(ManualSyncDirection.download),
-        failure('unsupported_domain'),
-      );
-      expect(
-        (await db
-                .customSelect('SELECT cursor FROM transaction_cloud_feed')
-                .getSingle())
-            .read<int>('cursor'),
-        0,
-      );
-      expect((await db.select(db.transaksis).get()).length, 1);
-    },
-  );
+  test('unknown second event rolls back the full page', () async {
+    await run(ManualSyncDirection.upload, selectedId: id);
+    transport.respond = (_) async => Transport.json({
+      'changes': [
+        {
+          'sequence': 1,
+          'operation': 'create',
+          'revision': 1,
+          'aggregate': transport.aggregate,
+        },
+        {
+          'sequence': 2,
+          'operation': 'create',
+          'revision': 1,
+          'aggregate': {'domain': 'unknown'},
+        },
+      ],
+      'next_cursor': 2,
+      'has_more': false,
+    }, 200);
+    await expectLater(
+      run(ManualSyncDirection.download),
+      failure('unsupported_domain'),
+    );
+    expect(
+      (await db
+              .customSelect('SELECT cursor FROM transaction_cloud_feed')
+              .getSingle())
+          .read<int>('cursor'),
+      0,
+    );
+    expect((await db.select(db.transaksis).get()).length, 1);
+  });
   test('unselected dirty PPAT is not uploaded or marked clean', () async {
     await db.customStatement(
       "INSERT INTO transaksis(uuid,no_akta,total,jenis_transaksi) VALUES('00000000-0000-4000-8000-000000000099','PPAT-OFFLINE',100,'ppat')",
@@ -594,4 +598,222 @@ void main() {
     expect((await monitor())['color'], 'green');
     expect((await SyncLogRepository(db).list(status: 'failed')).length, 1);
   });
+  Future<int> ppat() async {
+    await db.customStatement(
+      "INSERT INTO pekerjaan_ppat(id,uuid,nama,is_sync_dirty) VALUES(40,?,'J PPAT',0)",
+      [job],
+    );
+    await db.customStatement(
+      'INSERT INTO pekerjaan_ppat_sync_identity(local_uuid,cloud_uuid,scope,revision) VALUES(?,?,?,1)',
+      [job, job, profile.masterScope],
+    );
+    await db.customStatement(
+      "INSERT INTO pekerjaan_ppat_harga(uuid,pekerjaan_ppat_id,kategori_pekerjaan_id,harga,estimasi_waktu,is_sync_dirty) VALUES(?,40,30,'100','2 hari',0)",
+      [price],
+    );
+    return TransactionRepository(db).save(
+      nomorTransaksi: 'PPAT-OFFLINE',
+      jenisTransaksi: 'ppat',
+      pemohonId: 10,
+      pemohonUuid: applicant,
+      petugasId: 20,
+      petugasUuid: officer,
+      status: 'Baru',
+      tanggalTransaksi: DateTime.utc(2020),
+      pembayaranSekarang: 25,
+      jobs: [
+        const TransactionJobInput(
+          jenisPekerjaan: 'ppat',
+          namaPekerjaan: 'PPAT snapshot',
+          pekerjaanPpatId: 40,
+          hargaUuid: price,
+          kategoriUuid: category,
+          biayaLayanan: 100,
+          detailUuid: '00000000-0000-4000-8000-000000000017',
+        ),
+      ],
+    );
+  }
+
+  test('PPAT selective upload does not send dirty Notaris; upload/download selections are explicit', () async {
+    final other = await ppat();
+    await expectLater(
+      run(ManualSyncDirection.download, module: 'transaksi_ppat'),
+      failure('validation'),
+    );
+    await expectLater(
+      run(ManualSyncDirection.download, module: 'transaksi_notaris'),
+      failure('validation'),
+    );
+    await expectLater(
+      run(ManualSyncDirection.upload, selectedId: id, module: 'transaksi'),
+      failure('validation'),
+    );
+    expect(transport.calls, 0);
+    final result = await run(
+      ManualSyncDirection.upload,
+      selectedId: other,
+      module: 'transaksi_ppat',
+    );
+    expect(result.receipt!['final_number'], '2000611260001');
+    expect(result.count, 1);
+    expect(transport.calls, 1);
+    expect(transport.aggregate!['domain'], 'ppat');
+    expect(
+      (await SyncMonitorRepository(
+        db,
+      ).read()).singleWhere((r) => r['module'] == 'transaksi_ppat')['color'],
+      'yellow',
+    );
+    expect((await TransactionRepository(db).findById(id))!.isSyncDirty, true);
+    expect(
+      (await db
+              .customSelect('SELECT local_uuid FROM transaction_cloud_pending')
+              .get())
+          .length,
+      1,
+    );
+    await expectLater(
+      run(ManualSyncDirection.upload, selectedId: id, module: 'transaksi_ppat'),
+      failure('unsupported_domain'),
+    );
+    expect(transport.calls, 1);
+    final entries = await SyncLogRepository(db).list(module: 'transaksi_ppat');
+    expect(entries.map((r) => r['status']), ['failed', 'success']);
+    expect(
+      (await SyncMonitorRepository(
+        db,
+      ).read()).singleWhere((r) => r['module'] == 'transaksi')['color'],
+      'red',
+    );
+  });
+  test('PPAT feed scope mismatch blocks shared download before HTTP or log insertion', () async {
+    await db.customStatement(
+      "INSERT INTO pekerjaan_ppat_sync_feed(scope,cursor) VALUES('wrong-generation',0)",
+    );
+    await expectLater(run(ManualSyncDirection.download), failure('scope'));
+    expect(transport.calls, 0);
+    expect(await SyncLogRepository(db).list(), isEmpty);
+  });
+  test('invalid child UUID and malformed revision/number never advance shared cursor', () async {
+    await run(ManualSyncDirection.upload, selectedId: id);
+    final accepted =
+        jsonDecode(jsonEncode(transport.aggregate)) as Map<String, dynamic>;
+    for (final field in ['child', 'revision', 'number']) {
+      final a = jsonDecode(jsonEncode(accepted)) as Map<String, dynamic>;
+      if (field == 'child') a['details'][0]['uuid'] = 'bad-uuid';
+      if (field == 'revision') a['expected_revision'] = 7;
+      if (field == 'number') a['final_number'] = '2000611260001';
+      transport.respond = (_) async => Transport.json({
+        'changes': [
+          {'sequence': 1, 'operation': 'create', 'revision': 1, 'aggregate': a},
+        ],
+        'next_cursor': 1,
+        'has_more': false,
+      }, 200);
+      await expectLater(
+        run(ManualSyncDirection.download),
+        failure('validation'),
+      );
+      expect(
+        (await db
+                .customSelect('SELECT cursor FROM transaction_cloud_feed')
+                .getSingle())
+            .read<int>('cursor'),
+        0,
+      );
+      expect(
+        (await db
+                .customSelect(
+                  "SELECT * FROM transaction_cloud_pending WHERE state='acked'",
+                )
+                .get())
+            .length,
+        1,
+      );
+    }
+  });
+  test(
+    'tombstone with changed historical provenance rejects without page commit',
+    () async {
+      await run(ManualSyncDirection.upload, selectedId: id);
+      final tombstone =
+          jsonDecode(jsonEncode(transport.aggregate)) as Map<String, dynamic>;
+      tombstone['expected_revision'] = 1;
+      tombstone['deleted_at'] = '2026-11-06T00:00:00Z';
+      tombstone['details'][0]['job_uuid'] =
+          '00000000-0000-4000-8000-000000000099';
+      transport.respond = (_) async => Transport.json({
+        'changes': [
+          {
+            'sequence': 1,
+            'revision': 2,
+            'operation': 'delete',
+            'aggregate': tombstone,
+          },
+        ],
+        'next_cursor': 1,
+        'has_more': false,
+      }, 200);
+      await expectLater(
+        run(ManualSyncDirection.download),
+        failure('validation'),
+      );
+      expect(
+        (await db
+                .customSelect('SELECT cursor FROM transaction_cloud_feed')
+                .getSingle())
+            .read<int>('cursor'),
+        0,
+      );
+      expect((await db.select(db.transaksis).getSingle()).deletedAt, isNull);
+      expect(
+        (await db.select(db.transaksiDetails).getSingle()).deletedAt,
+        isNull,
+      );
+    },
+  );
+
+  test(
+    'shared import requires actual applicant and officer provenance',
+    () async {
+      await run(ManualSyncDirection.upload, selectedId: id);
+      final imported =
+          jsonDecode(jsonEncode(transport.aggregate)) as Map<String, dynamic>;
+      imported['uuid'] = '00000000-0000-4000-8000-000000000088';
+      transport.respond = (_) async => Transport.json({
+        'changes': [
+          {
+            'sequence': 1,
+            'revision': 1,
+            'operation': 'create',
+            'aggregate': imported,
+          },
+        ],
+        'next_cursor': 1,
+        'has_more': false,
+      }, 200);
+      await db.customStatement("UPDATE petugas_identity_map SET evidence=''");
+      await expectLater(
+        run(ManualSyncDirection.download),
+        failure('validation'),
+      );
+      await db.customStatement(
+        "UPDATE petugas_identity_map SET evidence='authenticated fixture'",
+      );
+      await db.customStatement('UPDATE pemohons SET last_synced_at=NULL');
+      await expectLater(
+        run(ManualSyncDirection.download),
+        failure('validation'),
+      );
+      expect(
+        (await db
+                .customSelect('SELECT cursor FROM transaction_cloud_feed')
+                .getSingle())
+            .read<int>('cursor'),
+        0,
+      );
+      expect((await db.select(db.transaksis).get()).length, 1);
+    },
+  );
 }

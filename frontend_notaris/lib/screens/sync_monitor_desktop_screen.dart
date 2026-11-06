@@ -78,7 +78,7 @@ class _MonitorState extends ConsumerState<SyncMonitorDesktopScreen> {
         Text(
           smoke
               ? 'UI Smoke: seluruh sinkronisasi manual dinonaktifkan.'
-              : selectiveSyncReason(module),
+              : selectiveSyncReason(module, direction),
         ),
         const SizedBox(height: 12),
         Expanded(

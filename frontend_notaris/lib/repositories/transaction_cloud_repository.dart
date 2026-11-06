@@ -484,7 +484,7 @@ class TransactionCloudRepository {
         (allowedDomains != null &&
             (page['changes'] as List).any(
               (event) => !allowedDomains.contains(
-                _domainOf(event['aggregate'] as Map),
+                (event['aggregate'] as Map)['domain'],
               ),
             ))) {
       throw StateError('Unselected transaction domain or invalid page');
@@ -507,6 +507,7 @@ class TransactionCloudRepository {
             !{'create', 'update', 'delete'}.contains(event['operation'])) {
           throw StateError('Transaction publication gap');
         }
+        if (allowedDomains != null) _validatePublished(event);
         await _apply(
           Map<String, dynamic>.from(event['aggregate'] as Map),
           event['revision'] as int,
@@ -541,6 +542,58 @@ class TransactionCloudRepository {
         page['has_more'] as bool,
       );
     });
+  }
+
+  /// Validate wire identities even on replay, before a page can commit. Domain
+  /// tables may share a master UUID; transaction UUIDs are deployment-global.
+  void _validatePublished(Map<String, dynamic> event) {
+    final a = event['aggregate'] as Map;
+    final uuid = RegExp(
+      r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+    );
+    void identity(dynamic value) {
+      if (value is! String || !uuid.hasMatch(value)) {
+        throw StateError('Invalid published UUID');
+      }
+    }
+
+    for (final key in ['uuid', 'mutation_id', 'pemohon_uuid', 'petugas_uuid']) {
+      identity(a[key]);
+    }
+    final revision = event['revision'] as int;
+    if (revision < 1 ||
+        a['expected_revision'] != revision - 1 ||
+        (event['operation'] == 'create' && revision != 1) ||
+        (event['operation'] != 'create' && revision < 2) ||
+        ((event['operation'] == 'delete') != (a['deleted_at'] != null)) ||
+        !RegExp(a['domain'] == 'ppat' ? r'^200\d{10}$' : r'^100\d{10}$')
+            .hasMatch(a['final_number'] as String)) {
+      throw StateError('Invalid published revision/number/tombstone');
+    }
+    final details = <String>{}, processes = <String>{}, payments = <String>{};
+    if ((a['details'] as List).isEmpty) {
+      throw StateError('Missing published detail');
+    }
+    for (final d in a['details'] as List) {
+      for (final key in ['uuid', 'job_uuid', 'price_uuid', 'category_uuid']) {
+        identity(d[key]);
+      }
+      if (!details.add(d['uuid'] as String)) {
+        throw StateError('Duplicate detail UUID');
+      }
+      for (final process in d['processes'] as List) {
+        identity(process['uuid']);
+        if (!processes.add(process['uuid'] as String)) {
+          throw StateError('Duplicate process UUID');
+        }
+      }
+    }
+    for (final payment in a['payments'] as List) {
+      identity(payment['uuid']);
+      if (!payments.add(payment['uuid'] as String)) {
+        throw StateError('Duplicate payment UUID');
+      }
+    }
   }
 
   int _date(dynamic value) =>
@@ -627,6 +680,17 @@ class TransactionCloudRepository {
         throw StateError('Committed payment history mismatch');
       }
       if (operation == 'delete') {
+        final prior = jsonDecode(identity.read<String>('snapshot')) as Map;
+        for (final key in [
+          'pemohon_uuid',
+          'petugas_uuid',
+          'header',
+          'details',
+        ]) {
+          if (!_same(prior[key], aggregate[key])) {
+            throw StateError('Tombstone historical snapshot mismatch');
+          }
+        }
         final deleted = aggregate['deleted_at'];
         if (deleted == null) throw StateError('Tombstone missing');
         await db.customStatement(
@@ -657,12 +721,13 @@ class TransactionCloudRepository {
                   t.uuid.equals(aggregate['pemohon_uuid'] as String) &
                   t.status.equals(1) &
                   t.deletedAt.isNull() &
+                  t.lastSyncedAt.isNotNull() &
                   t.isSyncDirty.equals(false),
             ))
             .get();
     final officer = await db
         .customSelect(
-          "SELECT p.id,p.uuid FROM petugas p JOIN petugas_identity_map m ON m.local_uuid=p.uuid JOIN petugas_sync_journal j ON j.local_uuid=p.uuid JOIN petugas_sync_feed f ON f.id=1 WHERE m.cloud_uuid=? AND m.state IN ('verified','server_only') AND p.status=1 AND p.deleted_at IS NULL AND p.is_sync_dirty=0 AND j.pending IS NULL AND j.row_version>0 AND f.scope=? AND f.blocked IS NULL",
+          "SELECT p.id,p.uuid FROM petugas p JOIN petugas_identity_map m ON m.local_uuid=p.uuid JOIN petugas_sync_journal j ON j.local_uuid=p.uuid JOIN petugas_sync_feed f ON f.id=1 WHERE m.cloud_uuid=? AND m.state IN ('verified','server_only') AND m.server_id>0 AND NULLIF(trim(m.evidence),'') IS NOT NULL AND p.status=1 AND p.deleted_at IS NULL AND p.is_sync_dirty=0 AND j.pending IS NULL AND j.row_version>0 AND f.scope=? AND f.blocked IS NULL",
           variables: [
             Variable(aggregate['petugas_uuid'] as String),
             Variable(petugasScope),
