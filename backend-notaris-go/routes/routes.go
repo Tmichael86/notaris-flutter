@@ -5,6 +5,7 @@ import (
 	"backend-notaris-go/controllers"
 	"backend-notaris-go/middleware"
 	"backend-notaris-go/repositories"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,10 +25,22 @@ func SetupRouter(
 	sidebarAccessController *controllers.SidebarAccessController,
 ) *gin.Engine {
 	r := gin.Default()
+	var acceptance *middleware.AcceptanceGate
+	if path := os.Getenv("NOTARIS_UI_ACCEPTANCE_PLAN"); path != "" {
+		var err error
+		acceptance, err = middleware.ReadAcceptancePlan(path, os.Getenv("NOTARIS_UI_ACCEPTANCE_SHA256"))
+		if err != nil {
+			panic("invalid acceptance plan")
+		}
+		r.Use(acceptance.Guard(cfg))
+	}
 	sidebarAccessRepository := repositories.NewSidebarAccessRepository()
 	v1 := r.Group("/api/v1")
 	{
 		v1.GET("/health", healthController.Check)
+		if acceptance != nil {
+			v1.GET("/development/transaction-acceptance", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionRead), acceptance.Attest)
+		}
 		auth := v1.Group("/auth")
 		{
 			auth.POST("/login", authController.Login)

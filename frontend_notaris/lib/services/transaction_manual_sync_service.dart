@@ -76,6 +76,10 @@ class TransactionManualProfile {
         groupId < 1) {
       throw const ManualTransactionFailure('scope');
     }
+    return validateTemporaryLocation();
+  }
+
+  String validateTemporaryLocation() {
     final canonical = File(sqlitePath).resolveSymbolicLinksSync();
     final parent = p.dirname(canonical);
     final temp = Directory.systemTemp.resolveSymbolicLinksSync();
@@ -88,6 +92,8 @@ class TransactionManualProfile {
     }
     return canonical;
   }
+
+  Future<void> verifyRequest(RequestOptions request) async {}
 
   Future<void> validate(AppDatabase db) async {
     final canonical = validateLocation();
@@ -158,7 +164,7 @@ class TransactionManualSyncService {
     // every request to this profile and supported Transaction routes.
     _http.interceptors.add(
       InterceptorsWrapper(
-        onRequest: (r, h) {
+        onRequest: (r, h) async {
           try {
             final current = _authorize();
             if (r.uri.origin != Uri.parse(profile.baseUrl).origin ||
@@ -175,6 +181,7 @@ class TransactionManualSyncService {
             if (!_permission(current, action == 'pull' ? 'read' : action)) {
               throw const ManualTransactionFailure('forbidden');
             }
+            await profile.verifyRequest(r);
             r.followRedirects = false;
             h.next(r);
           } catch (e) {

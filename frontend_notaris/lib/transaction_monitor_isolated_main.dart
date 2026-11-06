@@ -1,3 +1,5 @@
+import 'services/notarisdev_acceptance_profile.dart';
+
 // Explicit Windows debug entry. Never consumes the normal development profile.
 import 'dart:convert';
 import 'dart:io';
@@ -19,16 +21,18 @@ Future<IsolatedTransactionSyncConfiguration> loadIsolatedTransactionUiProfile(
   final manifest = File(manifestPath).resolveSymbolicLinksSync();
   final data =
       jsonDecode(await File(manifest).readAsString()) as Map<String, dynamic>;
-  final profile = TransactionManualProfile(
-    sqlitePath: data['sqlitePath'] as String,
-    baseUrl: data['baseUrl'] as String,
-    databaseTarget: data['databaseTarget'] as String,
-    deployment: data['deployment'] as String,
-    device: data['device'] as String,
-    generation: data['generation'] as String,
-    accountId: data['accountId'] as int,
-    groupId: data['groupId'] as int,
-  );
+  final profile = data['acceptancePlan'] != null
+      ? NotarisdevAcceptanceProfile.fromManifest(data)
+      : TransactionManualProfile(
+          sqlitePath: data['sqlitePath'] as String,
+          baseUrl: data['baseUrl'] as String,
+          databaseTarget: data['databaseTarget'] as String,
+          deployment: data['deployment'] as String,
+          device: data['device'] as String,
+          generation: data['generation'] as String,
+          accountId: data['accountId'] as int,
+          groupId: data['groupId'] as int,
+        );
   final canonical = profile.validateLocation();
   if (p.dirname(manifest) != p.dirname(canonical)) {
     throw const ManualTransactionFailure('scope');
@@ -71,12 +75,14 @@ Future<void> main() async {
             config,
           ),
         ],
-        child: const Directionality(
+        child: Directionality(
           textDirection: TextDirection.ltr,
           child: Banner(
-            message: 'DISPOSABLE MANUAL SYNC',
+            message: config.profile is NotarisdevAcceptanceProfile
+                ? 'DEV notarisdev ISOLATED ACCEPTANCE'
+                : 'DISPOSABLE MANUAL SYNC',
             location: BannerLocation.topEnd,
-            child: MyApp(),
+            child: const MyApp(),
           ),
         ),
       ),
