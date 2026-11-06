@@ -715,6 +715,28 @@ class TransactionRepository {
   Future<bool> delete(int id) async {
     final now = DateTime.now();
     return db.transaction(() async {
+      final original = await findById(id);
+      if (original == null) return false;
+      final details = await (db.select(
+        db.transaksiDetails,
+      )..where((t) => t.transaksiId.equals(id) & t.deletedAt.isNull())).get();
+      // Only facts required to undo this exact local cascade, never payment data.
+      await db.customStatement(
+        "INSERT INTO recycle_bin_events(attempt_id,module,local_uuid,action,outcome,occurred_at,before_state) VALUES(?,?,?,'delete','success',?,?)",
+        [
+          _uuid.v4(),
+          'transaksi_${original.jenisTransaksi}',
+          original.uuid,
+          now.toUtc().toIso8601String(),
+          jsonEncode({
+            'status': original.statusTransaksi,
+            'deletedAt': now.millisecondsSinceEpoch ~/ 1000,
+            'details': details
+                .map((d) => {'uuid': d.uuid, 'status': d.status})
+                .toList(),
+          }),
+        ],
+      );
       final affected =
           await (db.update(
             db.transaksis,

@@ -263,7 +263,7 @@ class AppDatabase extends _$AppDatabase {
   final String? petugasBaselinePath;
 
   @override
-  int get schemaVersion => 18;
+  int get schemaVersion => 19;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -279,6 +279,7 @@ class AppDatabase extends _$AppDatabase {
       await _createNotarisCloudStorage();
       await _createPpatCloudStorage();
       await _createTransactionCloudStorage();
+      await _createRecycleBinStorage();
     },
     onUpgrade: (Migrator m, int from, int to) async {
       // Keep all pending migration steps atomic. If V8 UUID validation fails,
@@ -450,6 +451,7 @@ class AppDatabase extends _$AppDatabase {
             "ALTER TABLE transaction_cloud_pending ADD COLUMN operation TEXT NOT NULL DEFAULT 'create' CHECK(operation IN ('create','update','delete'))",
           );
         }
+        if (from < 19) await _createRecycleBinStorage();
       });
     },
   );
@@ -464,6 +466,10 @@ class AppDatabase extends _$AppDatabase {
       'ON transaksis (uuid)',
     );
   }
+
+  Future<void> _createRecycleBinStorage() => customStatement(
+    "CREATE TABLE IF NOT EXISTS recycle_bin_events (id INTEGER PRIMARY KEY AUTOINCREMENT, attempt_id TEXT NOT NULL UNIQUE, module TEXT NOT NULL, local_uuid TEXT NOT NULL, action TEXT NOT NULL CHECK(action IN ('delete','restore')), outcome TEXT NOT NULL CHECK(outcome IN ('success','failed')), actor_id INTEGER, occurred_at TEXT NOT NULL, error_code TEXT, before_state TEXT)",
+  );
 
   Future<void> _createSyncLogStorage() async {
     await customStatement(

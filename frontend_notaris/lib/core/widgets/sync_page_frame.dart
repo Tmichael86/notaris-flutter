@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'master_data_viewport.dart';
 
-/// Shared presentation for the two local sync diagnostics pages only.
+/// Shared white-card presentation for local System pages.
 class SyncPageFrame extends StatelessWidget {
   const SyncPageFrame({super.key, required this.title, required this.children});
   final String title;

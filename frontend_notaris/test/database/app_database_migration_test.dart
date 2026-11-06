@@ -210,7 +210,7 @@ void main() {
         (await after.customSelect('PRAGMA user_version').getSingle()).read<int>(
           'user_version',
         ),
-        18,
+        19,
       );
       expect(
         await after.customSelect('PRAGMA foreign_key_check').get(),
@@ -261,7 +261,7 @@ void main() {
         (await after.customSelect('PRAGMA user_version').getSingle()).read<int>(
           'user_version',
         ),
-        18,
+        19,
       );
       expect(
         await after.customSelect('PRAGMA foreign_key_check').get(),
@@ -593,7 +593,7 @@ void main() {
       final version = await inspectionDb
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 18);
+      expect(version.read<int>('user_version'), 19);
     } finally {
       await inspectionDb.close();
     }
