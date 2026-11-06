@@ -11,9 +11,11 @@ restore history are included. There is no hard delete or retention policy.
 - Discovery requires the source module's read permission. Restore rechecks read
   and update permission, selected PK/UUID/domain and deletion state inside a
   SQLite transaction. No new backend permission is invented.
-- Masters use status=0 plus deleted_at; restore activates the parent only.
-  Prices, processes and attributes are untouched, including previously removed
-  child tombstones. Active category/process ownership references are validated.
+- Masters use status=0 plus deleted_at; restore recovers the parent and proven cascade children.
+  Aggregate delete captures the exact child IDs/UUIDs/statuses in the existing
+  recovery log. Restore clears only those cascade tombstones in the same SQLite
+  transaction; previously removed children remain deleted. Missing or mismatched
+  provenance blocks recovery. Active category/process ownership is validated.
 - Transaction delete previously overwrote the business status with Dihapus and
   tombstoned its current details. New deletes atomically capture the exact prior
   status, cascade detail UUIDs/statuses and deletion timestamp. Restore uses that

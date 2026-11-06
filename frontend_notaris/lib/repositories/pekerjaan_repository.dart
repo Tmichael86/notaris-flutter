@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -194,8 +196,7 @@ class PekerjaanNotarisRepository {
     );
   }
 
-  Future<bool> delete(int id) =>
-      dao.softDeletePekerjaanNotaris(id, DateTime.now());
+  Future<bool> delete(int id) => deleteAggregate(id);
 
   PekerjaanAggregateInput _validateAndNormalizeInput(
     PekerjaanAggregateInput input,
@@ -568,6 +569,14 @@ class PekerjaanNotarisRepository {
       final parent = await dao.getPekerjaanNotarisById(id);
       if (parent == null) return false;
 
+      await _captureMasterDelete(
+        dao.attachedDatabase,
+        'notaris',
+        id,
+        parent.uuid,
+        now,
+      );
+
       for (final harga in await dao.getHargaNotaris(id)) {
         await dao.softDeleteHargaNotaris(harga.id, now);
       }
@@ -672,8 +681,7 @@ class PekerjaanPpatRepository {
     );
   }
 
-  Future<bool> delete(int id) =>
-      dao.softDeletePekerjaanPpat(id, DateTime.now());
+  Future<bool> delete(int id) => deleteAggregate(id);
 
   PekerjaanAggregateInput _validateAndNormalizeInput(
     PekerjaanAggregateInput input,
@@ -1040,6 +1048,14 @@ class PekerjaanPpatRepository {
       final parent = await dao.getPekerjaanPpatById(id);
       if (parent == null) return false;
 
+      await _captureMasterDelete(
+        dao.attachedDatabase,
+        'ppat',
+        id,
+        parent.uuid,
+        now,
+      );
+
       for (final harga in await dao.getHargaPpat(id)) {
         await dao.softDeleteHargaPpat(harga.id, now);
       }
@@ -1066,4 +1082,37 @@ Future<void> _validateCategories(
       throw ArgumentError('Kategori pekerjaan harus ada dan aktif.');
     }
   }
+}
+
+Future<void> _captureMasterDelete(
+  AppDatabase db,
+  String domain,
+  int id,
+  String uuid,
+  DateTime now,
+) async {
+  final children = <Map<String, dynamic>>[];
+  for (final suffix in ['harga', 'proses', 'atributs']) {
+    final table = 'pekerjaan_${domain}_$suffix';
+    final rows = await db
+        .customSelect(
+          'SELECT id,uuid,status FROM $table WHERE pekerjaan_${domain}_id=? AND status=1 AND deleted_at IS NULL${suffix == 'atributs' ? ' AND proses_pekerjaan_${domain}_id IN (SELECT id FROM pekerjaan_${domain}_proses WHERE pekerjaan_${domain}_id=? AND status=1 AND deleted_at IS NULL)' : ''}',
+          variables: [Variable(id), if (suffix == 'atributs') Variable(id)],
+        )
+        .get();
+    children.addAll(rows.map((r) => {'table': table, ...r.data}));
+  }
+  await db.customStatement(
+    "INSERT INTO recycle_bin_events(attempt_id,module,local_uuid,action,outcome,occurred_at,before_state) VALUES(?,?,?,'delete','success',?,?)",
+    [
+      const Uuid().v4(),
+      'pekerjaan_$domain',
+      uuid,
+      now.toUtc().toIso8601String(),
+      jsonEncode({
+        'deletedAt': now.millisecondsSinceEpoch ~/ 1000,
+        'children': children,
+      }),
+    ],
+  );
 }

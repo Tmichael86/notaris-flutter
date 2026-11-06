@@ -147,6 +147,27 @@ class RecycleBinRepository {
           m,
           r.data,
         ); // Revalidate permission/references after confirmation.
+        if (!m.isTransaction) {
+          final children = await _masterChildren(m, r.data);
+          for (final c in children) {
+            await db.customUpdate(
+              'UPDATE ${c['table']} SET deleted_at=NULL,status=?,is_sync_dirty=1 WHERE id=? AND uuid=?',
+              variables: [
+                Variable(c['status'] as int),
+                Variable(c['id'] as int),
+                Variable(c['uuid'] as String),
+              ],
+              updates: {
+                db.pekerjaanNotarisHargaLocals,
+                db.pekerjaanNotarisProsesLocals,
+                db.pekerjaanNotarisAtributLocals,
+                db.pekerjaanPpatHargaLocals,
+                db.pekerjaanPpatProsesLocals,
+                db.pekerjaanPpatAtributLocals,
+              },
+            );
+          }
+        }
         String? originalStatus;
         if (m.isTransaction) {
           final before = await _transactionBefore(r.data, m);
@@ -291,6 +312,7 @@ class RecycleBinRepository {
         }
       }
     } else {
+      await _masterChildren(m, r);
       final domain = m.domain;
       for (final suffix in ['harga', 'proses', 'atributs']) {
         if (await _exists(
@@ -311,6 +333,76 @@ class RecycleBinRepository {
         throw const RestoreFailure('reference');
       }
     }
+  }
+
+  Future<List<Map<String, dynamic>>> _masterChildren(
+    RecycleModule m,
+    Map<String, dynamic> r,
+  ) async {
+    final event = await db
+        .customSelect(
+          "SELECT before_state FROM recycle_bin_events WHERE module=? AND local_uuid=? AND action='delete' ORDER BY id DESC LIMIT 1",
+          variables: [Variable(m.code), Variable(r['uuid'] as String)],
+        )
+        .getSingleOrNull();
+    if (event == null) {
+      for (final suffix in ['harga', 'proses', 'atributs']) {
+        if (await _exists(
+          'SELECT 1 FROM pekerjaan_${m.domain}_$suffix WHERE pekerjaan_${m.domain}_id=? AND deleted_at IS NOT NULL',
+          [Variable(r['id'] as int)],
+        )) {
+          throw const RestoreFailure('history');
+        }
+      }
+      return [];
+    }
+    final before = jsonDecode(event.read<String>('before_state')) as Map;
+    if (before['deletedAt'] != r['deleted_at']) {
+      throw const RestoreFailure('history');
+    }
+    final children = (before['children'] as List)
+        .cast<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final allowed = [
+      'harga',
+      'proses',
+      'atributs',
+    ].map((s) => 'pekerjaan_${m.domain}_$s').toSet();
+    for (final c in children) {
+      if (!allowed.contains(c['table'])) throw const RestoreFailure('history');
+      final row = await db
+          .customSelect(
+            'SELECT * FROM ${c['table']} WHERE id=? AND uuid=? AND pekerjaan_${m.domain}_id=?',
+            variables: [
+              Variable(c['id'] as int),
+              Variable(c['uuid'] as String),
+              Variable(r['id'] as int),
+            ],
+          )
+          .getSingleOrNull();
+      if (row == null ||
+          row.data['deleted_at'] != r['deleted_at'] ||
+          row.data['status'] != 0) {
+        throw const RestoreFailure('history');
+      }
+      if ((c['table'] as String).endsWith('_harga') &&
+          !await _exists(
+            'SELECT 1 FROM pekerjaan_kategori WHERE id=? AND status=1 AND deleted_at IS NULL',
+            [Variable(row.read<int>('kategori_pekerjaan_id'))],
+          )) {
+        throw const RestoreFailure('reference');
+      }
+      if ((c['table'] as String).endsWith('_atributs') &&
+          !children.any(
+            (p) =>
+                p['table'] == 'pekerjaan_${m.domain}_proses' &&
+                p['id'] == row.data['proses_pekerjaan_${m.domain}_id'],
+          )) {
+        throw const RestoreFailure('reference');
+      }
+    }
+    return children;
   }
 
   Future<Map<String, dynamic>> _transactionBefore(

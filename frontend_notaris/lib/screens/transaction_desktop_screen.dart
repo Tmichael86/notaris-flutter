@@ -1,3 +1,6 @@
+import '../providers/auth_provider.dart';
+import '../core/widgets/edit_dialog.dart';
+
 import 'dart:convert';
 
 import 'package:drift/drift.dart' hide Column;
@@ -869,9 +872,13 @@ class _TransactionDesktopScreenState
   }
 
   Future<void> addTransactionJob() async {
-    final result = await showDialog<DummyTransactionJob>(
+    final editorKey = GlobalKey<_TransactionJobDialogState>();
+    final result = await showEditDialog<DummyTransactionJob>(
+      dirty: () => editorKey.currentState?.hasChanges ?? false,
+      saving: () => _isSaving,
       context: context,
       builder: (dialogContext) => _TransactionJobDialog(
+        key: editorKey,
         type: selectedType,
         categories: availableCategories,
         processes: availableProcesses,
@@ -886,9 +893,13 @@ class _TransactionDesktopScreenState
   Future<void> editTransactionJob(int index) async {
     final existing = selectedJobs[index];
 
-    final result = await showDialog<DummyTransactionJob>(
+    final editorKey = GlobalKey<_TransactionJobDialogState>();
+    final result = await showEditDialog<DummyTransactionJob>(
+      dirty: () => editorKey.currentState?.hasChanges ?? false,
+      saving: () => _isSaving,
       context: context,
       builder: (dialogContext) => _TransactionJobDialog(
+        key: editorKey,
         type: selectedType,
         categories: availableCategories,
         processes: availableProcesses,
@@ -1810,10 +1821,75 @@ class _TransactionDesktopScreenState
     }
   }
 
+  bool get _canDeleteTransaction {
+    final session = ref.read(authControllerProvider).session;
+    return session?.sidebars.any((a) {
+          final sidebar = a['sidebar'];
+          bool yes(dynamic x) => x == 1 || x == true || x == '1';
+          return sidebar is Map &&
+              sidebar['sidebar_kode'] == 'transaksi' &&
+              yes(a['read']) &&
+              yes(a['delete']) &&
+              (sidebar['status'] == null || yes(sidebar['status']));
+        }) ??
+        false;
+  }
+
+  Future<void> _deleteTransaction() async {
+    final id = int.tryParse(_editingTransactionId ?? '');
+    if (id == null || _isSaving || !_canDeleteTransaction) return;
+    setState(() => _isSaving = true);
+    try {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('Hapus Transaksi?'),
+          content: Text(
+            '$transactionNumber - ${typeLabel(selectedType)}\nSoft delete lokal; data dan histori tetap tersimpan. Perubahan cloud belum dikonfirmasi.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: const Text('Hapus'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true || !mounted || !_canDeleteTransaction) return;
+      if (!await ref.read(transactionControllerProvider.notifier).delete(id)) {
+        throw StateError('stale');
+      }
+      if (!mounted) return;
+      resetForm();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Transaksi dihapus lokal. Tersedia di Recycle Bin; status cloud belum dikonfirmasi.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Penghapusan gagal. Data dipertahankan.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
   Widget bottomActions({required bool mobile}) {
+    ref.watch(authControllerProvider);
     final actions = [
       OutlinedButton(
-        onPressed: resetForm,
+        onPressed: _isSaving ? null : resetForm,
         style: outlinedButtonStyle(),
         child: const Text('Reset'),
       ),
@@ -1832,14 +1908,16 @@ class _TransactionDesktopScreenState
           ? CrossAxisAlignment.stretch
           : CrossAxisAlignment.center,
       children: [
-        actions[0],
-        SizedBox(width: mobile ? 0 : 12, height: mobile ? 10 : 0),
-        actions[1],
+        for (var i = 0; i < actions.length; i++) ...[
+          if (i > 0) SizedBox(width: mobile ? 0 : 12, height: mobile ? 10 : 0),
+          actions[i],
+        ],
       ],
     );
   }
 
   Widget pageHeader({required bool mobile}) {
+    ref.watch(authControllerProvider);
     return Flex(
       direction: mobile ? Axis.vertical : Axis.horizontal,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1870,6 +1948,13 @@ class _TransactionDesktopScreenState
             ),
           ],
         ),
+        if (_editingTransactionId != null && _canDeleteTransaction)
+          OutlinedButton.icon(
+            key: const Key('delete-saved-transaction'),
+            onPressed: _isSaving ? null : _deleteTransaction,
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('Hapus Transaksi'),
+          ),
         if (mobile) const SizedBox(height: 14),
         SizedBox(
           width: mobile ? double.infinity : null,
@@ -2561,6 +2646,7 @@ class _TransactionJobDialog extends ConsumerStatefulWidget {
   final DummyTransactionJob? initialJob;
 
   const _TransactionJobDialog({
+    super.key,
     required this.type,
     required this.categories,
     required this.processes,
@@ -2600,6 +2686,20 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
   bool _loadingMasterDetails = false;
   String? _masterLoadError;
 
+  late String _initialFingerprint;
+  String _fingerprint() => jsonEncode([
+    nameController.text,
+    codeController.text,
+    estimatedController.text,
+    serviceCostController.text,
+    otherCostController.text,
+    selectedMasterJobId,
+    selectedCategories.map((e) => e.id).toList(),
+    selectedProcesses
+        .map((e) => [e.id, e.name, e.status, e.attributes])
+        .toList(),
+  ]);
+  bool get hasChanges => _fingerprint() != _initialFingerprint;
   @override
   void initState() {
     super.initState();
@@ -2627,6 +2727,7 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
     selectedMasterJobId = widget.type == TransactionType.notaris
         ? job?.masterNotarisId
         : job?.masterPpatId;
+    _initialFingerprint = _fingerprint();
     if (selectedMasterJobId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _selectMasterJob(selectedMasterJobId!);
@@ -2901,7 +3002,7 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                     ),
                   ),
                   IconButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => cancelEditDialog(context),
                     icon: const Icon(Icons.close),
                   ),
                 ],
@@ -3263,7 +3364,7 @@ class _TransactionJobDialogState extends ConsumerState<_TransactionJobDialog> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => cancelEditDialog(context),
                     style: TextButton.styleFrom(
                       foregroundColor: AppColors.textSecondary,
                     ),

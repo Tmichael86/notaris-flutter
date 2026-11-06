@@ -104,6 +104,64 @@ void main() {
   tearDown(() => db.close());
 
   for (final domain in ['notaris', 'ppat']) {
+    test(
+      '$domain cascade restore survives restart; missing evidence blocks',
+      () async {
+        await db.close();
+        final folder = await Directory.systemTemp.createTemp(
+          'master_recovery_',
+        );
+        addTearDown(() async {
+          await db.close();
+          await folder.delete(recursive: true);
+        });
+        final file = File('${folder.path}/fixture.sqlite');
+        db = AppDatabase.forTesting(NativeDatabase(file));
+        bin = RecycleBinRepository(db, () => session);
+        await seedMaster(db, domain);
+        final original = <String, List<Map<String, dynamic>>>{};
+        for (final suffix in ['harga', 'proses', 'atributs']) {
+          original[suffix] = await rows(db, 'pekerjaan_${domain}_$suffix');
+        }
+        if (domain == 'notaris') {
+          await PekerjaanNotarisRepository(db.pekerjaanDao).deleteAggregate(1);
+        } else {
+          await PekerjaanPpatRepository(db.pekerjaanDao).deleteAggregate(1);
+        }
+        await db.close();
+        db = AppDatabase.forTesting(NativeDatabase(file));
+        bin = RecycleBinRepository(db, () => session);
+        await bin.restore((await bin.list()).single);
+        await db.close();
+        db = AppDatabase.forTesting(NativeDatabase(file));
+        bin = RecycleBinRepository(db, () => session);
+        for (final entry in original.entries) {
+          final actual = await rows(db, 'pekerjaan_${domain}_${entry.key}');
+          expect(
+            actual.map((r) => {...r}..remove('updated_at')).toList(),
+            entry.value.map((r) => {...r}..remove('updated_at')).toList(),
+          );
+        }
+        if (domain == 'notaris') {
+          await PekerjaanNotarisRepository(db.pekerjaanDao).deleteAggregate(1);
+        } else {
+          await PekerjaanPpatRepository(db.pekerjaanDao).deleteAggregate(1);
+        }
+        await db.customStatement(
+          "DELETE FROM recycle_bin_events WHERE action='delete'",
+        );
+        expect((await bin.list()).single.blocked?.code, 'history');
+        expect(
+          await db.customSelect('PRAGMA foreign_key_check').get(),
+          isEmpty,
+        );
+        expect(
+          (await db.customSelect('PRAGMA integrity_check').getSingle())
+              .read<String>('integrity_check'),
+          'ok',
+        );
+      },
+    );
     final masterModule = domain == 'notaris'
         ? RecycleModule.notaris
         : RecycleModule.ppat;
@@ -119,14 +177,17 @@ void main() {
         await db.customStatement(
           'UPDATE ${table}_atributs SET deleted_at=10,status=0',
         );
+        await db.customStatement(
+          "INSERT INTO ${table}_atributs(uuid,pekerjaan_${domain}_id,proses_pekerjaan_${domain}_id,atribut) VALUES('kept-attribute',1,1,'Keep')",
+        );
         final children = [
           for (final suffix in ['harga', 'proses', 'atributs'])
             await rows(db, '${table}_$suffix'),
         ];
         if (domain == 'notaris') {
-          await PekerjaanNotarisRepository(db.pekerjaanDao).delete(id);
+          await PekerjaanNotarisRepository(db.pekerjaanDao).deleteAggregate(id);
         } else {
-          await PekerjaanPpatRepository(db.pekerjaanDao).delete(id);
+          await PekerjaanPpatRepository(db.pekerjaanDao).deleteAggregate(id);
         }
         final record = (await bin.list(module: masterModule)).single;
         expect(record.blocked, isNull);
@@ -139,8 +200,11 @@ void main() {
         expect(restored['is_sync_dirty'], 1);
         for (var i = 0; i < 3; i++) {
           expect(
-            await rows(db, '${table}_${['harga', 'proses', 'atributs'][i]}'),
-            children[i],
+            (await rows(
+              db,
+              '${table}_${['harga', 'proses', 'atributs'][i]}',
+            )).map((r) => {...r}..remove('updated_at')).toList(),
+            children[i].map((r) => {...r}..remove('updated_at')).toList(),
           );
         }
         expect(await bin.list(module: masterModule), isEmpty);
@@ -260,8 +324,10 @@ void main() {
       await db.customStatement('UPDATE pekerjaan_kategori SET status=0');
       expect((await bin.list()).single.blocked?.code, 'reference');
       await db.customStatement('UPDATE pekerjaan_kategori SET status=1');
-      await db.customStatement('UPDATE pekerjaan_ppat_proses SET status=0');
-      expect((await bin.list()).single.blocked?.code, 'reference');
+      await db.customStatement(
+        'UPDATE pekerjaan_ppat_proses SET deleted_at=11',
+      );
+      expect((await bin.list()).single.blocked?.code, 'history');
     },
   );
 

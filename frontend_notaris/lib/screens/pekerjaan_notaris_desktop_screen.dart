@@ -1,3 +1,7 @@
+import '../core/widgets/edit_dialog.dart';
+
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -341,7 +345,23 @@ class _PekerjaanNotarisDesktopScreenState
               )
               .toList();
 
-    await showDialog<void>(
+    String snapshot() => jsonEncode([
+      name.text,
+      prices.map((r) => [r.kategoriId, r.harga, r.eta]).toList(),
+      processes
+          .map(
+            (r) => [
+              r.nama,
+              r.detail,
+              r.attributes.map((a) => a.value).toList(),
+            ],
+          )
+          .toList(),
+    ]);
+    final initial = snapshot();
+    await showEditDialog<void>(
+      dirty: () => snapshot() != initial,
+      saving: () => _busy,
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, refresh) {
@@ -437,11 +457,12 @@ class _PekerjaanNotarisDesktopScreenState
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
+                onPressed: () => cancelEditDialog(dialogContext),
                 child: const Text('Batal'),
               ),
               ElevatedButton.icon(
                 onPressed: () async {
+                  if (_busy) return;
                   if (name.text.trim().isEmpty ||
                       !_validatePrices(dialogContext, prices) ||
                       !_validateProcesses(dialogContext, processes)) {

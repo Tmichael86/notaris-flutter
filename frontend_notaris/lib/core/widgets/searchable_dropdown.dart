@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 
 /// Reusable dropdown that automatically enables inline search
@@ -32,8 +33,11 @@ class SearchableDropdown<T> extends StatefulWidget {
 
 class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
   final LayerLink _layerLink = LayerLink();
+  final _triggerFocus = FocusNode();
+  final _menuFocus = FocusNode();
   final TextEditingController _searchController = TextEditingController();
-  OverlayEntry? _overlayEntry;
+  final _portal = OverlayPortalController();
+  double _menuWidth = 0;
 
   bool get _isSearchable => widget.items.length > 5;
 
@@ -45,12 +49,14 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
     // call setState() during dispose.
     _removeOverlay(rebuild: false);
     _searchController.dispose();
+    _triggerFocus.dispose();
+    _menuFocus.dispose();
     super.dispose();
   }
 
   void _toggleDropdown() {
     if (!widget.enabled) return;
-    if (_overlayEntry != null) {
+    if (_portal.isShowing) {
       _removeOverlay();
     } else {
       _showOverlay();
@@ -61,58 +67,19 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
     _searchController.clear();
 
     final renderBox = context.findRenderObject() as RenderBox;
-    final size = renderBox.size;
+    _menuWidth = renderBox.size.width;
 
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Stack(
-        children: [
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: _removeOverlay,
-              child: const SizedBox.expand(),
-            ),
-          ),
-          CompositedTransformFollower(
-            link: _layerLink,
-            showWhenUnlinked: false,
-            targetAnchor: Alignment.bottomLeft,
-            followerAnchor: Alignment.topLeft,
-            child: Material(
-              color: Colors.white,
-              elevation: 4,
-              borderRadius: BorderRadius.circular(4),
-              clipBehavior: Clip.antiAlias,
-              child: SizedBox(
-                width: size.width,
-                child: _DropdownMenu<T>(
-                  items: widget.items,
-                  value: widget.value,
-                  searchable: _isSearchable,
-                  searchController: _searchController,
-                  itemLabel: _label,
-                  onSelected: (value) {
-                    widget.onChanged(value);
-                    _removeOverlay();
-                  },
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-
-    Overlay.of(context).insert(_overlayEntry!);
+    _portal.show();
+    _menuFocus.requestFocus();
     setState(() {});
   }
 
   void _removeOverlay({bool rebuild = true}) {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
+    if (_portal.isShowing) _portal.hide();
     _searchController.clear();
 
     if (rebuild && mounted) {
+      _triggerFocus.requestFocus();
       setState(() {});
     }
   }
@@ -123,35 +90,96 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
         ? null
         : _label(widget.value as T);
 
-    return CompositedTransformTarget(
-      link: _layerLink,
-      child: GestureDetector(
-        onTap: _toggleDropdown,
-        child: InputDecorator(
-          decoration: InputDecoration(
-            labelText: widget.label.isEmpty ? null : widget.label,
-            border: const OutlineInputBorder(),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 8,
-            ),
-            enabled: widget.enabled,
-          ),
-          isEmpty: selectedText == null,
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  selectedText ?? widget.hint,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: selectedText == null
-                        ? Colors.grey.shade600
-                        : Colors.black87,
+    return OverlayPortal(
+      controller: _portal,
+      overlayChildBuilder: (context) => CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): _removeOverlay,
+        },
+        child: Focus(
+          focusNode: _menuFocus,
+          child: Actions(
+            actions: {
+              DismissIntent: CallbackAction<DismissIntent>(
+                onInvoke: (_) {
+                  _removeOverlay();
+                  return null;
+                },
+              ),
+            },
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: _removeOverlay,
+                    child: const SizedBox.expand(),
                   ),
                 ),
+                CompositedTransformFollower(
+                  link: _layerLink,
+                  showWhenUnlinked: false,
+                  targetAnchor: Alignment.bottomLeft,
+                  followerAnchor: Alignment.topLeft,
+                  child: Material(
+                    color: Colors.white,
+                    elevation: 4,
+                    borderRadius: BorderRadius.circular(4),
+                    clipBehavior: Clip.antiAlias,
+                    child: SizedBox(
+                      width: _menuWidth,
+                      child: _DropdownMenu<T>(
+                        items: widget.items,
+                        value: widget.value,
+                        searchable: _isSearchable,
+                        searchController: _searchController,
+                        itemLabel: _label,
+                        onSelected: (value) {
+                          widget.onChanged(value);
+                          _removeOverlay();
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      child: Focus(
+        focusNode: _triggerFocus,
+        child: CompositedTransformTarget(
+          link: _layerLink,
+          child: GestureDetector(
+            onTap: _toggleDropdown,
+            child: InputDecorator(
+              decoration: InputDecoration(
+                labelText: widget.label.isEmpty ? null : widget.label,
+                border: const OutlineInputBorder(),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                enabled: widget.enabled,
               ),
-            ],
+              isEmpty: selectedText == null,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      selectedText ?? widget.hint,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: selectedText == null
+                            ? Colors.grey.shade600
+                            : Colors.black87,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
