@@ -32,6 +32,7 @@ class SyncLogRepository {
     required String attemptId,
     required Future<int?> Function() action,
     required String Function(Object) errorCode,
+    int? Function()? completedCount,
   }) async {
     final inserted = await db.transaction(() async {
       final duplicate = await db
@@ -83,10 +84,19 @@ class SyncLogRepository {
             'conflict',
             'validation',
             'server',
+            'feed_expired',
+            'bounded',
+            'scope',
+            'unsupported_domain',
           }.contains(candidate)
           ? candidate
           : 'unknown';
-      final pending = {'offline', 'timeout', 'server'}.contains(code);
+      final pending = {
+        'offline',
+        'timeout',
+        'server',
+        'bounded',
+      }.contains(code);
       // Never persist error.toString(), Dio bodies, URLs, credentials or payloads.
       final message = switch (code) {
         'offline' => 'Koneksi tidak tersedia; menunggu percobaan berikutnya',
@@ -96,6 +106,12 @@ class SyncLogRepository {
         'conflict' => 'Konflik data memerlukan pemeriksaan',
         'validation' => 'Data atau referensi belum valid',
         'server' => 'Layanan gagal; menunggu percobaan berikutnya',
+        'feed_expired' => 'Cursor kedaluwarsa; recovery eksplisit diperlukan, data lokal dipertahankan',
+        'bounded' =>
+          'Batas operasi tercapai; halaman berikutnya belum diterapkan',
+        'scope' =>
+          'Profil, akun atau deployment tidak cocok; sinkronisasi diblokir',
+        'unsupported_domain' => 'Feed memuat jenis transaksi yang tidak dipilih; cursor dipertahankan',
         _ => 'Operasi gagal; periksa konfigurasi dan koneksi',
       };
       await _finish(
@@ -103,7 +119,7 @@ class SyncLogRepository {
         module,
         direction,
         pending ? 'pending' : 'failed',
-        null,
+        completedCount?.call(),
         code,
         message,
       );

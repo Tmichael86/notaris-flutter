@@ -318,3 +318,70 @@ two unchanged payments, replay/restart/dirty protection, FK/integrity and all
 `published=0,replay=true,sequence=1,last_seq=6`. Evidence:
 `.local/transaction-live-disposable-rehearsal-20261106` and the prepared receipt.
 Permanent Transaction CRUD/publication remains unexecuted pending approval.
+
+## Selective manual application bridge (2026-11-06)
+
+The preceding permanent live E2E subsequently passed once on source `e282cdb`;
+its receipt is `.local/transaction-live-readiness-20261106-032109/LIVE_REPORT.md`.
+That approval is consumed. This bridge checkpoint performs **disposable writes only**.
+
+`TransactionManualSyncService.run` is the application entry point. Callers select
+`transaksi_notaris`, `ManualSyncDirection.upload` with exactly one local transaction
+ID, or `download` with pageSize 1–100 and maxPages 1–10 (defaults 20/1).
+It reuses TransactionCloudRepository and TransactionCloudReferences; there is no
+dependency push, global scan, publisher, timer or new synchronization engine.
+Upload chooses the existing immutable pending operation or the aggregate's
+CREATE/UPDATE/DELETE state. Clean acknowledged retries are no-ops. Results count
+durable upload acknowledgements or committed pull events, never merely sent HTTP.
+
+The first profile guard accepts only newly prepared file-backed SQLite devices
+`a.sqlite`/`b.sqlite` under a system-temp `transaction_manual_*` directory, an
+explicit owned disposable PostgreSQL target on ports 55400–55999, and a separate
+loopback HTTP endpoint (normal ports 8080/8081 excluded). It verifies actual SQLite
+filename, account/group, device, generation, deployment and persisted feed scopes.
+Online AuthSession permissions use code `transaksi`; server auth/references are
+revalidated by existing endpoints. Requests remain confined to selected Notaris
+routes, with redirects disabled and bounded network timeouts. Single-flight is
+shared per canonical SQLite file. UI Smoke rejects both directions before HTTP.
+
+The shared Transaction feed is not server-filtered. A page containing PPAT is
+rejected before any aggregate apply/cursor advancement; selected Notaris never
+silently consumes PPAT. A bounded partial pull records `pending`, its actual
+committed count/cursor and `more=true`. The next page requires another manual call.
+409 retains dirty state and immutable pending payload. 410 records `feed_expired`
+and blocks further operations for that profile: no cursor reset, rebase, restore
+or history deletion. A reviewed full-recovery/new-generation procedure is still
+required before normal activation.
+
+Attempts/outcomes use existing SyncLogRepository with sanitized fixed messages,
+count and retry correlation; old failures survive success and restart. Monitoring
+adds a separate Transaksi Notaris row, counting parent/child dirty records and
+pending journal state. Upload ACK or empty download alone cannot turn it green:
+an ACKED request remains evidence of unobserved publication. Only a pull observing
+the exact mutation ID/revision retires that ACKED request, atomically with aggregate
+apply/cursor. Pending requests are never retired. The default repository pull path
+retains previous journal behavior; confirmation is opt-in for this bridge.
+
+Monitoring's execute button remains disabled in normal and UI Smoke modes. No
+provider connects the bridge to a normal profile; existing shell/layout is intact.
+Log UI can filter `transaksi_notaris`. PPAT selective orchestration, a shared-feed
+selection policy, approved normal profile wiring and explicit 410/conflict recovery
+are subsequent milestones; PPAT repository cloud CRUD remains available/tested.
+
+Validation: 57 focused Flutter tests (including 15 service tests), analyzer clean,
+ten focused Go tests passed. Existing HTTP E2E was reused with a manual-service
+opt-in: real authenticated session/permissions, Notaris upload/publication/download,
+UPDATE/conflict, DELETE, replay/restart, snapshots/payment/UUID and FK/integrity
+passed through two new SQLite profiles and disposable PostgreSQL. Existing PPAT
+CRUD HTTP A/B E2E regression also passed. Evidence:
+`.local/transaction-manual-bridge-20261106/{flutter-focused-final,go-focused,e2e-bridge-final,e2e-ppat-final}.log`.
+No permanent PostgreSQL/SQLite profile was opened or migrated for this checkpoint.
+
+```powershell
+# backend-notaris-go; ONLY an already owned disposable PostgreSQL instance:
+$env:NOTARIS_SYNC_TEST_DSN='host=127.0.0.1 port=55452 dbname=notaris_transaction_sim user=postgres sslmode=disable'
+$env:NOTARIS_TRANSACTION_E2E='1'
+$env:NOTARIS_TRANSACTION_MUTATIONS_E2E='1'
+$env:NOTARIS_TRANSACTION_MANUAL_BRIDGE='1'
+go test ./routes -run '^TestTransactionCloudHTTPPostgres$' -count=1 -v
+```

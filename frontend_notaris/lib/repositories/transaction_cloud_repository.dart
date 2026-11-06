@@ -7,6 +7,12 @@ import 'package:uuid/uuid.dart';
 import '../database/app_database.dart';
 import 'transaction_cloud_references.dart';
 
+class TransactionPullBatch {
+  const TransactionPullBatch(this.cursor, this.count, this.hasMore);
+  final int cursor, count;
+  final bool hasMore;
+}
+
 /// Explicit domain-checked transaction adapter. Never registered with SyncCoordinator.
 class TransactionCloudRepository {
   TransactionCloudRepository(
@@ -450,6 +456,16 @@ class TransactionCloudRepository {
   }
 
   Future<int> pullPage({int limit = 100}) async {
+    return (await pullBatch(limit: limit)).cursor;
+  }
+
+  /// A selective caller must stop before applying an unselected domain. The
+  /// shared feed cannot be filtered or its cursor advanced past skipped events.
+  Future<TransactionPullBatch> pullBatch({
+    int limit = 100,
+    Set<String>? allowedDomains,
+    bool confirmAcknowledgements = false,
+  }) async {
     await db.transaction(_bind);
     final before =
         (await db
@@ -464,6 +480,15 @@ class TransactionCloudRepository {
       queryParameters: {'cursor': before, 'limit': limit},
     );
     final page = response.data!;
+    if (page['has_more'] is! bool ||
+        (allowedDomains != null &&
+            (page['changes'] as List).any(
+              (event) => !allowedDomains.contains(
+                _domainOf(event['aggregate'] as Map),
+              ),
+            ))) {
+      throw StateError('Unselected transaction domain or invalid page');
+    }
     return db.transaction(() async {
       final current =
           (await db
@@ -487,6 +512,20 @@ class TransactionCloudRepository {
           event['revision'] as int,
           event['operation'] as String,
         );
+        if (confirmAcknowledgements) {
+          // Retire only an ACKED request whose exact immutable mutation is now
+          // observed in publication. Pending/409/timeout requests never qualify.
+          // This proof and the cursor commit share the same SQLite transaction.
+          final aggregate = event['aggregate'] as Map;
+          await db.customStatement(
+            "DELETE FROM transaction_cloud_pending WHERE state='acked' AND local_uuid=? AND json_extract(payload,'\$.mutation_id')=? AND json_extract(payload,'\$.expected_revision')=?",
+            [
+              aggregate['uuid'],
+              aggregate['mutation_id'],
+              (event['revision'] as int) - 1,
+            ],
+          );
+        }
         next++;
       }
       if (page['next_cursor'] != next) {
@@ -496,7 +535,11 @@ class TransactionCloudRepository {
         'UPDATE transaction_cloud_feed SET cursor=? WHERE scope=?',
         [next, scope],
       );
-      return next;
+      return TransactionPullBatch(
+        next,
+        (page['changes'] as List).length,
+        page['has_more'] as bool,
+      );
     });
   }
 

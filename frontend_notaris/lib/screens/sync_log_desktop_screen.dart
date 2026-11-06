@@ -43,7 +43,13 @@ class _SyncLogState extends ConsumerState<SyncLogDesktopScreen> {
             DropdownButton<String>(
               value: module ?? '',
               items: [
-                for (final v in ['', 'kategori', 'pengeluaran', 'pemohon'])
+                for (final v in [
+                  '',
+                  'kategori',
+                  'pengeluaran',
+                  'pemohon',
+                  'transaksi_notaris',
+                ])
                   DropdownMenuItem(
                     value: v,
                     child: Text(v.isEmpty ? 'Semua modul' : v),

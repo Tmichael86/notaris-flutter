@@ -7,9 +7,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/repositories/transaction_repository.dart';
 import 'package:frontend_notaris/repositories/transaction_cloud_repository.dart';
+import 'package:frontend_notaris/services/transaction_manual_sync_service.dart';
+import 'package:frontend_notaris/models/auth_session.dart';
+import 'package:frontend_notaris/repositories/sync_log_repository.dart';
+import 'package:frontend_notaris/repositories/sync_monitor_repository.dart';
 
 void main() {
   final domain = Platform.environment['TRANSACTION_DOMAIN'] ?? 'notaris';
+  final bridge = Platform.environment['TRANSACTION_MANUAL_BRIDGE'] == '1';
   if (!{'notaris', 'ppat'}.contains(domain)) {
     throw StateError('Invalid fixture domain');
   }
@@ -28,7 +33,7 @@ void main() {
   }
   test('$domain CRUD SQLite A → real HTTP/PostgreSQL → SQLite B', () async {
     final folder = await Directory.systemTemp.createTemp(
-      'transaction_cloud_e2e_',
+      bridge ? 'transaction_manual_e2e_' : 'transaction_cloud_e2e_',
     );
     addTearDown(() => folder.delete(recursive: true));
     final aFile = File('${folder.path}/a.sqlite'),
@@ -37,6 +42,28 @@ void main() {
         b = AppDatabase.forTesting(NativeDatabase(bFile));
     addTearDown(a.close);
     addTearDown(b.close);
+    final profiles = <AppDatabase, TransactionManualProfile>{};
+    TransactionManualProfile makeProfile(File file) => TransactionManualProfile(
+      sqlitePath: file.path,
+      baseUrl: url,
+      databaseTarget: Platform.environment['TRANSACTION_DISPOSABLE_TARGET']!,
+      deployment: Platform.environment['TRANSACTION_DISPOSABLE_DEPLOYMENT']!,
+      device: file.path,
+      generation: 'manual-bridge-v1',
+      accountId: 1,
+      groupId: 1,
+    );
+    if (bridge) {
+      profiles[a] = makeProfile(aFile);
+      profiles[b] = makeProfile(bFile);
+    }
+    String officerScope(AppDatabase db) =>
+        bridge ? profiles[db]!.petugasScope : 'officer-scope';
+    String masterScope(AppDatabase db) =>
+        bridge ? profiles[db]!.masterScope : 'master-scope';
+    String transactionScope(AppDatabase db) => bridge
+        ? profiles[db]!.transactionScope
+        : 'disposable-deployment-account-device-profile';
     const applicant = '00000000-0000-4000-8000-000000000001',
         officer = '00000000-0000-4000-8000-000000000002',
         cloudOfficer = '00000000-0000-4000-8000-000000000003',
@@ -58,7 +85,8 @@ void main() {
         [officer, cloudOfficer],
       );
       await db.customStatement(
-        "INSERT INTO petugas_sync_feed(id,scope,cursor) VALUES(1,'officer-scope',4)",
+        "INSERT INTO petugas_sync_feed(id,scope,cursor) VALUES(1,?,4)",
+        [officerScope(db)],
       );
       await db.customStatement(
         'INSERT INTO petugas_sync_journal(local_uuid,row_version) VALUES(?,1)',
@@ -75,8 +103,8 @@ void main() {
           [jobId, job],
         );
         await db.customStatement(
-          "INSERT INTO pekerjaan_${jobDomain}_sync_identity(local_uuid,cloud_uuid,scope,revision) VALUES(?,?,'master-scope',1)",
-          [job, job],
+          "INSERT INTO pekerjaan_${jobDomain}_sync_identity(local_uuid,cloud_uuid,scope,revision) VALUES(?,?,?,1)",
+          [job, job, masterScope(db)],
         );
         await db.customStatement(
           "INSERT INTO pekerjaan_${jobDomain}_harga(uuid,pekerjaan_${jobDomain}_id,kategori_pekerjaan_id,harga,estimasi_waktu,is_sync_dirty) VALUES(?,?,?,'100','2 hari',0)",
@@ -94,12 +122,58 @@ void main() {
         TransactionCloudRepository(
           db,
           dio,
-          scope: 'disposable-deployment-account-device-profile',
+          scope: transactionScope(db),
           domain: domain,
-          petugasScope: 'officer-scope',
-          masterScope: 'master-scope',
+          petugasScope: officerScope(db),
+          masterScope: masterScope(db),
         );
     final sender = cloud(a), receiver = cloud(b);
+    AuthSession? session;
+    if (bridge) {
+      final auth =
+          (await dio.get<Map<String, dynamic>>('/auth/me/sidebar-access'))
+                  .data!['data']
+              as Map;
+      session = AuthSession(
+        token: token,
+        userId: auth['user']['id'] as int,
+        groupId: auth['user']['group_id'] as int,
+        userName: 'Disposable',
+        groupName: 'Disposable',
+        user: Map<String, dynamic>.from(auth['user'] as Map),
+        sidebars: (auth['sidebars'] as List)
+            .map((r) => Map<String, dynamic>.from(r as Map))
+            .toList(),
+        verifiedAt: DateTime.now(),
+      );
+    }
+    TransactionManualSyncService manual(AppDatabase db) =>
+        TransactionManualSyncService(
+          db: db,
+          profile: profiles[db]!,
+          http: dio,
+          session: () => session,
+          uiSmoke: () => false,
+        );
+    Future<Map<String, dynamic>> upload(AppDatabase db, int id) async =>
+        (await manual(db).run(
+          selectedModule: 'transaksi_notaris',
+          direction: ManualSyncDirection.upload,
+          transactionId: id,
+        )).receipt!;
+    Future<int> pull(AppDatabase db, {int limit = 100}) async => bridge
+        ? (await manual(db).run(
+            selectedModule: 'transaksi_notaris',
+            direction: ManualSyncDirection.download,
+            pageSize: limit,
+          )).cursor!
+        : cloud(db).pullPage(limit: limit);
+    Future<Map<String, dynamic>> monitor(AppDatabase db) async =>
+        (await SyncMonitorRepository(
+          db,
+        ).read()).singleWhere((r) => r['module'] == 'transaksi_notaris');
+    if (bridge) expect((await monitor(b))['color'], 'neutral');
+
     final id = await TransactionRepository(a).save(
       nomorTransaksi: 'OFFLINE-TEMP',
       jenisTransaksi: domain,
@@ -127,7 +201,16 @@ void main() {
       pembayaranSekarang: 25,
     );
     final before = (await TransactionRepository(a).findById(id))!;
-    final ack = await sender.pushCreate(id);
+    final ack = bridge ? await upload(a, id) : await sender.pushCreate(id);
+    if (bridge) {
+      expect((await monitor(a))['color'], 'yellow');
+      final noOp = await manual(a).run(
+        selectedModule: 'transaksi_notaris',
+        direction: ManualSyncDirection.upload,
+        transactionId: id,
+      );
+      expect(noOp.count, 0);
+    }
     expect(ack['uuid'], before.uuid);
     expect(ack['revision'], 1);
     expect(
@@ -189,7 +272,10 @@ void main() {
     );
     // Failure after parent insertion must roll back the complete local page.
     await b.customStatement('UPDATE pekerjaan_kategori SET is_sync_dirty=1');
-    await expectLater(receiver.pullPage(limit: 1), throwsStateError);
+    await expectLater(
+      pull(b, limit: 1),
+      bridge ? throwsA(isA<ManualTransactionFailure>()) : throwsStateError,
+    );
     expect(await b.select(b.transaksis).get(), isEmpty);
     expect(
       (await b
@@ -203,13 +289,17 @@ void main() {
       "INSERT INTO transaksis(uuid,no_akta,total,is_sync_dirty,jenis_transaksi) VALUES(?,'LOCAL-DIRTY',100,1,'$domain')",
       [before.uuid],
     );
-    await expectLater(receiver.pullPage(limit: 1), throwsStateError);
+    await expectLater(
+      pull(b, limit: 1),
+      bridge ? throwsA(isA<ManualTransactionFailure>()) : throwsStateError,
+    );
     expect((await b.select(b.transaksis).getSingle()).noAkta, 'LOCAL-DIRTY');
     await b.customStatement(
       'DELETE FROM transaksis',
     ); // explicit removal of test-only conflicting draft
-    expect(await receiver.pullPage(limit: 1), 1);
-    expect(await sender.pullPage(limit: 1), 1);
+    expect(await pull(b, limit: 1), 1);
+    expect(await pull(a, limit: 1), 1);
+    if (bridge) expect((await monitor(b))['color'], 'green');
     final received = await b.select(b.transaksis).getSingle();
     expect(received.uuid, before.uuid);
     expect(received.noAkta, ack['final_number']);
@@ -258,8 +348,8 @@ void main() {
       'Historical job',
     );
     await b.customStatement('UPDATE transaction_cloud_feed SET cursor=0');
-    expect(await receiver.pullPage(), 1);
-    expect(await receiver.pullPage(), 1);
+    expect(await pull(b), 1);
+    expect(await pull(b), 1);
     expect(await b.select(b.transaksiRiwayatPembayarans).get(), hasLength(1));
     var expectedCursor = 1;
     if (Platform.environment['TRANSACTION_MUTATIONS'] == '1') {
@@ -289,7 +379,9 @@ void main() {
           ),
         ],
       );
-      final updated = await sender.pushUpdate(id);
+      final updated = bridge
+          ? await upload(a, id)
+          : await sender.pushUpdate(id);
       expect(updated['revision'], 2);
       expect(updated['final_number'], ack['final_number']);
       final updatePayload =
@@ -320,13 +412,19 @@ void main() {
         "UPDATE transaksis SET catatan='Device B dirty',is_sync_dirty=1",
       );
       await expectLater(
-        receiver.pushUpdate(received.id),
+        bridge ? upload(b, received.id) : receiver.pushUpdate(received.id),
         throwsA(
-          isA<DioException>().having(
-            (e) => e.response?.statusCode,
-            'status',
-            409,
-          ),
+          bridge
+              ? isA<ManualTransactionFailure>().having(
+                  (e) => e.code,
+                  'code',
+                  'conflict',
+                )
+              : isA<DioException>().having(
+                  (e) => e.response?.statusCode,
+                  'status',
+                  409,
+                ),
         ),
       );
       final conflict = (await b
@@ -335,6 +433,13 @@ void main() {
           )
           .getSingle());
       expect(conflict.read<String>('state'), 'pending');
+      if (bridge) {
+        expect((await monitor(b))['color'], 'red');
+        expect(
+          (await SyncLogRepository(b).list(status: 'failed')).isNotEmpty,
+          true,
+        );
+      }
       expect((await b.select(b.transaksis).getSingle()).isSyncDirty, true);
       expect(
         (await dio.post<Map<String, dynamic>>(
@@ -349,7 +454,10 @@ void main() {
         )).data!['published'],
         1,
       );
-      await expectLater(receiver.pullPage(limit: 1), throwsStateError);
+      await expectLater(
+        pull(b, limit: 1),
+        bridge ? throwsA(isA<ManualTransactionFailure>()) : throwsStateError,
+      );
       expect(
         (await b
                 .customSelect('SELECT cursor FROM transaction_cloud_feed')
@@ -372,11 +480,14 @@ void main() {
         'UPDATE transaksis SET catatan=NULL,is_sync_dirty=0',
       );
       await b.customStatement('UPDATE pekerjaan_kategori SET is_sync_dirty=1');
-      await expectLater(receiver.pullPage(limit: 1), throwsStateError);
+      await expectLater(
+        pull(b, limit: 1),
+        bridge ? throwsA(isA<ManualTransactionFailure>()) : throwsStateError,
+      );
       expect((await b.select(b.transaksis).getSingle()).total, 100);
       await b.customStatement('UPDATE pekerjaan_kategori SET is_sync_dirty=0');
-      expect(await receiver.pullPage(limit: 1), 2);
-      expect(await sender.pullPage(limit: 1), 2);
+      expect(await pull(b, limit: 1), 2);
+      expect(await pull(a, limit: 1), 2);
       final updatedHeader = await b.select(b.transaksis).getSingle(),
           updatedDetail = await b.select(b.transaksiDetails).getSingle(),
           updatedProcess = await b.select(b.transaksiProses).getSingle();
@@ -432,7 +543,9 @@ void main() {
         [id],
       );
       expect(await TransactionRepository(a).delete(id), true);
-      final deleted = await sender.pushDelete(id);
+      final deleted = bridge
+          ? await upload(a, id)
+          : await sender.pushDelete(id);
       expect(deleted['revision'], 3);
       expect(deleted['final_number'], ack['final_number']);
       expect(deleted['deleted_at'], isNotNull);
@@ -462,10 +575,13 @@ void main() {
         1,
       );
       await b.customStatement('UPDATE transaksis SET is_sync_dirty=1');
-      await expectLater(receiver.pullPage(), throwsStateError);
+      await expectLater(
+        pull(b),
+        bridge ? throwsA(isA<ManualTransactionFailure>()) : throwsStateError,
+      );
       await b.customStatement('UPDATE transaksis SET is_sync_dirty=0');
-      expect(await receiver.pullPage(limit: 1), 3);
-      expect(await sender.pullPage(limit: 1), 3);
+      expect(await pull(b, limit: 1), 3);
+      expect(await pull(a, limit: 1), 3);
       expect((await b.select(b.transaksis).getSingle()).deletedAt, isNotNull);
       expect(
         (await b.select(b.transaksis).getSingle()).noAkta,
@@ -477,10 +593,10 @@ void main() {
         targetPayment.toJson(),
       );
       await b.customStatement('UPDATE transaction_cloud_feed SET cursor=0');
-      expect(await receiver.pullPage(limit: 1), 1);
-      expect(await receiver.pullPage(limit: 1), 2);
-      expect(await receiver.pullPage(limit: 1), 3);
-      expect(await receiver.pullPage(limit: 1), 3);
+      expect(await pull(b, limit: 1), 1);
+      expect(await pull(b, limit: 1), 2);
+      expect(await pull(b, limit: 1), 3);
+      expect(await pull(b, limit: 1), 3);
       expectedCursor = 3;
     }
     // Legacy unresolved detail cannot create a new pending request or HTTP mutation.
@@ -512,7 +628,7 @@ void main() {
               )
               .getSingle())
           .read<int>('n'),
-      1,
+      bridge ? 0 : 1,
     );
     var expectedPayments = 1;
     if (domain == 'ppat' &&
@@ -578,8 +694,8 @@ void main() {
         )).data!['published'],
         1,
       );
-      expect(await receiver.pullPage(limit: 1), 4);
-      expect(await sender.pullPage(limit: 1), 4);
+      expect(await pull(b, limit: 1), 4);
+      expect(await pull(a, limit: 1), 4);
       final combined = await b.select(b.transaksis).get();
       expect(combined, hasLength(2));
       expect(
@@ -615,7 +731,9 @@ void main() {
     await b.close();
     for (final file in [aFile, bFile]) {
       final reopened = AppDatabase.forTesting(NativeDatabase(file));
-      expect(await cloud(reopened).pullPage(), expectedCursor);
+      if (bridge) profiles[reopened] = makeProfile(file);
+      expect(await pull(reopened), expectedCursor);
+      if (bridge) expect(await SyncLogRepository(reopened).list(), isNotEmpty);
       expect(
         await reopened.select(reopened.transaksiRiwayatPembayarans).get(),
         hasLength(expectedPayments),

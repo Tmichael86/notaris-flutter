@@ -10,6 +10,7 @@ const syncModules = <String, String>{
   'pekerjaan_notaris': 'Pekerjaan Notaris',
   'pekerjaan_ppat': 'Pekerjaan PPAT',
   'transaksi': 'Transaksi',
+  'transaksi_notaris': 'Transaksi Notaris',
 };
 const syncTables = <String, String>{
   'kategori': 'pekerjaan_kategori',
@@ -19,6 +20,7 @@ const syncTables = <String, String>{
   'pekerjaan_notaris': 'pekerjaan_notaris',
   'pekerjaan_ppat': 'pekerjaan_ppat',
   'transaksi': 'transaksis',
+  'transaksi_notaris': 'transaksis',
 };
 
 String selectiveSyncReason(String module) =>
@@ -26,6 +28,8 @@ String selectiveSyncReason(String module) =>
     ? 'Repository tersedia; coordinator hanya mendukung batch global. Seleksi arah belum memiliki single-flight dan guard izin bersama.'
     : module == 'petugas'
     ? 'Hanya baseline terkontrol; push/coordinator normal belum diaktifkan.'
+    : module == 'transaksi_notaris'
+    ? 'Application service tersedia hanya untuk profil disposable; tombol UI belum diaktifkan.'
     : 'Kontrak sinkronisasi aman modul ini belum tersedia.';
 
 // No dispatch to global sync: unsupported selection fails closed in every mode.
@@ -42,7 +46,7 @@ class SyncMonitorRepository {
       final dirty =
           (await db
                   .customSelect(
-                    'SELECT count(*) AS n FROM ${syncTables[module]} WHERE is_sync_dirty=1',
+                    'SELECT count(*) AS n FROM ${syncTables[module]} WHERE is_sync_dirty=1${module == 'transaksi_notaris' ? " AND jenis_transaksi='notaris'" : ''}',
                   )
                   .getSingle())
               .read<int>('n');
@@ -60,6 +64,33 @@ class SyncMonitorRepository {
           .getSingleOrNull();
       var pending = dirty, conflicts = 0;
       var blocked = false;
+      var publicationUnknown = false;
+      if (module == 'transaksi_notaris') {
+        pending =
+            (await db
+                    .customSelect(
+                      "SELECT count(*) AS n FROM transaksis t WHERE t.jenis_transaksi='notaris' AND (t.is_sync_dirty=1 OR EXISTS(SELECT 1 FROM transaction_cloud_pending p WHERE p.local_uuid=t.uuid AND p.state='pending') OR EXISTS(SELECT 1 FROM transaksi_details d WHERE d.transaksi_id=t.id AND d.is_sync_dirty=1) OR EXISTS(SELECT 1 FROM transaksi_proses d WHERE d.transaksi_id=t.id AND d.is_sync_dirty=1) OR EXISTS(SELECT 1 FROM transaksi_riwayat_pembayaran d WHERE d.transaksi_id=t.id AND d.is_sync_dirty=1))",
+                    )
+                    .getSingle())
+                .read<int>('n');
+        final pull = latest
+            .where((r) => r.read<String>('direction') == 'pull')
+            .toList();
+        final unobserved = await db
+            .customSelect(
+              "SELECT 1 FROM transaction_cloud_pending p JOIN transaksis t ON t.uuid=p.local_uuid WHERE t.jenis_transaksi='notaris' AND p.state='acked' LIMIT 1",
+            )
+            .get();
+        publicationUnknown =
+            unobserved.isNotEmpty ||
+            (latest.any(
+                  (r) =>
+                      r.read<String>('direction') == 'push' &&
+                      r.read<String>('status') == 'success',
+                ) &&
+                (pull.isEmpty ||
+                    pull.single.read<String>('status') != 'success'));
+      }
       if (module == 'petugas') {
         pending =
             (await db
@@ -94,7 +125,7 @@ class SyncMonitorRepository {
           .length;
       final color = blocked || conflicts > 0 || failed > 0
           ? 'red'
-          : pending > 0 || deferred > 0
+          : pending > 0 || deferred > 0 || publicationUnknown
           ? 'yellow'
           : latest.isEmpty
           ? 'neutral'
@@ -114,6 +145,8 @@ class SyncMonitorRepository {
         'errors': failed + conflicts + (blocked ? 1 : 0),
         'progress': running > 0
             ? '$running operasi belum terkonfirmasi selesai'
+            : publicationUnknown
+            ? 'Upload diakui; publication/download belum diverifikasi'
             : 'Tidak ada operasi berjalan yang tercatat',
         'reason': selectiveSyncReason(module),
         'snapshot_at': DateTime.now().toUtc().toIso8601String(),

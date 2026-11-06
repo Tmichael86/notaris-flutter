@@ -2,6 +2,7 @@ package routes
 
 import (
 	"backend-notaris-go/config"
+	"backend-notaris-go/controllers"
 	"backend-notaris-go/database"
 	"backend-notaris-go/middleware"
 	"backend-notaris-go/models"
@@ -99,7 +100,7 @@ func runTransactionCloudHTTP(t *testing.T, domain string) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	router := SetupRouter(config.Config{JWTSecret: secret}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	router := SetupRouter(config.Config{JWTSecret: secret}, nil, nil, nil, nil, nil, nil, nil, nil, controllers.NewMeController(), nil, nil)
 	router.POST("/api/v1/transaksi-"+domain+"/testing/publish", middleware.JWTAuth(config.Config{JWTSecret: secret}), func(c *gin.Context) {
 		var expected repositories.TransactionPublicationExpectation
 		if c.ShouldBindJSON(&expected) != nil {
@@ -126,7 +127,7 @@ func runTransactionCloudHTTP(t *testing.T, domain string) {
 			cmd = exec.CommandContext(ctx, "flutter", args...)
 		}
 		cmd.Dir = "../../frontend_notaris"
-		cmd.Env = append(os.Environ(), "TRANSACTION_DOMAIN="+domain, "TRANSACTION_E2E_URL="+server.URL+"/api/v1", "TRANSACTION_E2E_TOKEN="+token, "TRANSACTION_MUTATIONS="+os.Getenv("NOTARIS_TRANSACTION_MUTATIONS_E2E"))
+		cmd.Env = append(os.Environ(), "TRANSACTION_DOMAIN="+domain, "TRANSACTION_E2E_URL="+server.URL+"/api/v1", "TRANSACTION_E2E_TOKEN="+token, "TRANSACTION_MUTATIONS="+os.Getenv("NOTARIS_TRANSACTION_MUTATIONS_E2E"), "TRANSACTION_MANUAL_BRIDGE="+os.Getenv("NOTARIS_TRANSACTION_MANUAL_BRIDGE"), "TRANSACTION_DISPOSABLE_TARGET="+fmt.Sprintf("%s:%d/%s", cfg.Host, cfg.Port, cfg.Database), "TRANSACTION_DISPOSABLE_DEPLOYMENT="+schema)
 		out, e := cmd.CombinedOutput()
 		t.Log(strings.ReplaceAll(string(out), token, "[redacted]"))
 		if e != nil {
