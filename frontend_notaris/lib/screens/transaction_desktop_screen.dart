@@ -231,6 +231,7 @@ class DummyTransactionJob {
 }
 
 class DummyTransaction {
+  final String? uuid;
   final String id;
   final String number;
   final TransactionType type;
@@ -247,6 +248,7 @@ class DummyTransaction {
   final String note;
 
   const DummyTransaction({
+    this.uuid,
     required this.id,
     required this.number,
     required this.type,
@@ -805,6 +807,7 @@ class _TransactionDesktopScreenState
         records.add(
           DummyTransaction(
             id: row.id.toString(),
+            uuid: row.uuid,
             number: row.noAkta,
             type: row.jenisTransaksi == 'ppat'
                 ? TransactionType.ppat
@@ -835,6 +838,8 @@ class _TransactionDesktopScreenState
           title: 'Cari Transaksi ${typeLabel(selectedType)}',
           transactions: records,
           formatPrice: formatPrice,
+          canDelete: () => _canDeleteTransaction,
+          onDelete: _deleteTransaction,
         ),
       );
 
@@ -1835,9 +1840,14 @@ class _TransactionDesktopScreenState
         false;
   }
 
-  Future<void> _deleteTransaction() async {
-    final id = int.tryParse(_editingTransactionId ?? '');
-    if (id == null || _isSaving || !_canDeleteTransaction) return;
+  Future<bool> _deleteTransaction(DummyTransaction item) async {
+    final id = int.tryParse(item.id);
+    if (id == null ||
+        item.uuid == null ||
+        _isSaving ||
+        !_canDeleteTransaction) {
+      return false;
+    }
     setState(() => _isSaving = true);
     try {
       final ok = await showDialog<bool>(
@@ -1845,7 +1855,7 @@ class _TransactionDesktopScreenState
         builder: (c) => AlertDialog(
           title: const Text('Hapus Transaksi?'),
           content: Text(
-            '$transactionNumber - ${typeLabel(selectedType)}\nSoft delete lokal; data dan histori tetap tersimpan. Perubahan cloud belum dikonfirmasi.',
+            '${item.number} - ${typeLabel(item.type)}\nSoft delete lokal; data dan histori tetap tersimpan. Perubahan cloud belum dikonfirmasi.',
           ),
           actions: [
             TextButton(
@@ -1859,12 +1869,22 @@ class _TransactionDesktopScreenState
           ],
         ),
       );
-      if (ok != true || !mounted || !_canDeleteTransaction) return;
+      if (ok != true || !mounted || !_canDeleteTransaction) return false;
+      final current = await ref
+          .read(transactionRepositoryProvider)
+          .findById(id);
+      if (current == null ||
+          current.uuid != item.uuid ||
+          current.noAkta != item.number ||
+          current.jenisTransaksi !=
+              (item.type == TransactionType.notaris ? 'notaris' : 'ppat')) {
+        throw StateError('stale');
+      }
       if (!await ref.read(transactionControllerProvider.notifier).delete(id)) {
         throw StateError('stale');
       }
-      if (!mounted) return;
-      resetForm();
+      if (!mounted) return true;
+      if (_editingTransactionId == item.id) resetForm();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -1872,6 +1892,7 @@ class _TransactionDesktopScreenState
           ),
         ),
       );
+      return true;
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1880,6 +1901,7 @@ class _TransactionDesktopScreenState
           ),
         );
       }
+      return false;
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -1948,13 +1970,6 @@ class _TransactionDesktopScreenState
             ),
           ],
         ),
-        if (_editingTransactionId != null && _canDeleteTransaction)
-          OutlinedButton.icon(
-            key: const Key('delete-saved-transaction'),
-            onPressed: _isSaving ? null : _deleteTransaction,
-            icon: const Icon(Icons.delete_outline),
-            label: const Text('Hapus Transaksi'),
-          ),
         if (mobile) const SizedBox(height: 14),
         SizedBox(
           width: mobile ? double.infinity : null,
@@ -3405,8 +3420,12 @@ class _TransactionSearchDialog extends StatefulWidget {
   final String title;
   final List<DummyTransaction> transactions;
   final String Function(double) formatPrice;
+  final bool Function() canDelete;
+  final Future<bool> Function(DummyTransaction) onDelete;
 
   const _TransactionSearchDialog({
+    required this.canDelete,
+    required this.onDelete,
     required this.title,
     required this.transactions,
     required this.formatPrice,
@@ -3418,16 +3437,32 @@ class _TransactionSearchDialog extends StatefulWidget {
 }
 
 class _TransactionSearchDialogState extends State<_TransactionSearchDialog> {
+  bool busy = false;
+  final removed = <String>{};
+  Future<void> deleteRow(DummyTransaction item) async {
+    if (busy || !widget.canDelete()) return;
+    setState(() => busy = true);
+    try {
+      final deleted = await widget.onDelete(item);
+      if (mounted && deleted) setState(() => removed.add(item.id));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
   final controller = TextEditingController();
 
   List<DummyTransaction> get filtered {
     final query = controller.text.trim().toLowerCase();
 
     if (query.isEmpty) {
-      return widget.transactions;
+      return widget.transactions
+          .where((item) => !removed.contains(item.id))
+          .toList();
     }
 
     return widget.transactions.where((item) {
+      if (removed.contains(item.id)) return false;
       return [
         item.number,
         item.applicant.name,
@@ -3439,79 +3474,100 @@ class _TransactionSearchDialogState extends State<_TransactionSearchDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: AppColors.card,
-      title: Text(widget.title),
-      content: SizedBox(
-        width: 950,
-        height: 500,
-        child: Column(
-          children: [
-            TextField(
-              controller: controller,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                hintText: 'Cari nomor, pemohon, petugas, atau status...',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: AppColors.background,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: AppColors.border),
+    return PopScope(
+      canPop: !busy,
+      child: AlertDialog(
+        backgroundColor: AppColors.card,
+        title: Text(widget.title),
+        content: SizedBox(
+          width: 950,
+          height: MediaQuery.sizeOf(context).height * .55,
+          child: Column(
+            children: [
+              TextField(
+                controller: controller,
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  hintText: 'Cari nomor, pemohon, petugas, atau status...',
+                  prefixIcon: const Icon(Icons.search),
+                  filled: true,
+                  fillColor: AppColors.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: filtered.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'Tidak ada transaksi yang sesuai.',
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                    )
-                  : ListView.separated(
-                      itemCount: filtered.length,
-                      separatorBuilder: (_, _) =>
-                          const Divider(height: 1, color: AppColors.divider),
-                      itemBuilder: (context, index) {
-                        final item = filtered[index];
+              const SizedBox(height: 16),
+              Expanded(
+                child: filtered.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Tidak ada transaksi yang sesuai.',
+                          style: TextStyle(color: AppColors.textSecondary),
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, _) =>
+                            const Divider(height: 1, color: AppColors.divider),
+                        itemBuilder: (context, index) {
+                          final item = filtered[index];
 
-                        return ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 5,
-                          ),
-                          title: Text(
-                            item.number,
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
-                              fontWeight: FontWeight.w600,
+                          return ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 5,
                             ),
-                          ),
-                          subtitle: Text(
-                            '${item.applicant.name} • ${item.officer.name} • ${item.registrationDate}',
-                            style: const TextStyle(
-                              color: AppColors.textSecondary,
-                              fontSize: 12,
+                            title: Text(
+                              item.number,
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                          trailing: _StatusTag(text: item.status),
-                          onTap: () => Navigator.pop(context, item),
-                        );
-                      },
-                    ),
-            ),
-          ],
+                            subtitle: Text(
+                              '${item.applicant.name} • ${item.officer.name} • ${item.registrationDate}',
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _StatusTag(text: item.status),
+                                if (widget.canDelete())
+                                  IconButton(
+                                    key: ValueKey(
+                                      'delete-transaction-${item.id}',
+                                    ),
+                                    tooltip: 'Hapus Transaksi',
+                                    onPressed: busy
+                                        ? null
+                                        : () => deleteRow(item),
+                                    icon: const Icon(Icons.delete_outline),
+                                  ),
+                              ],
+                            ),
+                            onTap: busy
+                                ? null
+                                : () => Navigator.pop(context, item),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
         ),
+        actions: [
+          TextButton(
+            onPressed: busy ? null : () => Navigator.pop(context),
+            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+            child: const Text('Tutup'),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          style: TextButton.styleFrom(foregroundColor: AppColors.primary),
-          child: const Text('Tutup'),
-        ),
-      ],
     );
   }
 
