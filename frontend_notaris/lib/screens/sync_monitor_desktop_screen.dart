@@ -1,14 +1,13 @@
 import '../core/widgets/master_data_viewport.dart';
 import '../core/widgets/sync_page_frame.dart';
+import '../core/widgets/transaction_manual_sync_controls.dart';
 import '../core/theme/app_colors.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/sync_monitor_provider.dart';
-import '../providers/development_smoke_provider.dart';
 import '../providers/auth_provider.dart';
-import '../repositories/sync_monitor_repository.dart';
 
 class SyncMonitorDesktopScreen extends ConsumerStatefulWidget {
   const SyncMonitorDesktopScreen({super.key});
@@ -17,7 +16,6 @@ class SyncMonitorDesktopScreen extends ConsumerStatefulWidget {
 }
 
 class _MonitorState extends ConsumerState<SyncMonitorDesktopScreen> {
-  String module = 'kategori', direction = 'push';
   final _horizontal = ScrollController();
   final _vertical = ScrollController();
   @override
@@ -30,7 +28,6 @@ class _MonitorState extends ConsumerState<SyncMonitorDesktopScreen> {
   @override
   Widget build(BuildContext context) {
     final data = ref.watch(syncMonitorProvider);
-    final smoke = ref.watch(developmentUiSmokeProvider);
     final offline =
         ref.watch(authControllerProvider).session?.isOffline ?? true;
     return SyncPageFrame(
@@ -43,43 +40,7 @@ class _MonitorState extends ConsumerState<SyncMonitorDesktopScreen> {
           const Text(
             'Offline / sesi online belum tersedia. Status server belum diperiksa.',
           ),
-        Wrap(
-          spacing: 16,
-          runSpacing: 12,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            DropdownButton<String>(
-              value: module,
-              items: [
-                for (final e in syncModules.entries)
-                  DropdownMenuItem(value: e.key, child: Text(e.value)),
-              ],
-              onChanged: (v) => setState(() => module = v!),
-            ),
-            DropdownButton<String>(
-              value: direction,
-              items: const [
-                DropdownMenuItem(value: 'push', child: Text('Upload')),
-                DropdownMenuItem(value: 'pull', child: Text('Download')),
-              ],
-              onChanged: (v) => setState(() => direction = v!),
-            ),
-            const FilledButton(
-              onPressed: null,
-              child: Text('Jalankan seleksi'),
-            ),
-            IconButton(
-              tooltip: 'Refresh snapshot lokal',
-              onPressed: () => ref.invalidate(syncMonitorProvider),
-              icon: const Icon(Icons.refresh),
-            ),
-          ],
-        ),
-        Text(
-          smoke
-              ? 'UI Smoke: seluruh sinkronisasi manual dinonaktifkan.'
-              : selectiveSyncReason(module, direction),
-        ),
+        const TransactionManualSyncControls(),
         const SizedBox(height: 12),
         Expanded(
           child: data.when(

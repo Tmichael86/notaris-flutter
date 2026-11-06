@@ -1,3 +1,5 @@
+import 'isolated_transaction_profile_provider.dart';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,6 +14,31 @@ final pemohonGenderReferencesProvider = Provider<PemohonGenderReferences?>(
 
 /// Satu konfigurasi Dio untuk komunikasi HTTP aplikasi.
 final dioProvider = Provider<Dio>((ref) {
+  final isolated = ref.watch(isolatedTransactionSyncConfigurationProvider);
+  if (isolated != null) {
+    final readonly = isolated.http.clone();
+    readonly.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (r, h) {
+          if (r.uri.origin != Uri.parse(isolated.profile.baseUrl).origin ||
+              (r.method != 'GET' &&
+                  !(r.method == 'POST' &&
+                      r.uri.path == '/api/v1/auth/login'))) {
+            return h.reject(
+              DioException(
+                requestOptions: r,
+                error: 'Isolated UI: only the validated manual transaction service may mutate',
+              ),
+            );
+          }
+          r.followRedirects = false;
+          h.next(r);
+        },
+      ),
+    );
+    return readonly;
+  }
+
   return Dio(
     BaseOptions(
       baseUrl: const String.fromEnvironment(

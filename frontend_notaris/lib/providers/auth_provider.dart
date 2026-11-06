@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'isolated_transaction_profile_provider.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_providers.dart';
@@ -7,39 +11,38 @@ import '../services/auth_service.dart';
 enum AuthStatus { loading, unauthenticated, authenticating, authenticated }
 
 class AuthState {
-  const AuthState({
-    required this.status,
-    this.session,
-    this.errorMessage,
-  });
+  const AuthState({required this.status, this.session, this.errorMessage});
 
   final AuthStatus status;
   final AuthSession? session;
   final String? errorMessage;
 
   factory AuthState.loading() => const AuthState(status: AuthStatus.loading);
-  factory AuthState.unauthenticated([String? error]) => AuthState(
-        status: AuthStatus.unauthenticated,
-        errorMessage: error,
-      );
+  factory AuthState.unauthenticated([String? error]) =>
+      AuthState(status: AuthStatus.unauthenticated, errorMessage: error);
   factory AuthState.authenticating() =>
       const AuthState(status: AuthStatus.authenticating);
-  factory AuthState.authenticated(AuthSession session) => AuthState(
-        status: AuthStatus.authenticated,
-        session: session,
-      );
+  factory AuthState.authenticated(AuthSession session) =>
+      AuthState(status: AuthStatus.authenticated, session: session);
 }
 
 final authServiceProvider = Provider<AuthService>((ref) {
-  return AuthService(dio: ref.watch(dioProvider));
+  final isolated = ref.watch(isolatedTransactionSyncConfigurationProvider);
+  return AuthService(
+    dio: ref.watch(dioProvider),
+    cacheKey: isolated == null
+        ? 'notaris.auth.session.v1'
+        : 'notaris.isolated.${base64Url.encode(utf8.encode(isolated.profile.scope))}.auth',
+  );
 });
 
-final authControllerProvider =
-    StateNotifierProvider<AuthController, AuthState>((ref) {
-  final controller = AuthController(ref.read(authServiceProvider));
-  controller.initialize();
-  return controller;
-});
+final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
+  (ref) {
+    final controller = AuthController(ref.read(authServiceProvider));
+    controller.initialize();
+    return controller;
+  },
+);
 
 class AuthController extends StateNotifier<AuthState> {
   AuthController(this._service) : super(AuthState.loading());

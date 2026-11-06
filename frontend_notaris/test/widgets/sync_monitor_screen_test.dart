@@ -44,18 +44,10 @@ void main() {
           tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
           isNull,
         );
-        await tester.tap(find.text('Upload'));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Download').last);
-        await tester.pumpAndSettle();
-        if (!smoke) {
-          expect(
-            find.textContaining(
-              'Download menggunakan Transaksi (feed gabungan)',
-            ),
-            findsOneWidget,
-          );
-        }
+        final direction = tester.widget<DropdownButton<String>>(
+          find.byKey(const Key('manual-sync-direction')),
+        );
+        expect(direction.items!.map((e) => e.value), ['push']);
         await tester.tap(find.text('Transaksi Notaris').first);
         await tester.pumpAndSettle();
         await tester.ensureVisible(find.text('Transaksi (feed gabungan)').last);

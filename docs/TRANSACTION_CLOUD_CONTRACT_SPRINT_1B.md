@@ -443,3 +443,27 @@ Service/contract is ready for isolated UI wiring. Enabling UI execution still
 requires a reviewed selected-record binding and profile provisioning, plus the
 separate normal-profile rollout/recovery approval; no global coordinator or
 background publisher is activated by this checkpoint.
+
+
+## Isolated Monitoring UI wiring (2026-11-06)
+
+The existing Monitoring card now uses guarded Transaction controls with local
+record selection (number/domain/UUID/dirty and pending state), confirmation,
+loading/single-flight and sanitized outcome feedback. Upload rechecks the selected
+ID/domain/UUID after confirmation; download explicitly uses the shared feed.
+
+Default configuration is null, so normal/UiSmoke execution stays disabled.
+The isolated configuration factory validates the disposable location before
+constructing a file-backed database and binds database, HTTP and private auth
+cache scope. Startup/resume/global sync are suppressed in that context; its
+ordinary HTTP client allows only reads/login, while the existing manual service
+retains its own URI/permission/profile/Smoke guards. Shared shell/layout unchanged.
+
+Validation: 82 focused tests passed; full Flutter suite 422 passed / 7 opt-in
+skipped; analyzer clean; real Monitoring UI/service/HTTP/PostgreSQL/second UI
+profile E2E explicitly passed, including both selective uploads, shared cursor,
+publication, replay, restart, Log, payment/snapshot identity and FK/integrity.
+Evidence: `.local/transaction-ui-wiring-20261106/`.
+Windows debug entry/manifest prerequisites and manual steps are documented in
+[TRANSACTION_MONITOR_ISOLATED_UI.md](TRANSACTION_MONITOR_ISOLATED_UI.md).
+No permanent profile/server writes or operational sync activation were performed.

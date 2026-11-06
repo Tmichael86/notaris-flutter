@@ -1,3 +1,5 @@
+import 'isolated_transaction_profile_provider.dart';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -204,7 +206,10 @@ final syncStatusProvider = StateProvider<SyncStatus>((ref) => SyncStatus.idle);
 final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
   return SyncCoordinator(
     runSync: () async {
-      if (ref.read(developmentUiSmokeProvider)) return;
+      if (ref.read(developmentUiSmokeProvider) ||
+          ref.read(isolatedTransactionSyncConfigurationProvider) != null) {
+        return;
+      }
       final logger = ref.read(syncLogRepositoryProvider);
       final attempt = const Uuid().v4();
       Future<void> record(

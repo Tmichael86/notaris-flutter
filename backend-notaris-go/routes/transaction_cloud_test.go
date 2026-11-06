@@ -39,6 +39,13 @@ func TestTransactionMixedManualHTTPPostgres(t *testing.T) {
 	t.Setenv("NOTARIS_TRANSACTION_MIXED_E2E", "1")
 	runTransactionCloudHTTP(t, "notaris")
 }
+func TestTransactionMonitoringUIHTTPPostgres(t *testing.T) {
+	if os.Getenv("NOTARIS_TRANSACTION_E2E") != "1" {
+		t.Skip("disposable UI HTTP opt-in unset")
+	}
+	t.Setenv("NOTARIS_TRANSACTION_UI_E2E", "1")
+	runTransactionCloudHTTP(t, "notaris")
+}
 func runTransactionCloudHTTP(t *testing.T, domain string) {
 	dsn := os.Getenv("NOTARIS_SYNC_TEST_DSN")
 	if dsn == "" {
@@ -127,7 +134,11 @@ func runTransactionCloudHTTP(t *testing.T, domain string) {
 	if os.Getenv("NOTARIS_TRANSACTION_E2E") == "1" {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 		defer cancel()
-		args := []string{"test", "--no-pub", "test/e2e/transaction_cloud_live_e2e_test.dart", "--reporter", "expanded"}
+		file := "test/e2e/transaction_cloud_live_e2e_test.dart"
+		if os.Getenv("NOTARIS_TRANSACTION_UI_E2E") == "1" {
+			file = "test/e2e/transaction_monitor_ui_e2e_test.dart"
+		}
+		args := []string{"test", "--no-pub", file, "--reporter", "expanded"}
 		var cmd *exec.Cmd
 		if runtime.GOOS == "windows" {
 			cmd = exec.CommandContext(ctx, "cmd", append([]string{"/c", "flutter"}, args...)...)
@@ -140,6 +151,15 @@ func runTransactionCloudHTTP(t *testing.T, domain string) {
 		t.Log(strings.ReplaceAll(string(out), token, "[redacted]"))
 		if e != nil {
 			t.Fatalf("Flutter Device A/B: %v", e)
+		}
+		if os.Getenv("NOTARIS_TRANSACTION_UI_E2E") == "1" {
+			for q, want := range map[string]int64{"SELECT count(*) FROM transaction_cloud": 2, "SELECT count(*) FROM transaction_cloud_payment": 2, "SELECT count(*) FROM transaction_cloud_mutation": 2, "SELECT count(*) FROM transaction_cloud_outbox WHERE publication_seq BETWEEN 1 AND 2": 2, "SELECT last_seq FROM transaction_cloud_publication": 2, "SELECT count(*) FROM transaction_cloud_number_counter WHERE last_number=1": 2} {
+				var got int64
+				if err := db.Raw(q).Row().Scan(&got); err != nil || got != want {
+					t.Fatalf("UI %s=%d want=%d err=%v", q, got, want, err)
+				}
+			}
+			return
 		}
 		if os.Getenv("NOTARIS_TRANSACTION_MIXED_E2E") == "1" {
 			for q, want := range map[string]int64{"SELECT count(*) FROM transaction_cloud": 2, "SELECT count(*) FROM transaction_cloud_payment": 2, "SELECT count(*) FROM transaction_cloud_mutation": 6, "SELECT count(*) FROM transaction_cloud_outbox WHERE publication_seq BETWEEN 1 AND 6": 6, "SELECT last_seq FROM transaction_cloud_publication": 6, "SELECT count(*) FROM transaction_cloud_number_counter WHERE last_number=1": 2} {

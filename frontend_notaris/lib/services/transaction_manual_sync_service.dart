@@ -55,7 +55,7 @@ class TransactionManualProfile {
   String get petugasScope => '$scope/petugas';
   String get masterScope => '$scope/masters';
 
-  Future<void> validate(AppDatabase db) async {
+  String validateLocation() {
     final uri = Uri.tryParse(baseUrl);
     if (uri == null ||
         uri.scheme != 'http' ||
@@ -86,6 +86,11 @@ class TransactionManualProfile {
         !{'a.sqlite', 'b.sqlite'}.contains(p.basename(canonical))) {
       throw const ManualTransactionFailure('scope');
     }
+    return canonical;
+  }
+
+  Future<void> validate(AppDatabase db) async {
+    final canonical = validateLocation();
     final main = (await db.customSelect('PRAGMA database_list').get())
         .singleWhere((row) => row.read<String>('name') == 'main');
     if (File(main.read<String>('file')).resolveSymbolicLinksSync() !=
@@ -217,10 +222,36 @@ class TransactionManualSyncService {
         (sidebar['status'] == null || yes(sidebar['status']));
   });
 
+  /// Read-only eligibility for isolated UI. Execution repeats these guards;
+  /// discovery must not create a successful sync log or bind a new cursor.
+  Future<void> validateUiContext({
+    required String selectedModule,
+    required ManualSyncDirection direction,
+  }) async {
+    final domain = uploadModules[selectedModule];
+    if ((direction == ManualSyncDirection.upload && domain == null) ||
+        (direction == ManualSyncDirection.download &&
+            selectedModule != feedModule)) {
+      throw const ManualTransactionFailure('validation');
+    }
+    await profile.validate(db);
+    final current = _authorize();
+    if (!_permission(current, 'read') ||
+        (direction == ManualSyncDirection.upload &&
+            ![
+              'create',
+              'update',
+              'delete',
+            ].any((action) => _permission(current, action)))) {
+      throw const ManualTransactionFailure('forbidden');
+    }
+  }
+
   Future<TransactionManualResult> run({
     required String selectedModule,
     required ManualSyncDirection direction,
     int? transactionId,
+    String? expectedLocalUuid,
     int pageSize = 20,
     int maxPages = 1,
   }) async {
@@ -286,6 +317,10 @@ class TransactionManualSyncService {
               )..where((t) => t.id.equals(transactionId))).getSingle();
               if (header.jenisTransaksi != selectedDomain) {
                 throw const ManualTransactionFailure('unsupported_domain');
+              }
+              if (expectedLocalUuid != null &&
+                  header.uuid != expectedLocalUuid) {
+                throw const ManualTransactionFailure('conflict');
               }
               if (!RegExp(
                 r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
