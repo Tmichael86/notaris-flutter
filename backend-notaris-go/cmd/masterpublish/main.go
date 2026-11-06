@@ -26,12 +26,15 @@ import (
 )
 
 type options struct {
-	domain, confirm     string
-	onlyUUID, operation string
-	revision            int64
-	batch, maxBatches   int
-	timeout             time.Duration
-	apply, liveApproved bool
+	domain, confirm          string
+	onlyUUID, operation      string
+	revision                 int64
+	batch, maxBatches        int
+	timeout                  time.Duration
+	apply, liveApproved      bool
+	transaction              bool
+	allowlist, allowlistHash string
+	expectedLastSeq          int64
 }
 
 func (o options) validate(target string) error {
@@ -43,6 +46,9 @@ func (o options) validate(target string) error {
 	}
 	if o.apply && o.confirm != target {
 		return errors.New("apply requires exact confirm-target")
+	}
+	if o.transaction && o.apply && (o.domain == "both" || o.batch != 1 || o.maxBatches != 1 || o.onlyUUID == "" || o.allowlist == "" || len(o.allowlistHash) != 64 || o.expectedLastSeq < 0) {
+		return errors.New("transaction publication requires one allowlisted event, pinned allowlist hash and expected cursor")
 	}
 	if target == "127.0.0.1:5432/notarisdev" && o.apply && !o.liveApproved {
 		return errors.New("permanent development apply requires separate live approval and --live-approved")
@@ -76,6 +82,10 @@ func run() error {
 	flag.StringVar(&o.onlyUUID, "only-uuid", "", "publish exactly one event for this aggregate UUID")
 	flag.StringVar(&o.operation, "expected-operation", "", "expected create, update, or delete event")
 	flag.Int64Var(&o.revision, "expected-revision", 0, "expected event revision")
+	flag.BoolVar(&o.transaction, "transaction", false, "use the shared Transaction feed, never a background worker")
+	flag.StringVar(&o.allowlist, "allowlist", "", "reviewed publication allowlist JSON")
+	flag.StringVar(&o.allowlistHash, "allowlist-sha256", "", "approved allowlist SHA-256")
+	flag.Int64Var(&o.expectedLastSeq, "expected-last-seq", -1, "expected publication baseline cursor")
 	flag.Parse()
 	if flag.NArg() != 0 {
 		return errors.New("unexpected positional arguments")
@@ -128,6 +138,26 @@ func run() error {
 			return errors.New("notarisdev synthetic marker mismatch")
 		}
 	}
+	if o.transaction {
+		var pending, last int64
+		if err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			return tx.Raw("SELECT (SELECT count(*) FROM transaction_cloud_outbox WHERE publication_seq IS NULL),last_seq FROM transaction_cloud_publication WHERE id=1").Row().Scan(&pending, &last)
+		}, &sql.TxOptions{ReadOnly: true}); err != nil {
+			return err
+		}
+		if !o.apply {
+			return json.NewEncoder(os.Stdout).Encode(map[string]any{"target": target, "mode": "read_only", "feed": "transactions", "pending": pending, "last_seq": last})
+		}
+		expected := repositories.TransactionPublicationExpectation{Domain: o.domain, UUID: o.onlyUUID, Operation: o.operation, Revision: o.revision, ExpectedLastSeq: o.expectedLastSeq}
+		if err := approvedPublication(o, target, "transaction", expected); err != nil {
+			return err
+		}
+		result, err := repositories.NewTransactionCloudRepository(db).PublishExpected(ctx, expected)
+		if err != nil {
+			return fmt.Errorf("transaction publication stopped; inspect database read-only before retry: %w", err)
+		}
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{"target": target, "mode": "apply_expected", "feed": "transactions", "domain": o.domain, "aggregate_uuid": o.onlyUUID, "operation": o.operation, "revision": o.revision, "published": result.Published, "sequence": result.Sequence, "last_seq": result.LastSeq, "replay": result.Replay})
+	}
 	for _, domain := range []string{"notaris", "ppat"} {
 		if o.domain != "both" && o.domain != domain {
 			continue
@@ -154,6 +184,11 @@ func run() error {
 			continue
 		}
 		if o.onlyUUID != "" {
+			if o.allowlist != "" {
+				if err := approvedPublication(o, target, "master", repositories.TransactionPublicationExpectation{Domain: domain, UUID: o.onlyUUID, Operation: o.operation, Revision: o.revision, ExpectedLastSeq: o.expectedLastSeq}); err != nil {
+					return err
+				}
+			}
 			seq, err := repositories.PublishExpectedMaster(ctx, db, domain, o.onlyUUID, o.operation, o.revision)
 			if err != nil {
 				return fmt.Errorf("%s expected publication stopped; inspect database before any retry: %w", domain, err)

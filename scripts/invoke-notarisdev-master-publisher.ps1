@@ -8,7 +8,11 @@ param(
  [string]$ConfirmTarget='',
  [string]$OnlyUuid='',
  [ValidateSet('create','update','delete')][string]$ExpectedOperation='create',
- [long]$ExpectedRevision=0
+ [long]$ExpectedRevision=0,
+ [switch]$Transaction,
+ [long]$ExpectedLastSeq=-1,
+ [string]$Allowlist='',
+ [string]$ConfirmAllowlistSha256=''
 )
 $ErrorActionPreference='Stop'
 if($Apply -and (!$LiveApproved -or $ConfirmTarget -cne '127.0.0.1:5432/notarisdev')) {
@@ -17,6 +21,8 @@ if($Apply -and (!$LiveApproved -or $ConfirmTarget -cne '127.0.0.1:5432/notarisde
 if($Apply -and ($Domain -eq 'both' -or $BatchSize -ne 1 -or $MaxBatches -ne 1 -or !$OnlyUuid -or $ExpectedRevision -lt 1)) {
  throw 'Live apply requires one domain and one exact synthetic event'
 }
+if($Transaction -and $Apply -and (!$Allowlist -or $ExpectedLastSeq -lt 0 -or $ConfirmAllowlistSha256 -notmatch '^[A-Fa-f0-9]{64}$')){throw 'Transaction apply requires reviewed allowlist hash and expected cursor'}
+if($Allowlist -and ((Get-FileHash -LiteralPath $Allowlist -Algorithm SHA256).Hash -ine $ConfirmAllowlistSha256)){throw 'Publication allowlist hash mismatch'}
 $repo=Split-Path $PSScriptRoot -Parent
 Set-Location $repo
 . ./scripts/petugas-operations-common.ps1
@@ -31,6 +37,8 @@ try {
  $env:PGUSER=$settings.DB_USER;$env:PGPASSWORD=$settings.DB_PASSWORD
  $env:PGHOST='127.0.0.1';$env:PGPORT='5432';$env:PGDATABASE='notarisdev'
  $publisherArgs=@('run','./cmd/masterpublish','--domain',$Domain,'--batch-size',"$BatchSize",'--max-batches',"$MaxBatches",'--timeout',("${TimeoutSeconds}s"))
+ if($Transaction){$publisherArgs+='--transaction'}
+ if($Allowlist){$publisherArgs+=@('--allowlist',(Resolve-Path -LiteralPath $Allowlist).Path,'--allowlist-sha256',$ConfirmAllowlistSha256,'--expected-last-seq',"$ExpectedLastSeq")}
  if($Apply){$publisherArgs+=@('--apply','--live-approved','--confirm-target',$ConfirmTarget,'--only-uuid',$OnlyUuid,'--expected-operation',$ExpectedOperation,'--expected-revision',"$ExpectedRevision")}
  Push-Location './backend-notaris-go'
  try {

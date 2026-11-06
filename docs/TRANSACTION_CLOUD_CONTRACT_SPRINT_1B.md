@@ -244,3 +244,77 @@ separately approved fresh synthetic Master references/publication. Existing loca
 dirty data must remain excluded. Backup, combined guarded SQL, hashes, simulation
 receipts and the live plan are under `.local/transaction-rollout-preflight-20261105-071615`.
 No permanent Transaction migration/CRUD/publication has been performed.
+
+## Controlled live Transaction readiness (2026-11-06)
+
+The combined migration is now independently confirmed committed on notarisdev:
+`COMBINED_TRANSACTIONS_VERIFIED`, eight tables, two sequences and thirteen FKs;
+49 legacy fingerprints and 38 prior sequence states preserved. Evidence:
+`.local/transaction-rollout-preflight-20261105-071615/execution-20261106-025302-50be6028`.
+Retain the migration attempt lock. Never invoke the migration runner again.
+
+`masterpublish --transaction` reuses the Transaction publication implementation
+and shared publication counter lock. Apply requires a SHA-256-pinned allowlist,
+one exact domain/UUID/operation/revision, one event/batch and expected prior cursor.
+Any other pending Transaction event prevents publication. An already published
+approved event returns its original sequence with `published=0,replay=true`.
+Counter/outbox assignment commits atomically; no publisher worker is installed.
+Default execution is read-only. Notaris/PPAT Master feeds remain separate.
+
+The preparation entry uses existing aggregate repositories on two NEW SQLite
+files under `.local`, with reviewed active Pemohon, Petugas mapping/version and
+category UUIDs from read-only PostgreSQL queries. It does not open a normal
+profile or make HTTP calls. Each device has its own scope and local Petugas UUID;
+cloud references are explicit, never inferred from names or integer IDs.
+
+Prepared receipt: `.local/transaction-live-readiness-20261106-032109`.
+`fixture-plan.json` records every parent/price/process/attribute/detail/payment
+UUID. Label: `E2E-TX-21aa6a5c`. Its `publication-allowlist.json` pins ten events.
+These fixtures do NOT yet exist on notarisdev. Only source read-only checks and
+offline preparation have occurred at this checkpoint.
+
+After SEPARATE write approval, the existing HTTP repositories create/publish one
+new active Master per domain, then run Notaris before PPAT Transaction CRUD:
+revision 1→2→3, one server number and one initial payment per transaction. Both
+devices pull complete aggregates; Device B dirty protection, replay/pagination,
+restart and integrity/FK checks run on disposable files. Finally the two approved
+Master fixtures are soft-deleted/published, preserving historical snapshots.
+
+Write budget: four Master mutations/receipts/events (CREATE+DELETE per domain),
+six Transaction mutations/receipts/events (CREATE+UPDATE+DELETE per domain), two
+payments and two number allocations. Ten first-publication calls, batch size one,
+one batch and 60-second deadline each. Identical HTTP retries reuse the receipt.
+Expected Master cursors 3→5 each; shared Transaction cursor 0→6, min_cursor 0,
+pending zero. No changes to schema, grants, old identities or dirty profiles.
+
+The controlled runner defaults to dry-run. Apply pins source HEAD, clean working
+tree, target and plan hash, rechecks maintenance/permissions/references/baseline,
+verifies a new consistent pg_dump archive and its SHA-256/TOC, authenticates the
+reviewed fixture account, and creates a one-attempt lock before first HTTP write.
+All public-table fingerprints exclude only explicitly approved fixture identities
+and specified counters; any other change stops verification. It never retries a
+failed/ambiguous write or automatically restores. Keep all logs, dumps and locks;
+inspect read-only if any phase fails. Separate operations are separate commits:
+earlier acknowledged phases may remain committed when a later phase fails.
+
+```powershell
+# Repository root; read-only readiness, safe BEFORE separate approval:
+& .\scripts\invoke-notarisdev-transaction-live.ps1 `
+  -PreparedReceipt '.local\transaction-live-readiness-20261106-032109'
+
+# ONLY AFTER approval of fixture creation, Transaction CRUD and bounded publication:
+& .\scripts\invoke-notarisdev-transaction-live.ps1 `
+  -PreparedReceipt '.local\transaction-live-readiness-20261106-032109' `
+  -Apply -ConfirmTarget '127.0.0.1:5432/notarisdev' `
+  -ConfirmPlanSha256 '69B75347E2F776EE64DEC47FCFE55D4BEBE61251FFF71813C43CFA90B9B66C9C'
+```
+
+Validation: ten focused Go tests and 32 Flutter tests passed, analyzer clean;
+both existing HTTP A/B CRUD E2Es passed with the guarded publisher. The actual
+prepared-plan executor passed on a restored disposable PostgreSQL clone and two
+copied disposable SQLite files: six Transaction events, four Master events,
+two unchanged payments, replay/restart/dirty protection, FK/integrity and all
+57 filtered table fingerprints preserved. CLI publication retry returned
+`published=0,replay=true,sequence=1,last_seq=6`. Evidence:
+`.local/transaction-live-disposable-rehearsal-20261106` and the prepared receipt.
+Permanent Transaction CRUD/publication remains unexecuted pending approval.

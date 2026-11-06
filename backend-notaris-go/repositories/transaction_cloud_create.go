@@ -250,17 +250,39 @@ func (r *TransactionCloudRepository) Create(ctx context.Context, m TransactionCl
 	return &ack, nil
 }
 func (r *TransactionCloudRepository) Publish(ctx context.Context, limit int) (int, error) {
-	if limit < 1 || limit > 500 {
-		return 0, ErrTransactionCloudInvalid
+	result, err := r.publish(ctx, limit, nil)
+	return result.Published, err
+}
+func (r *TransactionCloudRepository) PublishExpected(ctx context.Context, expected TransactionPublicationExpectation) (TransactionPublicationResult, error) {
+	if !expected.Valid() {
+		return TransactionPublicationResult{}, ErrUnexpectedTransactionOutbox
 	}
-	count := 0
+	return r.publish(ctx, 1, &expected)
+}
+func (r *TransactionCloudRepository) publish(ctx context.Context, limit int, expected *TransactionPublicationExpectation) (TransactionPublicationResult, error) {
+	if limit < 1 || limit > 500 {
+		return TransactionPublicationResult{}, ErrTransactionCloudInvalid
+	}
+	result := TransactionPublicationResult{}
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var seq int64
 		if e := tx.Raw("SELECT last_seq FROM transaction_cloud_publication WHERE id=1 FOR UPDATE").Row().Scan(&seq); e != nil {
 			return e
 		}
 		var ids []int64
-		if e := tx.Raw("SELECT id FROM transaction_cloud_outbox WHERE publication_seq IS NULL ORDER BY id LIMIT ? FOR UPDATE", limit).Scan(&ids).Error; e != nil {
+		if expected != nil {
+			id, replay, err := expectedTransactionPublication(tx, *expected, seq)
+			if err != nil {
+				return err
+			}
+			if replay {
+				result.Replay = true
+				result.Sequence = id
+				result.LastSeq = seq
+				return nil
+			}
+			ids = []int64{id}
+		} else if e := tx.Raw("SELECT id FROM transaction_cloud_outbox WHERE publication_seq IS NULL ORDER BY id LIMIT ? FOR UPDATE", limit).Scan(&ids).Error; e != nil {
 			return e
 		}
 		for _, id := range ids {
@@ -272,10 +294,15 @@ func (r *TransactionCloudRepository) Publish(ctx context.Context, limit int) (in
 		if e := tx.Exec("UPDATE transaction_cloud_publication SET last_seq=? WHERE id=1", seq).Error; e != nil {
 			return e
 		}
-		count = len(ids)
+		result.Published = len(ids)
+		result.Sequence = seq
+		result.LastSeq = seq
 		return nil
 	}, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
-	return count, err
+	if err != nil {
+		return TransactionPublicationResult{}, err
+	}
+	return result, nil
 }
 func (r *TransactionCloudRepository) Pull(ctx context.Context, cursor int64, limit int) (*TransactionCloudPage, error) {
 	if cursor < 0 || limit < 1 || limit > 500 {

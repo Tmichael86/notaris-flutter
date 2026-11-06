@@ -101,12 +101,17 @@ func runTransactionCloudHTTP(t *testing.T, domain string) {
 	}
 	router := SetupRouter(config.Config{JWTSecret: secret}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	router.POST("/api/v1/transaksi-"+domain+"/testing/publish", middleware.JWTAuth(config.Config{JWTSecret: secret}), func(c *gin.Context) {
-		n, e := repositories.NewTransactionCloudRepository(db).Publish(c.Request.Context(), 2)
+		var expected repositories.TransactionPublicationExpectation
+		if c.ShouldBindJSON(&expected) != nil {
+			c.JSON(400, gin.H{"code": "expected_event_required"})
+			return
+		}
+		result, e := repositories.NewTransactionCloudRepository(db).PublishExpected(c.Request.Context(), expected)
 		if e != nil {
 			c.JSON(500, gin.H{"code": "failed"})
 			return
 		}
-		c.JSON(200, gin.H{"published": n})
+		c.JSON(200, result)
 	})
 	server := httptest.NewServer(router)
 	defer server.Close()

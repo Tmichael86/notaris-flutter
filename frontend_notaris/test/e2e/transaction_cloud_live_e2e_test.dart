@@ -164,12 +164,26 @@ void main() {
     expect(
       (await dio.post<Map<String, dynamic>>(
         '/transaksi-$domain/testing/publish',
+        data: {
+          'domain': domain,
+          'uuid': before.uuid,
+          'operation': 'create',
+          'revision': 1,
+          'expected_last_seq': 0,
+        },
       )).data!['published'],
       1,
     );
     expect(
       (await dio.post<Map<String, dynamic>>(
         '/transaksi-$domain/testing/publish',
+        data: {
+          'domain': domain,
+          'uuid': before.uuid,
+          'operation': 'create',
+          'revision': 1,
+          'expected_last_seq': 0,
+        },
       )).data!['published'],
       0,
     );
@@ -325,6 +339,13 @@ void main() {
       expect(
         (await dio.post<Map<String, dynamic>>(
           '/transaksi-$domain/testing/publish',
+          data: {
+            'domain': domain,
+            'uuid': before.uuid,
+            'operation': 'update',
+            'revision': 2,
+            'expected_last_seq': 1,
+          },
         )).data!['published'],
         1,
       );
@@ -430,6 +451,13 @@ void main() {
       expect(
         (await dio.post<Map<String, dynamic>>(
           '/transaksi-$domain/testing/publish',
+          data: {
+            'domain': domain,
+            'uuid': before.uuid,
+            'operation': 'delete',
+            'revision': 3,
+            'expected_last_seq': 2,
+          },
         )).data!['published'],
         1,
       );
@@ -540,6 +568,13 @@ void main() {
       expect(
         (await dio.post<Map<String, dynamic>>(
           '/transaksi-$domain/testing/publish',
+          data: {
+            'domain': 'notaris',
+            'uuid': otherAck['uuid'],
+            'operation': 'create',
+            'revision': 1,
+            'expected_last_seq': 3,
+          },
         )).data!['published'],
         1,
       );
