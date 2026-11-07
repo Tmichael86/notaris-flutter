@@ -36,7 +36,13 @@ void main() {
         expect(find.byKey(const Key('manual-sync-module')), findsNothing);
         await tester.tap(find.byKey(const Key('open-manual-sync')));
         await tester.pumpAndSettle();
-        expect(find.text('Pusat Sinkronisasi'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(Dialog),
+            matching: find.text('Pusat Sinkronisasi'),
+          ),
+          findsOneWidget,
+        );
         expect(
           find.text('MY NOTARIS · Administrasi Notaris & PPAT'),
           findsOneWidget,

@@ -52,6 +52,7 @@ void main() {
                   (ref) async => [
                     for (var i = 0; i < 12; i++)
                       {
+                        'module': 'pemohon_$i',
                         'label': 'Pemohon $i',
                         'color': 'yellow',
                         'last_attempt': null,
@@ -82,31 +83,32 @@ void main() {
             ),
             findsOneWidget,
           );
-          expect(find.byType(Card), findsOneWidget);
-          expect(
-            find.ancestor(
-              of: find.byType(DataTable),
-              matching: find.byType(Card),
-            ),
-            findsOneWidget,
-          );
-          expect(find.byType(Scrollbar), findsNWidgets(2));
-          final viewport = tester.widget<MasterDataTableViewport>(
-            find.byType(MasterDataTableViewport),
-          );
-          viewport.horizontalController.jumpTo(
-            viewport.horizontalController.position.maxScrollExtent,
-          );
-          await tester.pumpAndSettle();
           if (monitor) {
+            expect(find.byType(DataTable), findsNothing);
+            expect(find.byType(Scrollbar), findsOneWidget);
             expect(find.byKey(const Key('open-manual-sync')), findsOneWidget);
-            await tester.tap(find.text('Lihat detail').first);
+            final detail = find.byKey(const Key('monitor-detail-pemohon_0'));
+            await tester.ensureVisible(detail);
+            await tester.tap(detail);
             await tester.pumpAndSettle();
-            final text = find.textContaining(longText).first;
+            expect(find.textContaining(longText), findsWidgets);
+          } else {
+            expect(find.byType(Card), findsOneWidget);
             expect(
-              tester.getRect(text).right,
-              lessThanOrEqualTo(tester.getRect(find.byType(Card)).right),
+              find.ancestor(
+                of: find.byType(DataTable),
+                matching: find.byType(Card),
+              ),
+              findsOneWidget,
             );
+            expect(find.byType(Scrollbar), findsNWidgets(2));
+            final viewport = tester.widget<MasterDataTableViewport>(
+              find.byType(MasterDataTableViewport),
+            );
+            viewport.horizontalController.jumpTo(
+              viewport.horizontalController.position.maxScrollExtent,
+            );
+            await tester.pumpAndSettle();
           }
           expect(tester.takeException(), isNull);
         },
