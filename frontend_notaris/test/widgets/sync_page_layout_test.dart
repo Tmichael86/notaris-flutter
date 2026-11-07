@@ -99,11 +99,10 @@ void main() {
           );
           await tester.pumpAndSettle();
           if (monitor) {
-            expect(
-              tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
-              isNull,
-            );
-            final text = find.text(longText).first;
+            expect(find.byKey(const Key('open-manual-sync')), findsOneWidget);
+            await tester.tap(find.text('Lihat detail').first);
+            await tester.pumpAndSettle();
+            final text = find.textContaining(longText).first;
             expect(
               tester.getRect(text).right,
               lessThanOrEqualTo(tester.getRect(find.byType(Card)).right),

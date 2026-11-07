@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,38 +33,44 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Belum ada modul untuk ditampilkan.'), findsOneWidget);
         expect(find.textContaining('Offline /'), findsOneWidget);
+        expect(find.byKey(const Key('manual-sync-module')), findsNothing);
+        await tester.tap(find.byKey(const Key('open-manual-sync')));
+        await tester.pumpAndSettle();
+        expect(find.text('Sinkronisasi Manual'), findsNWidgets(2));
         expect(
-          tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+          tester
+              .widget<FilledButton>(
+                find.byKey(const Key('manual-sync-execute')),
+              )
+              .onPressed,
           isNull,
         );
-        await tester.tap(find.text('Kategori Pekerjaan').first);
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Transaksi Notaris').last);
-        await tester.pumpAndSettle();
+        final module = tester.widget<DropdownButton<String>>(
+          find.byKey(const Key('manual-sync-module')),
+        );
         expect(
-          tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+          module.items!.where((e) => e.value == 'kategori').single.enabled,
+          isFalse,
+        );
+        await tester.tap(find.text('Download').first);
+        await tester.pumpAndSettle();
+        expect(find.textContaining('satu cursor bersama'), findsOneWidget);
+        expect(
+          find.byKey(const Key('manual-sync-record-transaksi_notaris')),
+          findsNothing,
+        );
+        expect(
+          tester
+              .widget<FilledButton>(
+                find.byKey(const Key('manual-sync-execute')),
+              )
+              .onPressed,
           isNull,
         );
-        final direction = tester.widget<DropdownButton<String>>(
-          find.byKey(const Key('manual-sync-direction')),
-        );
-        expect(direction.items!.map((e) => e.value), ['push']);
-        await tester.tap(find.text('Transaksi Notaris').first);
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
         await tester.pumpAndSettle();
-        await tester.ensureVisible(find.text('Transaksi (feed gabungan)').last);
-        await tester.tap(find.text('Transaksi (feed gabungan)').last);
-        await tester.pumpAndSettle();
-        if (!smoke) {
-          expect(
-            find.textContaining('menerima Notaris dan PPAT dengan satu cursor'),
-            findsOneWidget,
-          );
-        }
-
-        expect(
-          tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
-          isNull,
-        );
+        expect(find.byKey(const Key('manual-sync-module')), findsNothing);
+        expect(tester.takeException(), isNull);
       },
     );
   }

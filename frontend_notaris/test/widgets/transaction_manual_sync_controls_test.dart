@@ -1,4 +1,7 @@
 import 'dart:async';
+
+import 'package:flutter/services.dart';
+
 import 'dart:io';
 import 'dart:convert';
 
@@ -170,6 +173,9 @@ void main() {
         );
         click();
         expect(transport.calls, 1);
+        await t.sendKeyEvent(LogicalKeyboardKey.escape);
+        await t.pump();
+        expect(find.byType(AlertDialog), findsOneWidget);
         waiting.complete();
         await cycleUi(t);
         expect(
@@ -197,7 +203,7 @@ void main() {
         expect(selected!.isSyncDirty, false);
         expect(other!.isSyncDirty, true);
         expect(
-          find.textContaining('publication/download belum diverifikasi'),
+          find.textContaining('ACK belum membuktikan publication'),
           findsWidgets,
         );
       },

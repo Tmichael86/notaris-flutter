@@ -1,3 +1,5 @@
+import '../core/widgets/sync_presentation.dart';
+import '../repositories/sync_monitor_repository.dart' show syncModules;
 import '../core/widgets/master_data_viewport.dart';
 import '../core/widgets/sync_page_frame.dart';
 import '../core/theme/app_colors.dart';
@@ -15,6 +17,8 @@ class SyncLogDesktopScreen extends ConsumerStatefulWidget {
 
 class _SyncLogState extends ConsumerState<SyncLogDesktopScreen> {
   String? module, status;
+  int page = 0, density = 20;
+  Map<String, dynamic>? selected;
   final _horizontal = ScrollController();
   final _vertical = ScrollController();
   @override
@@ -57,7 +61,11 @@ class _SyncLogState extends ConsumerState<SyncLogDesktopScreen> {
                     child: Text(v.isEmpty ? 'Semua modul' : v),
                   ),
               ],
-              onChanged: (v) => setState(() => module = v == '' ? null : v),
+              onChanged: (v) => setState(() {
+                module = v == '' ? null : v;
+                page = 0;
+                selected = null;
+              }),
             ),
             DropdownButton<String>(
               value: status ?? '',
@@ -68,7 +76,11 @@ class _SyncLogState extends ConsumerState<SyncLogDesktopScreen> {
                     child: Text(v.isEmpty ? 'Semua status' : label(v)),
                   ),
               ],
-              onChanged: (v) => setState(() => status = v == '' ? null : v),
+              onChanged: (v) => setState(() {
+                status = v == '' ? null : v;
+                page = 0;
+                selected = null;
+              }),
             ),
             IconButton(
               tooltip: 'Muat ulang histori lokal',
@@ -99,72 +111,206 @@ class _SyncLogState extends ConsumerState<SyncLogDesktopScreen> {
                       'Belum ada aktivitas sinkronisasi untuk filter ini.',
                     ),
                   )
-                : MasterDataTableViewport(
-                    horizontalController: _horizontal,
-                    verticalController: _vertical,
-                    child: DataTable(
-                      columnSpacing: 28,
-                      dataRowMinHeight: 56,
-                      dataRowMaxHeight: double.infinity,
-                      columns: [
-                        for (final title in [
-                          'Waktu (lokal)',
-                          'Modul',
-                          'Arah',
-                          'Status',
-                          'Record',
-                          'Kode / Alasan',
-                          'Operasi / Attempt',
-                        ])
-                          DataColumn(label: Text(title)),
-                      ],
-                      rows: rows
-                          .map(
-                            (r) => DataRow(
-                              cells: [
-                                DataCell(
-                                  Text(
-                                    DateTime.parse(r['started_at'] as String)
-                                        .toLocal()
-                                        .toString(),
-                                  ),
-                                ),
-                                DataCell(Text('${r['module']}')),
-                                DataCell(Text('${r['direction']}')),
-                                DataCell(
-                                  SyncStatusBadge(
-                                    label: label('${r['status']}'),
-                                    color: switch (r['status']) {
-                                      'success' => AppColors.success,
-                                      'failed' => AppColors.error,
-                                      _ => AppColors.warning,
-                                    },
-                                  ),
-                                ),
-                                DataCell(Text('${r['record_count'] ?? '—'}')),
-                                DataCell(
-                                  Text(
-                                    '${r['error_code'] ?? '—'}\n${r['error_message'] ?? ''}',
-                                  ),
-                                ),
-                                DataCell(
-                                  SelectionArea(
-                                    child: Text(
-                                      '${r['operation_id']}\n${r['attempt_id']}',
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ),
+                : logBody(rows),
           ),
         ),
       ],
     );
   }
+
+  Widget logBody(List<Map<String, dynamic>> rows) => LayoutBuilder(
+    builder: (context, c) {
+      final start = (page * density).clamp(
+        0,
+        ((rows.length - 1) ~/ density) * density,
+      );
+      final visible = rows.skip(start).take(density).toList();
+      final active = selected == null
+          ? null
+          : rows.where((r) => r['id'] == selected!['id']).firstOrNull;
+      final table = Column(
+        children: [
+          Expanded(
+            child: MasterDataTableViewport(
+              horizontalController: _horizontal,
+              verticalController: _vertical,
+              child: DataTable(
+                showCheckboxColumn: false,
+                columnSpacing: 24,
+                dataRowMinHeight: 52,
+                dataRowMaxHeight: 64,
+                columns: [
+                  for (final h in [
+                    'Waktu lokal',
+                    'Modul',
+                    'Aktivitas',
+                    'Status',
+                    'Record',
+                  ])
+                    DataColumn(label: Text(h)),
+                ],
+                rows: [
+                  for (final r in visible)
+                    DataRow(
+                      key: ValueKey('sync-log-${r['id'] ?? r['attempt_id']}'),
+                      selected: active != null && active['id'] == r['id'],
+                      onSelectChanged: (_) => setState(() => selected = r),
+                      cells: [
+                        DataCell(Text(syncLocalTime(r['started_at']))),
+                        DataCell(
+                          SizedBox(
+                            width: 180,
+                            child: Text(
+                              syncModules[r['module']] ?? '${r['module']}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          Text(
+                            r['direction'] == 'push' ? 'Upload' : 'Download',
+                          ),
+                        ),
+                        DataCell(
+                          SyncStatusBadge(
+                            label: label('${r['status']}'),
+                            color: switch (r['status']) {
+                              'success' => AppColors.success,
+                              'failed' => AppColors.error,
+                              _ => AppColors.warning,
+                            },
+                          ),
+                        ),
+                        DataCell(Text('${r['record_count'] ?? '—'}')),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+          Wrap(
+            spacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                '${start + 1}–${(start + density).clamp(0, rows.length)} dari ${rows.length}',
+              ),
+              DropdownButton<int>(
+                value: density,
+                items: [
+                  for (final n in [20, 50])
+                    DropdownMenuItem(value: n, child: Text('$n / halaman')),
+                ],
+                onChanged: (v) => setState(() {
+                  density = v!;
+                  page = 0;
+                }),
+              ),
+              IconButton(
+                tooltip: 'Halaman sebelumnya',
+                onPressed: start > 0
+                    ? () => setState(() => page = start ~/ density - 1)
+                    : null,
+                icon: const Icon(Icons.chevron_left),
+              ),
+              IconButton(
+                tooltip: 'Halaman berikutnya',
+                onPressed: start + density < rows.length
+                    ? () => setState(() => page = start ~/ density + 1)
+                    : null,
+                icon: const Icon(Icons.chevron_right),
+              ),
+            ],
+          ),
+        ],
+      );
+      if (active == null) return table;
+      final panel = Container(
+        key: const Key('sync-log-details'),
+        padding: const EdgeInsets.all(16),
+        decoration: const BoxDecoration(
+          border: Border(left: BorderSide(color: AppColors.border)),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Detail aktivitas',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Tutup detail',
+                  onPressed: () => setState(() => selected = null),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SyncDetailField(
+                      'Modul',
+                      syncModules[active['module']] ?? '${active['module']}',
+                    ),
+                    SyncDetailField(
+                      'Aktivitas',
+                      active['direction'] == 'push' ? 'Upload' : 'Download',
+                    ),
+                    SyncDetailField('Status', label('${active['status']}')),
+                    SyncDetailField(
+                      'Mulai',
+                      syncLocalTime(active['started_at'], precise: true),
+                    ),
+                    SyncDetailField(
+                      'Selesai',
+                      syncLocalTime(active['finished_at'], precise: true),
+                    ),
+                    SyncDetailField(
+                      'Jumlah record',
+                      '${active['record_count'] ?? '—'}',
+                    ),
+                    SyncDetailField(
+                      'Operation ID',
+                      '${active['operation_id'] ?? '—'}',
+                      copy: true,
+                    ),
+                    SyncDetailField(
+                      'Attempt ID',
+                      '${active['attempt_id'] ?? '—'}',
+                      copy: true,
+                    ),
+                    SyncDetailField(
+                      'Error code',
+                      '${active['error_code'] ?? '—'}',
+                    ),
+                    SyncDetailField(
+                      'Reason',
+                      '${active['error_message'] ?? '—'}',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      return c.maxWidth < 1000
+          ? panel
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: table),
+                SizedBox(width: 340, child: panel),
+              ],
+            );
+    },
+  );
 
   String label(String value) => switch (value) {
     'success' => 'Berhasil',

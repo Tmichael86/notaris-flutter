@@ -135,6 +135,19 @@ Future<void> cycleUi(WidgetTester t) async {
 }
 
 Future<void> chooseUiModule(WidgetTester t, String label) async {
+  if (find.byKey(const Key('manual-sync-module')).evaluate().isEmpty) {
+    await t.tap(find.byKey(const Key('open-manual-sync')));
+    await cycleUi(t);
+  }
+  final direction = t.widget<SegmentedButton<String>>(
+    find.byKey(const Key('manual-sync-direction')),
+  );
+  final desired = label == 'Transaksi (feed gabungan)' ? 'pull' : 'push';
+  if (!direction.selected.contains(desired)) {
+    await t.tap(find.text(desired == 'pull' ? 'Download' : 'Upload').first);
+    await cycleUi(t);
+  }
+
   await t.tap(find.byKey(const Key('manual-sync-module')));
   await t.pumpAndSettle();
   await t.ensureVisible(find.text(label).last);
