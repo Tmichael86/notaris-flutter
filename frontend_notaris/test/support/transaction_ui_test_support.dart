@@ -139,14 +139,13 @@ Future<void> chooseUiModule(WidgetTester t, String label) async {
     await t.tap(find.byKey(const Key('open-manual-sync')));
     await cycleUi(t);
   }
-  final direction = t.widget<SegmentedButton<String>>(
-    find.byKey(const Key('manual-sync-direction')),
-  );
   final desired = label == 'Transaksi (feed gabungan)' ? 'pull' : 'push';
-  if (!direction.selected.contains(desired)) {
-    await t.tap(find.text(desired == 'pull' ? 'Download' : 'Upload').first);
-    await cycleUi(t);
-  }
+  await t.tap(
+    find.byKey(
+      Key(desired == 'pull' ? 'manual-sync-download' : 'manual-sync-upload'),
+    ),
+  );
+  await cycleUi(t);
   if (desired == 'push') {
     await t.tap(
       find.text(label == 'Transaksi PPAT' ? 'PPAT' : 'Notaris').first,

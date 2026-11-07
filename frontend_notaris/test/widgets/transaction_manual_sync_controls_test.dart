@@ -244,13 +244,25 @@ void main() {
       expect(find.byKey(const Key('confirm-transaction-upload')), findsNothing);
       for (final size in [
         const Size(1366, 768),
+        const Size(1920, 1080),
         const Size(600, 620),
         const Size(420, 560),
       ]) {
         t.view.physicalSize = size;
         await t.pumpAndSettle();
         final surface = t.getRect(find.byKey(const Key('manual-sync-surface')));
-        expect(surface.width, lessThanOrEqualTo(520));
+        expect(surface.width, lessThanOrEqualTo(720));
+        if (size.width >= 1366) {
+          expect(surface.width, 720);
+          final selection = t.getRect(
+            find.byKey(const Key('manual-sync-module')),
+          );
+          final summary = t.getRect(
+            find.byKey(const Key('manual-sync-summary')),
+          );
+          expect(summary.left, greaterThan(selection.right));
+          expect(surface.height, lessThan(size.height - 48));
+        }
         expect(surface.right, lessThanOrEqualTo(size.width));
         expect(surface.bottom, lessThanOrEqualTo(size.height));
         expect(t.takeException(), isNull);

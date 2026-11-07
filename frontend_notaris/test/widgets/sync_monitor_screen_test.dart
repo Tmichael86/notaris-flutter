@@ -36,7 +36,19 @@ void main() {
         expect(find.byKey(const Key('manual-sync-module')), findsNothing);
         await tester.tap(find.byKey(const Key('open-manual-sync')));
         await tester.pumpAndSettle();
-        expect(find.text('Sinkronisasi Data'), findsOneWidget);
+        expect(find.text('Pusat Sinkronisasi'), findsOneWidget);
+        expect(
+          find.text('MY NOTARIS · Administrasi Notaris & PPAT'),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Alur operasi · bukan indikator koneksi online'),
+          findsOneWidget,
+        );
+        expect(
+          tester.getSize(find.byKey(const Key('manual-sync-surface'))).height,
+          lessThan(650),
+        );
         expect(
           tester
               .widget<FilledButton>(
@@ -56,6 +68,8 @@ void main() {
         await tester.tap(find.text('Download').first);
         await tester.pumpAndSettle();
         expect(find.textContaining('satu cursor bersama'), findsOneWidget);
+        expect(find.byKey(const Key('manual-sync-module')), findsNothing);
+        expect(find.byType(TextField), findsNothing);
         expect(
           find.byKey(const Key('manual-sync-record-transaksi_notaris')),
           findsNothing,
