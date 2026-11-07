@@ -195,6 +195,80 @@ void main() {
   Matcher failure(String code) => throwsA(
     isA<ManualTransactionFailure>().having((e) => e.code, 'code', code),
   );
+  test(
+    'Check is read-only and eligibility is revalidated before dispatch',
+    () async {
+      final header = await (db.select(
+        db.transaksis,
+      )..where((r) => r.id.equals(id))).getSingle();
+      final before = await db
+          .customSelect('SELECT total_changes() AS n')
+          .getSingle();
+      expect(
+        await service().checkUploadEligibility(
+          selectedModule: 'transaksi_notaris',
+          transactionId: id,
+          uuid: header.uuid,
+        ),
+        isEmpty,
+      );
+      final after = await db
+          .customSelect('SELECT total_changes() AS n')
+          .getSingle();
+      expect(after.read<int>('n'), before.read<int>('n'));
+      expect(transport.calls, 0);
+      expect(await SyncLogRepository(db).list(), isEmpty);
+      await db.customStatement(
+        'UPDATE transaksi_details SET harga_uuid=NULL WHERE transaksi_id=?',
+        [id],
+      );
+      final blocked = await service().checkUploadEligibility(
+        selectedModule: 'transaksi_notaris',
+        transactionId: id,
+        uuid: header.uuid,
+      );
+      expect(blocked.join(), contains('Provenance harga/kategori'));
+      await expectLater(
+        run(ManualSyncDirection.upload, selectedId: id),
+        throwsA(isA<ManualTransactionFailure>()),
+      );
+      expect(transport.calls, 0);
+      expect(
+        (await db
+                .customSelect(
+                  'SELECT count(*) AS n FROM transaction_cloud_pending',
+                )
+                .getSingle())
+            .read<int>('n'),
+        0,
+      );
+      expect(
+        (await (db.select(
+          db.transaksis,
+        )..where((r) => r.id.equals(id))).getSingle()).isSyncDirty,
+        true,
+      );
+    },
+  );
+
+  test('Check blocks unresolved actor provenance without changing identity or cursor', () async {
+    final header = await (db.select(
+      db.transaksis,
+    )..where((r) => r.id.equals(id))).getSingle();
+    await db.customStatement(
+      "INSERT INTO transaksi_proses(uuid,transaksi_id,transaksi_detail_uuid,nama_proses_snapshot,submitted_by_user_id) VALUES('00000000-0000-4000-8000-000000000099',?,'00000000-0000-4000-8000-000000000007','Audit fixture',123)",
+      [id],
+    );
+    final issues = await service().checkUploadEligibility(
+      selectedModule: 'transaksi_notaris',
+      transactionId: id,
+      uuid: header.uuid,
+    );
+    expect(issues.join(), contains('provenance actor cloud'));
+    expect(transport.calls, 0);
+    expect(await SyncLogRepository(db).list(), isEmpty);
+  });
+
   test('one selected upload durable ack and count; repeat no-op; publication not assumed healthy', () async {
     final first = await run(ManualSyncDirection.upload, selectedId: id);
     expect(first.count, 1);

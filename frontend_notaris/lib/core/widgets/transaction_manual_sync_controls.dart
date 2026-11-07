@@ -11,6 +11,7 @@ import '../../services/transaction_manual_sync_service.dart';
 
 /// Presentation-only exclusions; the existing service remains authoritative.
 String? manualUploadDisabledReason(TransactionSyncRecord record) {
+  if (record.readinessReason != null) return record.readinessReason;
   if (record.pending == 'acked') {
     return 'ACK tersimpan; tunggu verifikasi publication melalui Download.';
   }
@@ -97,7 +98,8 @@ class _ControlsState extends ConsumerState<TransactionManualSyncControls> {
     final eligibility = config != null && !smoke
         ? ref.watch(isolatedTransactionSyncEligibilityProvider(choice))
         : null;
-    final records = config != null && !smoke && upload
+    final preview = ref.watch(developmentTransactionPreviewProvider);
+    final records = ((config != null && !smoke) || preview) && upload
         ? ref.watch(isolatedTransactionSyncRecordsProvider(module))
         : null;
     final rows = records?.asData?.value ?? <TransactionSyncRecord>[];
@@ -212,7 +214,7 @@ class _ControlsState extends ConsumerState<TransactionManualSyncControls> {
             ),
           ),
           const SizedBox(height: 12),
-          if (config == null || smoke)
+          if (!preview && (config == null || smoke))
             const _Notice(
               icon: Icons.lock_outline,
               text: 'Pemilihan record dinonaktifkan pada profil ini.',

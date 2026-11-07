@@ -1,3 +1,6 @@
+import 'providers/transaction_manual_sync_provider.dart'
+    show developmentTransactionPreviewProvider;
+
 // Debug-only normal application bootstrap. No test JWT or harness session.
 import 'dart:io';
 import 'dart:convert';
@@ -66,6 +69,7 @@ Future<void> main() async {
       ProviderScope(
         overrides: [
           developmentUiSmokeProvider.overrideWithValue(smoke),
+          developmentTransactionPreviewProvider.overrideWithValue(true),
           if (smoke) petugasManualEnabledProvider.overrideWithValue(false),
           appDatabaseProvider.overrideWith((ref) {
             ref.onDispose(db.close);

@@ -77,6 +77,7 @@ void main() {
   Future<ProviderContainer> mount(
     WidgetTester t, {
     bool normal = false,
+    bool preview = false,
     bool smoke = false,
     AuthSession? session,
   }) async {
@@ -84,7 +85,7 @@ void main() {
     t.view.devicePixelRatio = 1;
     addTearDown(t.view.resetPhysicalSize);
     addTearDown(t.view.resetDevicePixelRatio);
-    final config = normal
+    final config = normal || preview
         ? null
         : IsolatedTransactionSyncConfiguration.open(
             profile: profile,
@@ -93,6 +94,8 @@ void main() {
     if (config != null) scopedDatabases.add(config.database);
     final c = ProviderContainer(
       overrides: [
+        developmentTransactionPreviewProvider.overrideWithValue(preview),
+        if (preview) appDatabaseProvider.overrideWithValue(db),
         if (normal)
           appDatabaseProvider.overrideWith(
             (_) => throw StateError('Normal database must not resolve'),
@@ -331,6 +334,48 @@ void main() {
       },
     );
   }
+  testWidgets(
+    'development Check preview exposes blocked records without execution configuration or mutations',
+    (t) async {
+      await t.runAsync(
+        () => db.customStatement(
+          'UPDATE transaksi_details SET harga_uuid=NULL,kategori_uuid=NULL',
+        ),
+      );
+      await mount(t, preview: true, smoke: true);
+      await chooseUiModule(t, 'Transaksi Notaris');
+      expect(find.textContaining('Development Check saja'), findsOneWidget);
+      expect(
+        find.textContaining('Provenance harga/kategori belum lengkap'),
+        findsOneWidget,
+      );
+      expect(
+        t
+            .widget<RadioListTile<int>>(
+              find.byKey(ValueKey('manual-sync-choice-$notarisId')),
+            )
+            .enabled,
+        false,
+      );
+      expect(
+        t
+            .widget<FilledButton>(find.byKey(const Key('manual-sync-execute')))
+            .onPressed,
+        isNull,
+      );
+      expect(transport.calls, 0);
+      final counts = await t.runAsync(
+        () => db
+            .customSelect(
+              'SELECT (SELECT count(*) FROM transaction_cloud_pending) AS pending,(SELECT count(*) FROM transaction_cloud_feed) AS feed,(SELECT count(*) FROM sync_logs) AS logs',
+            )
+            .getSingle(),
+      );
+      expect(counts!.read<int>('pending'), 0);
+      expect(counts.read<int>('feed'), 0);
+      expect(counts.read<int>('logs'), 0);
+    },
+  );
   testWidgets('cancel and stale selected UUID never upload another record', (
     t,
   ) async {

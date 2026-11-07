@@ -1,3 +1,5 @@
+import '../repositories/transaction_upload_readiness.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -254,6 +256,47 @@ class TransactionManualSyncService {
     }
   }
 
+  /// No log, mutation, cursor binding or network request during Check.
+  Future<List<String>> checkUploadEligibility({
+    required String selectedModule,
+    required int transactionId,
+    required String uuid,
+  }) async {
+    await validateUiContext(
+      selectedModule: selectedModule,
+      direction: ManualSyncDirection.upload,
+    );
+    final identity = await db
+        .customSelect(
+          'SELECT scope FROM transaction_cloud_identity WHERE local_uuid=?',
+          variables: [Variable(uuid)],
+        )
+        .getSingleOrNull();
+    if (identity != null &&
+        identity.read<String>('scope') != profile.transactionScope) {
+      return ['Scope identity transaksi tidak cocok.'];
+    }
+    final pending = await db
+        .customSelect(
+          "SELECT operation FROM transaction_cloud_pending WHERE local_uuid=? AND state='pending'",
+          variables: [Variable(uuid)],
+        )
+        .getSingleOrNull();
+    final operation =
+        pending?.read<String>('operation') ??
+        (identity == null ? 'create' : 'update');
+    if (!_permission(_authorize(), operation)) {
+      return ['Permission operasi transaksi tidak tersedia.'];
+    }
+    return TransactionUploadReadiness(db).check(
+      transactionId,
+      domain: uploadModules[selectedModule]!,
+      uuid: uuid,
+      petugasScope: profile.petugasScope,
+      masterScope: profile.masterScope,
+    );
+  }
+
   Future<TransactionManualResult> run({
     required String selectedModule,
     required ManualSyncDirection direction,
@@ -386,6 +429,14 @@ class TransactionManualSyncService {
                 );
               } else {
                 if (operation != 'delete') {
+                  final issues = await checkUploadEligibility(
+                    selectedModule: selectedModule,
+                    transactionId: transactionId,
+                    uuid: header.uuid,
+                  );
+                  if (issues.isNotEmpty) {
+                    throw const ManualTransactionFailure('validation');
+                  }
                   await TransactionCloudReferences(
                     db,
                     petugasScope: profile.petugasScope,

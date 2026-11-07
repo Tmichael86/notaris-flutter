@@ -1,3 +1,5 @@
+import '../repositories/transaction_upload_readiness.dart';
+
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -43,6 +45,9 @@ final isolatedTransactionSyncEligibilityProvider = FutureProvider.autoDispose
       );
     });
 
+// Preview only. Never constructs an execution configuration or enables HTTP.
+final developmentTransactionPreviewProvider = Provider<bool>((ref) => false);
+
 class TransactionSyncRecord {
   const TransactionSyncRecord._(
     this.id,
@@ -52,12 +57,14 @@ class TransactionSyncRecord {
     this.dirty,
     this.childDirty,
     this.pending,
-    this.deleted,
-  );
+    this.deleted, [
+    this.readinessReason,
+  ]);
   final int id, childDirty;
   final String uuid, number, domain;
   final bool dirty, deleted;
   final String? pending;
+  final String? readinessReason;
   String get summary =>
       '${domain == 'ppat' ? 'PPAT' : 'Notaris'} • $number • ${deleted
           ? 'tombstone'
@@ -71,32 +78,59 @@ final isolatedTransactionSyncRecordsProvider = FutureProvider.autoDispose
       ref.watch(authControllerProvider);
       ref.watch(developmentUiSmokeProvider);
       final service = ref.watch(isolatedTransactionSyncServiceProvider);
-      if (service == null) return [];
-      await service.validateUiContext(
-        selectedModule: module,
-        direction: ManualSyncDirection.upload,
-      );
+      final preview = ref.watch(developmentTransactionPreviewProvider);
+      if (service == null && !preview) return [];
+      if (service != null) {
+        await service.validateUiContext(
+          selectedModule: module,
+          direction: ManualSyncDirection.upload,
+        );
+      }
+      final db = service?.db ?? ref.watch(appDatabaseProvider);
+      if (db == null) return [];
       final domain = TransactionManualSyncService.uploadModules[module];
-      final rows = await service.db
+      final rows = await db
           .customSelect(
             "SELECT t.id,t.uuid,t.no_akta,t.jenis_transaksi,t.is_sync_dirty,t.deleted_at,p.state AS pending,(SELECT count(*) FROM transaksi_details d WHERE d.transaksi_id=t.id AND d.is_sync_dirty=1)+(SELECT count(*) FROM transaksi_proses d WHERE d.transaksi_id=t.id AND d.is_sync_dirty=1)+(SELECT count(*) FROM transaksi_riwayat_pembayaran d WHERE d.transaksi_id=t.id AND d.is_sync_dirty=1) AS child_dirty FROM transaksis t LEFT JOIN transaction_cloud_pending p ON p.local_uuid=t.uuid WHERE t.jenis_transaksi=? ORDER BY t.id DESC LIMIT 200",
             variables: [Variable(domain!)],
           )
           .get();
-      return rows
-          .map(
-            (r) => TransactionSyncRecord._(
-              r.read<int>('id'),
-              r.read<String>('uuid'),
-              r.read<String>('no_akta'),
-              r.read<String>('jenis_transaksi'),
-              r.read<int>('is_sync_dirty') == 1,
-              r.read<int>('child_dirty'),
-              r.readNullable<String>('pending'),
-              r.data['deleted_at'] != null,
-            ),
-          )
-          .toList();
+      final result = <TransactionSyncRecord>[];
+      for (final r in rows) {
+        final issues = service != null
+            ? await service.checkUploadEligibility(
+                selectedModule: module,
+                transactionId: r.read<int>('id'),
+                uuid: r.read<String>('uuid'),
+              )
+            : await TransactionUploadReadiness(db).check(
+                r.read<int>('id'),
+                domain: domain,
+                uuid: r.read<String>('uuid'),
+                petugasScope: null,
+                masterScope: null,
+              );
+        if (service == null) {
+          issues.insert(
+            0,
+            'Development Check saja: target/account/device/generation dan aktivasi HTTP belum disetujui.',
+          );
+        }
+        result.add(
+          TransactionSyncRecord._(
+            r.read<int>('id'),
+            r.read<String>('uuid'),
+            r.read<String>('no_akta'),
+            r.read<String>('jenis_transaksi'),
+            r.read<int>('is_sync_dirty') == 1,
+            r.read<int>('child_dirty'),
+            r.readNullable<String>('pending'),
+            r.data['deleted_at'] != null,
+            issues.isEmpty ? null : issues.join(' '),
+          ),
+        );
+      }
+      return result;
     });
 
 String transactionSyncUiMessage(String code) => switch (code) {
