@@ -1,35 +1,73 @@
-import 'package:flutter/services.dart';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../theme/app_colors.dart';
 import '../../providers/development_smoke_provider.dart';
-import '../../providers/sync_monitor_provider.dart';
 import '../../providers/transaction_manual_sync_provider.dart';
-import '../../repositories/sync_monitor_repository.dart';
 import '../../services/transaction_manual_sync_service.dart';
 
-/// Manual controls hosted only inside the Monitoring desktop modal. Normal profiles have no
-/// isolated configuration and never resolve an execution service/database.
+/// Presentation-only exclusions; the existing service remains authoritative.
+String? manualUploadDisabledReason(TransactionSyncRecord record) {
+  if (record.pending == 'acked') {
+    return 'ACK tersimpan; tunggu verifikasi publication melalui Download.';
+  }
+  if (record.deleted) {
+    return 'Record terhapus tidak dapat dipilih melalui modal ini.';
+  }
+  if (!record.dirty && record.childDirty == 0 && record.pending == null) {
+    return 'Data bersih; tidak ada perubahan lokal untuk diupload.';
+  }
+  return null;
+}
+
 class TransactionManualSyncControls extends ConsumerStatefulWidget {
-  const TransactionManualSyncControls({super.key});
+  const TransactionManualSyncControls({super.key, this.onClose});
+  final VoidCallback? onClose;
   @override
   ConsumerState<TransactionManualSyncControls> createState() =>
       _ControlsState();
 }
 
 class _ControlsState extends ConsumerState<TransactionManualSyncControls> {
-  String module = 'transaksi_notaris', direction = 'push';
-  TransactionSyncRecord? selected;
-  bool confirming = false;
-  TransactionSyncRecord? confirmation;
-  Future<void> execute(TransactionSyncRecord? record) async {
-    if (ref.read(isolatedTransactionSyncControllerProvider).busy) {
+  String module = 'transaksi_notaris', direction = 'push', query = '';
+  TransactionSyncRecord? selected, confirmation;
+  bool confirming = false, closing = false;
+  final _dialogFocus = FocusNode();
+  @override
+  void dispose() {
+    _dialogFocus.dispose();
+    super.dispose();
+  }
+
+  void dismiss() {
+    if (ref.read(isolatedTransactionSyncControllerProvider).busy) return;
+    if (confirming) {
+      setState(() => confirming = false);
+    } else {
+      close();
+    }
+  }
+
+  void close() {
+    if (closing ||
+        ref.read(isolatedTransactionSyncControllerProvider).busy ||
+        ModalRoute.of(context)?.isCurrent != true) {
       return;
     }
-    // Confirmation is rendered inside the same desktop modal.
+    closing = true;
+    if (widget.onClose != null) {
+      widget.onClose!();
+    } else {
+      Navigator.pop(context);
+    }
+  }
 
+  Future<void> execute(TransactionSyncRecord? record) async {
+    if (ref.read(isolatedTransactionSyncControllerProvider).busy) return;
     try {
-      if (!mounted) return;
       await ref
           .read(isolatedTransactionSyncControllerProvider.notifier)
           .execute(
@@ -49,273 +87,567 @@ class _ControlsState extends ConsumerState<TransactionManualSyncControls> {
     final config = ref.watch(isolatedTransactionSyncConfigurationProvider);
     final smoke = ref.watch(developmentUiSmokeProvider);
     final outcome = ref.watch(isolatedTransactionSyncControllerProvider);
-    final upload = TransactionManualSyncService.uploadModules.containsKey(
-      module,
-    );
-    final download = module == TransactionManualSyncService.feedModule;
-    final supported =
-        (upload && direction == 'push') || (download && direction == 'pull');
-    final locked = confirming || outcome.busy;
+    final upload = direction == 'push';
     final choice = (
       module: module,
-      direction: direction == 'push'
+      direction: upload
           ? ManualSyncDirection.upload
           : ManualSyncDirection.download,
     );
-    final eligibility = config != null && !smoke && supported
+    final eligibility = config != null && !smoke
         ? ref.watch(isolatedTransactionSyncEligibilityProvider(choice))
         : null;
     final records = config != null && !smoke && upload
         ? ref.watch(isolatedTransactionSyncRecordsProvider(module))
         : null;
     final rows = records?.asData?.value ?? <TransactionSyncRecord>[];
-    final matches = rows
+    final current = rows
         .where((r) => r.id == selected?.id && r.uuid == selected?.uuid)
+        .firstOrNull;
+    final locked = confirming || outcome.busy;
+    final confirmingAtBuild = confirming;
+    final ready =
+        eligibility?.asData != null &&
+        (!upload ||
+            current != null && manualUploadDisabledReason(current) == null);
+    final rejection = eligibility?.hasError == true
+        ? transactionSyncUiMessage(
+            eligibility!.error is ManualTransactionFailure
+                ? (eligibility.error as ManualTransactionFailure).code
+                : 'unknown',
+          )
+        : null;
+    final visible = rows
+        .where(
+          (r) => '${r.number} ${r.uuid} ${r.summary}'.toLowerCase().contains(
+            query.toLowerCase().trim(),
+          ),
+        )
         .toList();
-    final current = matches.isEmpty ? null : matches.single;
-    final ready = eligibility?.asData != null && (!upload || current != null);
-    String? rejection;
-    if (eligibility?.hasError == true) {
-      final e = eligibility!.error;
-      rejection = transactionSyncUiMessage(
-        e is ManualTransactionFailure ? e.code : 'unknown',
-      );
-    }
-    return PopScope(
-      canPop: !outcome.busy,
-      child: CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.escape): () {
-            if (outcome.busy) return;
-            if (confirming) {
-              setState(() => confirming = false);
-            } else {
-              if (ModalRoute.of(context)?.isCurrent == true) {
-                Navigator.pop(context);
-              }
-            }
-          },
-        },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (current != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Text(current.summary),
+    return Theme(
+      data: Theme.of(context).copyWith(
+        colorScheme: Theme.of(context).colorScheme
+            .copyWith(primary: AppColors.primaryDark),
+      ),
+      child: PopScope(
+        canPop: !outcome.busy,
+        child: CallbackShortcuts(
+          bindings: {const SingleActivator(LogicalKeyboardKey.escape): dismiss},
+          child: Focus(
+            focusNode: _dialogFocus,
+            autofocus: true,
+            child: Dialog(
+              key: const Key('manual-sync-dialog'),
+              insetPadding: const EdgeInsets.all(24),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
-            Wrap(
-              spacing: 16,
-              runSpacing: 12,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                DropdownButton<String>(
-                  key: const Key('manual-sync-module'),
-                  value: module,
-                  items: [
-                    for (final e in syncModules.entries)
-                      DropdownMenuItem(
-                        value: e.key,
-                        enabled: direction == 'push'
-                            ? TransactionManualSyncService.uploadModules
-                                  .containsKey(e.key)
-                            : e.key == 'transaksi',
-                        child: Text(e.value),
-                      ),
-                  ],
-                  onChanged: locked
-                      ? null
-                      : (value) => setState(() {
-                          module = value!;
-                          selected = null;
-                          direction = module == 'transaksi'
-                              ? 'pull'
-                              : TransactionManualSyncService.uploadModules
-                                    .containsKey(module)
-                              ? 'push'
-                              : direction;
-                        }),
-                ),
-                SegmentedButton<String>(
-                  key: const Key('manual-sync-direction'),
-                  segments: const [
-                    ButtonSegment(
-                      value: 'push',
-                      label: Text('Upload'),
-                      icon: Icon(Icons.upload),
-                    ),
-                    ButtonSegment(
-                      value: 'pull',
-                      label: Text('Download'),
-                      icon: Icon(Icons.download),
-                    ),
-                  ],
-                  selected: {direction},
-                  onSelectionChanged: locked
-                      ? null
-                      : (v) => setState(() {
-                          direction = v.single;
-                          module = direction == 'pull'
-                              ? 'transaksi'
-                              : 'transaksi_notaris';
-                          selected = null;
-                        }),
-                ),
-                FilledButton(
-                  key: const Key('manual-sync-execute'),
-                  onPressed: !locked && ready && !smoke && config != null
-                      ? () {
-                          if (upload) {
-                            setState(() {
-                              confirming = true;
-                              confirmation = current;
-                            });
-                          } else {
-                            execute(null);
-                          }
-                        }
-                      : null,
-                  child: Text(
-                    outcome.busy ? 'Sinkronisasi…' : 'Jalankan seleksi',
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Refresh snapshot lokal',
-                  onPressed: locked
-                      ? null
-                      : () {
-                          ref.invalidate(
-                            isolatedTransactionSyncRecordsProvider,
-                          );
-                          ref.invalidate(
-                            isolatedTransactionSyncEligibilityProvider,
-                          );
-                          ref.invalidate(syncMonitorProvider);
-                        },
-                  icon: const Icon(Icons.refresh),
-                ),
-              ],
-            ),
-            if (upload && (config == null || smoke))
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: DropdownButtonFormField<int>(
-                  key: Key('manual-sync-record-disabled'),
-                  items: [],
-                  onChanged: null,
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    labelText: 'Transaksi lokal terpilih',
-                    border: OutlineInputBorder(),
-                  ),
-                  hint: Text('Pemilihan record dinonaktifkan pada profil ini'),
-                ),
-              ),
-            if (upload && config != null && !smoke)
-              records!.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.all(8),
-                  child: LinearProgressIndicator(),
-                ),
-                error: (e, _) => Text(
-                  transactionSyncUiMessage(
-                    e is ManualTransactionFailure ? e.code : 'unknown',
-                  ),
-                ),
-                data: (data) => data.isEmpty
-                    ? const Text(
-                        'Belum ada transaksi lokal untuk jenis ini. Tidak ada upload yang dijalankan.',
-                      )
-                    : Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: DropdownButtonFormField<int>(
-                          key: ValueKey('manual-sync-record-$module'),
-                          initialValue: current?.id,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Transaksi lokal terpilih',
-                            border: OutlineInputBorder(),
+              backgroundColor: AppColors.card,
+              child: SizedBox(
+                key: const Key('manual-sync-surface'),
+                width: 500,
+                height: math.min(760, MediaQuery.sizeOf(context).height - 48),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 12, 16),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryDark.withValues(
+                                alpha: .08,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.sync,
+                              color: AppColors.primaryDark,
+                            ),
                           ),
-                          items: [
-                            for (final r in data)
-                              DropdownMenuItem(
-                                value: r.id,
-                                child: Text(
-                                  r.summary,
-                                  overflow: TextOverflow.ellipsis,
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Sinkronisasi Data',
+                                  style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'Pilih arah dan data yang ingin disinkronkan',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            key: const Key('close-manual-sync'),
+                            tooltip: 'Tutup',
+                            onPressed: outcome.busy ? null : close,
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (outcome.message.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 12),
+                                child: Semantics(
+                                  liveRegion: true,
+                                  child: Text(
+                                    '${outcome.operationLabel}: ${outcome.message}',
+                                    key: const Key('manual-sync-feedback'),
+                                    style: TextStyle(
+                                      color: outcome.errorCode == null
+                                          ? AppColors.textPrimary
+                                          : AppColors.error,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            Visibility(
+                              visible: !confirming,
+                              maintainState: true,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  SegmentedButton<String>(
+                                    key: const Key('manual-sync-direction'),
+                                    showSelectedIcon: false,
+                                    expandedInsets: EdgeInsets.zero,
+                                    style: const ButtonStyle(
+                                      minimumSize: WidgetStatePropertyAll(
+                                        Size(0, 48),
+                                      ),
+                                    ),
+                                    segments: const [
+                                      ButtonSegment(
+                                        value: 'push',
+                                        label: Text('Upload'),
+                                        icon: Icon(Icons.cloud_upload_outlined),
+                                      ),
+                                      ButtonSegment(
+                                        value: 'pull',
+                                        label: Text('Download'),
+                                        icon: Icon(
+                                          Icons.cloud_download_outlined,
+                                        ),
+                                      ),
+                                    ],
+                                    selected: {direction},
+                                    onSelectionChanged: locked
+                                        ? null
+                                        : (v) => setState(() {
+                                            direction = v.single;
+                                            module = direction == 'pull'
+                                                ? 'transaksi'
+                                                : 'transaksi_notaris';
+                                            selected = null;
+                                            query = '';
+                                          }),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  if (upload) ...[
+                                    const Text(
+                                      'Jenis transaksi',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    SegmentedButton<String>(
+                                      key: const Key('manual-sync-module'),
+                                      segments: const [
+                                        ButtonSegment(
+                                          value: 'transaksi_notaris',
+                                          label: Text('Notaris'),
+                                        ),
+                                        ButtonSegment(
+                                          value: 'transaksi_ppat',
+                                          label: Text('PPAT'),
+                                        ),
+                                      ],
+                                      selected: {module},
+                                      onSelectionChanged: locked
+                                          ? null
+                                          : (v) => setState(() {
+                                              module = v.single;
+                                              selected = null;
+                                              query = '';
+                                            }),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    TextField(
+                                      key: ValueKey(
+                                        'manual-sync-search-$module',
+                                      ),
+                                      enabled: !locked,
+                                      onChanged: (v) =>
+                                          setState(() => query = v),
+                                      decoration: const InputDecoration(
+                                        hintText: 'Cari nomor atau identitas transaksi',
+                                        prefixIcon: Icon(Icons.search),
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    if (config == null || smoke)
+                                      const Text(
+                                        'Pemilihan record dinonaktifkan pada profil ini.',
+                                        style: TextStyle(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      )
+                                    else
+                                      records!.when(
+                                        loading: () => const Center(
+                                          child: Padding(
+                                            padding: EdgeInsets.all(20),
+                                            child: CircularProgressIndicator(),
+                                          ),
+                                        ),
+                                        error: (e, _) => Text(
+                                          transactionSyncUiMessage(
+                                            e is ManualTransactionFailure
+                                                ? e.code
+                                                : 'unknown',
+                                          ),
+                                        ),
+                                        data: (data) {
+                                          if (data.isEmpty) {
+                                            return const Text(
+                                              'Belum ada transaksi lokal untuk jenis ini. Tidak ada upload yang dijalankan.',
+                                            );
+                                          }
+                                          if (visible.isEmpty) {
+                                            return const Text(
+                                              'Tidak ada transaksi sesuai pencarian.',
+                                            );
+                                          }
+                                          return Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.stretch,
+                                            children: [
+                                              Text(
+                                                '${visible.length} dari ${data.length} record dimuat',
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              RadioGroup<int>(
+                                                groupValue: current?.id,
+                                                onChanged: (id) {
+                                                  if (locked ||
+                                                      eligibility?.asData ==
+                                                          null) {
+                                                    return;
+                                                  }
+                                                  final r = rows.singleWhere(
+                                                    (r) => r.id == id,
+                                                  );
+                                                  if (manualUploadDisabledReason(
+                                                        r,
+                                                      ) ==
+                                                      null) {
+                                                    setState(
+                                                      () => selected = r,
+                                                    );
+                                                  }
+                                                },
+                                                child: Column(
+                                                  key: ValueKey(
+                                                    'manual-sync-record-$module',
+                                                  ),
+                                                  children: [
+                                                    for (final r in visible)
+                                                      Container(
+                                                        margin:
+                                                            const EdgeInsets.only(
+                                                              bottom: 8,
+                                                            ),
+                                                        decoration: BoxDecoration(
+                                                          border: Border.all(
+                                                            color:
+                                                                current?.id ==
+                                                                    r.id
+                                                                ? AppColors
+                                                                      .primary
+                                                                : AppColors
+                                                                      .border,
+                                                          ),
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                12,
+                                                              ),
+                                                        ),
+                                                        child: RadioListTile<int>(
+                                                          key: ValueKey(
+                                                            'manual-sync-choice-${r.id}',
+                                                          ),
+                                                          value: r.id,
+                                                          enabled:
+                                                              !locked &&
+                                                              eligibility
+                                                                      ?.asData !=
+                                                                  null &&
+                                                              manualUploadDisabledReason(
+                                                                    r,
+                                                                  ) ==
+                                                                  null,
+                                                          contentPadding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 8,
+                                                                vertical: 4,
+                                                              ),
+                                                          title: Text(
+                                                            r.number,
+                                                            maxLines: 2,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
+                                                                ),
+                                                          ),
+                                                          subtitle: Column(
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                            children: [
+                                                              Text(
+                                                                r.summary,
+                                                                style:
+                                                                    const TextStyle(
+                                                                      fontSize:
+                                                                          11,
+                                                                    ),
+                                                              ),
+                                                              if (manualUploadDisabledReason(
+                                                                    r,
+                                                                  ) !=
+                                                                  null)
+                                                                Text(
+                                                                  manualUploadDisabledReason(
+                                                                    r,
+                                                                  )!,
+                                                                  style: const TextStyle(
+                                                                    fontSize:
+                                                                        11,
+                                                                    color: AppColors
+                                                                        .warning,
+                                                                  ),
+                                                                ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        },
+                                      ),
+                                  ] else
+                                    Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.background,
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Icon(
+                                            Icons.cloud_download_outlined,
+                                            color: AppColors.primaryDark,
+                                          ),
+                                          SizedBox(height: 12),
+                                          Text(
+                                            'Feed gabungan Notaris + PPAT',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          SizedBox(height: 8),
+                                          Text(
+                                            'Download menerima Transaksi Notaris dan PPAT dari feed yang sama; satu cursor bersama. Tidak ada upload record lokal atau pemilihan per domain.',
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            if (current != null && !confirming)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 12),
+                                child: SelectableText(
+                                  'UUID: ${current.uuid} • Local PK: ${current.id}',
+                                  key: const Key('manual-sync-record-identity'),
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                              ),
+                            const SizedBox(height: 16),
+                            Text(
+                              smoke
+                                  ? 'UI Smoke: seluruh sinkronisasi manual dinonaktifkan.'
+                                  : config == null
+                                  ? 'Profil normal: eksekusi manual tetap dinonaktifkan.'
+                                  : upload
+                                  ? 'Referensi, identitas dan izin diperiksa ulang saat eksekusi. ACK belum membuktikan publication.'
+                                  : 'Halaman feed dan cursor diterapkan atomik oleh service existing.',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            if (eligibility?.isLoading == true)
+                              const Text(
+                                'Memverifikasi profil, scope dan permission…',
+                              ),
+                            if (rejection != null)
+                              Text(
+                                rejection,
+                                key: const Key('manual-sync-guard-reason'),
+                                style: const TextStyle(color: AppColors.error),
+                              ),
+                            if (confirming && confirmation != null)
+                              Container(
+                                margin: const EdgeInsets.only(top: 16),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryDark.withValues(
+                                    alpha: .05,
+                                  ),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Konfirmasi upload ${confirmation!.domain == 'ppat' ? 'PPAT' : 'Notaris'}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(confirmation!.summary),
+                                    SelectableText(
+                                      'UUID: ${confirmation!.uuid} • Local PK: ${confirmation!.id}',
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    const Text(
+                                      'Hanya record ini yang dikirim. ACK belum membuktikan publication.',
+                                    ),
+                                    TextButton(
+                                      onPressed: outcome.busy
+                                          ? null
+                                          : () => setState(
+                                              () => confirming = false,
+                                            ),
+                                      child: const Text('Batal'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            if (outcome.busy)
+                              const Padding(
+                                padding: EdgeInsets.all(16),
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
                                 ),
                               ),
                           ],
-                          onChanged: locked
-                              ? null
-                              : (id) => setState(
-                                  () => selected = data.singleWhere(
-                                    (r) => r.id == id,
-                                  ),
-                                ),
                         ),
                       ),
-              ),
-            if (current != null)
-              SelectableText(
-                'UUID: ${current.uuid} • Local PK: ${current.id}',
-                key: const Key('manual-sync-record-identity'),
-              ),
-            Text(
-              smoke
-                  ? 'UI Smoke: seluruh sinkronisasi manual dinonaktifkan.'
-                  : config == null
-                  ? 'Profil normal: eksekusi manual tetap dinonaktifkan.'
-                  : upload
-                  ? 'Upload satu record terpilih. ACK belum membuktikan publication.'
-                  : 'Download feed gabungan, tanpa upload record lokal.',
-            ),
-            if (download)
-              const Text(
-                'Download menerima Transaksi Notaris dan PPAT dari feed yang sama; satu cursor bersama.',
-              ),
-            if (eligibility?.isLoading == true)
-              const Text('Memverifikasi profil, scope dan permission…'),
-            if (rejection != null)
-              Text(rejection, key: const Key('manual-sync-guard-reason')),
-            if (confirming && confirmation != null) ...[
-              const Divider(),
-              Text(
-                'Konfirmasi upload ${confirmation!.domain == 'ppat' ? 'PPAT' : 'Notaris'}',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              Text(
-                '${confirmation!.summary}\nHanya record ini yang dikirim. Identitas dan izin diperiksa ulang. ACK belum membuktikan publication.',
-              ),
-              Wrap(
-                spacing: 12,
-                children: [
-                  TextButton(
-                    onPressed: outcome.busy
-                        ? null
-                        : () => setState(() => confirming = false),
-                    child: const Text('Batal'),
-                  ),
-                  FilledButton(
-                    key: const Key('confirm-transaction-upload'),
-                    onPressed: outcome.busy
-                        ? null
-                        : () => execute(confirmation),
-                    child: const Text('Konfirmasi upload'),
-                  ),
-                ],
-              ),
-            ],
-            if (outcome.busy) const LinearProgressIndicator(),
-            if (outcome.message.isNotEmpty)
-              Semantics(
-                liveRegion: true,
-                child: Text(
-                  '${outcome.operationLabel}: ${outcome.message}',
-                  key: const Key('manual-sync-feedback'),
+                    ),
+                    const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          key: const Key('manual-sync-execute'),
+                          onPressed:
+                              outcome.busy ||
+                                  smoke ||
+                                  config == null ||
+                                  (!confirming && !ready)
+                              ? null
+                              : () {
+                                  if (ref
+                                      .read(
+                                        isolatedTransactionSyncControllerProvider,
+                                      )
+                                      .busy) {
+                                    return;
+                                  }
+                                  if (confirming != confirmingAtBuild) return;
+                                  if (confirming) {
+                                    execute(confirmation);
+                                  } else if (upload) {
+                                    setState(() {
+                                      confirmation = current;
+                                      confirming = true;
+                                    });
+                                    _dialogFocus.requestFocus();
+                                  } else {
+                                    execute(null);
+                                  }
+                                },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: outcome.busy
+                                ? const Text('Menyinkronkan…')
+                                : confirming
+                                ? const Text(
+                                    'Konfirmasi upload',
+                                    key: Key('confirm-transaction-upload'),
+                                  )
+                                : Text(
+                                    upload ? 'Mulai Upload' : 'Mulai Download',
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-          ],
+            ),
+          ),
         ),
       ),
     );

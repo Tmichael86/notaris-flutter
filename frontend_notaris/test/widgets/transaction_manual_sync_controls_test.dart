@@ -132,7 +132,7 @@ void main() {
           domain == 'ppat' ? 'Transaksi PPAT' : 'Transaksi Notaris',
         );
         await chooseUiRecord(t, 'transaksi_$domain');
-        expect(find.byType(TextField), findsNothing);
+        expect(find.byType(TextField), findsOneWidget);
         expect(
           find.byKey(const Key('manual-sync-record-identity')),
           findsOneWidget,
@@ -158,7 +158,7 @@ void main() {
         click();
         click();
         await t.pumpAndSettle();
-        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(find.byKey(const Key('manual-sync-dialog')), findsOneWidget);
         expect(transport.calls, 0);
         await t.tap(find.byKey(const Key('confirm-transaction-upload')));
         await cycleUi(t);
@@ -175,7 +175,7 @@ void main() {
         expect(transport.calls, 1);
         await t.sendKeyEvent(LogicalKeyboardKey.escape);
         await t.pump();
-        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(find.byKey(const Key('manual-sync-dialog')), findsOneWidget);
         waiting.complete();
         await cycleUi(t);
         expect(
@@ -206,6 +206,116 @@ void main() {
           find.textContaining('ACK belum membuktikan publication'),
           findsWidgets,
         );
+      },
+    );
+  }
+  testWidgets(
+    'search uses actual records, radio is single, confirmation ESC and resize are safe',
+    (t) async {
+      await mount(t);
+      await chooseUiModule(t, 'Transaksi Notaris');
+      final search = find.byKey(
+        const Key('manual-sync-search-transaksi_notaris'),
+      );
+      await t.enterText(search, 'does-not-exist');
+      await t.pump();
+      expect(
+        find.text('Tidak ada transaksi sesuai pencarian.'),
+        findsOneWidget,
+      );
+      expect(find.byType(RadioListTile<int>), findsNothing);
+      await t.enterText(search, '');
+      await t.pump();
+      await chooseUiRecord(t, 'transaksi_notaris');
+      expect(
+        t.widget<RadioGroup<int>>(find.byType(RadioGroup<int>)).groupValue,
+        notarisId,
+      );
+      await t.tap(find.byKey(const Key('manual-sync-execute')));
+      await t.pumpAndSettle();
+      expect(
+        find.byKey(const Key('confirm-transaction-upload')),
+        findsOneWidget,
+      );
+      expect(find.byType(Dialog), findsOneWidget);
+      await t.sendKeyEvent(LogicalKeyboardKey.escape);
+      await t.pumpAndSettle();
+      expect(find.byKey(const Key('manual-sync-dialog')), findsOneWidget);
+      expect(find.byKey(const Key('confirm-transaction-upload')), findsNothing);
+      for (final size in [
+        const Size(1366, 768),
+        const Size(600, 620),
+        const Size(420, 560),
+      ]) {
+        t.view.physicalSize = size;
+        await t.pumpAndSettle();
+        final surface = t.getRect(find.byKey(const Key('manual-sync-surface')));
+        expect(surface.width, lessThanOrEqualTo(520));
+        expect(surface.right, lessThanOrEqualTo(size.width));
+        expect(surface.bottom, lessThanOrEqualTo(size.height));
+        expect(t.takeException(), isNull);
+      }
+      await t.tap(find.byKey(const Key('close-manual-sync')));
+      await t.pumpAndSettle();
+      await t.sendKeyEvent(LogicalKeyboardKey.escape);
+      await t.pumpAndSettle();
+      expect(t.takeException(), isNull);
+      expect(transport.calls, 0);
+    },
+  );
+  for (final acked in [false, true]) {
+    testWidgets(
+      '${acked ? 'ACKed' : 'clean'} record is disabled with an explicit reason',
+      (t) async {
+        await t.runAsync(() async {
+          if (acked) {
+            final row = await (db.select(
+              db.transaksis,
+            )..where((r) => r.id.equals(notarisId))).getSingle();
+            await db.customStatement(
+              "INSERT INTO transaction_cloud_pending(local_uuid,mutation_id,payload,state) VALUES(?,?,?,?)",
+              [row.uuid, '00000000-0000-4000-8000-000000000099', '{}', 'acked'],
+            );
+          } else {
+            await db.customStatement(
+              'UPDATE transaksis SET is_sync_dirty=0 WHERE id=?',
+              [notarisId],
+            );
+            for (final table in [
+              'transaksi_details',
+              'transaksi_proses',
+              'transaksi_riwayat_pembayaran',
+            ]) {
+              await db.customStatement(
+                'UPDATE $table SET is_sync_dirty=0 WHERE transaksi_id=?',
+                [notarisId],
+              );
+            }
+          }
+        });
+        await mount(t);
+        await chooseUiModule(t, 'Transaksi Notaris');
+        expect(
+          t
+              .widget<RadioListTile<int>>(
+                find.byKey(ValueKey('manual-sync-choice-$notarisId')),
+              )
+              .enabled,
+          false,
+        );
+        expect(
+          find.textContaining(acked ? 'ACK tersimpan' : 'Data bersih'),
+          findsOneWidget,
+        );
+        expect(
+          t
+              .widget<FilledButton>(
+                find.byKey(const Key('manual-sync-execute')),
+              )
+              .onPressed,
+          isNull,
+        );
+        expect(transport.calls, 0);
       },
     );
   }

@@ -36,7 +36,7 @@ void main() {
         expect(find.byKey(const Key('manual-sync-module')), findsNothing);
         await tester.tap(find.byKey(const Key('open-manual-sync')));
         await tester.pumpAndSettle();
-        expect(find.text('Sinkronisasi Manual'), findsNWidgets(2));
+        expect(find.text('Sinkronisasi Data'), findsOneWidget);
         expect(
           tester
               .widget<FilledButton>(
@@ -45,13 +45,14 @@ void main() {
               .onPressed,
           isNull,
         );
-        final module = tester.widget<DropdownButton<String>>(
+        final module = tester.widget<SegmentedButton<String>>(
           find.byKey(const Key('manual-sync-module')),
         );
-        expect(
-          module.items!.where((e) => e.value == 'kategori').single.enabled,
-          isFalse,
-        );
+        expect(module.segments.map((e) => e.value), [
+          'transaksi_notaris',
+          'transaksi_ppat',
+        ]);
+        expect(find.text('Kategori Pekerjaan'), findsNothing);
         await tester.tap(find.text('Download').first);
         await tester.pumpAndSettle();
         expect(find.textContaining('satu cursor bersama'), findsOneWidget);

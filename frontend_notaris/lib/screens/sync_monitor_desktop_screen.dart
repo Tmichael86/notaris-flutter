@@ -1,5 +1,3 @@
-import 'package:flutter/services.dart';
-
 import '../core/widgets/master_data_viewport.dart';
 import '../core/widgets/sync_page_frame.dart';
 import '../core/widgets/transaction_manual_sync_controls.dart';
@@ -41,61 +39,7 @@ class _MonitorState extends ConsumerState<SyncMonitorDesktopScreen> {
       await showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (c) => Consumer(
-          builder: (context, ref, _) => PopScope(
-            canPop: !ref.watch(isolatedTransactionSyncControllerProvider).busy,
-            child: CallbackShortcuts(
-              bindings: {
-                const SingleActivator(LogicalKeyboardKey.escape): () {
-                  if (!ref
-                      .read(isolatedTransactionSyncControllerProvider)
-                      .busy) {
-                    close(c);
-                  }
-                },
-              },
-              child: Actions(
-                actions: {
-                  DismissIntent: CallbackAction<DismissIntent>(
-                    onInvoke: (_) {
-                      if (!ref
-                          .read(isolatedTransactionSyncControllerProvider)
-                          .busy) {
-                        close(c);
-                      }
-                      return null;
-                    },
-                  ),
-                },
-                child: Focus(
-                  autofocus: true,
-                  child: AlertDialog(
-                    title: const Text('Sinkronisasi Manual'),
-                    content: SizedBox(
-                      width: 740,
-                      child: SingleChildScrollView(
-                        child: const TransactionManualSyncControls(),
-                      ),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed:
-                            ref
-                                .watch(
-                                  isolatedTransactionSyncControllerProvider,
-                                )
-                                .busy
-                            ? null
-                            : () => close(c),
-                        child: const Text('Tutup'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
+        builder: (c) => TransactionManualSyncControls(onClose: () => close(c)),
       );
     } finally {
       if (mounted) {
