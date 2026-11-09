@@ -2,26 +2,39 @@ package middleware
 
 import (
 	"backend-notaris-go/database"
+	"backend-notaris-go/repositories"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"regexp"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type DevelopmentPilot struct {
-	Stage       string `json:"stage"`
-	UUID        string `json:"uuid"`
-	MutationID  string `json:"mutation_id"`
-	PayloadHash string `json:"payload_sha256"`
+	Stage       string            `json:"stage"`
+	UUID        string            `json:"uuid"`
+	MutationID  string            `json:"mutation_id"`
+	PayloadHash string            `json:"payload_sha256"`
+	Feeds       map[string]string `json:"feeds,omitempty"`
 }
 
 var pilotUUID = regexp.MustCompile(`^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$`)
 var pilotSHA = regexp.MustCompile(`^[a-f0-9]{64}$`)
 
 func (p DevelopmentPilot) valid() bool {
+	if p.Stage == "DownloadOnly" {
+		return p.UUID == "" && p.MutationID == "" && p.PayloadHash == "" && len(p.Feeds) == 5 &&
+			pilotSHA.MatchString(p.Feeds["notaris"]) && pilotSHA.MatchString(p.Feeds["ppat"]) &&
+			pilotSHA.MatchString(p.Feeds["transaction"]) && pilotSHA.MatchString(p.Feeds["ppat_tail"]) &&
+			pilotSHA.MatchString(p.Feeds["transaction_tail"])
+	}
+	if len(p.Feeds) != 0 {
+		return false
+	}
 	if p.Stage == "LocalBootstrap" {
 		return p.UUID == "" && p.MutationID == "" && p.PayloadHash == ""
 	}
@@ -53,6 +66,15 @@ func (p DevelopmentPilot) allows(method, path string, payload []byte) bool {
 func (g *AcceptanceGate) probePilot(c *gin.Context) (gin.H, error) {
 	p := g.Plan.Pilot
 	db := database.DB.WithContext(c.Request.Context())
+	if p.Stage == "DownloadOnly" {
+		err := db.Transaction(func(tx *gorm.DB) error { return p.checkDownload(c, tx) }, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
+		if err != nil {
+			return nil, err
+		}
+		result := g.pilotAttestation()
+		result["feeds"] = p.Feeds
+		return result, nil
+	}
 	var ok bool
 	err := db.Raw(`SELECT
 	  (SELECT last_seq=6 AND min_cursor=0 FROM pekerjaan_notaris_sync_publication WHERE id=1)
@@ -81,6 +103,56 @@ func (g *AcceptanceGate) probePilot(c *gin.Context) (gin.H, error) {
 	if err != nil || !ok {
 		return nil, fmt.Errorf("pilot baseline or permission mismatch")
 	}
+	return g.pilotAttestation(), nil
+}
+
+func (g *AcceptanceGate) pilotAttestation() gin.H {
 	return gin.H{"database": "notarisdev", "host": "127.0.0.1", "port": 5432, "marker": "NOTARISDEV SYNTHETIC v1",
-		"plan_sha256": g.Hash, "account_id": 2001, "group_id": 11, "pilot_stage": p.Stage, "role": "nd_app_14af5452144b"}, nil
+		"plan_sha256": g.Hash, "account_id": 2001, "group_id": 11, "pilot_stage": g.Plan.Pilot.Stage, "role": "nd_app_14af5452144b"}
+}
+
+func (p DevelopmentPilot) checkDownload(c *gin.Context, db *gorm.DB) error {
+	var ok bool
+	err := db.Raw(`SELECT current_setting('default_transaction_read_only')='on'
+	  AND (SELECT last_seq=6 AND min_cursor=0 FROM pekerjaan_notaris_sync_publication WHERE id=1)
+	  AND (SELECT last_seq=6 AND min_cursor=0 FROM pekerjaan_ppat_sync_publication WHERE id=1)
+	  AND (SELECT last_seq=9 AND min_cursor=0 FROM transaction_cloud_publication WHERE id=1)
+	  AND NOT EXISTS (SELECT 1 FROM pekerjaan_notaris_sync_outbox WHERE publication_seq IS NULL)
+	  AND NOT EXISTS (SELECT 1 FROM pekerjaan_ppat_sync_outbox WHERE publication_seq IS NULL)
+	  AND NOT EXISTS (SELECT 1 FROM transaction_cloud_outbox WHERE publication_seq IS NULL)
+	  AND (SELECT count(DISTINCT s.sidebar_kode)=2 FROM sidebar s JOIN sidebar_akses a ON a.sidebar_id=s.id
+	    WHERE s.sidebar_kode IN ('transaksi','pekerjaan_ppat') AND s.status=1 AND a.group_id=11 AND a."read"=1)
+	  AND EXISTS (SELECT 1 FROM transaction_cloud t JOIN transaction_cloud_mutation m ON m.acknowledgement->>'uuid'=t.uuid::text
+	    WHERE t.uuid='134a5982-8cf0-4c30-a95d-c69bda57036f' AND t.domain='notaris' AND t.revision=1
+	      AND t.deleted_at IS NULL AND t.final_number='1000911260001' AND m.actor_id=2001
+	      AND m.mutation_id='06543d05-7a52-44c4-9b85-eef7365c89d2'
+	      AND m.request_hash='696144b1aa672fb4c105315b0ee22aba1c1de87c26e6ed92072b083e0c531f6f'
+	      AND m.acknowledgement->>'final_number'=t.final_number AND m.acknowledgement->>'revision'='1')`).Row().Scan(&ok)
+	if err != nil || !ok {
+		return fmt.Errorf("download baseline or permission mismatch")
+	}
+	ctx := c.Request.Context()
+	notaris := repositories.NewNotarisCloudRepository(db)
+	ppat := repositories.NewPpatCloudRepository(db)
+	transactions := repositories.NewTransactionCloudRepository(db)
+	for _, key := range []string{"notaris", "ppat", "transaction", "ppat_tail", "transaction_tail"} {
+		var page any
+		switch key {
+		case "notaris":
+			page, err = notaris.Pull(ctx, 0, 20)
+		case "ppat":
+			page, err = ppat.Pull(ctx, 0, 20)
+		case "transaction":
+			page, err = transactions.Pull(ctx, 0, 20)
+		case "ppat_tail":
+			page, err = ppat.Pull(ctx, 6, 20)
+		case "transaction_tail":
+			page, err = transactions.Pull(ctx, 9, 20)
+		}
+		b, marshalErr := json.Marshal(page)
+		if err != nil || marshalErr != nil || fmt.Sprintf("%x", sha256.Sum256(b)) != p.Feeds[key] {
+			return fmt.Errorf("download feed fingerprint mismatch: %s", key)
+		}
+	}
+	return nil
 }

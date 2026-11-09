@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 
 import '../database/app_database.dart';
 import 'development_transaction_pilot_bootstrap.dart';
+import 'development_transaction_pilot_download.dart';
 import 'transaction_manual_sync_service.dart';
 
 String pilotFileHash(File file) =>
@@ -48,6 +49,10 @@ class DevelopmentTransactionPilotProfile extends TransactionManualProfile {
   final String hash;
   String get stage => data['stage'] as String;
   bool get upload => stage == 'UploadPilot';
+  bool get downloadOnly => stage == 'DownloadOnly';
+  @override
+  bool get requiresPpatBootstrap => downloadOnly;
+  String? _downloadBaseline;
   String get approvedUuid => data['uuid'] as String? ?? '';
   File get uploadLock => File(
     p.join(
@@ -83,7 +88,7 @@ class DevelopmentTransactionPilotProfile extends TransactionManualProfile {
     final appData = Platform.environment['APPDATA'];
     if (appData == null ||
         Platform.environment['NOTARIS_DEV_UI_SMOKE'] == '1' ||
-        !{'LocalBootstrap', 'UploadPilot'}.contains(stage) ||
+        !{'LocalBootstrap', 'UploadPilot', 'DownloadOnly'}.contains(stage) ||
         pilotFileHash(manifest) != hash ||
         !p
             .basename(manifest.parent.path)
@@ -125,19 +130,70 @@ class DevelopmentTransactionPilotProfile extends TransactionManualProfile {
                     data['recovery_sha256']))) {
       throw const ManualTransactionFailure('scope');
     }
+    if (downloadOnly) {
+      final reviewFile = File(data['download_review'] as String);
+      final review = _downloadReview;
+      if (!p.equals(reviewFile.parent.path, manifest.parent.parent.path) ||
+          p.basename(reviewFile.path) !=
+              'development-transaction-pilot-download-check.json' ||
+          pilotFileHash(reviewFile) != data['download_review_sha256'] ||
+          review['sqlite'] != expected ||
+          review['target'] != databaseTarget ||
+          review['base_url'] != baseUrl ||
+          review['deployment'] != deployment ||
+          review['account_id'] != accountId ||
+          review['group_id'] != groupId ||
+          review['device'] != device ||
+          review['generation'] != generation ||
+          !_sameFeeds(pilot['feeds'], review['feeds']) ||
+          review['backup'] != data['backup'] ||
+          review['backup_sha256'] != data['backup_sha256'] ||
+          pilotFileHash(File(review['backup'] as String)) !=
+              review['backup_sha256']) {
+        throw const ManualTransactionFailure('scope');
+      }
+    }
     return expected;
   }
 
-  AppDatabase openDatabase() => AppDatabase.forTesting(
-    NativeDatabase(
-      File(validateLocation()),
-      setup: (db) {
-        if (db.select('PRAGMA user_version').single['user_version'] != 19) {
-          throw const ManualTransactionFailure('scope');
-        }
-      },
-    ),
-  );
+  Map<String, dynamic> get _downloadReview =>
+      jsonDecode(File(data['download_review'] as String).readAsStringSync())
+          as Map<String, dynamic>;
+
+  bool _sameFeeds(Object? a, Object? b) =>
+      a is Map &&
+      b is Map &&
+      a.length == 5 &&
+      b.length == 5 &&
+      a.keys.every((key) => a[key] is String && a[key] == b[key]);
+
+  AppDatabase openDatabase() {
+    final location = validateLocation();
+    if (downloadOnly &&
+        ([
+              '-wal',
+              '-shm',
+              '-journal',
+            ].any((suffix) => File('$location$suffix').existsSync()) ||
+            pilotFileHash(File(location)) !=
+                _downloadReview['source_sha256'])) {
+      throw const ManualTransactionFailure('scope');
+    }
+    return _openV19(File(location));
+  }
+
+  AppDatabase _openV19(File file, {bool queryOnly = false}) =>
+      AppDatabase.forTesting(
+        NativeDatabase(
+          file,
+          setup: (db) {
+            if (db.select('PRAGMA user_version').single['user_version'] != 19) {
+              throw const ManualTransactionFailure('scope');
+            }
+            if (queryOnly) db.execute('PRAGMA query_only=ON');
+          },
+        ),
+      );
 
   @override
   Future<void> validate(AppDatabase db) async {
@@ -175,6 +231,28 @@ class DevelopmentTransactionPilotProfile extends TransactionManualProfile {
         noNetwork.close();
       }
     }
+    if (downloadOnly) {
+      final cursor = await db
+          .customSelect('SELECT cursor FROM transaction_cloud_feed')
+          .getSingleOrNull();
+      if (cursor?.read<int>('cursor') == 9) {
+        throw const ManualTransactionFailure('download_complete');
+      }
+      if (_downloadBaseline == null) {
+        final backup = _openV19(
+          File(data['backup'] as String),
+          queryOnly: true,
+        );
+        try {
+          _downloadBaseline = await pilotDownloadDataFingerprint(backup);
+        } finally {
+          await backup.close();
+        }
+      }
+      if (await pilotDownloadDataFingerprint(db) != _downloadBaseline) {
+        throw const ManualTransactionFailure('scope');
+      }
+    }
   }
 
   @override
@@ -183,6 +261,12 @@ class DevelopmentTransactionPilotProfile extends TransactionManualProfile {
     ManualSyncDirection direction, [
     String? uuid,
   ]) {
+    if (downloadOnly &&
+        module == TransactionManualSyncService.feedModule &&
+        direction == ManualSyncDirection.download &&
+        (uuid == null || uuid.isEmpty)) {
+      return;
+    }
     if (!upload ||
         module != 'transaksi_notaris' ||
         direction != ManualSyncDirection.upload ||
@@ -216,7 +300,8 @@ class DevelopmentTransactionPilotProfile extends TransactionManualProfile {
           d['plan_sha256'] != data['runtime_sha256'] ||
           d['account_id'] != accountId ||
           d['group_id'] != groupId ||
-          d['pilot_stage'] != stage) {
+          d['pilot_stage'] != stage ||
+          (downloadOnly && !_sameFeeds(d['feeds'], _downloadReview['feeds']))) {
         throw const ManualTransactionFailure('scope');
       }
     } finally {
@@ -226,6 +311,12 @@ class DevelopmentTransactionPilotProfile extends TransactionManualProfile {
 
   @override
   Future<void> verifyRequest(RequestOptions request) async {
+    if (downloadOnly) {
+      _downloadFeedKey(request);
+      await attest(request.headers['Authorization']);
+      request.responseType = ResponseType.bytes;
+      return;
+    }
     if (!upload ||
         request.method != 'POST' ||
         request.uri.origin != 'http://127.0.0.1:8081' ||
@@ -242,4 +333,44 @@ class DevelopmentTransactionPilotProfile extends TransactionManualProfile {
     );
     request.headers['X-Notaris-Acceptance'] = data['runtime_sha256'];
   }
+
+  String _downloadFeedKey(RequestOptions request) {
+    if (request.method != 'GET' ||
+        request.uri.origin != Uri.parse(baseUrl).origin ||
+        request.queryParameters.length != 2 ||
+        request.queryParameters['limit'] != 20) {
+      throw const ManualTransactionFailure('scope');
+    }
+    return switch ((request.uri.path, request.queryParameters['cursor'])) {
+      ('/api/v1/pekerjaan-ppat/sync/pull', 0) => 'ppat',
+      ('/api/v1/pekerjaan-ppat/sync/pull', 6) => 'ppat_tail',
+      ('/api/v1/transaksi-notaris/sync/pull', 0) => 'transaction',
+      ('/api/v1/transaksi-notaris/sync/pull', 9) => 'transaction_tail',
+      _ => throw const ManualTransactionFailure('scope'),
+    };
+  }
+
+  @override
+  void verifyResponse(Response<dynamic> response) {
+    if (!downloadOnly) return;
+    final key = _downloadFeedKey(response.requestOptions);
+    verifyReviewedPilotFeed(
+      response,
+      (_downloadReview['feeds'] as Map)[key] as String,
+    );
+  }
+
+  @override
+  Future<TransactionManualResult> applyDownload(
+    AppDatabase db,
+    Dio http,
+    Future<TransactionManualResult> Function() pull,
+  ) => applyReviewedPilotDownload(
+    db: db,
+    http: http,
+    profile: this,
+    baseline: _downloadBaseline!,
+    review: _downloadReview,
+    pull: pull,
+  );
 }

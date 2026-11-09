@@ -1,6 +1,6 @@
 """Check-only reader for the fixed synthetic development pilot recipe."""
 import argparse
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 import hashlib
 import json
 import os
@@ -78,6 +78,52 @@ def logical_sha256(db):
     return digest.hexdigest()
 
 
+def check_download(path, plan):
+    reviewed = json.loads(PLAN_PATH.with_name('notarisdev-transaction-pilot-download.json').read_bytes())
+    closed_file(path)
+    require(hashlib.sha256(path.read_bytes()).hexdigest() == reviewed['source_sha256'],
+            'SQLite differs from the clone PASS baseline. Review again before Download')
+    backup = ROOT / '.local/development-transaction-pilot-before-download.sqlite'
+    scope = json.dumps([plan['base_url'], plan['target'], plan['deployment'], plan['account_id'], plan['group_id'],
+                        plan['device'], plan['generation'], str(path)], separators=(',', ':'), ensure_ascii=False)
+    officer = json.dumps([plan['base_url'], 'notarisdev', plan['generation'], plan['account_id'], plan['device'],
+                          str(path)], separators=(',', ':'), ensure_ascii=False)
+    with read_sqlite(path) as db:
+        for table, expected in {
+            'transaction_cloud_feed': [(scope + '/transactions', 0)],
+            'pekerjaan_notaris_sync_feed': [(scope + '/masters', 6)],
+            'pekerjaan_ppat_sync_feed': [],
+            'petugas_sync_feed': [(officer, 4)],
+        }.items():
+            require([tuple(r) for r in db.execute(f'SELECT scope,cursor FROM {table}')] == expected,
+                    f'Cursor or scope mismatch in {table}')
+        require([tuple(r) for r in db.execute('SELECT id FROM transaksis WHERE is_sync_dirty=1')] == [(1,), (2,), (3,)],
+                'Dirty transactions differ from baseline')
+        require([tuple(r) for r in db.execute('''SELECT i.cloud_uuid,i.revision,i.final_number,t.no_akta,
+                t.is_sync_dirty,p.mutation_id,p.state FROM transaction_cloud_identity i
+                JOIN transaksis t ON t.uuid=i.local_uuid JOIN transaction_cloud_pending p ON p.local_uuid=t.uuid''')]
+                == [(reviewed['uuid'], 1, reviewed['final_number'], reviewed['final_number'], 0,
+                     reviewed['mutation_id'], 'acked')], 'Pilot ACK differs from baseline')
+        digest = logical_sha256(db)
+        if not backup.exists():
+            # Reserve the destination before using SQLite Backup API. A partial
+            # backup is retained and fails validation on subsequent Checks.
+            backup.touch(exist_ok=False)
+            with closing(sqlite3.connect(backup)) as dst:
+                db.backup(dst)
+    with read_sqlite(backup) as dst:
+        require(logical_sha256(dst) == digest, 'SQLite recovery backup differs from source')
+    closed_file(path)
+    require(hashlib.sha256(path.read_bytes()).hexdigest() == reviewed['source_sha256'],
+            'Source changed during Download Check')
+    return {**reviewed, 'sqlite': str(path), 'backup': str(backup),
+            'backup_sha256': hashlib.sha256(backup.read_bytes()).hexdigest(), 'local_logical_sha256': digest,
+            'target': plan['target'], 'base_url': plan['base_url'], 'deployment': plan['deployment'],
+            'account_id': plan['account_id'], 'group_id': plan['group_id'], 'generation': plan['generation'],
+            'device': plan['device'], 'local_cursors': {'notaris': 6, 'ppat': 0, 'petugas': 4, 'transaction': 0},
+            'target_cursors': {'notaris': 6, 'ppat': 6, 'petugas': 4, 'transaction': 9}}
+
+
 def check_local(db, path, plan, snapshot):
     legacy_scope = [plan['base_url'], 'notarisdev', plan['generation'], plan['account_id'], plan['device'], str(path)]
     officer_feed = db.execute('SELECT scope,cursor,blocked FROM petugas_sync_feed WHERE id=1').fetchone()
@@ -125,6 +171,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--backup', type=Path)
     parser.add_argument('--inspect', action='store_true')
+    parser.add_argument('--download', action='store_true')
     args = parser.parse_args()
     plan_bytes = PLAN_PATH.read_bytes()
     plan = json.loads(plan_bytes)
@@ -132,6 +179,9 @@ def main():
     require(profile['database'] == 'notarisdev' and profile['port'] == 5432 and profile['fixture'] == 'smoke-v1'
             and profile['generation'] == plan['generation'] == '14af5452144b42d0be2ad88bac41b656', 'Development profile changed')
     path = Path(os.environ['APPDATA']) / 'com.notaris/frontend_notaris/notarisdev' / profile['generation'] / 'offline.sqlite'
+    if args.download:
+        print(json.dumps(check_download(path, plan), indent=2))
+        return
     if args.inspect:
         print(json.dumps(inspect_checkpoint(path), indent=2))
         return

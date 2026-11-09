@@ -165,8 +165,12 @@ func (g *AcceptanceGate) Attest(c *gin.Context) {
 func (g *AcceptanceGate) Guard(cfg config.Config) gin.HandlerFunc { return g.guard(cfg, g.probe) }
 func (g *AcceptanceGate) guard(cfg config.Config, probe func(*gin.Context) (gin.H, error)) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if c.Request.Method == "GET" || c.Request.URL.Path == "/api/v1/auth/login" {
+		if c.Request.Method == "GET" || (c.Request.Method == "POST" && c.Request.URL.Path == "/api/v1/auth/login") {
 			c.Next()
+			return
+		}
+		if g.Plan.Pilot != nil && g.Plan.Pilot.Stage == "DownloadOnly" {
+			c.AbortWithStatus(403)
 			return
 		}
 		g.mu.Lock()

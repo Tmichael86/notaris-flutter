@@ -72,6 +72,7 @@ Future<void> main() async {
             const String.fromEnvironment('TRANSACTION_MONITOR_PROFILE'),
           )
         : await _loadDevelopmentPilot(pilotManifest);
+    final profile = config.profile;
     runApp(
       ProviderScope(
         overrides: [
@@ -82,8 +83,10 @@ Future<void> main() async {
         child: Directionality(
           textDirection: TextDirection.ltr,
           child: Banner(
-            message: config.profile is DevelopmentTransactionPilotProfile
-                ? 'DEV notarisdev ONE CREATE PILOT'
+            message: profile is DevelopmentTransactionPilotProfile
+                ? (profile.downloadOnly
+                      ? 'DEV notarisdev DOWNLOAD ONLY'
+                      : 'DEV notarisdev ONE CREATE PILOT')
                 : config.profile is NotarisdevAcceptanceProfile
                 ? 'DEV notarisdev ISOLATED ACCEPTANCE'
                 : 'DISPOSABLE MANUAL SYNC',

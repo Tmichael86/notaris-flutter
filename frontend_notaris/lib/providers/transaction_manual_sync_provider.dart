@@ -135,6 +135,7 @@ final isolatedTransactionSyncRecordsProvider = FutureProvider.autoDispose
 
 String transactionSyncUiMessage(String code) => switch (code) {
   'scope' => 'Profil/target tidak cocok. Gunakan konfigurasi SQLite dan backend disposable yang telah diverifikasi.',
+  'download_complete' => 'Download pilot sudah terverifikasi pada cursor 9.',
   'forbidden' => 'Izin transaksi atau UI Smoke memblokir sinkronisasi.',
   'unauthorized' => 'Sesi online yang valid diperlukan.',
   'offline' => 'Offline: operasi ditunda; data lokal dipertahankan.',

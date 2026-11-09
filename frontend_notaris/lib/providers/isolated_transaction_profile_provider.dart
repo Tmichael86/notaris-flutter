@@ -37,7 +37,8 @@ class IsolatedTransactionSyncConfiguration {
     required DevelopmentTransactionPilotProfile profile,
     required Dio http,
   }) {
-    if (!profile.upload || http.options.baseUrl != profile.baseUrl) {
+    if ((!profile.upload && !profile.downloadOnly) ||
+        http.options.baseUrl != profile.baseUrl) {
       throw const ManualTransactionFailure('scope');
     }
     return IsolatedTransactionSyncConfiguration._(

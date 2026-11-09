@@ -97,6 +97,16 @@ class TransactionManualProfile {
 
   Future<void> verifyRequest(RequestOptions request) async {}
 
+  bool get requiresPpatBootstrap => false;
+
+  void verifyResponse(Response<dynamic> response) {}
+
+  Future<TransactionManualResult> applyDownload(
+    AppDatabase db,
+    Dio http,
+    Future<TransactionManualResult> Function() pull,
+  ) => pull();
+
   void validateSelection(
     String module,
     ManualSyncDirection direction, [
@@ -175,10 +185,15 @@ class TransactionManualSyncService {
         onRequest: (r, h) async {
           try {
             final current = _authorize();
+            final masterPull =
+                profile.requiresPpatBootstrap &&
+                r.uri.path == '/api/v1/pekerjaan-ppat/sync/pull' &&
+                r.method == 'GET';
             if (r.uri.origin != Uri.parse(profile.baseUrl).origin ||
-                !RegExp(
-                  r'^/api/v1/transaksi-(notaris|ppat)/sync/(create|update|delete|pull)$',
-                ).hasMatch(r.uri.path) ||
+                (!masterPull &&
+                    !RegExp(
+                      r'^/api/v1/transaksi-(notaris|ppat)/sync/(create|update|delete|pull)$',
+                    ).hasMatch(r.uri.path)) ||
                 ((r.uri.path.endsWith('/pull'))
                     ? r.method != 'GET'
                     : r.method != 'POST')) {
@@ -194,6 +209,14 @@ class TransactionManualSyncService {
             h.next(r);
           } catch (e) {
             h.reject(DioException(requestOptions: r, error: e));
+          }
+        },
+        onResponse: (r, h) {
+          try {
+            profile.verifyResponse(r);
+            h.next(r);
+          } catch (e) {
+            h.reject(DioException(requestOptions: r.requestOptions, error: e));
           }
         },
       ),
@@ -477,21 +500,24 @@ class TransactionManualSyncService {
               if (!_permission(s, 'read')) {
                 throw const ManualTransactionFailure('forbidden');
               }
-              var count = 0;
-              for (var n = 0; n < maxPages; n++) {
-                final batch = await cloud.pullBatch(
-                  limit: pageSize,
-                  allowedDomains: const {'notaris', 'ppat'},
-                  confirmAcknowledgements: true,
-                );
-                count += batch.count;
-                result = TransactionManualResult(
+              result = await profile.applyDownload(db, _http, () async {
+                var count = 0;
+                late TransactionPullBatch batch;
+                for (var n = 0; n < maxPages; n++) {
+                  batch = await cloud.pullBatch(
+                    limit: pageSize,
+                    allowedDomains: const {'notaris', 'ppat'},
+                    confirmAcknowledgements: true,
+                  );
+                  count += batch.count;
+                  if (!batch.hasMore) break;
+                }
+                return TransactionManualResult(
                   count: count,
                   cursor: batch.cursor,
                   more: batch.hasMore,
                 );
-                if (!batch.hasMore) break;
-              }
+              });
               if (result!.more) throw const ManualTransactionFailure('bounded');
             }
             _authorize();

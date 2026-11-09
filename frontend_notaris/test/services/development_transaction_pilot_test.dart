@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/repositories/transaction_cloud_repository.dart';
 import 'package:frontend_notaris/services/development_transaction_pilot_bootstrap.dart';
+import 'package:frontend_notaris/services/development_transaction_pilot_download.dart';
 import 'package:frontend_notaris/services/development_transaction_pilot_profile.dart';
 import 'package:frontend_notaris/services/transaction_manual_sync_service.dart';
 
@@ -236,6 +237,77 @@ void main() {
       () => DevelopmentTransactionPilotProfile.open('pubspec.yaml', 'wrong'),
       throwsA(isA<ManualTransactionFailure>()),
     );
+  });
+
+  test('Download rejects a changed wire page before decoding', () {
+    const page = '{"changes":[],"next_cursor":9,"has_more":false}';
+    final options = RequestOptions(path: '/sync/pull');
+    final changed = Response<dynamic>(
+      requestOptions: options,
+      data: utf8.encode('$page '),
+    );
+    expect(
+      () => verifyReviewedPilotFeed(changed, pilotHash(page)),
+      throwsA(isA<ManualTransactionFailure>()),
+    );
+    final reviewed = Response<dynamic>(
+      requestOptions: options,
+      data: utf8.encode(page),
+    );
+    verifyReviewedPilotFeed(reviewed, pilotHash(page));
+    expect(reviewed.data, jsonDecode(page));
+  });
+
+  test('Download failure after importing PPAT rolls back both cursors and retains the ACK', () async {
+    final receipt = await bootstrap();
+    final upload = Dio(BaseOptions(baseUrl: profile.baseUrl))
+      ..httpClientAdapter = FrozenPayloadTransport(receipt);
+    try {
+      await TransactionCloudRepository(
+        db,
+        upload,
+        scope: profile.transactionScope,
+        petugasScope: profile.petugasScope,
+        masterScope: profile.masterScope,
+      ).pushCreate(receipt['id'] as int);
+    } finally {
+      upload.close();
+    }
+    final baseline = await pilotDownloadDataFingerprint(db);
+    transport.respond = (r) async {
+      expect(r.path, '/pekerjaan-ppat/sync/pull');
+      return Transport.json(page, 200);
+    };
+    await expectLater(
+      applyReviewedPilotDownload(
+        db: db,
+        http: http,
+        profile: profile,
+        baseline: baseline,
+        review: {
+          ...receipt,
+          'final_number': '1000911260001',
+          'legacy_sha256': original,
+        },
+        pull: () async {
+          expect(
+            (await db
+                    .customSelect('SELECT cursor FROM pekerjaan_ppat_sync_feed')
+                    .getSingle())
+                .read<int>('cursor'),
+            6,
+          );
+          await db.customStatement(
+            'UPDATE transaction_cloud_feed SET cursor=9',
+          );
+          await db.customStatement('DELETE FROM transaction_cloud_pending');
+          throw const ManualTransactionFailure('scope');
+        },
+      ),
+      throwsA(isA<ManualTransactionFailure>()),
+    );
+    expect(await pilotDownloadDataFingerprint(db), baseline);
+    expect(await pilotLegacyFingerprint(db), original);
   });
 
   test(

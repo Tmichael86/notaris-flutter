@@ -87,3 +87,37 @@ func TestPilotBlocksBootstrapWritesAndConsumesAmbiguousDispatch(t *testing.T) {
 		})
 	}
 }
+
+func TestDownloadPilotRequiresEveryFingerprintAndBlocksWrites(t *testing.T) {
+	p := DevelopmentPilot{Stage: "DownloadOnly", Feeds: map[string]string{}}
+	for _, key := range []string{"notaris", "ppat", "transaction", "ppat_tail", "transaction_tail"} {
+		if p.valid() {
+			t.Fatal("accepted incomplete fingerprints")
+		}
+		p.Feeds[key] = strings.Repeat("a", 64)
+	}
+	if !p.valid() {
+		t.Fatal("rejected reviewed download")
+	}
+	p.UUID = pilotTestPlan().UUID
+	if p.valid() {
+		t.Fatal("download plan allowed a mutation UUID")
+	}
+	p.UUID = ""
+	gate := &AcceptanceGate{Plan: AcceptancePlan{Pilot: &p}, Hash: "reviewed"}
+	r := gin.New()
+	r.Use(gate.guard(config.Config{}, func(*gin.Context) (gin.H, error) {
+		t.Fatal("blocked write reached database probe")
+		return nil, nil
+	}))
+	r.Any("/api/v1/transaksi-notaris/sync/create", func(c *gin.Context) { c.Status(204) })
+	for _, method := range []string{"POST", "PUT", "PATCH", "DELETE"} {
+		req := httptest.NewRequest(method, "/api/v1/transaksi-notaris/sync/create", strings.NewReader(pilotTestBody))
+		req.Header.Set("X-Notaris-Acceptance", "reviewed")
+		res := httptest.NewRecorder()
+		r.ServeHTTP(res, req)
+		if res.Code != 403 {
+			t.Fatalf("%s got %d want 403", method, res.Code)
+		}
+	}
+}

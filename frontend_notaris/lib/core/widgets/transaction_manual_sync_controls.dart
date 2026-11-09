@@ -53,6 +53,18 @@ class _ControlsState extends ConsumerState<TransactionManualSyncControls> {
   bool confirming = false, closing = false;
   final _dialogFocus = FocusNode();
   @override
+  void initState() {
+    super.initState();
+    final profile = ref
+        .read(isolatedTransactionSyncConfigurationProvider)
+        ?.profile;
+    if (profile is DevelopmentTransactionPilotProfile && profile.downloadOnly) {
+      direction = 'pull';
+      module = TransactionManualSyncService.feedModule;
+    }
+  }
+
+  @override
   void dispose() {
     _dialogFocus.dispose();
     super.dispose();
@@ -101,6 +113,9 @@ class _ControlsState extends ConsumerState<TransactionManualSyncControls> {
   @override
   Widget build(BuildContext context) {
     final config = ref.watch(isolatedTransactionSyncConfigurationProvider);
+    final profile = config?.profile;
+    final downloadOnly =
+        profile is DevelopmentTransactionPilotProfile && profile.downloadOnly;
     final smoke = ref.watch(developmentUiSmokeProvider);
     final outcome = ref.watch(isolatedTransactionSyncControllerProvider);
     final upload = direction == 'push';
@@ -181,10 +196,12 @@ class _ControlsState extends ConsumerState<TransactionManualSyncControls> {
               child: _ActionCard(
                 key: const Key('manual-sync-upload'),
                 label: 'Upload',
-                caption: 'Satu transaksi lokal',
+                caption: downloadOnly
+                    ? 'Dinonaktifkan untuk pilot ini'
+                    : 'Satu transaksi lokal',
                 icon: Icons.upload_file_outlined,
                 selected: upload,
-                onTap: locked
+                onTap: locked || downloadOnly
                     ? null
                     : () => setState(() {
                         direction = 'push';
