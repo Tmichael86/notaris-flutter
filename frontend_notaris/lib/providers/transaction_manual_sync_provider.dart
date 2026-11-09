@@ -153,11 +153,13 @@ class TransactionSyncUiState {
     this.message = '',
     this.errorCode,
     this.operationLabel = '',
+    this.confirmedUploadUuid,
   });
   final bool busy;
   final String message;
   final String? errorCode;
   final String operationLabel;
+  final String? confirmedUploadUuid;
 }
 
 final isolatedTransactionSyncControllerProvider =
@@ -202,6 +204,12 @@ class TransactionSyncUiController
       if (mounted) {
         state = TransactionSyncUiState(
           operationLabel: label,
+          confirmedUploadUuid:
+              direction == ManualSyncDirection.upload &&
+                  result.count == 1 &&
+                  result.receipt?['uuid'] == record?.uuid
+              ? record?.uuid
+              : null,
           message: direction == ManualSyncDirection.upload
               ? result.count == 0
                     ? 'Tidak ada mutation baru; record sudah diakui.'

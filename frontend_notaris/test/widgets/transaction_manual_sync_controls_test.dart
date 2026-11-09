@@ -13,6 +13,8 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend_notaris/core/theme/app_colors.dart';
+import 'package:frontend_notaris/core/widgets/transaction_manual_sync_controls.dart';
 import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/models/auth_session.dart';
 import 'package:frontend_notaris/providers/auth_provider.dart';
@@ -29,6 +31,12 @@ import 'package:frontend_notaris/services/transaction_manual_sync_service.dart';
 
 import '../services/transaction_manual_sync_service_test.dart' show Transport;
 import '../support/transaction_ui_test_support.dart';
+
+class PostPilotUiController extends TransactionSyncUiController {
+  PostPilotUiController(super.ref, TransactionSyncUiState outcome) {
+    state = outcome;
+  }
+}
 
 void main() {
   late Directory folder;
@@ -80,6 +88,8 @@ void main() {
     bool preview = false,
     bool smoke = false,
     AuthSession? session,
+    TransactionSyncUiState? postPilotOutcome,
+    String? spentPilotUuid,
   }) async {
     t.view.physicalSize = const Size(1400, 1000);
     t.view.devicePixelRatio = 1;
@@ -106,6 +116,20 @@ void main() {
           (_) => TransactionUiAuth(session ?? uiSession()),
         ),
         developmentUiSmokeProvider.overrideWithValue(smoke),
+        if (postPilotOutcome != null) ...[
+          isolatedTransactionSyncControllerProvider.overrideWith(
+            (ref) => PostPilotUiController(ref, postPilotOutcome),
+          ),
+          manualSyncSpentPilotUuidProvider.overrideWithValue(spentPilotUuid),
+          isolatedTransactionSyncEligibilityProvider.overrideWith(
+            (ref, choice) async =>
+                throw const ManualTransactionFailure('scope'),
+          ),
+          isolatedTransactionSyncRecordsProvider.overrideWith(
+            (ref, module) async =>
+                throw const ManualTransactionFailure('scope'),
+          ),
+        ],
         if (!normal)
           isolatedTransactionSyncConfigurationProvider.overrideWithValue(
             config,
@@ -125,11 +149,61 @@ void main() {
     return c;
   }
 
+  for (final scenario in [
+    (
+      spent: true,
+      confirmed: true,
+      text:
+          'Pilot Upload selesai; operasi berikutnya memerlukan approval baru.',
+    ),
+    (
+      spent: true,
+      confirmed: false,
+      text: 'Percobaan Pilot Upload telah digunakan. Periksa hasil sebelum meminta approval baru.',
+    ),
+    (
+      spent: false,
+      confirmed: false,
+      text: 'Profil/target tidak cocok. Gunakan konfigurasi SQLite dan backend disposable yang telah diverifikasi.',
+    ),
+  ]) {
+    testWidgets('one-shot closure copy: ${scenario.text}', (t) async {
+      const uuid = '134a5982-8cf0-4c30-a95d-c69bda57036f';
+      await mount(
+        t,
+        spentPilotUuid: scenario.spent ? uuid : null,
+        postPilotOutcome: TransactionSyncUiState(
+          confirmedUploadUuid: scenario.confirmed ? uuid : null,
+          message: scenario.confirmed ? 'Upload terkonfirmasi: 1 record.' : '',
+        ),
+      );
+      await chooseUiModule(t, 'Transaksi Notaris');
+      final reason = t.widget<Text>(
+        find.byKey(const Key('manual-sync-guard-reason')),
+      );
+      expect(reason.data, scenario.text);
+      expect(
+        reason.style?.color,
+        scenario.spent ? AppColors.textSecondary : AppColors.error,
+      );
+      if (scenario.spent) {
+        expect(find.textContaining('Profil/target tidak cocok'), findsNothing);
+      }
+      expect(
+        t
+            .widget<FilledButton>(find.byKey(const Key('manual-sync-execute')))
+            .onPressed,
+        isNull,
+      );
+      expect(transport.calls, 0);
+    });
+  }
+
   for (final domain in ['notaris', 'ppat']) {
     testWidgets(
       '$domain actual record confirmation and single flight calls correct service/HTTP only',
       (t) async {
-        await mount(t);
+        final container = await mount(t);
         await chooseUiModule(
           t,
           domain == 'ppat' ? 'Transaksi PPAT' : 'Transaksi Notaris',
@@ -204,6 +278,12 @@ void main() {
                   .getSingle(),
         );
         expect(selected!.isSyncDirty, false);
+        expect(
+          container
+              .read(isolatedTransactionSyncControllerProvider)
+              .confirmedUploadUuid,
+          selected.uuid,
+        );
         expect(other!.isSyncDirty, true);
         expect(
           find.textContaining('ACK belum membuktikan publication'),

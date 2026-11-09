@@ -7,7 +7,22 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_colors.dart';
 import '../../providers/development_smoke_provider.dart';
 import '../../providers/transaction_manual_sync_provider.dart';
+import '../../services/development_transaction_pilot_profile.dart';
 import '../../services/transaction_manual_sync_service.dart';
+
+/// Presentation evidence only. Eligibility still comes from the existing guard.
+final manualSyncSpentPilotUuidProvider = Provider<String?>((ref) {
+  final profile = ref
+      .watch(isolatedTransactionSyncConfigurationProvider)
+      ?.profile;
+  ref.watch(isolatedTransactionSyncControllerProvider);
+  if (profile is DevelopmentTransactionPilotProfile &&
+      profile.upload &&
+      profile.uploadLock.existsSync()) {
+    return profile.approvedUuid;
+  }
+  return null;
+});
 
 /// Presentation-only exclusions; the existing service remains authoritative.
 String? manualUploadDisabledReason(TransactionSyncRecord record) {
@@ -112,13 +127,28 @@ class _ControlsState extends ConsumerState<TransactionManualSyncControls> {
         eligibility?.asData != null &&
         (!upload ||
             current != null && manualUploadDisabledReason(current) == null);
-    final rejection = eligibility?.hasError == true
-        ? transactionSyncUiMessage(
-            eligibility!.error is ManualTransactionFailure
-                ? (eligibility.error as ManualTransactionFailure).code
-                : 'unknown',
-          )
-        : null;
+    final spentUuid = ref.watch(manualSyncSpentPilotUuidProvider);
+    String? pilotClosure(Object? error) {
+      if (spentUuid == null ||
+          error is! ManualTransactionFailure ||
+          error.code != 'scope') {
+        return null;
+      }
+      return outcome.confirmedUploadUuid == spentUuid
+          ? 'Pilot Upload selesai; operasi berikutnya memerlukan approval baru.'
+          : 'Percobaan Pilot Upload telah digunakan. Periksa hasil sebelum meminta approval baru.';
+    }
+
+    final eligibilityError = eligibility?.error;
+    final closure = pilotClosure(eligibilityError);
+    final rejection = eligibilityError == null
+        ? null
+        : closure ??
+              transactionSyncUiMessage(
+                eligibilityError is ManualTransactionFailure
+                    ? eligibilityError.code
+                    : 'unknown',
+              );
     final visible = rows
         .where(
           (r) => '${r.number} ${r.uuid} ${r.summary}'.toLowerCase().contains(
@@ -222,12 +252,17 @@ class _ControlsState extends ConsumerState<TransactionManualSyncControls> {
           else
             records!.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => _Notice(
-                icon: Icons.error_outline,
-                text: transactionSyncUiMessage(
-                  e is ManualTransactionFailure ? e.code : 'unknown',
-                ),
-              ),
+              error: (e, _) => pilotClosure(e) != null
+                  ? const _Notice(
+                      icon: Icons.lock_outline,
+                      text: 'Pemilihan record ditutup untuk pilot ini.',
+                    )
+                  : _Notice(
+                      icon: Icons.error_outline,
+                      text: transactionSyncUiMessage(
+                        e is ManualTransactionFailure ? e.code : 'unknown',
+                      ),
+                    ),
               data: (data) {
                 if (data.isEmpty) {
                   return const _Notice(
@@ -404,7 +439,7 @@ class _ControlsState extends ConsumerState<TransactionManualSyncControls> {
               key: const Key('manual-sync-guard-reason'),
               style: TextStyle(
                 fontSize: 12,
-                color: rejection == null
+                color: rejection == null || closure != null
                     ? AppColors.textSecondary
                     : AppColors.error,
               ),
