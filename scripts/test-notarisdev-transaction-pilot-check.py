@@ -2,6 +2,8 @@ import copy
 import json
 from pathlib import Path
 import runpy
+import sqlite3
+import tempfile
 import unittest
 
 
@@ -52,6 +54,30 @@ class PilotCheckTest(unittest.TestCase):
         self.snapshot['permissions']['transaksi']['create'] = 0
         with self.assertRaisesRegex(ValueError, 'permission mismatch'):
             check['check_server'](self.plan, self.snapshot)
+
+    def test_ambiguous_bootstrap_and_upload_never_reopen_execution(self):
+        row = {'id': 4, 'uuid': 'pilot', 'mutation_id': 'frozen', 'payload_sha256': 'hash',
+               'state': 'pending', 'operation': 'create', 'revision': None}
+        receipt = {**row, 'status': 'LOCAL_COMMITTED_PENDING'}
+        status = check['checkpoint_status']
+        self.assertEqual(status([row], receipt, False), 'CHECKPOINT_PRESENT_PENDING')
+        self.assertEqual(status([row], None, False), 'BOOTSTRAP_OUTCOME_REVIEW_REQUIRED')
+        self.assertEqual(status([row], receipt, True), 'UPLOAD_ATTEMPTED_REVIEW_REQUIRED')
+        self.assertEqual(status([{**row, 'payload_sha256': 'changed'}], receipt, False),
+                         'BOOTSTRAP_OUTCOME_REVIEW_REQUIRED')
+
+    def test_check_reader_cannot_write_sqlite(self):
+        with tempfile.TemporaryDirectory(prefix='pilot-check-test-', dir=check['ROOT']) as folder:
+            path = Path(folder) / 'review.sqlite'
+            db = sqlite3.connect(path)
+            db.executescript('PRAGMA user_version=19; CREATE TABLE record(id INTEGER); INSERT INTO record VALUES (1);')
+            db.close()
+            before = path.read_bytes()
+            with check['read_sqlite'](path) as readonly:
+                self.assertEqual(readonly.execute('SELECT count(*) FROM record').fetchone()[0], 1)
+                with self.assertRaises(sqlite3.OperationalError):
+                    readonly.execute('INSERT INTO record VALUES (2)')
+            self.assertEqual(path.read_bytes(), before)
 
 
 if __name__ == '__main__':

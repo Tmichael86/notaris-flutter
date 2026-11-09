@@ -97,6 +97,12 @@ class TransactionManualProfile {
 
   Future<void> verifyRequest(RequestOptions request) async {}
 
+  void validateSelection(
+    String module,
+    ManualSyncDirection direction, [
+    String? uuid,
+  ]) {}
+
   Future<void> validate(AppDatabase db) async {
     final canonical = validateLocation();
     final main = (await db.customSelect('PRAGMA database_list').get())
@@ -237,6 +243,7 @@ class TransactionManualSyncService {
     required String selectedModule,
     required ManualSyncDirection direction,
   }) async {
+    profile.validateSelection(selectedModule, direction);
     final domain = uploadModules[selectedModule];
     if ((direction == ManualSyncDirection.upload && domain == null) ||
         (direction == ManualSyncDirection.download &&
@@ -266,6 +273,15 @@ class TransactionManualSyncService {
       selectedModule: selectedModule,
       direction: ManualSyncDirection.upload,
     );
+    try {
+      profile.validateSelection(
+        selectedModule,
+        ManualSyncDirection.upload,
+        uuid,
+      );
+    } on ManualTransactionFailure {
+      return ['UUID di luar pilot yang disetujui.'];
+    }
     final identity = await db
         .customSelect(
           'SELECT scope FROM transaction_cloud_identity WHERE local_uuid=?',
@@ -306,6 +322,11 @@ class TransactionManualSyncService {
     int maxPages = 1,
   }) async {
     final selectedDomain = uploadModules[selectedModule];
+    profile.validateSelection(
+      selectedModule,
+      direction,
+      expectedLocalUuid ?? '',
+    );
     if ((direction == ManualSyncDirection.upload && selectedDomain == null) ||
         (direction == ManualSyncDirection.download &&
             selectedModule != feedModule)) {

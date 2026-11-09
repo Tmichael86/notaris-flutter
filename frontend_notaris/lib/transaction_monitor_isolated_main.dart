@@ -1,4 +1,5 @@
 import 'services/notarisdev_acceptance_profile.dart';
+import 'services/development_transaction_pilot_profile.dart';
 
 // Explicit Windows debug entry. Never consumes the normal development profile.
 import 'dart:convert';
@@ -65,9 +66,12 @@ Future<void> main() async {
     if (!kDebugMode || !Platform.isWindows) {
       throw const ManualTransactionFailure('scope');
     }
-    final config = await loadIsolatedTransactionUiProfile(
-      const String.fromEnvironment('TRANSACTION_MONITOR_PROFILE'),
-    );
+    const pilotManifest = String.fromEnvironment('DEVELOPMENT_PILOT_MANIFEST');
+    final config = pilotManifest.isEmpty
+        ? await loadIsolatedTransactionUiProfile(
+            const String.fromEnvironment('TRANSACTION_MONITOR_PROFILE'),
+          )
+        : await _loadDevelopmentPilot(pilotManifest);
     runApp(
       ProviderScope(
         overrides: [
@@ -78,7 +82,9 @@ Future<void> main() async {
         child: Directionality(
           textDirection: TextDirection.ltr,
           child: Banner(
-            message: config.profile is NotarisdevAcceptanceProfile
+            message: config.profile is DevelopmentTransactionPilotProfile
+                ? 'DEV notarisdev ONE CREATE PILOT'
+                : config.profile is NotarisdevAcceptanceProfile
                 ? 'DEV notarisdev ISOLATED ACCEPTANCE'
                 : 'DISPOSABLE MANUAL SYNC',
             location: BannerLocation.topEnd,
@@ -99,5 +105,34 @@ Future<void> main() async {
         ),
       ),
     );
+  }
+}
+
+Future<IsolatedTransactionSyncConfiguration> _loadDevelopmentPilot(
+  String manifest,
+) async {
+  final profile = DevelopmentTransactionPilotProfile.open(
+    manifest,
+    const String.fromEnvironment('DEVELOPMENT_PILOT_MANIFEST_SHA256'),
+  );
+  final http = Dio(
+    BaseOptions(
+      baseUrl: profile.baseUrl,
+      followRedirects: false,
+      connectTimeout: const Duration(seconds: 5),
+      receiveTimeout: const Duration(seconds: 15),
+    ),
+  );
+  final config = IsolatedTransactionSyncConfiguration.openDevelopmentPilot(
+    profile: profile,
+    http: http,
+  );
+  try {
+    await profile.validate(config.database);
+    return config;
+  } catch (_) {
+    await config.database.close();
+    http.close();
+    rethrow;
   }
 }

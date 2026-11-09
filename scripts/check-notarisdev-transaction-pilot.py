@@ -124,15 +124,19 @@ def check_local(db, path, plan, snapshot):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--backup', type=Path)
+    parser.add_argument('--inspect', action='store_true')
     args = parser.parse_args()
     plan_bytes = PLAN_PATH.read_bytes()
     plan = json.loads(plan_bytes)
-    snapshot = json.load(sys.stdin)
-    candidate = check_server(plan, snapshot)
     profile = json.loads((ROOT / '.local/notarisdev-profile.json').read_text(encoding='utf-8'))
     require(profile['database'] == 'notarisdev' and profile['port'] == 5432 and profile['fixture'] == 'smoke-v1'
             and profile['generation'] == plan['generation'] == '14af5452144b42d0be2ad88bac41b656', 'Development profile changed')
     path = Path(os.environ['APPDATA']) / 'com.notaris/frontend_notaris/notarisdev' / profile['generation'] / 'offline.sqlite'
+    if args.inspect:
+        print(json.dumps(inspect_checkpoint(path), indent=2))
+        return
+    snapshot = json.load(sys.stdin)
+    candidate = check_server(plan, snapshot)
     closed_file(path)
     before = hashlib.sha256(path.read_bytes()).hexdigest()
     with read_sqlite(path) as db:
@@ -157,6 +161,35 @@ def main():
                       'sqlite': str(path), 'sqlite_sha256': before,
                       'sqlite_logical_sha256': digest, 'backup': backup, 'binding': local,
                       'remaining': remaining}, indent=2))
+
+
+def checkpoint_status(rows, checkpoint, attempted):
+    if attempted:
+        return 'UPLOAD_ATTEMPTED_REVIEW_REQUIRED'
+    if checkpoint and len(rows) == 1:
+        row = rows[0]
+        if (checkpoint['status'] == 'LOCAL_COMMITTED_PENDING' and row['state'] == 'pending'
+                and row['operation'] == 'create' and row['revision'] is None
+                and all(row[key] == checkpoint[key] for key in ('id', 'uuid', 'mutation_id', 'payload_sha256'))):
+            return 'CHECKPOINT_PRESENT_PENDING'
+    return 'BOOTSTRAP_OUTCOME_REVIEW_REQUIRED'
+
+
+def inspect_checkpoint(path):
+    local = ROOT / '.local'
+    receipt = local / 'development-transaction-pilot-checkpoint.json'
+    attempt = local / 'development-transaction-pilot-upload-attempt.lock'
+    checkpoint = json.loads(receipt.read_text(encoding='utf-8')) if receipt.exists() else None
+    with read_sqlite(path) as db:
+        rows = [dict(row) for row in db.execute('''SELECT t.id,t.uuid,p.mutation_id,p.payload,p.state,p.operation,i.revision
+            FROM transaksis t LEFT JOIN transaction_cloud_pending p ON p.local_uuid=t.uuid
+            LEFT JOIN transaction_cloud_identity i ON i.local_uuid=t.uuid WHERE t.catatan=?''', ('PILOT-DEV-NOTARIS-01',))]
+    for row in rows:
+        payload = row.pop('payload')
+        row['payload_sha256'] = hashlib.sha256(payload.encode('utf-8')).hexdigest() if payload is not None else None
+    return {'stage': 'Check', 'status': checkpoint_status(rows, checkpoint, attempt.exists()),
+            'checkpoint_sha256': hashlib.sha256(receipt.read_bytes()).hexdigest() if checkpoint else None,
+            'pilot': rows, 'upload_attempted': attempt.exists()}
 
 
 if __name__ == '__main__':

@@ -28,6 +28,10 @@ func main() {
 
 func run() error {
 	cfg := config.LoadConfig()
+	acceptance := os.Getenv("NOTARIS_UI_ACCEPTANCE_PLAN") != ""
+	if acceptance && (cfg.DBHost != "127.0.0.1" || cfg.DBPort != "5432" || cfg.DBName != "notarisdev" || cfg.Port != "8081" || cfg.PetugasPublisherEnabled) {
+		return errors.New("acceptance requires the exact development target and publisher disabled")
+	}
 	if err := database.ConnectDB(cfg); err != nil {
 		return errors.New("failed to initialize PostgreSQL")
 	}
@@ -65,6 +69,9 @@ func run() error {
 	r := routes.SetupRouter(cfg, healthController, pemohonController, petugasController, kategoriPekerjaanController, jenisPengeluaranController,
 		groupController, userController, authController, meController, sidebarController, sidebarAccessController)
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
+	if acceptance {
+		serverAddr = "127.0.0.1:8081"
+	}
 	fmt.Printf("Server running on port %s\n", cfg.Port)
 	server := &http.Server{Addr: serverAddr, Handler: r}
 	finished := make(chan error, 1)

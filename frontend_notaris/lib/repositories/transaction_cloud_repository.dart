@@ -170,39 +170,45 @@ class TransactionCloudRepository {
     };
   }
 
+  /// Freeze the existing CREATE journal without contacting the server.
+  Future<String> stageCreate(int id) => db.transaction(() async {
+    await _bind();
+    final h = await (db.select(
+      db.transaksis,
+    )..where((t) => t.id.equals(id))).getSingle();
+    if (h.jenisTransaksi != domain) {
+      throw StateError('Transaction domain mismatch');
+    }
+    final identity = await db
+        .customSelect(
+          'SELECT local_uuid FROM transaction_cloud_identity WHERE local_uuid=?',
+          variables: [Variable(h.uuid)],
+        )
+        .get();
+    if (identity.isNotEmpty) {
+      throw StateError('Transaction CREATE already acknowledged');
+    }
+    final pending = await db
+        .customSelect(
+          'SELECT payload FROM transaction_cloud_pending WHERE local_uuid=?',
+          variables: [Variable(h.uuid)],
+        )
+        .getSingleOrNull();
+    if (pending != null) return pending.read<String>('payload');
+    final snapshot = await _snapshot(id, const Uuid().v4());
+    final body = jsonEncode(snapshot);
+    await db.customStatement(
+      "INSERT INTO transaction_cloud_pending(local_uuid,mutation_id,payload,state) VALUES(?,?,?,'pending')",
+      [h.uuid, snapshot['mutation_id'], body],
+    );
+    return body;
+  });
+
+  Future<String> currentCreatePayload(int id, String mutationId) async =>
+      jsonEncode(await _snapshot(id, mutationId));
+
   Future<Map<String, dynamic>> pushCreate(int id) async {
-    final payload = await db.transaction(() async {
-      await _bind();
-      final h = await (db.select(
-        db.transaksis,
-      )..where((t) => t.id.equals(id))).getSingle();
-      if (h.jenisTransaksi != domain) {
-        throw StateError('Transaction domain mismatch');
-      }
-      final identity = await db
-          .customSelect(
-            'SELECT local_uuid FROM transaction_cloud_identity WHERE local_uuid=?',
-            variables: [Variable(h.uuid)],
-          )
-          .get();
-      if (identity.isNotEmpty) {
-        throw StateError('Transaction CREATE already acknowledged');
-      }
-      final pending = await db
-          .customSelect(
-            'SELECT payload FROM transaction_cloud_pending WHERE local_uuid=?',
-            variables: [Variable(h.uuid)],
-          )
-          .getSingleOrNull();
-      if (pending != null) return pending.read<String>('payload');
-      final snapshot = await _snapshot(id, const Uuid().v4());
-      final body = jsonEncode(snapshot);
-      await db.customStatement(
-        "INSERT INTO transaction_cloud_pending(local_uuid,mutation_id,payload,state) VALUES(?,?,?,'pending')",
-        [h.uuid, snapshot['mutation_id'], body],
-      );
-      return body;
-    });
+    final payload = await stageCreate(id);
     final response = await dio.post<Map<String, dynamic>>(
       '/transaksi-$domain/sync/create',
       data: jsonDecode(payload),

@@ -31,6 +31,7 @@ type AcceptanceEvent struct {
 type AcceptancePlan struct {
 	Target string            `json:"target"`
 	Events []AcceptanceEvent `json:"events"`
+	Pilot  *DevelopmentPilot `json:"pilot,omitempty"`
 }
 type AcceptanceGate struct {
 	Plan    AcceptancePlan
@@ -49,8 +50,17 @@ func ReadAcceptancePlan(path, hash string) (*AcceptanceGate, error) {
 		return nil, fmt.Errorf("acceptance hash mismatch")
 	}
 	g := &AcceptanceGate{Hash: strings.ToLower(hash)}
-	if json.Unmarshal(b, &g.Plan) != nil || g.Plan.Target != "127.0.0.1:5432/notarisdev" || len(g.Plan.Events) != 4 {
+	if json.Unmarshal(b, &g.Plan) != nil || g.Plan.Target != "127.0.0.1:5432/notarisdev" {
 		return nil, fmt.Errorf("invalid acceptance plan")
+	}
+	if g.Plan.Pilot != nil {
+		if len(g.Plan.Events) != 0 || !g.Plan.Pilot.valid() {
+			return nil, fmt.Errorf("invalid development pilot")
+		}
+		return g, nil
+	}
+	if len(g.Plan.Events) != 4 {
+		return nil, fmt.Errorf("invalid acceptance event count")
 	}
 	seen := map[string]bool{}
 	ids := map[string]bool{}
@@ -81,17 +91,24 @@ func (g *AcceptanceGate) probe(c *gin.Context) (gin.H, error) {
 		Host   string
 		Port   int
 		Marker string
+		Role   string
 	}
 	if database.DB == nil {
 		return nil, fmt.Errorf("no database")
 	}
-	err := database.DB.WithContext(c.Request.Context()).Raw("SELECT current_database() AS name,host(inet_server_addr()) AS host,inet_server_port() AS port,(SELECT notaris_bersangkutan FROM konfigurasi_umum WHERE id=1) AS marker").Scan(&row).Error
+	err := database.DB.WithContext(c.Request.Context()).Raw("SELECT current_database() AS name,host(inet_server_addr()) AS host,inet_server_port() AS port,current_user AS role,(SELECT notaris_bersangkutan FROM konfigurasi_umum WHERE id=1) AS marker").Scan(&row).Error
 	if err != nil || row.Name != "notarisdev" || row.Host != "127.0.0.1" || row.Port != 5432 || row.Marker != "NOTARISDEV SYNTHETIC v1" {
 		return nil, fmt.Errorf("target mismatch")
 	}
 	var active int64
 	if database.DB.WithContext(c.Request.Context()).Table("users").Where("id=2001 AND group_id=11 AND status=1").Count(&active).Error != nil || active != 1 {
 		return nil, fmt.Errorf("fixture scope mismatch")
+	}
+	if g.Plan.Pilot != nil {
+		if row.Role != "nd_app_14af5452144b" {
+			return nil, fmt.Errorf("pilot role mismatch")
+		}
+		return g.probePilot(c)
 	}
 	for _, t := range []string{"pekerjaan_notaris_sync_outbox", "pekerjaan_ppat_sync_outbox", "transaction_cloud_outbox"} {
 		ids := []string{}
@@ -174,6 +191,17 @@ func (g *AcceptanceGate) guard(cfg config.Config, probe func(*gin.Context) (gin.
 		c.Request.Body.Close()
 		if e != nil || len(b) > 2<<20 {
 			c.AbortWithStatus(422)
+			return
+		}
+		if pilot := g.Plan.Pilot; pilot != nil {
+			// Consume the one dispatch even when the response is ambiguous.
+			g.stopped = true
+			if !pilot.allows(c.Request.Method, c.Request.URL.Path, b) {
+				c.AbortWithStatus(403)
+				return
+			}
+			c.Request.Body = io.NopCloser(bytes.NewReader(b))
+			c.Next()
 			return
 		}
 		var body struct {
