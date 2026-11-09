@@ -227,6 +227,18 @@ void main() {
         );
         await expectLater(prepare(), throwsStateError);
       });
+      test('new CREATE rejects a Master tombstone even with feed evidence', () async {
+        await db.customStatement(
+          'UPDATE pekerjaan_$domain SET status=0,deleted_at=1',
+        );
+        await db.customStatement(
+          'UPDATE pekerjaan_${domain}_sync_identity SET revision=2',
+        );
+        await db.customStatement(
+          "INSERT INTO pekerjaan_${domain}_sync_feed(scope,cursor) VALUES('master-scope',2)",
+        );
+        await expectLater(prepare(), throwsStateError);
+      });
       test('rejects wrong scope and unresolved officer journal', () async {
         await db.customStatement(
           "UPDATE petugas_sync_feed SET scope='other-device'",

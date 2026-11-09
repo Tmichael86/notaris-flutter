@@ -810,9 +810,26 @@ class TransactionCloudRepository {
       if (owned != null && owned.read<int>('transaksi_id') != id) {
         throw StateError('Detail UUID belongs to another transaction');
       }
+      // A clean tombstone with a scoped, advanced Master feed and no local
+      // mutation journal is the state produced by Master pull. Push ACKs keep
+      // their journal, so a locally deleted or ACK-only Master is insufficient.
+      // Keep the retained price/category UUID link; the Transaction event owns
+      // its historical values. This lookup never changes the Master.
       final jobs = await db
           .customSelect(
-            "SELECT p.id FROM pekerjaan_$eventDomain p JOIN pekerjaan_${eventDomain}_sync_identity i ON i.local_uuid=p.uuid JOIN pekerjaan_${eventDomain}_harga h ON h.pekerjaan_${eventDomain}_id=p.id JOIN pekerjaan_kategori c ON c.id=h.kategori_pekerjaan_id WHERE i.cloud_uuid=? AND i.scope=? AND i.revision>0 AND p.status=1 AND p.deleted_at IS NULL AND p.is_sync_dirty=0 AND h.uuid=? AND h.status=1 AND h.deleted_at IS NULL AND h.is_sync_dirty=0 AND c.uuid=? AND c.status=1 AND c.deleted_at IS NULL AND c.is_sync_dirty=0 AND NOT EXISTS(SELECT 1 FROM pekerjaan_${eventDomain}_sync_pending m WHERE m.local_uuid=p.uuid AND m.state='pending')",
+            '''SELECT p.id FROM pekerjaan_$eventDomain p
+            JOIN pekerjaan_${eventDomain}_sync_identity i ON i.local_uuid=p.uuid
+            JOIN pekerjaan_${eventDomain}_harga h ON h.pekerjaan_${eventDomain}_id=p.id
+            JOIN pekerjaan_kategori c ON c.id=h.kategori_pekerjaan_id
+            WHERE i.cloud_uuid=? AND i.scope=? AND i.revision>0 AND p.is_sync_dirty=0
+              AND h.uuid=? AND h.status=1 AND h.deleted_at IS NULL AND h.is_sync_dirty=0
+              AND c.uuid=? AND c.status=1 AND c.deleted_at IS NULL AND c.is_sync_dirty=0
+              AND NOT EXISTS(SELECT 1 FROM pekerjaan_${eventDomain}_sync_pending m
+                WHERE m.local_uuid=p.uuid AND m.state='pending')
+              AND ((p.status=1 AND p.deleted_at IS NULL)
+                OR (p.status=0 AND p.deleted_at IS NOT NULL AND i.revision>1 AND i.local_uuid=i.cloud_uuid
+                  AND EXISTS(SELECT 1 FROM pekerjaan_${eventDomain}_sync_feed f WHERE f.scope=i.scope AND f.cursor>=i.revision)
+                  AND NOT EXISTS(SELECT 1 FROM pekerjaan_${eventDomain}_sync_pending m WHERE m.local_uuid=p.uuid)))''',
             variables: [
               Variable(d['job_uuid'] as String),
               Variable(_masterScopeFor(eventDomain)),

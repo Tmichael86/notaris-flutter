@@ -563,6 +563,122 @@ void main() {
     );
     expect((await db.select(db.transaksis).get()).length, 1);
   });
+  group('historical Master references', () {
+    late Map<String, dynamic> historical;
+    late Map<String, dynamic> create;
+
+    void serve(List<Map<String, dynamic>> changes) {
+      transport.respond = (_) async => Transport.json({
+        'changes': changes,
+        'next_cursor': changes.length,
+        'has_more': false,
+      }, 200);
+    }
+
+    setUp(() async {
+      await run(ManualSyncDirection.upload, selectedId: id);
+      historical =
+          jsonDecode(jsonEncode(transport.aggregate)) as Map<String, dynamic>;
+      historical['uuid'] = '00000000-0000-4000-8000-000000000091';
+      historical['mutation_id'] = '00000000-0000-4000-8000-000000000092';
+      historical['final_number'] = '1000611260002';
+      historical['details'][0]['uuid'] = '00000000-0000-4000-8000-000000000093';
+      historical['payments'][0]['uuid'] =
+          '00000000-0000-4000-8000-000000000094';
+      create = {
+        'sequence': 1,
+        'operation': 'create',
+        'revision': 1,
+        'aggregate': historical,
+      };
+      await db.customStatement(
+        'UPDATE pekerjaan_notaris SET status=0,deleted_at=1',
+      );
+      await db.customStatement(
+        'UPDATE pekerjaan_notaris_sync_identity SET revision=2',
+      );
+      await db.customStatement(
+        'INSERT INTO pekerjaan_notaris_sync_feed(scope,cursor) VALUES(?,2)',
+        [profile.masterScope],
+      );
+    });
+
+    test('replays the snapshot without reactivating the Master', () async {
+      serve([create]);
+      final result = await run(ManualSyncDirection.download);
+      expect(result.cursor, 1);
+      expect(result.count, 1);
+      final detail = (await db.select(db.transaksiDetails).get()).singleWhere(
+        (row) => row.uuid == historical['details'][0]['uuid'],
+      );
+      expect(detail.pekerjaanNotarisId, 40);
+      expect(detail.hargaUuid, price);
+      expect(detail.kategoriUuid, category);
+      expect(detail.namaPekerjaanSnapshot, 'Snapshot');
+      final master = await db.select(db.pekerjaanNotarisLocals).getSingle();
+      expect(master.status, 0);
+      expect(master.deletedAt, isNotNull);
+    });
+
+    for (final entry in {
+      'unknown Master': 'DELETE FROM pekerjaan_notaris_sync_identity',
+      'scope mismatch':
+          "UPDATE pekerjaan_notaris_sync_identity SET scope='other'",
+      'missing publication evidence':
+          'UPDATE pekerjaan_notaris_sync_feed SET cursor=1',
+      'local delete ACK': "INSERT INTO pekerjaan_notaris_sync_pending(local_uuid,mutation_id,payload,state) SELECT uuid,'ack','{}','acked' FROM pekerjaan_notaris",
+    }.entries) {
+      test('rejects ${entry.key} without advancing the cursor', () async {
+        await db.customStatement(entry.value);
+        serve([create]);
+        await expectLater(
+          run(ManualSyncDirection.download),
+          failure('validation'),
+        );
+        expect(
+          (await db
+                  .customSelect('SELECT cursor FROM transaction_cloud_feed')
+                  .getSingle())
+              .read<int>('cursor'),
+          0,
+        );
+        expect((await db.select(db.transaksis).getSingle()).id, id);
+      });
+    }
+
+    test(
+      'dirty second event rolls back the preceding historical CREATE',
+      () async {
+        await db.customStatement(
+          "UPDATE transaksis SET is_sync_dirty=1,catatan='local edit'",
+        );
+        final update = {...transport.aggregate!, 'expected_revision': 1};
+        serve([
+          create,
+          {
+            'sequence': 2,
+            'operation': 'update',
+            'revision': 2,
+            'aggregate': update,
+          },
+        ]);
+        await expectLater(
+          run(ManualSyncDirection.download),
+          failure('conflict'),
+        );
+        expect(
+          (await db
+                  .customSelect('SELECT cursor FROM transaction_cloud_feed')
+                  .getSingle())
+              .read<int>('cursor'),
+          0,
+        );
+        final local = await db.select(db.transaksis).getSingle();
+        expect(local.isSyncDirty, isTrue);
+        expect(local.catatan, 'local edit');
+      },
+    );
+  });
   test('unselected dirty PPAT is not uploaded or marked clean', () async {
     await db.customStatement(
       "INSERT INTO transaksis(uuid,no_akta,total,jenis_transaksi) VALUES('00000000-0000-4000-8000-000000000099','PPAT-OFFLINE',100,'ppat')",
