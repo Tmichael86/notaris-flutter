@@ -58,6 +58,39 @@ class TransactionRepository {
         .watch();
   }
 
+  /// Actual receipts by payment date, including installments on earlier sales.
+  Stream<double> watchReceivedPayments(int year) {
+    final payments = db.transaksiRiwayatPembayarans;
+    final transactions = db.transaksis;
+    final sum = payments.nominal.sum();
+    final query =
+        db.selectOnly(payments).join([
+            innerJoin(
+              transactions,
+              transactions.id.equalsExp(payments.transaksiId),
+              useColumns: false,
+            ),
+          ])
+          ..addColumns([sum])
+          ..where(
+            payments.status.equals(1) &
+                payments.deletedAt.isNull() &
+                transactions.deletedAt.isNull() &
+                transactions.statusTransaksi
+                    .trim()
+                    .lower()
+                    .equals('dihapus')
+                    .not() &
+                payments.tanggalPembayaran.isBiggerOrEqualValue(
+                  DateTime(year),
+                ) &
+                payments.tanggalPembayaran.isSmallerThanValue(
+                  DateTime(year + 1),
+                ),
+          );
+    return query.watchSingle().map((row) => row.read(sum) ?? 0);
+  }
+
   Future<Transaksi?> findById(int id) {
     return (db.select(
       db.transaksis,

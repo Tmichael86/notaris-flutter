@@ -618,7 +618,14 @@ class _AppShellState extends State<AppShell> {
   Widget _buildContent() {
     switch (selectedMenu) {
       case 'Dashboard':
-        return const DashboardDesktopScreen();
+        final canReadTransactions =
+            widget.session != null && _canReadMenu('Transaksi');
+        return DashboardDesktopScreen(
+          canReadTransactions: canReadTransactions,
+          onOpenTransactions: canReadTransactions
+              ? () => _selectMenu('Transaksi')
+              : null,
+        );
       case 'Transaksi':
         return const TransactionDesktopScreen();
       case 'Monitoring':

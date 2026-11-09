@@ -12,10 +12,15 @@ final transactionsProvider = StreamProvider.autoDispose<List<Transaksi>>((ref) {
   return ref.watch(transactionRepositoryProvider).watchAll();
 });
 
+final receivedPaymentsProvider = StreamProvider.autoDispose.family<double, int>(
+  (ref, year) =>
+      ref.watch(transactionRepositoryProvider).watchReceivedPayments(year),
+);
+
 final transactionControllerProvider =
     AsyncNotifierProvider<TransactionController, void>(
-  TransactionController.new,
-);
+      TransactionController.new,
+    );
 
 class TransactionController extends AsyncNotifier<void> {
   @override
