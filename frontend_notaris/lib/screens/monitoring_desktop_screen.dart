@@ -1,48 +1,155 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../models/auth_session.dart';
+import '../models/transaction_monitoring.dart';
+import '../providers/auth_provider.dart';
+import '../providers/transaction_provider.dart';
+import '../widgets/transaksi_proses_list.dart';
 import '../core/theme/app_colors.dart';
+
 import 'package:frontend_notaris/core/widgets/searchable_dropdown.dart';
+
 import '../core/utils/debouncer.dart';
 
 enum MonitoringTransactionType { all, notaris, ppat }
 
-class DummyMonitoringItem {
-  final String date;
-  final String transactionNumber;
-  final String nik;
-  final String applicant;
-  final String job;
-  final String category;
-  final String officer;
-  final String status;
-  final String nominal;
-
-  const DummyMonitoringItem({
-    required this.date,
-    required this.transactionNumber,
-    required this.nik,
-    required this.applicant,
-    required this.job,
-    required this.category,
-    required this.officer,
-    required this.status,
-    required this.nominal,
-  });
+bool _canReadTransactions(AuthSession? session) {
+  bool yes(dynamic value) => value == true || value == 1 || value == '1';
+  return session?.sidebars.any((entry) {
+        final sidebar = entry['sidebar'];
+        return sidebar is Map &&
+            sidebar['sidebar_kode'] == 'transaksi' &&
+            (sidebar['status'] == null || yes(sidebar['status'])) &&
+            yes(entry['read']);
+      }) ??
+      false;
 }
 
-class MonitoringDesktopScreen extends StatefulWidget {
+String _present(String? value) =>
+    value == null || value.trim().isEmpty ? '—' : value;
+String _monitoringDate(DateTime? value) {
+  if (value == null) return '—';
+  final date = value.toLocal();
+  return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+}
+
+String _monitoringMoney(double amount) =>
+    'Rp ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.')}';
+
+class MonitoringDesktopScreen extends ConsumerStatefulWidget {
   const MonitoringDesktopScreen({super.key});
 
   @override
-  State<MonitoringDesktopScreen> createState() =>
+  ConsumerState<MonitoringDesktopScreen> createState() =>
       _MonitoringDesktopScreenState();
 }
 
-class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
+class _MonitoringDetailDialog extends ConsumerWidget {
+  const _MonitoringDetailDialog(this.transactionId);
+  final int transactionId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final canRead = _canReadTransactions(
+      ref.watch(authControllerProvider.select((state) => state.session)),
+    );
+    return AlertDialog(
+      scrollable: true,
+      title: const Text('Detail Monitoring'),
+      content: SizedBox(
+        width: 500,
+        child: canRead
+            ? ref
+                  .watch(monitoringTransactionProvider(transactionId))
+                  .when(
+                    loading: () => const Text('Memuat detail transaksi…'),
+                    error: (_, _) =>
+                        const Text('Detail transaksi gagal dimuat.'),
+                    data: (row) => row == null
+                        ? const Text('Transaksi sudah tidak tersedia.')
+                        : _buildDetail(context, ref, row),
+                  )
+            : const Text('Izin baca Transaksi diperlukan.'),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Tutup'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetail(BuildContext context, WidgetRef ref, MonitoringRow row) {
+    final transaction = row.transaction;
+    final kind = switch (transaction.jenisTransaksi) {
+      'notaris' => 'Notaris',
+      'ppat' => 'PPAT',
+      _ => _present(transaction.jenisTransaksi),
+    };
+    final details = ref.watch(monitoringDetailsProvider(transactionId));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final (label, value) in [
+          ('No. Transaksi', transaction.noAkta),
+          ('Jenis', kind),
+          ('Tanggal', _monitoringDate(transaction.tanggalTransaksi)),
+          ('Jatuh Tempo', _monitoringDate(transaction.tanggalJatuhTempo)),
+          ('NIK', _present(row.nik)),
+          ('Pemohon', _present(row.applicant)),
+          ('Petugas', _present(row.officer)),
+          ('Nominal', _monitoringMoney(transaction.total)),
+          ('Status', _present(transaction.statusTransaksi)),
+        ])
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text('$label: $value'),
+          ),
+        const Divider(),
+        Text('Pekerjaan', style: Theme.of(context).textTheme.titleMedium),
+        details.when(
+          loading: () => const Text('Memuat pekerjaan…'),
+          error: (_, _) => const Text('Pekerjaan gagal dimuat.'),
+          data: (jobs) => jobs.isEmpty
+              ? const Text('Belum ada detail pekerjaan aktif.')
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final job in jobs) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        _present(job.namaPekerjaanSnapshot),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text('Kategori: ${_present(job.kategoriSnapshot)}'),
+                      TransaksiProsesList(
+                        key: ValueKey(job.uuid),
+                        transactionId: transactionId,
+                        detailUuid: job.uuid,
+                        fallbackProcesses: const [],
+                        embedded: true,
+                      ),
+                    ],
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MonitoringDesktopScreenState
+    extends ConsumerState<MonitoringDesktopScreen> {
   MonitoringTransactionType selectedType = MonitoringTransactionType.all;
-  String selectedStatus = 'Semua Status';
-  String selectedOfficer = 'Semua Petugas';
-  String selectedCategory = 'Semua Kategori';
-  String selectedJob = 'Semua Pekerjaan';
+  String selectedStatus = '', selectedCategory = '', selectedJob = '';
+  int selectedOfficer = 0, _pageIndex = 0;
+  DateTime? _from, _until;
+
+  String get _domain =>
+      selectedType == MonitoringTransactionType.all ? '' : selectedType.name;
 
   final TextEditingController searchController = TextEditingController();
   final ScrollController tableHorizontalController = ScrollController();
@@ -50,179 +157,48 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
 
   String _searchQuery = '';
 
-  final List<DummyMonitoringItem> monitoringData = const [
-    DummyMonitoringItem(
-      date: '11/09/2026',
-      transactionNumber: 'NTRX-2026-0001',
-      nik: '3505010101000001',
-      applicant: 'Budi Santoso',
-      job: 'Akta Jual Beli',
-      category: 'Jual Beli',
-      officer: 'Rina Wulandari',
-      status: 'Selesai',
-      nominal: 'Rp 1.500.000',
-    ),
-    DummyMonitoringItem(
-      date: '11/09/2026',
-      transactionNumber: 'NTRX-2026-0002',
-      nik: '3505010101000002',
-      applicant: 'Siti Aminah',
-      job: 'Akta Kuasa',
-      category: 'Kuasa',
-      officer: 'Dimas Saputra',
-      status: 'Belum Selesai',
-      nominal: 'Rp 750.000',
-    ),
-    DummyMonitoringItem(
-      date: '10/09/2026',
-      transactionNumber: 'PTRX-2026-0001',
-      nik: '3505010101000003',
-      applicant: 'Andi Pratama',
-      job: 'Akta Jual Beli Tanah',
-      category: 'Jual Beli',
-      officer: 'Sari Anggraini',
-      status: 'Belum Selesai',
-      nominal: 'Rp 2.500.000',
-    ),
-    DummyMonitoringItem(
-      date: '09/09/2026',
-      transactionNumber: 'NTRX-2026-0003',
-      nik: '3505010101000004',
-      applicant: 'Dewi Lestari',
-      job: 'Akta Hibah',
-      category: 'Hibah',
-      officer: 'Rina Wulandari',
-      status: 'Selesai',
-      nominal: 'Rp 1.250.000',
-    ),
-    DummyMonitoringItem(
-      date: '08/09/2026',
-      transactionNumber: 'PTRX-2026-0002',
-      nik: '3505010101000005',
-      applicant: 'Agus Setiawan',
-      job: 'Akta Hibah Tanah',
-      category: 'Hibah',
-      officer: 'Dimas Saputra',
-      status: 'Selesai',
-      nominal: 'Rp 2.000.000',
-    ),
-    DummyMonitoringItem(
-      date: '07/09/2026',
-      transactionNumber: 'NTRX-2026-0004',
-      nik: '3505010101000006',
-      applicant: 'Fajar Nugroho',
-      job: 'Akta Waris',
-      category: 'Waris',
-      officer: 'Sari Anggraini',
-      status: 'Belum Selesai',
-      nominal: 'Rp 1.000.000',
-    ),
-    DummyMonitoringItem(
-      date: '06/09/2026',
-      transactionNumber: 'PTRX-2026-0003',
-      nik: '3505010101000007',
-      applicant: 'Maya Putri',
-      job: 'Akta Pembagian Hak Bersama',
-      category: 'Pembagian Hak',
-      officer: 'Rina Wulandari',
-      status: 'Belum Selesai',
-      nominal: 'Rp 2.250.000',
-    ),
-  ];
-
-  List<DummyMonitoringItem> get filteredData {
-    final query = _searchQuery.trim().toLowerCase();
-
-    return monitoringData.where((item) {
-      final matchesType = selectedType == MonitoringTransactionType.all ||
-          (selectedType == MonitoringTransactionType.notaris &&
-              item.transactionNumber.startsWith('NTRX')) ||
-          (selectedType == MonitoringTransactionType.ppat &&
-              item.transactionNumber.startsWith('PTRX'));
-
-      final matchesStatus =
-          selectedStatus == 'Semua Status' || item.status == selectedStatus;
-
-      final matchesOfficer =
-          selectedOfficer == 'Semua Petugas' || item.officer == selectedOfficer;
-
-      final matchesCategory = selectedCategory == 'Semua Kategori' ||
-          item.category == selectedCategory;
-
-      final matchesJob =
-          selectedJob == 'Semua Pekerjaan' || item.job == selectedJob;
-
-      final matchesSearch = query.isEmpty ||
-          item.transactionNumber.toLowerCase().contains(query) ||
-          item.nik.toLowerCase().contains(query) ||
-          item.applicant.toLowerCase().contains(query) ||
-          item.job.toLowerCase().contains(query);
-
-      return matchesType &&
-          matchesStatus &&
-          matchesOfficer &&
-          matchesCategory &&
-          matchesJob &&
-          matchesSearch;
-    }).toList();
-  }
-
-  List<String> get jobOptions {
-    if (selectedType == MonitoringTransactionType.notaris) {
-      return [
-        'Semua Pekerjaan',
-        'Akta Jual Beli',
-        'Akta Kuasa',
-        'Akta Hibah',
-        'Akta Waris',
-      ];
-    }
-
-    if (selectedType == MonitoringTransactionType.ppat) {
-      return [
-        'Semua Pekerjaan',
-        'Akta Jual Beli Tanah',
-        'Akta Hibah Tanah',
-        'Akta Pembagian Hak Bersama',
-      ];
-    }
-
-    return [
-      'Semua Pekerjaan',
-      'Akta Jual Beli',
-      'Akta Kuasa',
-      'Akta Hibah',
-      'Akta Waris',
-      'Akta Jual Beli Tanah',
-      'Akta Hibah Tanah',
-      'Akta Pembagian Hak Bersama',
-    ];
-  }
-
   void _changeType(MonitoringTransactionType type) {
     setState(() {
       selectedType = type;
-      selectedJob = 'Semua Pekerjaan';
+      selectedJob = selectedCategory = '';
+      selectedOfficer = _pageIndex = 0;
     });
   }
 
   void _resetFilter() {
     _searchDebouncer.cancel();
-
     setState(() {
       selectedType = MonitoringTransactionType.all;
-      selectedStatus = 'Semua Status';
-      selectedOfficer = 'Semua Petugas';
-      selectedCategory = 'Semua Kategori';
-      selectedJob = 'Semua Pekerjaan';
-      _searchQuery = '';
+      selectedStatus = selectedCategory = selectedJob = _searchQuery = '';
+      selectedOfficer = _pageIndex = 0;
+      _from = _until = null;
       searchController.clear();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final data = filteredData;
+    if (!_canReadTransactions(
+      ref.watch(authControllerProvider.select((state) => state.session)),
+    )) {
+      return const Padding(
+        padding: EdgeInsets.all(20),
+        child: Text('Izin baca Transaksi diperlukan untuk membuka Monitoring.'),
+      );
+    }
+    final filter = (
+      domain: _domain,
+      status: selectedStatus,
+      search: _searchQuery,
+      job: selectedJob,
+      category: selectedCategory,
+      officerId: selectedOfficer,
+      from: _from,
+      until: _until,
+      index: _pageIndex,
+    );
+    final data = ref.watch(monitoringPageProvider(filter));
+    final options = ref.watch(monitoringOptionsProvider(_domain));
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -236,7 +212,7 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
             children: [
               _buildPageHeader(mobile: mobile),
               const SizedBox(height: 18),
-              _buildFilters(mobile: mobile),
+              _buildFilters(options, mobile: mobile),
               const SizedBox(height: 18),
               _buildTable(data, mobile: mobile),
             ],
@@ -247,20 +223,17 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
   }
 
   Widget _buildPageHeader({required bool mobile}) {
-    final excelButton = ElevatedButton.icon(
-      onPressed: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Export Excel masih berupa dummy.'),
-          ),
-        );
-      },
-      icon: const Icon(Icons.table_view_outlined, size: 18),
-      label: const Text('Excel'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.green.shade600,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+    final excelButton = Tooltip(
+      message: 'Export Excel belum tersedia.',
+      child: ElevatedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.table_view_outlined, size: 18),
+        label: const Text('Excel'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.green.shade600,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
+        ),
       ),
     );
 
@@ -282,10 +255,7 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
           const SizedBox(height: 5),
           Text(
             'Monitoring  |  Page',
-            style: TextStyle(
-              color: Colors.grey.shade500,
-              fontSize: 12,
-            ),
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
           ),
         ],
       );
@@ -300,10 +270,7 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
         const SizedBox(width: 14),
         Text(
           'Monitoring  |  Page',
-          style: TextStyle(
-            color: Colors.grey.shade500,
-            fontSize: 13,
-          ),
+          style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
         ),
         const Spacer(),
         excelButton,
@@ -311,7 +278,11 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
     );
   }
 
-  Widget _buildFilters({required bool mobile}) {
+  Widget _buildFilters(
+    AsyncValue<MonitoringOptions> options, {
+    required bool mobile,
+  }) {
+    final choices = options.asData?.value;
     return _panel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -329,10 +300,7 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
                       'Notaris',
                       MonitoringTransactionType.notaris,
                     ),
-                    _typeFilterButton(
-                      'PPAT',
-                      MonitoringTransactionType.ppat,
-                    ),
+                    _typeFilterButton('PPAT', MonitoringTransactionType.ppat),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -351,10 +319,7 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
               children: [
                 _typeFilterButton('Semua', MonitoringTransactionType.all),
                 const SizedBox(width: 8),
-                _typeFilterButton(
-                  'Notaris',
-                  MonitoringTransactionType.notaris,
-                ),
+                _typeFilterButton('Notaris', MonitoringTransactionType.notaris),
                 const SizedBox(width: 8),
                 _typeFilterButton('PPAT', MonitoringTransactionType.ppat),
                 const Spacer(),
@@ -366,6 +331,11 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
               ],
             ),
           const SizedBox(height: 16),
+          if (options.isLoading) const Text('Memuat pilihan filter…'),
+          if (options.hasError)
+            const Text(
+              'Pilihan filter pekerjaan, kategori, dan petugas gagal dimuat.',
+            ),
           LayoutBuilder(
             builder: (context, constraints) {
               const gap = 10.0;
@@ -379,76 +349,58 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
                 children: [
                   SizedBox(
                     width: fieldWidth,
-                    child: _dateField('Dari Tanggal'),
+                    child: _dateField('Dari Tanggal', from: true),
                   ),
                   SizedBox(
                     width: fieldWidth,
-                    child: _dateField('Sampai Tanggal'),
+                    child: _dateField('Sampai Tanggal', from: false),
                   ),
                   SizedBox(
                     width: fieldWidth,
-                    child: SearchableDropdown<String>(
-                      value: selectedJob,
-                      items: jobOptions,
-                      label: 'Pekerjaan',
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => selectedJob = value);
-                        }
-                      },
+                    child: _filterDropdown(
+                      'Pekerjaan',
+                      selectedJob,
+                      choices?.jobs,
+                      (value) => selectedJob = value,
                     ),
                   ),
                   SizedBox(
                     width: fieldWidth,
-                    child: SearchableDropdown<String>(
-                      value: selectedCategory,
-                      items: const [
-                        'Semua Kategori',
-                        'Jual Beli',
-                        'Kuasa',
-                        'Hibah',
-                        'Waris',
-                        'Pembagian Hak',
-                      ],
-                      label: 'Kategori',
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => selectedCategory = value);
-                        }
-                      },
+                    child: _filterDropdown(
+                      'Kategori',
+                      selectedCategory,
+                      choices?.categories,
+                      (value) => selectedCategory = value,
                     ),
                   ),
                   SizedBox(
                     width: fieldWidth,
-                    child: SearchableDropdown<String>(
-                      value: selectedStatus,
-                      items: const [
-                        'Semua Status',
-                        'Selesai',
-                        'Belum Selesai',
-                      ],
-                      label: 'Status',
-                      onChanged: (value) {
-                        if (value != null) {
-                          setState(() => selectedStatus = value);
-                        }
-                      },
-                    ),
+                    child: _filterDropdown('Status', selectedStatus, const [
+                      'Baru',
+                      'Dalam Proses',
+                      'Selesai',
+                    ], (value) => selectedStatus = value),
                   ),
                   SizedBox(
                     width: fieldWidth,
-                    child: SearchableDropdown<String>(
+                    child: SearchableDropdown<int>(
                       value: selectedOfficer,
-                      items: const [
-                        'Semua Petugas',
-                        'Rina Wulandari',
-                        'Dimas Saputra',
-                        'Sari Anggraini',
-                      ],
+                      items: {
+                        0,
+                        ...?choices?.officers.keys,
+                        selectedOfficer,
+                      }.toList(),
                       label: 'Petugas',
+                      enabled: choices != null,
+                      itemLabel: (id) => id == 0
+                          ? 'Semua Petugas'
+                          : choices?.officers[id] ?? 'Petugas tidak tersedia',
                       onChanged: (value) {
                         if (value != null) {
-                          setState(() => selectedOfficer = value);
+                          setState(() {
+                            selectedOfficer = value;
+                            _pageIndex = 0;
+                          });
                         }
                       },
                     ),
@@ -462,19 +414,14 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
     );
   }
 
-  Widget _typeFilterButton(
-    String label,
-    MonitoringTransactionType type,
-  ) {
+  Widget _typeFilterButton(String label, MonitoringTransactionType type) {
     final selected = selectedType == type;
 
     return OutlinedButton(
       onPressed: () => _changeType(type),
       style: OutlinedButton.styleFrom(
-        backgroundColor:
-            selected ? AppColors.primaryConfirm : Colors.white,
-        foregroundColor:
-            selected ? Colors.white : AppColors.primaryConfirm,
+        backgroundColor: selected ? AppColors.primaryConfirm : Colors.white,
+        foregroundColor: selected ? Colors.white : AppColors.primaryConfirm,
         side: BorderSide(color: AppColors.primaryConfirm),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
       ),
@@ -482,30 +429,83 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
     );
   }
 
-  Widget _dateField(String label) {
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(7),
+  Widget _filterDropdown(
+    String label,
+    String selected,
+    List<String>? values,
+    ValueChanged<String> apply,
+  ) {
+    return SearchableDropdown<String>(
+      value: selected,
+      items: {'', ...?values, selected}.toList(),
+      label: label,
+      enabled: values != null,
+      itemLabel: (value) => value.isEmpty ? 'Semua $label' : value,
+      onChanged: (value) {
+        if (value != null) {
+          setState(() {
+            apply(value);
+            _pageIndex = 0;
+          });
+        }
+      },
+    );
+  }
+
+  Widget _dateField(String label, {required bool from}) {
+    return InkWell(
+      onTap: () async {
+        final first = from ? DateTime(1900) : _from ?? DateTime(1900);
+        final last = from
+            ? _until ?? DateTime(9999, 12, 31)
+            : DateTime(9999, 12, 31);
+        final initial =
+            (from ? _from : _until) ?? DateUtils.dateOnly(DateTime.now());
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: initial.isBefore(first)
+              ? first
+              : initial.isAfter(last)
+              ? last
+              : initial,
+          firstDate: first,
+          lastDate: last,
+        );
+        if (picked != null && mounted) {
+          setState(() {
+            if (from) {
+              _from = picked;
+            } else {
+              _until = picked;
+            }
+            _pageIndex = 0;
+          });
+        }
+      },
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(7)),
+          suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 12,
+          ),
         ),
-        suffixIcon: const Icon(
-          Icons.calendar_today_outlined,
-          size: 18,
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 12,
-        ),
+        child: Text(_monitoringDate(from ? _from : _until)),
       ),
-      child: const Text('11/09/2026'),
     );
   }
 
   Widget _buildTable(
-    List<DummyMonitoringItem> data, {
+    AsyncValue<MonitoringPage> result, {
     required bool mobile,
   }) {
+    final page = result.asData?.value;
+    final data = page?.rows ?? [];
+    final pageCount = page == null
+        ? 0
+        : (page.total + monitoringPageSize - 1) ~/ monitoringPageSize;
     final searchField = SizedBox(
       width: mobile ? double.infinity : 260,
       child: TextField(
@@ -513,16 +513,17 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
         onChanged: (value) {
           _searchDebouncer.run(() {
             if (mounted) {
-              setState(() => _searchQuery = value);
+              setState(() {
+                _searchQuery = value;
+                _pageIndex = 0;
+              });
             }
           });
         },
         decoration: InputDecoration(
           hintText: 'Cari data...',
           prefixIcon: const Icon(Icons.search, size: 20),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(7),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(7)),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 10,
             vertical: 10,
@@ -551,7 +552,7 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
                       ),
                     ),
                     Text(
-                      '${data.length} data',
+                      page == null ? '—' : '${page.total} data',
                       style: TextStyle(
                         color: Colors.grey.shade500,
                         fontSize: 13,
@@ -572,80 +573,97 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  '${data.length} data',
-                  style: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: 13,
-                  ),
+                  page == null ? '—' : '${page.total} data',
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
                 ),
                 const Spacer(),
                 searchField,
               ],
             ),
           const SizedBox(height: 16),
-          Scrollbar(
-            controller: tableHorizontalController,
-            thumbVisibility: true,
-            child: SingleChildScrollView(
+          if (page == null)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                result.hasError
+                    ? 'Data Monitoring gagal dimuat.'
+                    : 'Memuat data Monitoring…',
+              ),
+            )
+          else if (data.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Tidak ada transaksi yang sesuai.'),
+            )
+          else
+            Scrollbar(
               controller: tableHorizontalController,
-              physics: const ClampingScrollPhysics(),
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.only(bottom: 8),
-              child: DataTable(
-                headingRowColor:
-                    WidgetStateProperty.all(const Color(0xFFF5F5F5)),
-                columnSpacing: mobile ? 28 : 24,
-                horizontalMargin: 12,
-                columns: const [
-                  DataColumn(label: Text('#')),
-                  DataColumn(label: Text('Tanggal')),
-                  DataColumn(label: Text('No. Transaksi')),
-                  DataColumn(label: Text('NIK')),
-                  DataColumn(label: Text('Pemohon')),
-                  DataColumn(label: Text('Pekerjaan')),
-                  DataColumn(label: Text('Kategori')),
-                  DataColumn(label: Text('Petugas')),
-                  DataColumn(label: Text('Nominal')),
-                  DataColumn(label: Text('Status')),
-                  DataColumn(label: Text('Aksi')),
-                ],
-                rows: List.generate(
-                  data.length,
-                  (index) {
+              thumbVisibility: true,
+              child: SingleChildScrollView(
+                controller: tableHorizontalController,
+                physics: const ClampingScrollPhysics(),
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.only(bottom: 8),
+                child: DataTable(
+                  headingRowColor: WidgetStateProperty.all(
+                    const Color(0xFFF5F5F5),
+                  ),
+                  columnSpacing: mobile ? 28 : 24,
+                  horizontalMargin: 12,
+                  columns: const [
+                    DataColumn(label: Text('#')),
+                    DataColumn(label: Text('Tanggal')),
+                    DataColumn(label: Text('No. Transaksi')),
+                    DataColumn(label: Text('NIK')),
+                    DataColumn(label: Text('Pemohon')),
+                    DataColumn(label: Text('Pekerjaan')),
+                    DataColumn(label: Text('Kategori')),
+                    DataColumn(label: Text('Petugas')),
+                    DataColumn(label: Text('Nominal')),
+                    DataColumn(label: Text('Status')),
+                    DataColumn(label: Text('Aksi')),
+                  ],
+                  rows: List.generate(data.length, (index) {
                     final item = data[index];
-                    final isDone = item.status == 'Selesai';
+                    final transaction = item.transaction;
+                    final status = transaction.statusTransaksi;
+                    final isDone = status.trim().toLowerCase() == 'selesai';
 
                     return DataRow(
                       cells: [
-                        DataCell(Text('${index + 1}')),
-                        DataCell(Text(item.date)),
                         DataCell(
                           Text(
-                            item.transactionNumber,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                            ),
+                            '${page.index * monitoringPageSize + index + 1}',
                           ),
                         ),
-                        DataCell(Text(item.nik)),
-                        DataCell(Text(item.applicant)),
+                        DataCell(
+                          Text(_monitoringDate(transaction.tanggalTransaksi)),
+                        ),
+                        DataCell(
+                          Text(
+                            transaction.noAkta,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        DataCell(Text(_present(item.nik))),
+                        DataCell(Text(_present(item.applicant))),
                         DataCell(
                           SizedBox(
                             width: 170,
                             child: Text(
-                              item.job,
+                              _present(item.jobs),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
-                        DataCell(Text(item.category)),
-                        DataCell(Text(item.officer)),
-                        DataCell(Text(item.nominal)),
-                        DataCell(_statusBadge(item.status, isDone)),
+                        DataCell(Text(_present(item.categories))),
+                        DataCell(Text(_present(item.officer))),
+                        DataCell(Text(_monitoringMoney(transaction.total))),
+                        DataCell(_statusBadge(_present(status), isDone)),
                         DataCell(
                           IconButton(
                             tooltip: 'Detail',
-                            onPressed: () => _showDetail(item),
+                            onPressed: () => _showDetail(transaction.id),
                             icon: Icon(
                               Icons.visibility_outlined,
                               color: AppColors.primaryConfirm,
@@ -654,94 +672,36 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
                         ),
                       ],
                     );
-                  },
+                  }),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          if (mobile)
-            Column(
+          if (page != null) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
               children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'Menampilkan ${data.length} data',
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    OutlinedButton(
-                      onPressed: () {},
-                      child: const Text('Previous'),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 13,
-                        vertical: 9,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryConfirm,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        '1',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                    OutlinedButton(
-                      onPressed: () {},
-                      child: const Text('Next'),
-                    ),
-                  ],
-                ),
-              ],
-            )
-          else
-            Row(
-              children: [
-                Text(
-                  'Menampilkan ${data.length} data',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 13,
-                  ),
-                ),
-                const Spacer(),
+                Text('Menampilkan ${data.length} dari ${page.total} transaksi'),
                 OutlinedButton(
-                  onPressed: () {},
+                  onPressed: page.index > 0
+                      ? () => setState(() => _pageIndex = page.index - 1)
+                      : null,
                   child: const Text('Previous'),
                 ),
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 13,
-                    vertical: 9,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryConfirm,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    '1',
-                    style: TextStyle(color: Colors.white),
-                  ),
+                Text(
+                  'Halaman ${pageCount == 0 ? 0 : page.index + 1} / $pageCount',
                 ),
-                const SizedBox(width: 6),
                 OutlinedButton(
-                  onPressed: () {},
+                  onPressed: page.index + 1 < pageCount
+                      ? () => setState(() => _pageIndex = page.index + 1)
+                      : null,
                   child: const Text('Next'),
                 ),
               ],
             ),
+          ],
         ],
       ),
     );
@@ -749,10 +709,7 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
 
   Widget _statusBadge(String status, bool isDone) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: isDone
             ? Colors.green.withValues(alpha: 0.10)
@@ -770,62 +727,11 @@ class _MonitoringDesktopScreenState extends State<MonitoringDesktopScreen> {
     );
   }
 
-  Future<void> _showDetail(DummyMonitoringItem item) async {
+  Future<void> _showDetail(int transactionId) async {
+    if (!_canReadTransactions(ref.read(authControllerProvider).session)) return;
     await showDialog<void>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Detail Monitoring'),
-          content: SizedBox(
-            width: 500,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _detailRow('No. Transaksi', item.transactionNumber),
-                _detailRow('Tanggal', item.date),
-                _detailRow('NIK', item.nik),
-                _detailRow('Pemohon', item.applicant),
-                _detailRow('Pekerjaan', item.job),
-                _detailRow('Kategori', item.category),
-                _detailRow('Petugas', item.officer),
-                _detailRow('Nominal', item.nominal),
-                _detailRow('Status', item.status),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Tutup'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _detailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 125,
-            child: Text(
-              label,
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-          ),
-          const Text(':  '),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-          ),
-        ],
-      ),
+      builder: (_) => _MonitoringDetailDialog(transactionId),
     );
   }
 

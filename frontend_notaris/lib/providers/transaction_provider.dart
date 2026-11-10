@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/app_database.dart';
 import '../models/dashboard_transactions.dart';
+import '../models/transaction_monitoring.dart';
 import '../repositories/transaction_repository.dart';
 import 'database_provider.dart';
 
@@ -12,6 +13,29 @@ final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
 final transactionsProvider = StreamProvider.autoDispose<List<Transaksi>>((ref) {
   return ref.watch(transactionRepositoryProvider).watchAll();
 });
+
+final monitoringPageProvider = StreamProvider.autoDispose
+    .family<MonitoringPage, MonitoringFilter>(
+      (ref, filter) =>
+          ref.watch(transactionRepositoryProvider).watchMonitoringPage(filter),
+    );
+final monitoringOptionsProvider = StreamProvider.autoDispose
+    .family<MonitoringOptions, String>(
+      (ref, domain) => ref
+          .watch(transactionRepositoryProvider)
+          .watchMonitoringOptions(domain),
+    );
+final monitoringTransactionProvider = StreamProvider.autoDispose
+    .family<MonitoringRow?, int>(
+      (ref, id) => ref
+          .watch(transactionRepositoryProvider)
+          .watchMonitoringTransaction(id),
+    );
+final monitoringDetailsProvider = StreamProvider.autoDispose
+    .family<List<TransaksiDetail>, int>(
+      (ref, id) =>
+          ref.watch(transactionRepositoryProvider).watchMonitoringDetails(id),
+    );
 
 final dashboardTransactionPageProvider = StreamProvider.autoDispose
     .family<

@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
 import '../models/dashboard_transactions.dart';
+import '../models/transaction_monitoring.dart';
 
 /// Input for one selected Notaris/PPAT job in a transaction.
 class TransactionJobInput {
@@ -57,6 +58,169 @@ class TransactionRepository {
           ..where((t) => t.deletedAt.isNull())
           ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
         .watch();
+  }
+
+  static const _monitoringContacts = '''
+    LEFT JOIN pemohons a ON a.id=t.pemohon_id AND a.deleted_at IS NULL AND a.status=1
+      AND (t.pemohon_uuid IS NULL OR a.uuid=t.pemohon_uuid)
+    LEFT JOIN petugas o ON o.id=t.petugas_id AND o.deleted_at IS NULL AND o.status=1
+      AND (t.petugas_uuid IS NULL OR o.uuid=t.petugas_uuid)''';
+  static const _monitoringActive =
+      "t.deleted_at IS NULL AND lower(trim(t.status_transaksi)) != 'dihapus'";
+  static const _monitoringDetail =
+      'd.transaksi_id=t.id AND d.status=1 AND d.deleted_at IS NULL';
+  static const _monitoringColumns =
+      '''t.*, a.nik AS applicant_nik,
+    a.nama AS applicant_name, o.nama AS officer_name,
+    (SELECT group_concat(DISTINCT nullif(trim(d.nama_pekerjaan_snapshot), ''))
+      FROM transaksi_details d WHERE $_monitoringDetail) AS job_names,
+    (SELECT group_concat(DISTINCT nullif(trim(d.kategori_snapshot), ''))
+      FROM transaksi_details d WHERE $_monitoringDetail) AS category_names''';
+
+  MonitoringRow _monitoringRow(QueryRow row) => (
+    transaction: db.transaksis.map(row.data),
+    nik: row.readNullable<String>('applicant_nik'),
+    applicant: row.readNullable<String>('applicant_name'),
+    officer: row.readNullable<String>('officer_name'),
+    jobs: row.readNullable<String>('job_names'),
+    categories: row.readNullable<String>('category_names'),
+  );
+
+  Stream<MonitoringPage> watchMonitoringPage(MonitoringFilter filter) {
+    final variables = <Variable>[];
+    String bind<T extends Object>(T value) {
+      variables.add(Variable<T>(value));
+      return '?';
+    }
+
+    final conditions = [
+      _monitoringActive,
+      if (filter.domain.isNotEmpty) 't.jenis_transaksi=${bind(filter.domain)}',
+      if (filter.status.isNotEmpty)
+        'lower(trim(t.status_transaksi))=${bind(filter.status.toLowerCase())}',
+      if (filter.officerId != 0) 'o.id=${bind(filter.officerId)}',
+      if (filter.from case final date?) 't.tanggal_transaksi>=${bind(date)}',
+      if (filter.until case final date?)
+        't.tanggal_transaksi<${bind(DateTime(date.year, date.month, date.day + 1))}',
+      if (filter.job.isNotEmpty || filter.category.isNotEmpty)
+        '''EXISTS (SELECT 1 FROM transaksi_details d WHERE $_monitoringDetail
+          ${filter.job.isEmpty ? '' : 'AND trim(d.nama_pekerjaan_snapshot)=${bind(filter.job)}'}
+          ${filter.category.isEmpty ? '' : 'AND trim(d.kategori_snapshot)=${bind(filter.category)}'})''',
+    ];
+    final search = filter.search.trim().toLowerCase();
+    if (search.isNotEmpty) {
+      conditions.add(
+        '''(instr(lower(t.no_akta), ${bind(search)}) > 0
+        OR instr(lower(a.nik), ${bind(search)}) > 0 OR instr(lower(a.nama), ${bind(search)}) > 0
+        OR EXISTS (SELECT 1 FROM transaksi_details d WHERE $_monitoringDetail
+          AND instr(lower(d.nama_pekerjaan_snapshot), ${bind(search)}) > 0))''',
+      );
+    }
+    final index = bind(filter.index);
+    return db
+        .customSelect(
+          '''
+      WITH matching AS NOT MATERIALIZED (
+        SELECT t.id, t.tanggal_transaksi FROM transaksis t $_monitoringContacts
+        WHERE ${conditions.join(' AND ')}
+      ), bounds AS (
+        SELECT count(*) AS monitoring_total,
+          min($index, max(0, (count(*) - 1) / $monitoringPageSize)) AS monitoring_index FROM matching
+      ), page AS (
+        SELECT id FROM matching ORDER BY tanggal_transaksi DESC, id DESC LIMIT $monitoringPageSize
+          OFFSET (SELECT monitoring_index * $monitoringPageSize FROM bounds)
+      )
+      SELECT $_monitoringColumns, bounds.* FROM bounds LEFT JOIN page ON TRUE
+      LEFT JOIN transaksis t ON t.id=page.id $_monitoringContacts
+      ORDER BY t.tanggal_transaksi DESC, t.id DESC
+      ''',
+          variables: variables,
+          readsFrom: _monitoringTables,
+        )
+        .watch()
+        .map(
+          (rows) => (
+            total: rows.first.read<int>('monitoring_total'),
+            index: rows.first.read<int>('monitoring_index'),
+            rows: [
+              for (final row in rows)
+                if (row.data['id'] != null) _monitoringRow(row),
+            ],
+          ),
+        );
+  }
+
+  Set<ResultSetImplementation> get _monitoringTables => {
+    db.transaksis,
+    db.transaksiDetails,
+    db.pemohons,
+    db.petugasLocals,
+  };
+
+  Stream<MonitoringOptions> watchMonitoringOptions(String domain) {
+    return db
+        .customSelect(
+          '''
+      WITH active AS (SELECT t.* FROM transaksis t WHERE $_monitoringActive AND (? = '' OR t.jenis_transaksi = ?)),
+      details AS (SELECT d.* FROM active t JOIN transaksi_details d ON $_monitoringDetail)
+      SELECT DISTINCT 'job' AS kind, 0 AS id, trim(nama_pekerjaan_snapshot) AS label FROM details
+      UNION ALL SELECT DISTINCT 'category', 0, trim(kategori_snapshot) FROM details
+      UNION ALL SELECT DISTINCT 'officer', o.id, o.nama FROM active t $_monitoringContacts WHERE o.id IS NOT NULL
+      ORDER BY label COLLATE NOCASE, id
+      ''',
+          variables: [Variable(domain), Variable(domain)],
+          readsFrom: _monitoringTables,
+        )
+        .watch()
+        .map((rows) {
+          final jobs = <String>[], categories = <String>[];
+          final officers = <int, String>{};
+          for (final row in rows) {
+            final label = row.readNullable<String>('label');
+            if (label == null || label.isEmpty) continue;
+            switch (row.read<String>('kind')) {
+              case 'job':
+                jobs.add(label);
+              case 'category':
+                categories.add(label);
+              case 'officer':
+                officers[row.read<int>('id')] = label;
+            }
+          }
+          return (jobs: jobs, categories: categories, officers: officers);
+        });
+  }
+
+  Stream<MonitoringRow?> watchMonitoringTransaction(int id) => db
+      .customSelect(
+        '''
+    SELECT $_monitoringColumns FROM transaksis t $_monitoringContacts
+    WHERE $_monitoringActive AND t.id=?
+    ''',
+        variables: [Variable(id)],
+        readsFrom: _monitoringTables,
+      )
+      .watchSingleOrNull()
+      .map((row) => row == null ? null : _monitoringRow(row));
+
+  Stream<List<TransaksiDetail>> watchMonitoringDetails(int id) {
+    final d = db.transaksiDetails;
+    final t = db.transaksis;
+    final query =
+        db.select(d).join([
+            innerJoin(t, t.id.equalsExp(d.transaksiId), useColumns: false),
+          ])
+          ..where(
+            d.transaksiId.equals(id) &
+                d.status.equals(1) &
+                d.deletedAt.isNull() &
+                t.deletedAt.isNull() &
+                t.statusTransaksi.trim().lower().equals('dihapus').not(),
+          )
+          ..orderBy([OrderingTerm.asc(d.id)]);
+    return query.watch().map(
+      (rows) => rows.map((row) => row.readTable(d)).toList(),
+    );
   }
 
   Stream<DashboardTransactionPage> watchDashboardPage({

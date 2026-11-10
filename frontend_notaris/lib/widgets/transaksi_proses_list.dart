@@ -20,12 +20,14 @@ class TransaksiProsesList extends ConsumerWidget {
     required this.transactionId,
     required this.detailUuid,
     required this.fallbackProcesses,
+    this.embedded = false,
     super.key,
   });
 
   final int? transactionId;
   final String detailUuid;
   final List<TransaksiProsesFallbackItem> fallbackProcesses;
+  final bool embedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -83,18 +85,31 @@ class TransaksiProsesList extends ConsumerWidget {
           );
         }
 
+        Widget row(int index) {
+          final process = processes[index];
+          return _ProcessRow(
+            index: index,
+            name: process.namaProsesSnapshot,
+            status: _statusLabel(process.statusProses),
+          );
+        }
+
+        if (embedded) {
+          return Column(
+            children: [
+              for (var index = 0; index < processes.length; index++) ...[
+                if (index > 0)
+                  const Divider(height: 1, color: AppColors.divider),
+                row(index),
+              ],
+            ],
+          );
+        }
         return ListView.separated(
           itemCount: processes.length,
           separatorBuilder: (_, _) =>
               const Divider(height: 1, color: AppColors.divider),
-          itemBuilder: (context, index) {
-            final process = processes[index];
-            return _ProcessRow(
-              index: index,
-              name: process.namaProsesSnapshot,
-              status: _statusLabel(process.statusProses),
-            );
-          },
+          itemBuilder: (_, index) => row(index),
         );
       },
     );
