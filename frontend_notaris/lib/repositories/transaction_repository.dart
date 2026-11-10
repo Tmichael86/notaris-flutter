@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
+import '../models/dashboard_transactions.dart';
 
 /// Input for one selected Notaris/PPAT job in a transaction.
 class TransactionJobInput {
@@ -56,6 +57,57 @@ class TransactionRepository {
           ..where((t) => t.deletedAt.isNull())
           ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
         .watch();
+  }
+
+  Stream<DashboardTransactionPage> watchDashboardPage({
+    required DashboardTransactionList list,
+    required int year,
+    required int pageIndex,
+  }) {
+    final deadlines = list == DashboardTransactionList.deadlines;
+    final order = deadlines
+        ? 'tanggal_jatuh_tempo, id'
+        : 'tanggal_transaksi DESC, id DESC';
+    final deadlineFilter = deadlines
+        ? "AND tanggal_jatuh_tempo IS NOT NULL AND lower(trim(status_transaksi)) IN ('baru', 'dalam proses')"
+        : '';
+    // Keep the count and page in the same snapshot. The left join preserves
+    // pagination metadata for an empty result or a page that shrank.
+    final query = db.customSelect(
+      '''
+      WITH matching AS NOT MATERIALIZED (
+        SELECT * FROM transaksis
+        WHERE deleted_at IS NULL AND lower(trim(status_transaksi)) != 'dihapus'
+          AND tanggal_transaksi >= ? AND tanggal_transaksi < ?
+          $deadlineFilter
+      ), bounds AS (
+        SELECT count(*) AS dashboard_total,
+          min(?, max(0, (count(*) - 1) / $dashboardTransactionPageSize)) AS dashboard_index
+        FROM matching
+      )
+      SELECT page.*, bounds.* FROM bounds LEFT JOIN (
+        SELECT * FROM matching ORDER BY $order LIMIT $dashboardTransactionPageSize
+          OFFSET (SELECT dashboard_index * $dashboardTransactionPageSize FROM bounds)
+      ) page ON TRUE
+      ORDER BY $order
+      ''',
+      variables: [
+        Variable.withDateTime(DateTime(year)),
+        Variable.withDateTime(DateTime(year + 1)),
+        Variable.withInt(pageIndex),
+      ],
+      readsFrom: {db.transaksis},
+    );
+    return query.watch().map(
+      (rows) => (
+        index: rows.first.read<int>('dashboard_index'),
+        total: rows.first.read<int>('dashboard_total'),
+        rows: [
+          for (final row in rows)
+            if (row.data['id'] != null) db.transaksis.map(row.data),
+        ],
+      ),
+    );
   }
 
   /// Actual receipts by payment date, including installments on earlier sales.

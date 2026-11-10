@@ -10,14 +10,9 @@ import '../models/dashboard_transactions.dart';
 import '../providers/transaction_provider.dart';
 
 class DashboardDesktopScreen extends ConsumerStatefulWidget {
-  const DashboardDesktopScreen({
-    super.key,
-    required this.canReadTransactions,
-    this.onOpenTransactions,
-  });
+  const DashboardDesktopScreen({super.key, required this.canReadTransactions});
 
   final bool canReadTransactions;
-  final VoidCallback? onOpenTransactions;
 
   @override
   ConsumerState<DashboardDesktopScreen> createState() =>
@@ -561,9 +556,10 @@ class _DashboardDesktopScreenState extends ConsumerState<DashboardDesktopScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitle(
-            'Tugas & Aktivitas',
-            trailing: widget.onOpenTransactions == null ? null : 'Lihat semua',
-            onPressed: widget.onOpenTransactions,
+            DashboardTransactionList.deadlines.title,
+            trailing: 'Lihat semua',
+            onPressed: () =>
+                _openTransactionList(DashboardTransactionList.deadlines),
           ),
           const Text(
             'Tenggat transaksi yang masih terbuka',
@@ -643,9 +639,10 @@ class _DashboardDesktopScreenState extends ConsumerState<DashboardDesktopScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _sectionTitle(
-            'Transaksi Terbaru',
-            trailing: widget.onOpenTransactions == null ? null : 'Lihat semua',
-            onPressed: widget.onOpenTransactions,
+            DashboardTransactionList.recent.title,
+            trailing: 'Lihat semua',
+            onPressed: () =>
+                _openTransactionList(DashboardTransactionList.recent),
           ),
           const SizedBox(height: 6),
           const Divider(height: 1, color: AppColors.divider),
@@ -724,6 +721,160 @@ class _DashboardDesktopScreenState extends ConsumerState<DashboardDesktopScreen>
                   ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _openTransactionList(DashboardTransactionList list) {
+    if (!widget.canReadTransactions) return;
+    showDialog<void>(
+      context: context,
+      builder: (_) => _DashboardTransactionDialog(
+        list: list,
+        year: int.parse(_selectedYear),
+      ),
+    );
+  }
+}
+
+class _DashboardTransactionDialog extends ConsumerStatefulWidget {
+  const _DashboardTransactionDialog({required this.list, required this.year});
+
+  final DashboardTransactionList list;
+  final int year;
+
+  @override
+  ConsumerState<_DashboardTransactionDialog> createState() =>
+      _DashboardTransactionDialogState();
+}
+
+class _DashboardTransactionDialogState
+    extends ConsumerState<_DashboardTransactionDialog> {
+  int _index = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final result = ref.watch(
+      dashboardTransactionPageProvider((
+        list: widget.list,
+        year: widget.year,
+        index: _index,
+      )),
+    );
+    final page = result.asData?.value;
+    final pageCount = page == null
+        ? 0
+        : (page.total + dashboardTransactionPageSize - 1) ~/
+              dashboardTransactionPageSize;
+    final deadlines = widget.list == DashboardTransactionList.deadlines;
+    return Dialog(
+      backgroundColor: AppColors.card,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: SizedBox(
+        width: 600,
+        height: 560,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.list.title,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Tutup',
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Tahun ${widget.year}'),
+              ),
+              const Divider(color: AppColors.divider),
+              Expanded(
+                child: result.when(
+                  loading: () => const Center(
+                    child: CircularProgressIndicator(
+                      semanticsLabel: 'Memuat transaksi lokal',
+                    ),
+                  ),
+                  error: (_, _) => const Center(
+                    child: Text(
+                      'Data transaksi lokal gagal dimuat.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  data: (page) => page.rows.isEmpty
+                      ? Center(
+                          child: Text(
+                            deadlines
+                                ? 'Belum ada tenggat transaksi terbuka.'
+                                : 'Belum ada transaksi pada tahun ini.',
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      : ListView.separated(
+                          key: ValueKey(page.index),
+                          primary: false,
+                          itemCount: page.rows.length,
+                          separatorBuilder: (_, _) => const Divider(
+                            height: 1,
+                            color: AppColors.divider,
+                          ),
+                          itemBuilder: (context, index) {
+                            final row = page.rows[index];
+                            final date = deadlines
+                                ? row.tanggalJatuhTempo!
+                                : row.tanggalTransaksi!;
+                            final detail = deadlines
+                                ? row.statusTransaksi
+                                : row.jenisTransaksi.toUpperCase();
+                            return ListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(row.noAkta),
+                              subtitle: Text('$detail · ${_formatDate(date)}'),
+                              trailing: deadlines
+                                  ? null
+                                  : Text(_rupiah(row.total)),
+                            );
+                          },
+                        ),
+                ),
+              ),
+              const Divider(color: AppColors.divider),
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 8,
+                children: [
+                  if (page != null)
+                    Text(
+                      '${page.total} transaksi · Halaman ${pageCount == 0 ? 0 : page.index + 1} / $pageCount',
+                    ),
+                  TextButton(
+                    onPressed: page != null && page.index > 0
+                        ? () => setState(() => _index = page.index - 1)
+                        : null,
+                    child: const Text('Sebelumnya'),
+                  ),
+                  TextButton(
+                    onPressed: page != null && page.index + 1 < pageCount
+                        ? () => setState(() => _index = page.index + 1)
+                        : null,
+                    child: const Text('Berikutnya'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -620,12 +620,7 @@ class _AppShellState extends State<AppShell> {
       case 'Dashboard':
         final canReadTransactions =
             widget.session != null && _canReadMenu('Transaksi');
-        return DashboardDesktopScreen(
-          canReadTransactions: canReadTransactions,
-          onOpenTransactions: canReadTransactions
-              ? () => _selectMenu('Transaksi')
-              : null,
-        );
+        return DashboardDesktopScreen(canReadTransactions: canReadTransactions);
       case 'Transaksi':
         return const TransactionDesktopScreen();
       case 'Monitoring':

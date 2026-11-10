@@ -1,5 +1,20 @@
 import '../database/app_database.dart';
 
+enum DashboardTransactionList {
+  deadlines('Tugas & Aktivitas'),
+  recent('Transaksi Terbaru');
+
+  const DashboardTransactionList(this.title);
+  final String title;
+}
+
+typedef DashboardTransactionPage = ({
+  int index,
+  int total,
+  List<Transaksi> rows,
+});
+const dashboardTransactionPageSize = 10;
+
 /// Calendar-year activity from the business date of each local transaction.
 class DashboardTransactions {
   DashboardTransactions(

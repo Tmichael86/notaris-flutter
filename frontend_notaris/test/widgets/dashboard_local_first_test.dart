@@ -42,6 +42,212 @@ void main() {
   setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
   tearDown(() => db.close());
 
+  test(
+    'Dashboard pages use SQLite filters and stable date and ID ordering',
+    () async {
+      final date = DateTime(2026, 2);
+      final deadline = DateTime(2026, 3);
+      for (var i = 1; i <= 12; i++) {
+        await header(db, 'PAGE-$i', date: date, deadline: deadline);
+      }
+      await header(
+        db,
+        'closed',
+        date: date,
+        deadline: deadline,
+        status: 'Selesai',
+      );
+      await header(db, 'missing-deadline', date: date);
+      await header(
+        db,
+        'previous-year',
+        date: DateTime(2025),
+        deadline: deadline,
+      );
+      await header(
+        db,
+        'tombstone',
+        date: date,
+        deadline: deadline,
+        deleted: true,
+      );
+      await header(
+        db,
+        'legacy-tombstone',
+        date: date,
+        deadline: deadline,
+        status: 'Dihapus',
+      );
+      final repo = TransactionRepository(db);
+      Future<DashboardTransactionPage> page(
+        DashboardTransactionList list,
+        int index,
+      ) => repo
+          .watchDashboardPage(list: list, year: 2026, pageIndex: index)
+          .first;
+      final tasks = await page(DashboardTransactionList.deadlines, 0);
+      final tasksTail = await page(DashboardTransactionList.deadlines, 1);
+      expect(tasks.total, 12);
+      expect(
+        tasks.rows.map((row) => row.noAkta),
+        List.generate(10, (i) => 'PAGE-${i + 1}'),
+      );
+      expect(tasksTail.rows.map((row) => row.noAkta), ['PAGE-11', 'PAGE-12']);
+      final recent = await page(DashboardTransactionList.recent, 0);
+      final recentTail = await page(DashboardTransactionList.recent, 8);
+      expect(recent.total, 14);
+      expect(recent.rows.map((row) => row.noAkta), [
+        'missing-deadline',
+        'closed',
+        ...List.generate(8, (i) => 'PAGE-${12 - i}'),
+      ]);
+      expect(recentTail.index, 1);
+      expect(recentTail.rows.map((row) => row.noAkta), [
+        'PAGE-4',
+        'PAGE-3',
+        'PAGE-2',
+        'PAGE-1',
+      ]);
+    },
+  );
+
+  testWidgets(
+    'contextual Dashboard dialogs page, follow the selected year and show empty states',
+    (tester) async {
+      tester.view.physicalSize = const Size(1240, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final year = DateTime.now().year;
+      await tester.runAsync(() async {
+        for (var i = 1; i <= 12; i++) {
+          await header(
+            db,
+            'DASH-PAGE-$i',
+            date: DateTime(year, 1, i),
+            deadline: DateTime(year, 2, i),
+          );
+        }
+      });
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [appDatabaseProvider.overrideWithValue(db)],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: DashboardDesktopScreen(canReadTransactions: true),
+              ),
+            ),
+          ),
+        ),
+      );
+      await cycleUi(tester);
+      Finder inDialog(String text) =>
+          find.descendant(of: find.byType(Dialog), matching: find.text(text));
+      Future<void> open(int index) async {
+        await tester.tap(
+          find.widgetWithText(TextButton, 'Lihat semua').at(index),
+        );
+        await cycleUi(tester);
+      }
+
+      bool enabled(String label) =>
+          tester
+              .widget<TextButton>(find.widgetWithText(TextButton, label))
+              .onPressed !=
+          null;
+      await open(0);
+      expect(inDialog('Tugas & Aktivitas'), findsOneWidget);
+      expect(inDialog('12 transaksi · Halaman 1 / 2'), findsOneWidget);
+      expect(inDialog('DASH-PAGE-1'), findsOneWidget);
+      expect(enabled('Sebelumnya'), isFalse);
+      await tester.tap(inDialog('Berikutnya'));
+      await cycleUi(tester);
+      expect(inDialog('12 transaksi · Halaman 2 / 2'), findsOneWidget);
+      expect(inDialog('DASH-PAGE-11'), findsOneWidget);
+      expect(inDialog('DASH-PAGE-12'), findsOneWidget);
+      expect(enabled('Berikutnya'), isFalse);
+      await tester.tap(inDialog('Sebelumnya'));
+      await cycleUi(tester);
+      expect(inDialog('DASH-PAGE-1'), findsOneWidget);
+      await tester.tap(find.byTooltip('Tutup'));
+      await tester.pumpAndSettle();
+      await open(1);
+      expect(inDialog('Transaksi Terbaru'), findsOneWidget);
+      expect(inDialog('DASH-PAGE-12'), findsOneWidget);
+      tester.view.physicalSize = const Size(340, 480);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.byTooltip('Tutup'));
+      tester.view.physicalSize = const Size(1240, 1000);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(SearchableDropdown<String>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('${year - 1}'));
+      await tester.pumpAndSettle();
+      await open(1);
+      expect(inDialog('Tahun ${year - 1}'), findsOneWidget);
+      expect(inDialog('Belum ada transaksi pada tahun ini.'), findsOneWidget);
+      expect(inDialog('0 transaksi · Halaman 0 / 0'), findsOneWidget);
+      expect(enabled('Sebelumnya'), isFalse);
+      expect(enabled('Berikutnya'), isFalse);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    },
+  );
+
+  testWidgets(
+    'Dashboard modal disables pagination while loading or on query error',
+    (tester) async {
+      tester.view.physicalSize = const Size(1240, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final pages = StreamController<DashboardTransactionPage>.broadcast();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            transactionsProvider.overrideWith((ref) => Stream.value([])),
+            receivedPaymentsProvider.overrideWith((ref, _) => Stream.value(0)),
+            dashboardTransactionPageProvider.overrideWith(
+              (ref, _) => pages.stream,
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: DashboardDesktopScreen(canReadTransactions: true),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(TextButton, 'Lihat semua').first);
+      await cycleUi(tester);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      void expectDisabled() {
+        for (final label in ['Sebelumnya', 'Berikutnya']) {
+          expect(
+            tester
+                .widget<TextButton>(find.widgetWithText(TextButton, label))
+                .onPressed,
+            isNull,
+          );
+        }
+      }
+
+      expectDisabled();
+      pages.addError(StateError('fixture page error'));
+      await tester.pumpAndSettle();
+      expect(find.text('Data transaksi lokal gagal dimuat.'), findsOneWidget);
+      expectDisabled();
+      await tester.pumpWidget(const SizedBox.shrink());
+      unawaited(pages.close());
+      await tester.pump();
+    },
+  );
+
   test('calendar metrics exclude undated and deleted rows and classify known statuses', () async {
     final today = DateTime(2026, 5, 10);
     await header(
@@ -285,6 +491,7 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Pendapatan'), findsNothing);
+      expect(find.text('Lihat semua'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );

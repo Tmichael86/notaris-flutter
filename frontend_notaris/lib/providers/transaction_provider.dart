@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/app_database.dart';
+import '../models/dashboard_transactions.dart';
 import '../repositories/transaction_repository.dart';
 import 'database_provider.dart';
 
@@ -11,6 +12,20 @@ final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
 final transactionsProvider = StreamProvider.autoDispose<List<Transaksi>>((ref) {
   return ref.watch(transactionRepositoryProvider).watchAll();
 });
+
+final dashboardTransactionPageProvider = StreamProvider.autoDispose
+    .family<
+      DashboardTransactionPage,
+      ({DashboardTransactionList list, int year, int index})
+    >(
+      (ref, request) => ref
+          .watch(transactionRepositoryProvider)
+          .watchDashboardPage(
+            list: request.list,
+            year: request.year,
+            pageIndex: request.index,
+          ),
+    );
 
 final receivedPaymentsProvider = StreamProvider.autoDispose.family<double, int>(
   (ref, year) =>
