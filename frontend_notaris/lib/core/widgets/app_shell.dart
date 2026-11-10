@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/auth_session.dart';
 import '../../screens/dashboard_desktop_screen.dart';
@@ -25,6 +26,8 @@ import '../../screens/sync_log_desktop_screen.dart';
 import '../../screens/sync_monitor_desktop_screen.dart';
 import '../../screens/recycle_bin_desktop_screen.dart';
 import '../../core/theme/app_colors.dart';
+import '../../services/attribute_workflow.dart';
+import '../../widgets/attribute_workflow_dialog.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key, this.session, this.onLogout});
@@ -156,13 +159,21 @@ class _AppShellState extends State<AppShell> {
             ),
             const Spacer(),
           ],
-          IconButton(
-            tooltip: 'Notifikasi',
-            icon: const Icon(
-              Icons.notifications_none_outlined,
-              color: AppColors.textSecondary,
+          Consumer(
+            builder: (context, ref, _) => IconButton(
+              tooltip: 'Notifikasi',
+              icon: const Icon(
+                Icons.notifications_none_outlined,
+                color: AppColors.textSecondary,
+              ),
+              onPressed: ref.watch(attributeWorkflowProvider) == null
+                  ? null
+                  : () => showAttributeInbox(
+                      context,
+                      ref,
+                      () => _selectMenu('Transaksi'),
+                    ),
             ),
-            onPressed: () {},
           ),
           const SizedBox(width: 4),
           if (!mobile)

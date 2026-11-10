@@ -5,6 +5,8 @@ import '../core/theme/app_colors.dart';
 import '../core/widgets/transaction_review_dialog.dart';
 import '../providers/transaksi_proses_provider.dart';
 import '../repositories/transaksi_proses_repository.dart';
+import '../services/attribute_workflow.dart';
+import 'attribute_workflow_dialog.dart';
 
 /// Legacy snapshot item used while a transaction is still a local form draft.
 class TransaksiProsesFallbackItem {
@@ -72,6 +74,8 @@ class TransaksiProsesList extends ConsumerWidget {
         ),
       ),
       data: (allProcesses) {
+        final workflowEnabled =
+            !embedded && ref.watch(attributeWorkflowProvider) != null;
         final processes = allProcesses
             .where((process) => process.transaksiDetailUuid == detailUuid)
             .toList();
@@ -93,6 +97,9 @@ class TransaksiProsesList extends ConsumerWidget {
             name: process.namaProsesSnapshot,
             status: _statusLabel(process.statusProses),
             reviewColor: embedded ? _reviewColor(process.statusProses) : null,
+            onWorkflow: workflowEnabled
+                ? () => showAttributeWorkflow(context, ref, process.uuid)
+                : null,
           );
         }
 
@@ -170,12 +177,14 @@ class _ProcessRow extends StatelessWidget {
     required this.name,
     required this.status,
     this.reviewColor,
+    this.onWorkflow,
   });
 
   final int index;
   final String name;
   final String status;
   final Color? reviewColor;
+  final VoidCallback? onWorkflow;
 
   @override
   Widget build(BuildContext context) {
@@ -231,6 +240,15 @@ class _ProcessRow extends StatelessWidget {
         name,
         style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
       ),
+      subtitle: onWorkflow == null
+          ? null
+          : Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: onWorkflow,
+                child: const Text('Validasi atribut'),
+              ),
+            ),
       trailing: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 160),
         child: DecoratedBox(
