@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 
 import 'master_tables.dart';
 import 'pekerjaan_tables.dart';
+import 'pengeluaran_tables.dart';
 import 'daos/pekerjaan_dao.dart';
 
 part 'app_database.g.dart';
@@ -208,6 +209,7 @@ class TransaksiRiwayatPembayarans extends Table {
     PekerjaanPpatHargaLocals,
     PekerjaanPpatProsesLocals,
     PekerjaanPpatAtributLocals,
+    Pengeluarans,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -263,7 +265,7 @@ class AppDatabase extends _$AppDatabase {
   final String? petugasBaselinePath;
 
   @override
-  int get schemaVersion => 19;
+  int get schemaVersion => 20;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -280,6 +282,7 @@ class AppDatabase extends _$AppDatabase {
       await _createPpatCloudStorage();
       await _createTransactionCloudStorage();
       await _createRecycleBinStorage();
+      await _protectPengeluaranReferences();
     },
     onUpgrade: (Migrator m, int from, int to) async {
       // Keep all pending migration steps atomic. If V8 UUID validation fails,
@@ -452,9 +455,40 @@ class AppDatabase extends _$AppDatabase {
           );
         }
         if (from < 19) await _createRecycleBinStorage();
+        if (from < 20) {
+          await m.createTable(pengeluarans);
+          await m.createIndex(pengeluaranByDate);
+          await m.createIndex(pengeluaranByJenis);
+          await _protectPengeluaranReferences();
+        }
       });
     },
   );
+
+  Future<void> _protectPengeluaranReferences() async {
+    // Older connections do not enable SQLite foreign_keys globally. Enforce
+    // this new relationship without changing legacy connection behavior.
+    for (final (suffix, operation) in [
+      ('insert', 'INSERT'),
+      ('update', 'UPDATE OF jenis_id'),
+    ]) {
+      await customStatement('''
+        CREATE TRIGGER pengeluaran_jenis_$suffix BEFORE $operation ON pengeluaran
+        WHEN NOT EXISTS (SELECT 1 FROM pengeluaran_jenis WHERE id = NEW.jenis_id)
+        BEGIN SELECT RAISE(ABORT, 'Missing jenis pengeluaran'); END
+      ''');
+    }
+    for (final (suffix, operation, idChanged) in [
+      ('delete', 'DELETE', ''),
+      ('rekey', 'UPDATE OF id', 'NEW.id <> OLD.id AND '),
+    ]) {
+      await customStatement('''
+        CREATE TRIGGER pengeluaran_history_$suffix BEFORE $operation ON pengeluaran_jenis
+        WHEN ${idChanged}EXISTS (SELECT 1 FROM pengeluaran WHERE jenis_id = OLD.id)
+        BEGIN SELECT RAISE(ABORT, 'Jenis pengeluaran has history'); END
+      ''');
+    }
+  }
 
   Future<void> _createUuidUniqueIndexes() async {
     await customStatement(

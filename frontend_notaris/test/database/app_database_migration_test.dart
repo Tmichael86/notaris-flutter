@@ -1,10 +1,34 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/database/app_database.dart';
 
+const _legacyJenisSchema = '''
+  CREATE TABLE pengeluaran_jenis (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL UNIQUE,
+    nama TEXT NOT NULL,
+    created_by INTEGER,
+    updated_by INTEGER,
+    created_at INTEGER,
+    updated_at INTEGER,
+    status INTEGER NOT NULL DEFAULT 1,
+    is_sync_dirty INTEGER NOT NULL DEFAULT 1 CHECK (is_sync_dirty IN (0, 1)),
+    last_synced_at INTEGER,
+    deleted_at INTEGER
+  )
+''';
+
+Future<void> stripV20(AppDatabase db) async {
+  await db.customStatement('DROP TRIGGER pengeluaran_history_delete');
+  await db.customStatement('DROP TRIGGER pengeluaran_history_rekey');
+  await db.customStatement('DROP TABLE pengeluaran');
+}
+
 Future<void> stripV17(AppDatabase db) async {
+  await stripV20(db);
   for (final table in [
     'transaction_cloud_pending',
     'transaction_cloud_identity',
@@ -21,6 +45,90 @@ Future<void> stripV17(AppDatabase db) async {
 }
 
 void main() {
+  test('V19 copy upgrades to V20 without changing existing storage', () async {
+    final folder = await Directory.systemTemp.createTemp('pengeluaran_v19_');
+    addTearDown(() => folder.delete(recursive: true));
+    final baseline = File('${folder.path}/v19.sqlite');
+    final setup = AppDatabase.forTesting(NativeDatabase(baseline));
+    await stripV20(setup);
+    for (final statement in [
+      "INSERT INTO pengeluaran_jenis(uuid,nama) VALUES ('jenis-v19','ATK')",
+      "INSERT INTO pekerjaan_kategori(uuid,nama) VALUES ('kategori-v19','Master')",
+      "INSERT INTO transaksis(uuid,no_akta,total,is_sync_dirty) VALUES ('tx-v19','00019',100,1)",
+      "INSERT INTO transaksi_details(uuid,transaksi_id,jenis_pekerjaan,nama_pekerjaan_snapshot) VALUES ('detail-v19',1,'notaris','Jasa')",
+      "INSERT INTO transaksi_proses(uuid,transaksi_id,transaksi_detail_uuid,nama_proses_snapshot) VALUES ('proses-v19',1,'detail-v19','Review')",
+      "INSERT INTO transaksi_proses_riwayat(uuid,transaksi_proses_id,status_baru,created_at) VALUES ('audit-v19',1,'submitted',1)",
+      "INSERT INTO transaksi_riwayat_pembayaran(uuid,transaksi_id,tanggal_pembayaran,nominal) VALUES ('pay-v19',1,1,50)",
+      "INSERT INTO transaction_cloud_pending VALUES ('tx-v19','mutation-v19','{}','pending','create')",
+      "INSERT INTO transaction_cloud_feed VALUES ('scope',9)",
+      "INSERT INTO petugas_sync_feed(id,scope,cursor) VALUES (1,'scope',4)",
+      'PRAGMA user_version=19',
+    ]) {
+      await setup.customStatement(statement);
+    }
+    final tables = await setup.customSelect('''
+      SELECT name, sql FROM sqlite_schema
+      WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name
+      ''').get();
+    Future<Map<String, Object?>> contents(AppDatabase db) async => {
+      for (final table in tables)
+        table.read<String>('name'): (
+          (await db
+                  .customSelect(
+                    'SELECT sql FROM sqlite_schema WHERE name = ?',
+                    variables: [Variable(table.read<String>('name'))],
+                  )
+                  .getSingle())
+              .data,
+          [
+            for (final row
+                in await db
+                    .customSelect(
+                      'SELECT * FROM "${table.read<String>('name')}" ORDER BY rowid',
+                    )
+                    .get())
+              row.data,
+          ],
+        ),
+    };
+    // Use deep collection comparison across the file reopen.
+    final before = await contents(setup);
+    await setup.close();
+    final copy = await baseline.copy('${folder.path}/upgraded.sqlite');
+    final upgraded = AppDatabase.forTesting(NativeDatabase(copy));
+    addTearDown(upgraded.close);
+    expect(
+      (await upgraded.customSelect('PRAGMA user_version').getSingle()).data,
+      {'user_version': 20},
+    );
+    final after = await contents(upgraded);
+    for (final name in before.keys) {
+      final expected =
+          before[name] as (Map<String, dynamic>, List<Map<String, dynamic>>);
+      final actual =
+          after[name] as (Map<String, dynamic>, List<Map<String, dynamic>>);
+      expect(actual.$1, expected.$1, reason: '$name schema');
+      expect(actual.$2, expected.$2, reason: '$name rows');
+    }
+    expect(await upgraded.select(upgraded.pengeluarans).get(), isEmpty);
+    expect(
+      await upgraded.customSelect('PRAGMA foreign_key_check').get(),
+      isEmpty,
+    );
+    expect(
+      (await upgraded.customSelect('PRAGMA integrity_check').getSingle()).data,
+      {'integrity_check': 'ok'},
+    );
+    expect(
+      await upgraded
+          .customSelect(
+            "SELECT name FROM sqlite_schema WHERE type='index' AND name LIKE 'pengeluaran_by_%'",
+          )
+          .get(),
+      hasLength(2),
+    );
+  });
+
   test(
     'V17 to V18 preserves identity pending intent cursor and final number',
     () async {
@@ -47,6 +155,7 @@ void main() {
       await before.customStatement(
         "INSERT INTO transaction_cloud_feed VALUES('scope',2)",
       );
+      await stripV20(before);
       await before.customStatement('PRAGMA user_version=17');
       await before.close();
       final after = AppDatabase.forTesting(NativeDatabase(file));
@@ -210,7 +319,7 @@ void main() {
         (await after.customSelect('PRAGMA user_version').getSingle()).read<int>(
           'user_version',
         ),
-        19,
+        20,
       );
       expect(
         await after.customSelect('PRAGMA foreign_key_check').get(),
@@ -261,7 +370,7 @@ void main() {
         (await after.customSelect('PRAGMA user_version').getSingle()).read<int>(
           'user_version',
         ),
-        19,
+        20,
       );
       expect(
         await after.customSelect('PRAGMA foreign_key_check').get(),
@@ -436,6 +545,7 @@ void main() {
         // Migration-relevant tables as they existed at schema V6.
         // V7 adds the normalized process tables and backfills them from
         // transaksi_details.proses_snapshot.
+        database.execute(_legacyJenisSchema);
         database.execute('''
           CREATE TABLE pemohons (
             id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -593,7 +703,7 @@ void main() {
       final version = await inspectionDb
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 19);
+      expect(version.read<int>('user_version'), 20);
     } finally {
       await inspectionDb.close();
     }
@@ -610,6 +720,7 @@ void main() {
         file,
         enableMigrations: false,
         setup: (database) {
+          database.execute(_legacyJenisSchema);
           database.execute('''
             CREATE TABLE pemohons (
               id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -802,6 +913,7 @@ void main() {
         file,
         enableMigrations: false,
         setup: (database) {
+          database.execute(_legacyJenisSchema);
           database.execute('''
             CREATE TABLE petugas (
               id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,

@@ -15512,6 +15512,662 @@ class PekerjaanPpatAtributLocalsCompanion
   }
 }
 
+class $PengeluaransTable extends Pengeluarans
+    with TableInfo<$PengeluaransTable, PengeluaranData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PengeluaransTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _noFakturMeta = const VerificationMeta(
+    'noFaktur',
+  );
+  @override
+  late final GeneratedColumn<String> noFaktur = GeneratedColumn<String>(
+    'no_faktur',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tanggalMeta = const VerificationMeta(
+    'tanggal',
+  );
+  @override
+  late final GeneratedColumn<DateTime> tanggal = GeneratedColumn<DateTime>(
+    'tanggal',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nominalMeta = const VerificationMeta(
+    'nominal',
+  );
+  @override
+  late final GeneratedColumn<int> nominal = GeneratedColumn<int>(
+    'nominal',
+    aliasedName,
+    false,
+    check: () => const CustomExpression<bool>(
+      "typeof(nominal) = 'integer' AND nominal > 0",
+    ),
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _jenisIdMeta = const VerificationMeta(
+    'jenisId',
+  );
+  @override
+  late final GeneratedColumn<int> jenisId = GeneratedColumn<int>(
+    'jenis_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES pengeluaran_jenis (id)',
+    ),
+  );
+  static const VerificationMeta _jenisNamaMeta = const VerificationMeta(
+    'jenisNama',
+  );
+  @override
+  late final GeneratedColumn<String> jenisNama = GeneratedColumn<String>(
+    'jenis_nama',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _keteranganMeta = const VerificationMeta(
+    'keterangan',
+  );
+  @override
+  late final GeneratedColumn<String> keterangan = GeneratedColumn<String>(
+    'keterangan',
+    aliasedName,
+    false,
+    check: () => const CustomExpression<bool>('length(trim(keterangan)) > 0'),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    uuid,
+    noFaktur,
+    tanggal,
+    nominal,
+    jenisId,
+    jenisNama,
+    keterangan,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pengeluaran';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PengeluaranData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('no_faktur')) {
+      context.handle(
+        _noFakturMeta,
+        noFaktur.isAcceptableOrUnknown(data['no_faktur']!, _noFakturMeta),
+      );
+    }
+    if (data.containsKey('tanggal')) {
+      context.handle(
+        _tanggalMeta,
+        tanggal.isAcceptableOrUnknown(data['tanggal']!, _tanggalMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tanggalMeta);
+    }
+    if (data.containsKey('nominal')) {
+      context.handle(
+        _nominalMeta,
+        nominal.isAcceptableOrUnknown(data['nominal']!, _nominalMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nominalMeta);
+    }
+    if (data.containsKey('jenis_id')) {
+      context.handle(
+        _jenisIdMeta,
+        jenisId.isAcceptableOrUnknown(data['jenis_id']!, _jenisIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_jenisIdMeta);
+    }
+    if (data.containsKey('jenis_nama')) {
+      context.handle(
+        _jenisNamaMeta,
+        jenisNama.isAcceptableOrUnknown(data['jenis_nama']!, _jenisNamaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_jenisNamaMeta);
+    }
+    if (data.containsKey('keterangan')) {
+      context.handle(
+        _keteranganMeta,
+        keterangan.isAcceptableOrUnknown(data['keterangan']!, _keteranganMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keteranganMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PengeluaranData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PengeluaranData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      noFaktur: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}no_faktur'],
+      ),
+      tanggal: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}tanggal'],
+      )!,
+      nominal: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}nominal'],
+      )!,
+      jenisId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}jenis_id'],
+      )!,
+      jenisNama: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}jenis_nama'],
+      )!,
+      keterangan: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}keterangan'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $PengeluaransTable createAlias(String alias) {
+    return $PengeluaransTable(attachedDatabase, alias);
+  }
+}
+
+class PengeluaranData extends DataClass implements Insertable<PengeluaranData> {
+  final int id;
+  final String uuid;
+  final String? noFaktur;
+  final DateTime tanggal;
+  final int nominal;
+  final int jenisId;
+  final String jenisNama;
+  final String keterangan;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const PengeluaranData({
+    required this.id,
+    required this.uuid,
+    this.noFaktur,
+    required this.tanggal,
+    required this.nominal,
+    required this.jenisId,
+    required this.jenisNama,
+    required this.keterangan,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['uuid'] = Variable<String>(uuid);
+    if (!nullToAbsent || noFaktur != null) {
+      map['no_faktur'] = Variable<String>(noFaktur);
+    }
+    map['tanggal'] = Variable<DateTime>(tanggal);
+    map['nominal'] = Variable<int>(nominal);
+    map['jenis_id'] = Variable<int>(jenisId);
+    map['jenis_nama'] = Variable<String>(jenisNama);
+    map['keterangan'] = Variable<String>(keterangan);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  PengeluaransCompanion toCompanion(bool nullToAbsent) {
+    return PengeluaransCompanion(
+      id: Value(id),
+      uuid: Value(uuid),
+      noFaktur: noFaktur == null && nullToAbsent
+          ? const Value.absent()
+          : Value(noFaktur),
+      tanggal: Value(tanggal),
+      nominal: Value(nominal),
+      jenisId: Value(jenisId),
+      jenisNama: Value(jenisNama),
+      keterangan: Value(keterangan),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory PengeluaranData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PengeluaranData(
+      id: serializer.fromJson<int>(json['id']),
+      uuid: serializer.fromJson<String>(json['uuid']),
+      noFaktur: serializer.fromJson<String?>(json['noFaktur']),
+      tanggal: serializer.fromJson<DateTime>(json['tanggal']),
+      nominal: serializer.fromJson<int>(json['nominal']),
+      jenisId: serializer.fromJson<int>(json['jenisId']),
+      jenisNama: serializer.fromJson<String>(json['jenisNama']),
+      keterangan: serializer.fromJson<String>(json['keterangan']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'uuid': serializer.toJson<String>(uuid),
+      'noFaktur': serializer.toJson<String?>(noFaktur),
+      'tanggal': serializer.toJson<DateTime>(tanggal),
+      'nominal': serializer.toJson<int>(nominal),
+      'jenisId': serializer.toJson<int>(jenisId),
+      'jenisNama': serializer.toJson<String>(jenisNama),
+      'keterangan': serializer.toJson<String>(keterangan),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  PengeluaranData copyWith({
+    int? id,
+    String? uuid,
+    Value<String?> noFaktur = const Value.absent(),
+    DateTime? tanggal,
+    int? nominal,
+    int? jenisId,
+    String? jenisNama,
+    String? keterangan,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => PengeluaranData(
+    id: id ?? this.id,
+    uuid: uuid ?? this.uuid,
+    noFaktur: noFaktur.present ? noFaktur.value : this.noFaktur,
+    tanggal: tanggal ?? this.tanggal,
+    nominal: nominal ?? this.nominal,
+    jenisId: jenisId ?? this.jenisId,
+    jenisNama: jenisNama ?? this.jenisNama,
+    keterangan: keterangan ?? this.keterangan,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  PengeluaranData copyWithCompanion(PengeluaransCompanion data) {
+    return PengeluaranData(
+      id: data.id.present ? data.id.value : this.id,
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      noFaktur: data.noFaktur.present ? data.noFaktur.value : this.noFaktur,
+      tanggal: data.tanggal.present ? data.tanggal.value : this.tanggal,
+      nominal: data.nominal.present ? data.nominal.value : this.nominal,
+      jenisId: data.jenisId.present ? data.jenisId.value : this.jenisId,
+      jenisNama: data.jenisNama.present ? data.jenisNama.value : this.jenisNama,
+      keterangan: data.keterangan.present
+          ? data.keterangan.value
+          : this.keterangan,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PengeluaranData(')
+          ..write('id: $id, ')
+          ..write('uuid: $uuid, ')
+          ..write('noFaktur: $noFaktur, ')
+          ..write('tanggal: $tanggal, ')
+          ..write('nominal: $nominal, ')
+          ..write('jenisId: $jenisId, ')
+          ..write('jenisNama: $jenisNama, ')
+          ..write('keterangan: $keterangan, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    uuid,
+    noFaktur,
+    tanggal,
+    nominal,
+    jenisId,
+    jenisNama,
+    keterangan,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PengeluaranData &&
+          other.id == this.id &&
+          other.uuid == this.uuid &&
+          other.noFaktur == this.noFaktur &&
+          other.tanggal == this.tanggal &&
+          other.nominal == this.nominal &&
+          other.jenisId == this.jenisId &&
+          other.jenisNama == this.jenisNama &&
+          other.keterangan == this.keterangan &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class PengeluaransCompanion extends UpdateCompanion<PengeluaranData> {
+  final Value<int> id;
+  final Value<String> uuid;
+  final Value<String?> noFaktur;
+  final Value<DateTime> tanggal;
+  final Value<int> nominal;
+  final Value<int> jenisId;
+  final Value<String> jenisNama;
+  final Value<String> keterangan;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  const PengeluaransCompanion({
+    this.id = const Value.absent(),
+    this.uuid = const Value.absent(),
+    this.noFaktur = const Value.absent(),
+    this.tanggal = const Value.absent(),
+    this.nominal = const Value.absent(),
+    this.jenisId = const Value.absent(),
+    this.jenisNama = const Value.absent(),
+    this.keterangan = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+  });
+  PengeluaransCompanion.insert({
+    this.id = const Value.absent(),
+    required String uuid,
+    this.noFaktur = const Value.absent(),
+    required DateTime tanggal,
+    required int nominal,
+    required int jenisId,
+    required String jenisNama,
+    required String keterangan,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+  }) : uuid = Value(uuid),
+       tanggal = Value(tanggal),
+       nominal = Value(nominal),
+       jenisId = Value(jenisId),
+       jenisNama = Value(jenisNama),
+       keterangan = Value(keterangan),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<PengeluaranData> custom({
+    Expression<int>? id,
+    Expression<String>? uuid,
+    Expression<String>? noFaktur,
+    Expression<DateTime>? tanggal,
+    Expression<int>? nominal,
+    Expression<int>? jenisId,
+    Expression<String>? jenisNama,
+    Expression<String>? keterangan,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (uuid != null) 'uuid': uuid,
+      if (noFaktur != null) 'no_faktur': noFaktur,
+      if (tanggal != null) 'tanggal': tanggal,
+      if (nominal != null) 'nominal': nominal,
+      if (jenisId != null) 'jenis_id': jenisId,
+      if (jenisNama != null) 'jenis_nama': jenisNama,
+      if (keterangan != null) 'keterangan': keterangan,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+    });
+  }
+
+  PengeluaransCompanion copyWith({
+    Value<int>? id,
+    Value<String>? uuid,
+    Value<String?>? noFaktur,
+    Value<DateTime>? tanggal,
+    Value<int>? nominal,
+    Value<int>? jenisId,
+    Value<String>? jenisNama,
+    Value<String>? keterangan,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+  }) {
+    return PengeluaransCompanion(
+      id: id ?? this.id,
+      uuid: uuid ?? this.uuid,
+      noFaktur: noFaktur ?? this.noFaktur,
+      tanggal: tanggal ?? this.tanggal,
+      nominal: nominal ?? this.nominal,
+      jenisId: jenisId ?? this.jenisId,
+      jenisNama: jenisNama ?? this.jenisNama,
+      keterangan: keterangan ?? this.keterangan,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (noFaktur.present) {
+      map['no_faktur'] = Variable<String>(noFaktur.value);
+    }
+    if (tanggal.present) {
+      map['tanggal'] = Variable<DateTime>(tanggal.value);
+    }
+    if (nominal.present) {
+      map['nominal'] = Variable<int>(nominal.value);
+    }
+    if (jenisId.present) {
+      map['jenis_id'] = Variable<int>(jenisId.value);
+    }
+    if (jenisNama.present) {
+      map['jenis_nama'] = Variable<String>(jenisNama.value);
+    }
+    if (keterangan.present) {
+      map['keterangan'] = Variable<String>(keterangan.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PengeluaransCompanion(')
+          ..write('id: $id, ')
+          ..write('uuid: $uuid, ')
+          ..write('noFaktur: $noFaktur, ')
+          ..write('tanggal: $tanggal, ')
+          ..write('nominal: $nominal, ')
+          ..write('jenisId: $jenisId, ')
+          ..write('jenisNama: $jenisNama, ')
+          ..write('keterangan: $keterangan, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -15552,6 +16208,15 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $PekerjaanPpatProsesLocalsTable(this);
   late final $PekerjaanPpatAtributLocalsTable pekerjaanPpatAtributLocals =
       $PekerjaanPpatAtributLocalsTable(this);
+  late final $PengeluaransTable pengeluarans = $PengeluaransTable(this);
+  late final Index pengeluaranByDate = Index(
+    'pengeluaran_by_date',
+    'CREATE INDEX pengeluaran_by_date ON pengeluaran (tanggal, id)',
+  );
+  late final Index pengeluaranByJenis = Index(
+    'pengeluaran_by_jenis',
+    'CREATE INDEX pengeluaran_by_jenis ON pengeluaran (jenis_id)',
+  );
   late final PekerjaanDao pekerjaanDao = PekerjaanDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -15577,6 +16242,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     pekerjaanPpatHargaLocals,
     pekerjaanPpatProsesLocals,
     pekerjaanPpatAtributLocals,
+    pengeluarans,
+    pengeluaranByDate,
+    pengeluaranByJenis,
   ];
 }
 
@@ -22309,6 +22977,38 @@ typedef $$PengeluaranJenisTableUpdateCompanionBuilder =
       Value<DateTime?> deletedAt,
     });
 
+final class $$PengeluaranJenisTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $PengeluaranJenisTable,
+          PengeluaranJenisData
+        > {
+  $$PengeluaranJenisTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$PengeluaransTable, List<PengeluaranData>>
+  _pengeluaransRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.pengeluarans,
+    aliasName: 'pengeluaran_jenis__id__pengeluaran__jenis_id',
+  );
+
+  $$PengeluaransTableProcessedTableManager get pengeluaransRefs {
+    final manager = $$PengeluaransTableTableManager(
+      $_db,
+      $_db.pengeluarans,
+    ).filter((f) => f.jenisId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_pengeluaransRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
 class $$PengeluaranJenisTableFilterComposer
     extends Composer<_$AppDatabase, $PengeluaranJenisTable> {
   $$PengeluaranJenisTableFilterComposer({
@@ -22372,6 +23072,31 @@ class $$PengeluaranJenisTableFilterComposer
     column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> pengeluaransRefs(
+    Expression<bool> Function($$PengeluaransTableFilterComposer f) f,
+  ) {
+    final $$PengeluaransTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.pengeluarans,
+      getReferencedColumn: (t) => t.jenisId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PengeluaransTableFilterComposer(
+            $db: $db,
+            $table: $db.pengeluarans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$PengeluaranJenisTableOrderingComposer
@@ -22484,6 +23209,31 @@ class $$PengeluaranJenisTableAnnotationComposer
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  Expression<T> pengeluaransRefs<T extends Object>(
+    Expression<T> Function($$PengeluaransTableAnnotationComposer a) f,
+  ) {
+    final $$PengeluaransTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.pengeluarans,
+      getReferencedColumn: (t) => t.jenisId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PengeluaransTableAnnotationComposer(
+            $db: $db,
+            $table: $db.pengeluarans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$PengeluaranJenisTableTableManager
@@ -22497,16 +23247,9 @@ class $$PengeluaranJenisTableTableManager
           $$PengeluaranJenisTableAnnotationComposer,
           $$PengeluaranJenisTableCreateCompanionBuilder,
           $$PengeluaranJenisTableUpdateCompanionBuilder,
-          (
-            PengeluaranJenisData,
-            BaseReferences<
-              _$AppDatabase,
-              $PengeluaranJenisTable,
-              PengeluaranJenisData
-            >,
-          ),
+          (PengeluaranJenisData, $$PengeluaranJenisTableReferences),
           PengeluaranJenisData,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool pengeluaransRefs})
         > {
   $$PengeluaranJenisTableTableManager(
     _$AppDatabase db,
@@ -22579,15 +23322,40 @@ class $$PengeluaranJenisTableTableManager
                   e.readTable<$PengeluaranJenisTable, PengeluaranJenisData>(
                     table,
                   ),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $PengeluaranJenisTable,
-                    PengeluaranJenisData
-                  >(db, table, e),
+                  $$PengeluaranJenisTableReferences(db, table, e),
                 ),
               )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({pengeluaransRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (pengeluaransRefs) db.pengeluarans],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (pengeluaransRefs)
+                    await $_getPrefetchedData<
+                      PengeluaranJenisData,
+                      $PengeluaranJenisTable,
+                      PengeluaranData
+                    >(
+                      currentTable: table,
+                      referencedTable: $$PengeluaranJenisTableReferences
+                          ._pengeluaransRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$PengeluaranJenisTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).pengeluaransRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.jenisId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
         ),
       );
 }
@@ -22602,16 +23370,9 @@ typedef $$PengeluaranJenisTableProcessedTableManager =
       $$PengeluaranJenisTableAnnotationComposer,
       $$PengeluaranJenisTableCreateCompanionBuilder,
       $$PengeluaranJenisTableUpdateCompanionBuilder,
-      (
-        PengeluaranJenisData,
-        BaseReferences<
-          _$AppDatabase,
-          $PengeluaranJenisTable,
-          PengeluaranJenisData
-        >,
-      ),
+      (PengeluaranJenisData, $$PengeluaranJenisTableReferences),
       PengeluaranJenisData,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool pengeluaransRefs})
     >;
 typedef $$PetugasLocalsTableCreateCompanionBuilder =
     PetugasLocalsCompanion Function({
@@ -27349,6 +28110,432 @@ typedef $$PekerjaanPpatAtributLocalsTableProcessedTableManager =
       PekerjaanPpatAtributLocal,
       PrefetchHooks Function({bool pekerjaanPpatId, bool prosesPekerjaanPpatId})
     >;
+typedef $$PengeluaransTableCreateCompanionBuilder =
+    PengeluaransCompanion Function({
+      Value<int> id,
+      required String uuid,
+      Value<String?> noFaktur,
+      required DateTime tanggal,
+      required int nominal,
+      required int jenisId,
+      required String jenisNama,
+      required String keterangan,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+    });
+typedef $$PengeluaransTableUpdateCompanionBuilder =
+    PengeluaransCompanion Function({
+      Value<int> id,
+      Value<String> uuid,
+      Value<String?> noFaktur,
+      Value<DateTime> tanggal,
+      Value<int> nominal,
+      Value<int> jenisId,
+      Value<String> jenisNama,
+      Value<String> keterangan,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+    });
+
+final class $$PengeluaransTableReferences
+    extends BaseReferences<_$AppDatabase, $PengeluaransTable, PengeluaranData> {
+  $$PengeluaransTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $PengeluaranJenisTable _jenisIdTable(_$AppDatabase db) => db
+      .pengeluaranJenis
+      .createAlias('pengeluaran__jenis_id__pengeluaran_jenis__id');
+
+  $$PengeluaranJenisTableProcessedTableManager get jenisId {
+    final $_column = $_itemColumn<int>('jenis_id')!;
+
+    final manager = $$PengeluaranJenisTableTableManager(
+      $_db,
+      $_db.pengeluaranJenis,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_jenisIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PengeluaransTableFilterComposer
+    extends Composer<_$AppDatabase, $PengeluaransTable> {
+  $$PengeluaransTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get noFaktur => $composableBuilder(
+    column: $table.noFaktur,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get tanggal => $composableBuilder(
+    column: $table.tanggal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nominal => $composableBuilder(
+    column: $table.nominal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get jenisNama => $composableBuilder(
+    column: $table.jenisNama,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get keterangan => $composableBuilder(
+    column: $table.keterangan,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$PengeluaranJenisTableFilterComposer get jenisId {
+    final $$PengeluaranJenisTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jenisId,
+      referencedTable: $db.pengeluaranJenis,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PengeluaranJenisTableFilterComposer(
+            $db: $db,
+            $table: $db.pengeluaranJenis,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PengeluaransTableOrderingComposer
+    extends Composer<_$AppDatabase, $PengeluaransTable> {
+  $$PengeluaransTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get noFaktur => $composableBuilder(
+    column: $table.noFaktur,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get tanggal => $composableBuilder(
+    column: $table.tanggal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get nominal => $composableBuilder(
+    column: $table.nominal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get jenisNama => $composableBuilder(
+    column: $table.jenisNama,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get keterangan => $composableBuilder(
+    column: $table.keterangan,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$PengeluaranJenisTableOrderingComposer get jenisId {
+    final $$PengeluaranJenisTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jenisId,
+      referencedTable: $db.pengeluaranJenis,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PengeluaranJenisTableOrderingComposer(
+            $db: $db,
+            $table: $db.pengeluaranJenis,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PengeluaransTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PengeluaransTable> {
+  $$PengeluaransTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<String> get noFaktur =>
+      $composableBuilder(column: $table.noFaktur, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get tanggal =>
+      $composableBuilder(column: $table.tanggal, builder: (column) => column);
+
+  GeneratedColumn<int> get nominal =>
+      $composableBuilder(column: $table.nominal, builder: (column) => column);
+
+  GeneratedColumn<String> get jenisNama =>
+      $composableBuilder(column: $table.jenisNama, builder: (column) => column);
+
+  GeneratedColumn<String> get keterangan => $composableBuilder(
+    column: $table.keterangan,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  $$PengeluaranJenisTableAnnotationComposer get jenisId {
+    final $$PengeluaranJenisTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jenisId,
+      referencedTable: $db.pengeluaranJenis,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PengeluaranJenisTableAnnotationComposer(
+            $db: $db,
+            $table: $db.pengeluaranJenis,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PengeluaransTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PengeluaransTable,
+          PengeluaranData,
+          $$PengeluaransTableFilterComposer,
+          $$PengeluaransTableOrderingComposer,
+          $$PengeluaransTableAnnotationComposer,
+          $$PengeluaransTableCreateCompanionBuilder,
+          $$PengeluaransTableUpdateCompanionBuilder,
+          (PengeluaranData, $$PengeluaransTableReferences),
+          PengeluaranData,
+          PrefetchHooks Function({bool jenisId})
+        > {
+  $$PengeluaransTableTableManager(_$AppDatabase db, $PengeluaransTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PengeluaransTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PengeluaransTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PengeluaransTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> uuid = const Value.absent(),
+                Value<String?> noFaktur = const Value.absent(),
+                Value<DateTime> tanggal = const Value.absent(),
+                Value<int> nominal = const Value.absent(),
+                Value<int> jenisId = const Value.absent(),
+                Value<String> jenisNama = const Value.absent(),
+                Value<String> keterangan = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+              }) => PengeluaransCompanion(
+                id: id,
+                uuid: uuid,
+                noFaktur: noFaktur,
+                tanggal: tanggal,
+                nominal: nominal,
+                jenisId: jenisId,
+                jenisNama: jenisNama,
+                keterangan: keterangan,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String uuid,
+                Value<String?> noFaktur = const Value.absent(),
+                required DateTime tanggal,
+                required int nominal,
+                required int jenisId,
+                required String jenisNama,
+                required String keterangan,
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+              }) => PengeluaransCompanion.insert(
+                id: id,
+                uuid: uuid,
+                noFaktur: noFaktur,
+                tanggal: tanggal,
+                nominal: nominal,
+                jenisId: jenisId,
+                jenisNama: jenisNama,
+                keterangan: keterangan,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PengeluaransTable, PengeluaranData>(table),
+                  $$PengeluaransTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({jenisId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (jenisId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.jenisId,
+                        referencedTable: $$PengeluaransTableReferences
+                            ._jenisIdTable(db),
+                        referencedColumn: $$PengeluaransTableReferences
+                            ._jenisIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PengeluaransTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PengeluaransTable,
+      PengeluaranData,
+      $$PengeluaransTableFilterComposer,
+      $$PengeluaransTableOrderingComposer,
+      $$PengeluaransTableAnnotationComposer,
+      $$PengeluaransTableCreateCompanionBuilder,
+      $$PengeluaransTableUpdateCompanionBuilder,
+      (PengeluaranData, $$PengeluaransTableReferences),
+      PengeluaranData,
+      PrefetchHooks Function({bool jenisId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -27423,4 +28610,6 @@ class $AppDatabaseManager {
         _db,
         _db.pekerjaanPpatAtributLocals,
       );
+  $$PengeluaransTableTableManager get pengeluarans =>
+      $$PengeluaransTableTableManager(_db, _db.pengeluarans);
 }
