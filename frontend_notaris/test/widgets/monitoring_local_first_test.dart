@@ -318,6 +318,9 @@ void main() {
               ),
             );
         await process('Proses legacy', 'd-selected', selected);
+        for (var i = 1; i <= 12; i++) {
+          await process('Langkah $i', 'd-second', selected);
+        }
         await process('Proses salah induk', 'd-second', other);
         await process('Proses detail nonaktif', 'd-inactive', selected);
         await detail(other, 'd-foreign', 'Pekerjaan asing', 'Kategori asing');
@@ -355,19 +358,49 @@ void main() {
       await tester.tap(find.byTooltip('Detail'));
       await cycleUi(tester);
       expect(find.text('Detail Monitoring'), findsOneWidget);
-      expect(find.text('Jenis: Notaris'), findsOneWidget);
+      Finder inDialog(String text) =>
+          find.descendant(of: find.byType(Dialog), matching: find.text(text));
+      expect(inDialog('Notaris'), findsOneWidget);
+      expect(inDialog('Detail-Test'), findsNWidgets(2));
+      expect(inDialog('Snapshot B'), findsOneWidget);
       expect(
-        find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.text('Snapshot B'),
-        ),
-        findsOneWidget,
+        tester.getTopLeft(inDialog('Jenis')).dx,
+        tester.getTopLeft(inDialog('No. Transaksi')).dx,
       );
+      tester.view.physicalSize = const Size(1280, 800);
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(inDialog('Jenis')).dx,
+        greaterThan(tester.getTopLeft(inDialog('No. Transaksi')).dx),
+      );
+      expect(
+        tester
+            .getSize(find.byKey(const Key('transaction-review-surface')))
+            .width,
+        closeTo(860, 1),
+      );
+      tester.view.physicalSize = const Size(420, 650);
+      await tester.pumpAndSettle();
+      final body = find.descendant(
+        of: find.byType(Dialog),
+        matching: find.byType(Scrollable),
+      );
+      expect(
+        tester.state<ScrollableState>(body).position.maxScrollExtent,
+        greaterThan(0),
+      );
+      await tester.ensureVisible(inDialog('Langkah 12'));
+      await tester.pumpAndSettle();
+      expect(inDialog('Langkah 12').hitTestable(), findsOneWidget);
+      expect(find.byTooltip('Tutup').hitTestable(), findsOneWidget);
       expect(find.text('Proses legacy'), findsOneWidget);
-      expect(find.text('Belum Diinisialisasi'), findsOneWidget);
+      expect(inDialog('Belum Diinisialisasi'), findsNWidgets(13));
       expect(find.text('Proses salah induk'), findsNothing);
       expect(find.text('Proses detail nonaktif'), findsNothing);
       expect(find.text('UUID detail transaksi lain'), findsNothing);
+      await tester.tap(find.byTooltip('Tutup'));
+      await tester.pumpAndSettle();
+      expect(find.byType(Dialog), findsNothing);
       expect(await tester.runAsync(snapshot), baseline);
       expect(id, isNotNull);
       expect(tester.takeException(), isNull);

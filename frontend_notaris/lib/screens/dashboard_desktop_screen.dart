@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/widgets/searchable_dropdown.dart';
+import '../core/widgets/transaction_review_dialog.dart';
 import '../models/dashboard_transactions.dart';
 import '../providers/transaction_provider.dart';
 
@@ -767,114 +768,122 @@ class _DashboardTransactionDialogState
         : (page.total + dashboardTransactionPageSize - 1) ~/
               dashboardTransactionPageSize;
     final deadlines = widget.list == DashboardTransactionList.deadlines;
-    return Dialog(
-      backgroundColor: AppColors.card,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      child: SizedBox(
-        width: 600,
-        height: 560,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-          child: Column(
-            children: [
-              Row(
+    return TransactionReviewDialog(
+      title: widget.list.title,
+      subtitle: 'Tahun ${widget.year}',
+      bodyKey: ValueKey(page?.index),
+      body: result.when(
+        loading: () => const TransactionReviewMessage(
+          'Memuat transaksi lokal…',
+          loading: true,
+        ),
+        error: (_, _) => const TransactionReviewMessage(
+          'Data transaksi lokal gagal dimuat.',
+          icon: Icons.error_outline,
+        ),
+        data: (page) => page.rows.isEmpty
+            ? TransactionReviewMessage(
+                deadlines
+                    ? 'Belum ada tenggat transaksi terbuka.'
+                    : 'Belum ada transaksi pada tahun ini.',
+              )
+            : Column(
                 children: [
-                  Expanded(
-                    child: Text(
-                      widget.list.title,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Tutup',
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Tahun ${widget.year}'),
-              ),
-              const Divider(color: AppColors.divider),
-              Expanded(
-                child: result.when(
-                  loading: () => const Center(
-                    child: CircularProgressIndicator(
-                      semanticsLabel: 'Memuat transaksi lokal',
-                    ),
-                  ),
-                  error: (_, _) => const Center(
-                    child: Text(
-                      'Data transaksi lokal gagal dimuat.',
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  data: (page) => page.rows.isEmpty
-                      ? Center(
-                          child: Text(
+                  for (final (index, row) in page.rows.indexed) ...[
+                    if (index > 0)
+                      const Divider(height: 1, color: AppColors.divider),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
                             deadlines
-                                ? 'Belum ada tenggat transaksi terbuka.'
-                                : 'Belum ada transaksi pada tahun ini.',
-                            textAlign: TextAlign.center,
+                                ? Icons.event_outlined
+                                : Icons.receipt_long_outlined,
+                            color: AppColors.primaryDark,
+                            size: 20,
                           ),
-                        )
-                      : ListView.separated(
-                          key: ValueKey(page.index),
-                          primary: false,
-                          itemCount: page.rows.length,
-                          separatorBuilder: (_, _) => const Divider(
-                            height: 1,
-                            color: AppColors.divider,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  row.noAkta,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 4,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    if (deadlines) ...[
+                                      Text(
+                                        'Tenggat ${_formatDate(row.tanggalJatuhTempo!)}',
+                                        style: const TextStyle(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                      TransactionReviewBadge.transaction(
+                                        row.statusTransaksi,
+                                      ),
+                                    ] else ...[
+                                      Text(
+                                        '${row.jenisTransaksi.toUpperCase()} · ${_formatDate(row.tanggalTransaksi!)}',
+                                        style: const TextStyle(
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                      Text(
+                                        _rupiah(row.total),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                          itemBuilder: (context, index) {
-                            final row = page.rows[index];
-                            final date = deadlines
-                                ? row.tanggalJatuhTempo!
-                                : row.tanggalTransaksi!;
-                            final detail = deadlines
-                                ? row.statusTransaksi
-                                : row.jenisTransaksi.toUpperCase();
-                            return ListTile(
-                              dense: true,
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(row.noAkta),
-                              subtitle: Text('$detail · ${_formatDate(date)}'),
-                              trailing: deadlines
-                                  ? null
-                                  : Text(_rupiah(row.total)),
-                            );
-                          },
-                        ),
-                ),
-              ),
-              const Divider(color: AppColors.divider),
-              Wrap(
-                alignment: WrapAlignment.center,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 8,
-                children: [
-                  if (page != null)
-                    Text(
-                      '${page.total} transaksi · Halaman ${pageCount == 0 ? 0 : page.index + 1} / $pageCount',
+                        ],
+                      ),
                     ),
-                  TextButton(
-                    onPressed: page != null && page.index > 0
-                        ? () => setState(() => _index = page.index - 1)
-                        : null,
-                    child: const Text('Sebelumnya'),
-                  ),
-                  TextButton(
-                    onPressed: page != null && page.index + 1 < pageCount
-                        ? () => setState(() => _index = page.index + 1)
-                        : null,
-                    child: const Text('Berikutnya'),
-                  ),
+                  ],
                 ],
+              ),
+      ),
+      footer: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        children: [
+          if (page != null)
+            Text(
+              '${page.total} transaksi · Halaman ${pageCount == 0 ? 0 : page.index + 1} / $pageCount',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          Wrap(
+            children: [
+              TextButton(
+                onPressed: page != null && page.index > 0
+                    ? () => setState(() => _index = page.index - 1)
+                    : null,
+                child: const Text('Sebelumnya'),
+              ),
+              TextButton(
+                onPressed: page != null && page.index + 1 < pageCount
+                    ? () => setState(() => _index = page.index + 1)
+                    : null,
+                child: const Text('Berikutnya'),
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }

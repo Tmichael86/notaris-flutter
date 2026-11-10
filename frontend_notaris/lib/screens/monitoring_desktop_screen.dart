@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../widgets/transaksi_proses_list.dart';
 import '../core/theme/app_colors.dart';
+import '../core/widgets/transaction_review_dialog.dart';
 
 import 'package:frontend_notaris/core/widgets/searchable_dropdown.dart';
 
@@ -54,30 +55,37 @@ class _MonitoringDetailDialog extends ConsumerWidget {
     final canRead = _canReadTransactions(
       ref.watch(authControllerProvider.select((state) => state.session)),
     );
-    return AlertDialog(
-      scrollable: true,
-      title: const Text('Detail Monitoring'),
-      content: SizedBox(
-        width: 500,
-        child: canRead
-            ? ref
-                  .watch(monitoringTransactionProvider(transactionId))
-                  .when(
-                    loading: () => const Text('Memuat detail transaksi…'),
-                    error: (_, _) =>
-                        const Text('Detail transaksi gagal dimuat.'),
-                    data: (row) => row == null
-                        ? const Text('Transaksi sudah tidak tersedia.')
-                        : _buildDetail(context, ref, row),
+    final result = canRead
+        ? ref.watch(monitoringTransactionProvider(transactionId))
+        : null;
+    final row = result?.asData?.value;
+    return TransactionReviewDialog(
+      width: 860,
+      title: 'Detail Monitoring',
+      subtitle: row?.transaction.noAkta,
+      status: row == null
+          ? null
+          : TransactionReviewBadge.transaction(row.transaction.statusTransaksi),
+      body:
+          result?.when(
+            loading: () => const TransactionReviewMessage(
+              'Memuat detail transaksi…',
+              loading: true,
+            ),
+            error: (_, _) => const TransactionReviewMessage(
+              'Detail transaksi gagal dimuat.',
+              icon: Icons.error_outline,
+            ),
+            data: (row) => row == null
+                ? const TransactionReviewMessage(
+                    'Transaksi sudah tidak tersedia.',
                   )
-            : const Text('Izin baca Transaksi diperlukan.'),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Tutup'),
-        ),
-      ],
+                : _buildDetail(context, ref, row),
+          ) ??
+          const TransactionReviewMessage(
+            'Izin baca Transaksi diperlukan.',
+            icon: Icons.lock_outline,
+          ),
     );
   }
 
@@ -89,53 +97,118 @@ class _MonitoringDetailDialog extends ConsumerWidget {
       _ => _present(transaction.jenisTransaksi),
     };
     final details = ref.watch(monitoringDetailsProvider(transactionId));
+    final fields = [
+      ('No. Transaksi', _present(transaction.noAkta)),
+      ('Jenis', kind),
+      ('Tanggal', _monitoringDate(transaction.tanggalTransaksi)),
+      ('Jatuh Tempo', _monitoringDate(transaction.tanggalJatuhTempo)),
+      ('Pemohon', _present(row.applicant)),
+      ('NIK', _present(row.nik)),
+      ('Petugas', _present(row.officer)),
+      ('Nominal', _monitoringMoney(transaction.total)),
+      ('Status', _present(transaction.statusTransaksi)),
+    ];
+    final titleStyle = Theme.of(context).textTheme.titleMedium
+        ?.copyWith(fontWeight: FontWeight.w700);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
       children: [
-        for (final (label, value) in [
-          ('No. Transaksi', transaction.noAkta),
-          ('Jenis', kind),
-          ('Tanggal', _monitoringDate(transaction.tanggalTransaksi)),
-          ('Jatuh Tempo', _monitoringDate(transaction.tanggalJatuhTempo)),
-          ('NIK', _present(row.nik)),
-          ('Pemohon', _present(row.applicant)),
-          ('Petugas', _present(row.officer)),
-          ('Nominal', _monitoringMoney(transaction.total)),
-          ('Status', _present(transaction.statusTransaksi)),
-        ])
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Text('$label: $value'),
-          ),
-        const Divider(),
-        Text('Pekerjaan', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 6),
+        Text('Ringkasan Transaksi', style: titleStyle),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final fieldWidth = width < 560 ? width : (width - 16) / 2;
+            return Wrap(
+              spacing: 16,
+              runSpacing: 12,
+              children: [
+                for (final (label, value) in fields)
+                  SizedBox(
+                    width: fieldWidth,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          label,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          value,
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        const Divider(color: AppColors.divider),
+        Text('Detail Pekerjaan', style: titleStyle),
         details.when(
-          loading: () => const Text('Memuat pekerjaan…'),
-          error: (_, _) => const Text('Pekerjaan gagal dimuat.'),
+          loading: () => const TransactionReviewMessage(
+            'Memuat pekerjaan…',
+            loading: true,
+          ),
+          error: (_, _) => const TransactionReviewMessage(
+            'Pekerjaan gagal dimuat.',
+            icon: Icons.error_outline,
+          ),
           data: (jobs) => jobs.isEmpty
-              ? const Text('Belum ada detail pekerjaan aktif.')
+              ? const TransactionReviewMessage(
+                  'Belum ada detail pekerjaan aktif.',
+                )
               : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    for (final job in jobs) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        _present(job.namaPekerjaanSnapshot),
-                        style: const TextStyle(fontWeight: FontWeight.w600),
+                    for (final job in jobs)
+                      Container(
+                        margin: const EdgeInsets.only(top: 10),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.card,
+                          border: Border.all(color: AppColors.border),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _present(job.namaPekerjaanSnapshot),
+                              style: titleStyle,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Kategori: ${_present(job.kategoriSnapshot)}',
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const Divider(color: AppColors.divider),
+                            TransaksiProsesList(
+                              key: ValueKey(job.uuid),
+                              transactionId: transactionId,
+                              detailUuid: job.uuid,
+                              fallbackProcesses: const [],
+                              embedded: true,
+                            ),
+                          ],
+                        ),
                       ),
-                      Text('Kategori: ${_present(job.kategoriSnapshot)}'),
-                      TransaksiProsesList(
-                        key: ValueKey(job.uuid),
-                        transactionId: transactionId,
-                        detailUuid: job.uuid,
-                        fallbackProcesses: const [],
-                        embedded: true,
-                      ),
-                    ],
                   ],
                 ),
         ),
+        const SizedBox(height: 6),
       ],
     );
   }

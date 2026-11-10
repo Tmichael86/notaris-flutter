@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/core/widgets/searchable_dropdown.dart';
@@ -41,6 +42,85 @@ void main() {
   late AppDatabase db;
   setUp(() => db = AppDatabase.forTesting(NativeDatabase.memory()));
   tearDown(() => db.close());
+
+  for (final count in [0, 1, 2, 10, 11]) {
+    testWidgets('Dashboard review adapts to $count transactions', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1240, 760);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final year = DateTime.now().year;
+      await tester.runAsync(() async {
+        for (var i = 1; i <= count; i++) {
+          await header(
+            db,
+            'FIT-$i',
+            date: DateTime(year, 2, i),
+            deadline: DateTime(year, 3, i),
+          );
+        }
+      });
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [appDatabaseProvider.overrideWithValue(db)],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: DashboardDesktopScreen(canReadTransactions: true),
+              ),
+            ),
+          ),
+        ),
+      );
+      await cycleUi(tester);
+      final action = find.widgetWithText(TextButton, 'Lihat semua').first;
+      await tester.ensureVisible(action);
+      await tester.tap(action);
+      await cycleUi(tester);
+      final dialog = find.byType(Dialog);
+      final body = find.descendant(
+        of: dialog,
+        matching: find.byType(Scrollable),
+      );
+      final surface = find.byKey(const Key('transaction-review-surface'));
+      final page = count == 0
+          ? '0 / 0'
+          : count > 10
+          ? '1 / 2'
+          : '1 / 1';
+      expect(find.text('$count transaksi · Halaman $page'), findsOneWidget);
+      final height = tester.getSize(surface).height;
+      expect(height, lessThanOrEqualTo(760 * .84 + 1));
+      final position = tester.state<ScrollableState>(body).position;
+      if (count <= 2) {
+        expect(height, lessThan(350));
+        expect(position.maxScrollExtent, 0);
+      } else {
+        expect(position.maxScrollExtent, greaterThan(0));
+        final closeRect = tester.getRect(find.byTooltip('Tutup'));
+        final next = find.widgetWithText(TextButton, 'Berikutnya');
+        final nextRect = tester.getRect(next);
+        position.jumpTo(position.maxScrollExtent);
+        await tester.pumpAndSettle();
+        expect(tester.getRect(find.byTooltip('Tutup')), closeRect);
+        expect(tester.getRect(next), nextRect);
+        if (count == 11) {
+          await tester.tap(next);
+          await cycleUi(tester);
+          expect(find.text('11 transaksi · Halaman 2 / 2'), findsOneWidget);
+          expect(tester.getSize(surface).height, lessThan(350));
+        }
+      }
+      expect(tester.takeException(), isNull);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(dialog, findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    });
+  }
 
   test(
     'Dashboard pages use SQLite filters and stable date and ID ordering',

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_colors.dart';
+import '../core/widgets/transaction_review_dialog.dart';
 import '../providers/transaksi_proses_provider.dart';
 import '../repositories/transaksi_proses_repository.dart';
 
@@ -91,6 +92,7 @@ class TransaksiProsesList extends ConsumerWidget {
             index: index,
             name: process.namaProsesSnapshot,
             status: _statusLabel(process.statusProses),
+            reviewColor: embedded ? _reviewColor(process.statusProses) : null,
           );
         }
 
@@ -152,6 +154,14 @@ class TransaksiProsesList extends ConsumerWidget {
       _ => status,
     };
   }
+
+  static Color _reviewColor(String? status) => switch (status) {
+    ProcessValidationStatus.valid => Colors.green.shade800,
+    ProcessValidationStatus.dalamPengerjaan ||
+    ProcessValidationStatus.menungguValidasi => Colors.orange.shade900,
+    ProcessValidationStatus.perluRevisi => AppColors.primaryDark,
+    _ => AppColors.textSecondary,
+  };
 }
 
 class _ProcessRow extends StatelessWidget {
@@ -159,14 +169,50 @@ class _ProcessRow extends StatelessWidget {
     required this.index,
     required this.name,
     required this.status,
+    this.reviewColor,
   });
 
   final int index;
   final String name;
   final String status;
+  final Color? reviewColor;
 
   @override
   Widget build(BuildContext context) {
+    if (reviewColor case final color?) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            CircleAvatar(
+              radius: 12,
+              backgroundColor: AppColors.bgLight,
+              child: Text(
+                '${index + 1}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 3,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 3),
+                child: Text(name),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              flex: 2,
+              child: TransactionReviewBadge(status, color: color),
+            ),
+          ],
+        ),
+      );
+    }
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: CircleAvatar(
