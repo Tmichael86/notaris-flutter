@@ -24,12 +24,18 @@ const completionDemoUsername = 'petugas.demo';
 // Public credential for an in-process fixture. It cannot authenticate to a server.
 const completionDemoPassword = 'Petugas-Akta-25211';
 
-File completionDemoDatabaseFile(String id, {bool preparing = false}) {
+File completionDemoDatabaseFile(
+  String id, {
+  bool preparing = false,
+  bool ppat = false,
+}) {
   if (!RegExp(r'^[a-f0-9]{32}$').hasMatch(id)) {
     throw StateError('Identitas profil demo tidak valid.');
   }
   final temp = Directory.systemTemp.resolveSymbolicLinksSync();
-  final folder = Directory(p.join(temp, 'notaris-completion-$id'));
+  final folder = Directory(
+    p.join(temp, ppat ? 'notaris-ppat-$id' : 'notaris-completion-$id'),
+  );
   final marker = File(p.join(folder.path, 'owner'));
   final file = File(p.join(folder.path, 'offline.sqlite'));
   if (!folder.existsSync() ||
@@ -101,7 +107,11 @@ Future<AppDatabase> openCompletionDemo(String id) async {
 }
 
 class CompletionDemoAuth extends AuthService {
-  CompletionDemoAuth(Dio dio) : super(dio: dio);
+  CompletionDemoAuth(Dio dio, {this.allowReadOnly = false}) : super(dio: dio);
+
+  final bool allowReadOnly;
+  static const readerUsername = 'pembaca.demo';
+  static const readerPassword = 'Baca-Akta-25211';
 
   @override
   Future<AuthSession?> restoreSession() async => null;
@@ -115,26 +125,31 @@ class CompletionDemoAuth extends AuthService {
     required String password,
     required bool rememberMe,
   }) async {
-    if (username.trim() != completionDemoUsername ||
-        password != completionDemoPassword) {
+    final reader =
+        allowReadOnly &&
+        username.trim() == readerUsername &&
+        password == readerPassword;
+    if (!reader &&
+        (username.trim() != completionDemoUsername ||
+            password != completionDemoPassword)) {
       throw const AuthException('Kredensial petugas demo tidak cocok.');
     }
     return AuthSession(
       token: 'local-completion-demo',
-      userId: 1,
-      groupId: 1,
-      userName: 'Dimas Prasetyo',
-      groupName: 'Petugas Demonstrasi',
+      userId: reader ? 2 : 1,
+      groupId: reader ? 2 : 1,
+      userName: reader ? 'Nadia Pertiwi' : 'Dimas Prasetyo',
+      groupName: reader ? 'Pembaca Demonstrasi' : 'Petugas Demonstrasi',
       user: const {},
-      sidebars: const [
+      sidebars: [
         {
-          'sidebar': {
+          'sidebar': const {
             'sidebar_kode': 'transaksi',
             'sidebar_nama': 'Transaksi',
             'status': 1,
           },
           'read': 1,
-          'update': 1,
+          'update': reader ? 0 : 1,
         },
       ],
       verifiedAt: DateTime.now(),
@@ -158,6 +173,10 @@ Future<void> main() async {
   final db = await openCompletionDemo(
     const String.fromEnvironment('NOTARIS_COMPLETION_DEMO_ID'),
   );
+  runCompletionDemo(db);
+}
+
+void runCompletionDemo(AppDatabase db, {bool allowReadOnly = false}) {
   final dio = Dio(BaseOptions(baseUrl: 'http://127.0.0.1:0'));
   runApp(
     ProviderScope(
@@ -170,7 +189,9 @@ Future<void> main() async {
           ref.onDispose(dio.close);
           return dio;
         }),
-        authServiceProvider.overrideWith((ref) => CompletionDemoAuth(dio)),
+        authServiceProvider.overrideWith(
+          (ref) => CompletionDemoAuth(dio, allowReadOnly: allowReadOnly),
+        ),
         developmentUiSmokeProvider.overrideWithValue(true),
         petugasManualEnabledProvider.overrideWithValue(false),
       ],
