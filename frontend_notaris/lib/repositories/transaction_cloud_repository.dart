@@ -50,6 +50,7 @@ class TransactionCloudRepository {
   }
 
   Future<Map<String, dynamic>> _snapshot(int id, String mutation) async {
+    await _guardProcessAudit(id);
     final refs = await TransactionCloudReferences(
       db,
       petugasScope: petugasScope,
@@ -95,20 +96,6 @@ class TransactionCloudRepository {
                 )
                 ..orderBy([(t) => OrderingTerm.asc(t.uuid)]))
               .get();
-      for (final p in processes) {
-        final audit = await (db.select(
-          db.transaksiProsesRiwayat,
-        )..where((t) => t.transaksiProsesId.equals(p.id))).get();
-        if (audit.isNotEmpty ||
-            p.submittedByUserId != null ||
-            p.validatedByUserId != null ||
-            p.submittedAt != null ||
-            p.validatedAt != null) {
-          throw StateError(
-            'Process transition audit requires a cloud actor contract',
-          );
-        }
-      }
       jobs.add({
         'uuid': d.uuid,
         'job_uuid': ref['job_uuid'],
@@ -313,7 +300,7 @@ class TransactionCloudRepository {
     ];
   }
 
-  Future<void> _guardDeleteAudit(int id) async {
+  Future<void> _guardProcessAudit(int id) async {
     final audit = await db
         .customSelect(
           'SELECT p.id FROM transaksi_proses p WHERE p.transaksi_id=? AND (p.submitted_by_user_id IS NOT NULL OR p.validated_by_user_id IS NOT NULL OR p.submitted_at IS NOT NULL OR p.validated_at IS NOT NULL OR EXISTS(SELECT 1 FROM transaksi_proses_riwayat h WHERE h.transaksi_proses_id=p.id))',
@@ -367,9 +354,9 @@ class TransactionCloudRepository {
           'Committed payments need an explicit payment contract',
         );
       }
-      await _guardDeleteAudit(id);
       final Map<String, dynamic> request;
       if (operation == 'delete') {
+        await _guardProcessAudit(id);
         if (h.deletedAt == null) {
           throw StateError('Local soft deletion required before cloud delete');
         }
@@ -681,7 +668,7 @@ class TransactionCloudRepository {
           throw StateError('Dirty transaction child protected');
         }
       }
-      await _guardDeleteAudit(id);
+      await _guardProcessAudit(id);
       if (!_same(await _payments(id), aggregate['payments'])) {
         throw StateError('Committed payment history mismatch');
       }

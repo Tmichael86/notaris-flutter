@@ -1,11 +1,14 @@
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/database/app_database.dart';
+import 'package:frontend_notaris/providers/auth_provider.dart';
 import 'package:frontend_notaris/providers/database_provider.dart';
 import 'package:frontend_notaris/widgets/transaksi_proses_list.dart';
+
+import '../support/transaction_ui_test_support.dart';
 
 void main() {
   late AppDatabase database;
@@ -60,9 +63,16 @@ void main() {
     required int? id,
     required String detailUuid,
     List<TransaksiProsesFallbackItem> fallback = const [],
+    bool? permission,
   }) {
     return ProviderScope(
-      overrides: [appDatabaseProvider.overrideWithValue(database)],
+      overrides: [
+        appDatabaseProvider.overrideWithValue(database),
+        if (permission != null)
+          authControllerProvider.overrideWith(
+            (_) => TransactionUiAuth(uiSession(permission: permission)),
+          ),
+      ],
       child: MaterialApp(
         home: Scaffold(
           body: SizedBox(
@@ -72,6 +82,7 @@ void main() {
               transactionId: id,
               detailUuid: detailUuid,
               fallbackProcesses: fallback,
+              allowDirectValidation: permission != null,
             ),
           ),
         ),
@@ -184,6 +195,90 @@ void main() {
       findsOneWidget,
     );
 
+    await disposeSubject(tester);
+  });
+
+  testWidgets('initialize and save directly with one signed-in actor', (
+    tester,
+  ) async {
+    for (final detail in ['process-list-detail', 'other-process-list-detail']) {
+      await database
+          .into(database.transaksiProses)
+          .insert(
+            TransaksiProsesCompanion.insert(
+              uuid: 'process-for-$detail',
+              transaksiId: transactionId,
+              transaksiDetailUuid: detail,
+              namaProsesSnapshot: 'Periksa dokumen',
+            ),
+          );
+    }
+    await tester.pumpWidget(
+      buildSubject(
+        id: transactionId,
+        detailUuid: 'process-list-detail',
+        permission: true,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Detail Proses'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SwitchListTile), findsNothing);
+    await tester.tap(find.text('Inisialisasi proses'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
+      false,
+    );
+    await tester.enterText(find.byType(TextFormField), 'Berkas lengkap');
+    await tester.tap(find.byType(SwitchListTile));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Simpan'));
+    await tester.pumpAndSettle();
+    expect(find.text('Valid'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(TextButton, 'Detail Proses'));
+    await tester.pumpAndSettle();
+    expect(find.text('Berkas lengkap'), findsOneWidget);
+    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.text('Batal'));
+    await tester.pumpAndSettle();
+    expect(find.text('Valid'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await disposeSubject(tester);
+    final processes = await database.select(database.transaksiProses).get();
+    expect(processes.map((row) => row.statusProses), ['valid', null]);
+    expect(processes.first.validatedByUserId, uiSession().userId);
+    final history = await database
+        .select(database.transaksiProsesRiwayat)
+        .get();
+    expect(history.map((row) => row.statusBaru), ['belum_valid', 'valid']);
+  });
+
+  testWidgets('user without permission cannot open the validation editor', (
+    tester,
+  ) async {
+    await database
+        .into(database.transaksiProses)
+        .insert(
+          TransaksiProsesCompanion.insert(
+            uuid: 'restricted-process',
+            transaksiId: transactionId,
+            transaksiDetailUuid: 'process-list-detail',
+            namaProsesSnapshot: 'Periksa dokumen',
+          ),
+        );
+    await tester.pumpWidget(
+      buildSubject(
+        id: transactionId,
+        detailUuid: 'process-list-detail',
+        permission: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Periksa dokumen'), findsOneWidget);
+    expect(find.text('Detail Proses'), findsNothing);
     await disposeSubject(tester);
   });
 }

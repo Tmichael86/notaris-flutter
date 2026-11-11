@@ -364,10 +364,10 @@ func runTransactionCloudHTTP(t *testing.T, domain string) {
 	badActor := clone(update)
 	badActor.ExpectedRevision = 2
 	badActor.MutationID = "00000000-0000-4000-8000-000000009004"
-	state := "Valid"
+	state := "valid"
 	badActor.Details[0].Processes[0].Status = &state
-	if code, _ := post("update", badActor); code != 422 {
-		t.Fatal("unresolved process actor", code)
+	if code, out := post("update", badActor); code != 422 || !strings.Contains(string(out), `"code":"actor_provenance_unresolved"`) {
+		t.Fatalf("unresolved process actor=%d %s", code, out)
 	}
 	badChild := clone(update)
 	badChild.ExpectedRevision = 2

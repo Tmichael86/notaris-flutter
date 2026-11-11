@@ -2561,6 +2561,7 @@ class _TransactionDesktopScreenState
           child: TransaksiProsesList(
             transactionId: transactionId,
             detailUuid: job.localDetailUuid,
+            allowDirectValidation: true,
             fallbackProcesses: [
               for (final process in job.processes)
                 TransaksiProsesFallbackItem(

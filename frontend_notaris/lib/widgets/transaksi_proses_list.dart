@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/widgets/transaction_review_dialog.dart';
+import '../database/app_database.dart';
+import '../providers/auth_provider.dart';
 import '../providers/transaksi_proses_provider.dart';
 import '../repositories/transaksi_proses_repository.dart';
 import '../services/attribute_workflow.dart';
@@ -24,6 +26,7 @@ class TransaksiProsesList extends ConsumerWidget {
     required this.detailUuid,
     required this.fallbackProcesses,
     this.embedded = false,
+    this.allowDirectValidation = false,
     super.key,
   });
 
@@ -31,6 +34,7 @@ class TransaksiProsesList extends ConsumerWidget {
   final String detailUuid;
   final List<TransaksiProsesFallbackItem> fallbackProcesses;
   final bool embedded;
+  final bool allowDirectValidation;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,6 +45,12 @@ class TransaksiProsesList extends ConsumerWidget {
 
     final provider = transaksiProsesByTransactionProvider(id);
     final processesAsync = ref.watch(provider);
+    final canValidate =
+        !embedded &&
+        allowDirectValidation &&
+        TransaksiProsesRepository.canValidate(
+          ref.watch(authControllerProvider).session,
+        );
 
     return processesAsync.when(
       loading: () => const Center(
@@ -97,6 +107,13 @@ class TransaksiProsesList extends ConsumerWidget {
             name: process.namaProsesSnapshot,
             status: _statusLabel(process.statusProses),
             reviewColor: embedded ? _reviewColor(process.statusProses) : null,
+            onValidate: canValidate
+                ? () => showDialog<void>(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) => _ProcessValidationDialog(process: process),
+                  )
+                : null,
             onWorkflow: workflowEnabled
                 ? () => showAttributeWorkflow(context, ref, process.uuid)
                 : null,
@@ -153,6 +170,7 @@ class TransaksiProsesList extends ConsumerWidget {
   static String _statusLabel(String? status) {
     return switch (status) {
       null => 'Belum Diinisialisasi',
+      ProcessValidationStatus.belumValid => 'Belum Valid',
       ProcessValidationStatus.belumDikerjakan => 'Belum Dikerjakan',
       ProcessValidationStatus.dalamPengerjaan => 'Dalam Pengerjaan',
       ProcessValidationStatus.menungguValidasi => 'Menunggu Validasi',
@@ -177,6 +195,7 @@ class _ProcessRow extends StatelessWidget {
     required this.name,
     required this.status,
     this.reviewColor,
+    this.onValidate,
     this.onWorkflow,
   });
 
@@ -184,6 +203,7 @@ class _ProcessRow extends StatelessWidget {
   final String name;
   final String status;
   final Color? reviewColor;
+  final VoidCallback? onValidate;
   final VoidCallback? onWorkflow;
 
   @override
@@ -240,14 +260,21 @@ class _ProcessRow extends StatelessWidget {
         name,
         style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
       ),
-      subtitle: onWorkflow == null
+      subtitle: onValidate == null && onWorkflow == null
           ? null
-          : Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(
-                onPressed: onWorkflow,
-                child: const Text('Validasi atribut'),
-              ),
+          : Wrap(
+              children: [
+                if (onValidate != null)
+                  TextButton(
+                    onPressed: onValidate,
+                    child: const Text('Detail Proses'),
+                  ),
+                if (onWorkflow != null)
+                  TextButton(
+                    onPressed: onWorkflow,
+                    child: const Text('Validasi atribut'),
+                  ),
+              ],
             ),
       trailing: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 160),
@@ -269,6 +296,126 @@ class _ProcessRow extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ProcessValidationDialog extends ConsumerStatefulWidget {
+  const _ProcessValidationDialog({required this.process});
+
+  final TransaksiProse process;
+
+  @override
+  ConsumerState<_ProcessValidationDialog> createState() =>
+      _ProcessValidationDialogState();
+}
+
+class _ProcessValidationDialogState
+    extends ConsumerState<_ProcessValidationDialog> {
+  late TransaksiProse _process = widget.process;
+  late String? _note = _process.catatan;
+  late bool _valid = _process.statusProses == ProcessValidationStatus.valid;
+  bool _saving = false;
+  String? _error;
+
+  Future<void> _save({required bool initialize}) async {
+    if (_saving) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final result = await ref
+          .read(transaksiProsesRepositoryProvider)
+          .saveDirectValidation(
+            session: ref.read(authControllerProvider).session,
+            expected: _process,
+            valid: initialize ? null : _valid,
+            note: _note,
+          );
+      if (!mounted) return;
+      if (initialize) {
+        setState(() => _process = result);
+      } else {
+        Navigator.of(context).pop();
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _error = error is StateError
+              ? error.message
+              : 'Gagal menyimpan validasi proses.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final canValidate = TransaksiProsesRepository.canValidate(
+      ref.watch(authControllerProvider).session,
+    );
+    final initialized = _process.statusProses != null;
+    return PopScope(
+      canPop: !_saving,
+      child: AlertDialog(
+        scrollable: true,
+        backgroundColor: AppColors.card,
+        title: const Text('Detail Proses'),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(_process.namaProsesSnapshot),
+              const SizedBox(height: 12),
+              TextFormField(
+                initialValue: _note,
+                readOnly: !initialized || !canValidate || _saving,
+                decoration: const InputDecoration(labelText: 'Catatan'),
+                minLines: 2,
+                maxLines: 4,
+                onChanged: (value) => _note = value,
+              ),
+              const SizedBox(height: 8),
+              if (initialized)
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Validasi Proses'),
+                  subtitle: Text(_valid ? 'Valid' : 'Belum Valid'),
+                  value: _valid,
+                  onChanged: _saving || !canValidate
+                      ? null
+                      : (value) => setState(() => _valid = value),
+                )
+              else
+                const Text(
+                  'Belum Diinisialisasi. Inisialisasi sebelum mengubah validasi.',
+                ),
+              if (_error case final error?)
+                Text(
+                  error,
+                  style: const TextStyle(color: AppColors.primaryDark),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: _saving ? null : () => Navigator.of(context).pop(),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: _saving || !canValidate
+                ? null
+                : () => _save(initialize: !initialized),
+            child: Text(initialized ? 'Simpan' : 'Inisialisasi proses'),
+          ),
+        ],
       ),
     );
   }
