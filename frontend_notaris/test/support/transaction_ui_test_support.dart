@@ -20,12 +20,15 @@ const uiApplicant = '00000000-0000-4000-8000-000000000001',
 AuthSession uiSession({
   String token = 'test-ui-token',
   bool permission = true,
+  String? groupType,
+  int userId = 1,
 }) => AuthSession(
   token: token,
-  userId: 1,
+  userId: userId,
   groupId: 1,
   userName: 'Fixture',
   groupName: 'Fixture',
+  groupType: groupType,
   user: const {},
   sidebars: [
     {

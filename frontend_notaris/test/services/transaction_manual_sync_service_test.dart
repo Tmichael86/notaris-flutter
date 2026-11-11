@@ -871,6 +871,96 @@ void main() {
   }
 
   test(
+    'local payment audit blocks a newer feed without changing cursor or ACK',
+    () async {
+      await run(ManualSyncDirection.upload, selectedId: id);
+      final repo = TransactionRepository(db);
+      await repo.addPayment(
+        session: session,
+        transactionId: id,
+        paymentUuid: '00000000-0000-4000-8000-000000000201',
+        paymentDate: DateTime(2026, 11, 11),
+        amount: 10,
+      );
+      final cloud = TransactionCloudRepository(
+        db,
+        http,
+        scope: profile.transactionScope,
+        petugasScope: profile.petugasScope,
+        masterScope: profile.masterScope,
+      );
+      final accepted = transport.aggregate!;
+      void serve(int revision, Map<String, dynamic> aggregate) {
+        transport.respond = (_) async => Transport.json({
+          'changes': [
+            {
+              'sequence': revision,
+              'revision': revision,
+              'operation': revision == 1 ? 'create' : 'update',
+              'aggregate': aggregate,
+            },
+          ],
+          'next_cursor': revision,
+          'has_more': false,
+        }, 200);
+      }
+
+      serve(1, accepted);
+      expect(await cloud.pullPage(), 1);
+      final ack =
+          (await db
+                  .customSelect('SELECT * FROM transaction_cloud_pending')
+                  .getSingle())
+              .data;
+      final identity =
+          (await db
+                  .customSelect('SELECT * FROM transaction_cloud_identity')
+                  .getSingle())
+              .data;
+      serve(2, {
+        ...accepted,
+        'expected_revision': 1,
+        'mutation_id': '00000000-0000-4000-8000-000000000211',
+      });
+      await expectLater(
+        cloud.pullPage(),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('kontrak pembayaran cloud'),
+          ),
+        ),
+      );
+      expect((await repo.getPaymentHistory(id)).map((p) => p.nominal), [
+        25,
+        10,
+      ]);
+      expect(
+        (await db
+                .customSelect('SELECT cursor FROM transaction_cloud_feed')
+                .getSingle())
+            .read<int>('cursor'),
+        1,
+      );
+      expect(
+        (await db
+                .customSelect('SELECT * FROM transaction_cloud_pending')
+                .getSingle())
+            .data,
+        ack,
+      );
+      expect(
+        (await db
+                .customSelect('SELECT * FROM transaction_cloud_identity')
+                .getSingle())
+            .data,
+        identity,
+      );
+    },
+  );
+
+  test(
     'PPAT replay preserves local completion and blocks a newer revision',
     () async {
       final other = await ppat();

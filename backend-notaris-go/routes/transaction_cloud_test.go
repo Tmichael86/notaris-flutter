@@ -95,7 +95,7 @@ func runTransactionCloudHTTP(t *testing.T, domain string) {
  INSERT INTO pekerjaan_ppat_harga VALUES(1701,'00000000-0000-4000-8000-000000000005',1901,801,1,NULL);
  INSERT INTO pekerjaan_notaris VALUES(902,'00000000-0000-4000-8000-000000000044',1,NULL);
  INSERT INTO pekerjaan_notaris_harga VALUES(702,'00000000-0000-4000-8000-000000000045',902,801,1,NULL);
- INSERT INTO groups(id,status) VALUES(1,1); INSERT INTO users(id,group_id,status) VALUES(1,1,1);
+ INSERT INTO groups(id,group_jenis,status) VALUES(1,'user',1); INSERT INTO users(id,group_id,status) VALUES(1,1,1);
  INSERT INTO sidebar(id,sidebar_kode,sidebar_route,status) VALUES(1,'transaksi','/transaksi',1);
  INSERT INTO sidebar_akses(id,group_id,sidebar_id,"read","create","update","delete") VALUES(1,1,1,1,1,1,1);`
 	if e = db.Exec(ddl).Error; e != nil {
@@ -131,6 +131,30 @@ func runTransactionCloudHTTP(t *testing.T, domain string) {
 	})
 	server := httptest.NewServer(router)
 	defer server.Close()
+	for _, role := range []string{"user", "superadmin"} {
+		if e = db.Exec("UPDATE groups SET group_jenis=? WHERE id=1", role).Error; e != nil {
+			t.Fatal(e)
+		}
+		req, err := http.NewRequest(http.MethodGet, server.URL+"/api/v1/auth/me/sidebar-access", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		resp, err := server.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var body struct {
+			Data struct {
+				GroupType string `json:"group_jenis"`
+			} `json:"data"`
+		}
+		err = json.NewDecoder(resp.Body).Decode(&body)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusOK || err != nil || body.Data.GroupType != role {
+			t.Fatalf("verified group role=%q want=%q status=%d decode=%v", body.Data.GroupType, role, resp.StatusCode, err)
+		}
+	}
 	if os.Getenv("NOTARIS_TRANSACTION_E2E") == "1" {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 		defer cancel()

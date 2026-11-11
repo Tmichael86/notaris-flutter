@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/app_database.dart';
 import '../models/dashboard_transactions.dart';
 import '../models/transaction_monitoring.dart';
+import '../models/transaction_payments.dart';
 import '../repositories/transaction_repository.dart';
 import 'database_provider.dart';
 import 'auth_provider.dart';
@@ -27,6 +28,13 @@ final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
 final transactionsProvider = StreamProvider.autoDispose<List<Transaksi>>((ref) {
   return ref.watch(transactionRepositoryProvider).watchAll();
 });
+
+final transactionPaymentStatementProvider = StreamProvider.autoDispose
+    .family<TransactionPaymentStatement, int>(
+      (ref, id) => ref
+          .watch(transactionRepositoryProvider)
+          .watchPaymentStatement(id, ref.watch(authControllerProvider).session),
+    );
 
 final monitoringPageProvider = StreamProvider.autoDispose
     .family<MonitoringPage, MonitoringFilter>(
@@ -108,6 +116,15 @@ class TransactionController extends AsyncNotifier<void> {
           completing: status.trim().toLowerCase() == 'selesai',
         )) {
       throw StateError('Izin simpan Transaksi Notaris tidak tersedia.');
+    }
+    if (jenisTransaksi == 'ppat' &&
+        id != null &&
+        ref
+                .read(authControllerProvider)
+                .session
+                ?.hasTransactionAccess(update: true) !=
+            true) {
+      throw StateError('Izin ubah Transaksi PPAT tidak tersedia.');
     }
     state = const AsyncLoading();
     try {

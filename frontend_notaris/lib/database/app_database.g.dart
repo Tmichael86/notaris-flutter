@@ -5741,6 +5741,17 @@ class $TransaksiRiwayatPembayaransTable extends TransaksiRiwayatPembayarans
     type: DriftSqlType.double,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _nominalRupiahMeta = const VerificationMeta(
+    'nominalRupiah',
+  );
+  @override
+  late final GeneratedColumn<int> nominalRupiah = GeneratedColumn<int>(
+    'nominal_rupiah',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _metodePembayaranMeta = const VerificationMeta(
     'metodePembayaran',
   );
@@ -5852,6 +5863,7 @@ class $TransaksiRiwayatPembayaransTable extends TransaksiRiwayatPembayarans
     transaksiId,
     tanggalPembayaran,
     nominal,
+    nominalRupiah,
     metodePembayaran,
     keterangan,
     urutanPembayaran,
@@ -5914,6 +5926,15 @@ class $TransaksiRiwayatPembayaransTable extends TransaksiRiwayatPembayarans
       );
     } else if (isInserting) {
       context.missing(_nominalMeta);
+    }
+    if (data.containsKey('nominal_rupiah')) {
+      context.handle(
+        _nominalRupiahMeta,
+        nominalRupiah.isAcceptableOrUnknown(
+          data['nominal_rupiah']!,
+          _nominalRupiahMeta,
+        ),
+      );
     }
     if (data.containsKey('metode_pembayaran')) {
       context.handle(
@@ -6013,6 +6034,10 @@ class $TransaksiRiwayatPembayaransTable extends TransaksiRiwayatPembayarans
         DriftSqlType.double,
         data['${effectivePrefix}nominal'],
       )!,
+      nominalRupiah: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}nominal_rupiah'],
+      ),
       metodePembayaran: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}metode_pembayaran'],
@@ -6065,6 +6090,7 @@ class TransaksiRiwayatPembayaran extends DataClass
   final int transaksiId;
   final DateTime tanggalPembayaran;
   final double nominal;
+  final int? nominalRupiah;
   final String metodePembayaran;
   final String? keterangan;
   final int urutanPembayaran;
@@ -6080,6 +6106,7 @@ class TransaksiRiwayatPembayaran extends DataClass
     required this.transaksiId,
     required this.tanggalPembayaran,
     required this.nominal,
+    this.nominalRupiah,
     required this.metodePembayaran,
     this.keterangan,
     required this.urutanPembayaran,
@@ -6098,6 +6125,9 @@ class TransaksiRiwayatPembayaran extends DataClass
     map['transaksi_id'] = Variable<int>(transaksiId);
     map['tanggal_pembayaran'] = Variable<DateTime>(tanggalPembayaran);
     map['nominal'] = Variable<double>(nominal);
+    if (!nullToAbsent || nominalRupiah != null) {
+      map['nominal_rupiah'] = Variable<int>(nominalRupiah);
+    }
     map['metode_pembayaran'] = Variable<String>(metodePembayaran);
     if (!nullToAbsent || keterangan != null) {
       map['keterangan'] = Variable<String>(keterangan);
@@ -6127,6 +6157,9 @@ class TransaksiRiwayatPembayaran extends DataClass
       transaksiId: Value(transaksiId),
       tanggalPembayaran: Value(tanggalPembayaran),
       nominal: Value(nominal),
+      nominalRupiah: nominalRupiah == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nominalRupiah),
       metodePembayaran: Value(metodePembayaran),
       keterangan: keterangan == null && nullToAbsent
           ? const Value.absent()
@@ -6162,6 +6195,7 @@ class TransaksiRiwayatPembayaran extends DataClass
         json['tanggalPembayaran'],
       ),
       nominal: serializer.fromJson<double>(json['nominal']),
+      nominalRupiah: serializer.fromJson<int?>(json['nominalRupiah']),
       metodePembayaran: serializer.fromJson<String>(json['metodePembayaran']),
       keterangan: serializer.fromJson<String?>(json['keterangan']),
       urutanPembayaran: serializer.fromJson<int>(json['urutanPembayaran']),
@@ -6182,6 +6216,7 @@ class TransaksiRiwayatPembayaran extends DataClass
       'transaksiId': serializer.toJson<int>(transaksiId),
       'tanggalPembayaran': serializer.toJson<DateTime>(tanggalPembayaran),
       'nominal': serializer.toJson<double>(nominal),
+      'nominalRupiah': serializer.toJson<int?>(nominalRupiah),
       'metodePembayaran': serializer.toJson<String>(metodePembayaran),
       'keterangan': serializer.toJson<String?>(keterangan),
       'urutanPembayaran': serializer.toJson<int>(urutanPembayaran),
@@ -6200,6 +6235,7 @@ class TransaksiRiwayatPembayaran extends DataClass
     int? transaksiId,
     DateTime? tanggalPembayaran,
     double? nominal,
+    Value<int?> nominalRupiah = const Value.absent(),
     String? metodePembayaran,
     Value<String?> keterangan = const Value.absent(),
     int? urutanPembayaran,
@@ -6215,6 +6251,9 @@ class TransaksiRiwayatPembayaran extends DataClass
     transaksiId: transaksiId ?? this.transaksiId,
     tanggalPembayaran: tanggalPembayaran ?? this.tanggalPembayaran,
     nominal: nominal ?? this.nominal,
+    nominalRupiah: nominalRupiah.present
+        ? nominalRupiah.value
+        : this.nominalRupiah,
     metodePembayaran: metodePembayaran ?? this.metodePembayaran,
     keterangan: keterangan.present ? keterangan.value : this.keterangan,
     urutanPembayaran: urutanPembayaran ?? this.urutanPembayaran,
@@ -6238,6 +6277,9 @@ class TransaksiRiwayatPembayaran extends DataClass
           ? data.tanggalPembayaran.value
           : this.tanggalPembayaran,
       nominal: data.nominal.present ? data.nominal.value : this.nominal,
+      nominalRupiah: data.nominalRupiah.present
+          ? data.nominalRupiah.value
+          : this.nominalRupiah,
       metodePembayaran: data.metodePembayaran.present
           ? data.metodePembayaran.value
           : this.metodePembayaran,
@@ -6268,6 +6310,7 @@ class TransaksiRiwayatPembayaran extends DataClass
           ..write('transaksiId: $transaksiId, ')
           ..write('tanggalPembayaran: $tanggalPembayaran, ')
           ..write('nominal: $nominal, ')
+          ..write('nominalRupiah: $nominalRupiah, ')
           ..write('metodePembayaran: $metodePembayaran, ')
           ..write('keterangan: $keterangan, ')
           ..write('urutanPembayaran: $urutanPembayaran, ')
@@ -6288,6 +6331,7 @@ class TransaksiRiwayatPembayaran extends DataClass
     transaksiId,
     tanggalPembayaran,
     nominal,
+    nominalRupiah,
     metodePembayaran,
     keterangan,
     urutanPembayaran,
@@ -6307,6 +6351,7 @@ class TransaksiRiwayatPembayaran extends DataClass
           other.transaksiId == this.transaksiId &&
           other.tanggalPembayaran == this.tanggalPembayaran &&
           other.nominal == this.nominal &&
+          other.nominalRupiah == this.nominalRupiah &&
           other.metodePembayaran == this.metodePembayaran &&
           other.keterangan == this.keterangan &&
           other.urutanPembayaran == this.urutanPembayaran &&
@@ -6325,6 +6370,7 @@ class TransaksiRiwayatPembayaransCompanion
   final Value<int> transaksiId;
   final Value<DateTime> tanggalPembayaran;
   final Value<double> nominal;
+  final Value<int?> nominalRupiah;
   final Value<String> metodePembayaran;
   final Value<String?> keterangan;
   final Value<int> urutanPembayaran;
@@ -6340,6 +6386,7 @@ class TransaksiRiwayatPembayaransCompanion
     this.transaksiId = const Value.absent(),
     this.tanggalPembayaran = const Value.absent(),
     this.nominal = const Value.absent(),
+    this.nominalRupiah = const Value.absent(),
     this.metodePembayaran = const Value.absent(),
     this.keterangan = const Value.absent(),
     this.urutanPembayaran = const Value.absent(),
@@ -6356,6 +6403,7 @@ class TransaksiRiwayatPembayaransCompanion
     required int transaksiId,
     required DateTime tanggalPembayaran,
     required double nominal,
+    this.nominalRupiah = const Value.absent(),
     this.metodePembayaran = const Value.absent(),
     this.keterangan = const Value.absent(),
     this.urutanPembayaran = const Value.absent(),
@@ -6375,6 +6423,7 @@ class TransaksiRiwayatPembayaransCompanion
     Expression<int>? transaksiId,
     Expression<DateTime>? tanggalPembayaran,
     Expression<double>? nominal,
+    Expression<int>? nominalRupiah,
     Expression<String>? metodePembayaran,
     Expression<String>? keterangan,
     Expression<int>? urutanPembayaran,
@@ -6391,6 +6440,7 @@ class TransaksiRiwayatPembayaransCompanion
       if (transaksiId != null) 'transaksi_id': transaksiId,
       if (tanggalPembayaran != null) 'tanggal_pembayaran': tanggalPembayaran,
       if (nominal != null) 'nominal': nominal,
+      if (nominalRupiah != null) 'nominal_rupiah': nominalRupiah,
       if (metodePembayaran != null) 'metode_pembayaran': metodePembayaran,
       if (keterangan != null) 'keterangan': keterangan,
       if (urutanPembayaran != null) 'urutan_pembayaran': urutanPembayaran,
@@ -6409,6 +6459,7 @@ class TransaksiRiwayatPembayaransCompanion
     Value<int>? transaksiId,
     Value<DateTime>? tanggalPembayaran,
     Value<double>? nominal,
+    Value<int?>? nominalRupiah,
     Value<String>? metodePembayaran,
     Value<String?>? keterangan,
     Value<int>? urutanPembayaran,
@@ -6425,6 +6476,7 @@ class TransaksiRiwayatPembayaransCompanion
       transaksiId: transaksiId ?? this.transaksiId,
       tanggalPembayaran: tanggalPembayaran ?? this.tanggalPembayaran,
       nominal: nominal ?? this.nominal,
+      nominalRupiah: nominalRupiah ?? this.nominalRupiah,
       metodePembayaran: metodePembayaran ?? this.metodePembayaran,
       keterangan: keterangan ?? this.keterangan,
       urutanPembayaran: urutanPembayaran ?? this.urutanPembayaran,
@@ -6454,6 +6506,9 @@ class TransaksiRiwayatPembayaransCompanion
     }
     if (nominal.present) {
       map['nominal'] = Variable<double>(nominal.value);
+    }
+    if (nominalRupiah.present) {
+      map['nominal_rupiah'] = Variable<int>(nominalRupiah.value);
     }
     if (metodePembayaran.present) {
       map['metode_pembayaran'] = Variable<String>(metodePembayaran.value);
@@ -6493,6 +6548,7 @@ class TransaksiRiwayatPembayaransCompanion
           ..write('transaksiId: $transaksiId, ')
           ..write('tanggalPembayaran: $tanggalPembayaran, ')
           ..write('nominal: $nominal, ')
+          ..write('nominalRupiah: $nominalRupiah, ')
           ..write('metodePembayaran: $metodePembayaran, ')
           ..write('keterangan: $keterangan, ')
           ..write('urutanPembayaran: $urutanPembayaran, ')
@@ -21140,6 +21196,7 @@ typedef $$TransaksiRiwayatPembayaransTableCreateCompanionBuilder =
       required int transaksiId,
       required DateTime tanggalPembayaran,
       required double nominal,
+      Value<int?> nominalRupiah,
       Value<String> metodePembayaran,
       Value<String?> keterangan,
       Value<int> urutanPembayaran,
@@ -21157,6 +21214,7 @@ typedef $$TransaksiRiwayatPembayaransTableUpdateCompanionBuilder =
       Value<int> transaksiId,
       Value<DateTime> tanggalPembayaran,
       Value<double> nominal,
+      Value<int?> nominalRupiah,
       Value<String> metodePembayaran,
       Value<String?> keterangan,
       Value<int> urutanPembayaran,
@@ -21227,6 +21285,11 @@ class $$TransaksiRiwayatPembayaransTableFilterComposer
 
   ColumnFilters<double> get nominal => $composableBuilder(
     column: $table.nominal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nominalRupiah => $composableBuilder(
+    column: $table.nominalRupiah,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -21328,6 +21391,11 @@ class $$TransaksiRiwayatPembayaransTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get nominalRupiah => $composableBuilder(
+    column: $table.nominalRupiah,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get metodePembayaran => $composableBuilder(
     column: $table.metodePembayaran,
     builder: (column) => ColumnOrderings(column),
@@ -21419,6 +21487,11 @@ class $$TransaksiRiwayatPembayaransTableAnnotationComposer
 
   GeneratedColumn<double> get nominal =>
       $composableBuilder(column: $table.nominal, builder: (column) => column);
+
+  GeneratedColumn<int> get nominalRupiah => $composableBuilder(
+    column: $table.nominalRupiah,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get metodePembayaran => $composableBuilder(
     column: $table.metodePembayaran,
@@ -21528,6 +21601,7 @@ class $$TransaksiRiwayatPembayaransTableTableManager
                 Value<int> transaksiId = const Value.absent(),
                 Value<DateTime> tanggalPembayaran = const Value.absent(),
                 Value<double> nominal = const Value.absent(),
+                Value<int?> nominalRupiah = const Value.absent(),
                 Value<String> metodePembayaran = const Value.absent(),
                 Value<String?> keterangan = const Value.absent(),
                 Value<int> urutanPembayaran = const Value.absent(),
@@ -21543,6 +21617,7 @@ class $$TransaksiRiwayatPembayaransTableTableManager
                 transaksiId: transaksiId,
                 tanggalPembayaran: tanggalPembayaran,
                 nominal: nominal,
+                nominalRupiah: nominalRupiah,
                 metodePembayaran: metodePembayaran,
                 keterangan: keterangan,
                 urutanPembayaran: urutanPembayaran,
@@ -21560,6 +21635,7 @@ class $$TransaksiRiwayatPembayaransTableTableManager
                 required int transaksiId,
                 required DateTime tanggalPembayaran,
                 required double nominal,
+                Value<int?> nominalRupiah = const Value.absent(),
                 Value<String> metodePembayaran = const Value.absent(),
                 Value<String?> keterangan = const Value.absent(),
                 Value<int> urutanPembayaran = const Value.absent(),
@@ -21575,6 +21651,7 @@ class $$TransaksiRiwayatPembayaransTableTableManager
                 transaksiId: transaksiId,
                 tanggalPembayaran: tanggalPembayaran,
                 nominal: nominal,
+                nominalRupiah: nominalRupiah,
                 metodePembayaran: metodePembayaran,
                 keterangan: keterangan,
                 urutanPembayaran: urutanPembayaran,

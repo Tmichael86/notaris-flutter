@@ -12,85 +12,16 @@ import 'package:uuid/uuid.dart';
 import '../core/theme/app_colors.dart';
 import '../core/widgets/searchable_dropdown.dart';
 import '../database/app_database.dart';
+import '../models/transaction_payments.dart';
 import '../providers/people_provider.dart';
 import '../providers/pekerjaan_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../repositories/transaction_repository.dart';
 import '../widgets/transaksi_proses_list.dart';
 import '../widgets/ppat_completion_dialog.dart';
+import '../widgets/transaction_payment_history_dialog.dart';
 
 enum TransactionType { notaris, ppat }
-
-class TransactionPaymentHistoryDialog extends StatelessWidget {
-  const TransactionPaymentHistoryDialog({
-    super.key,
-    required this.transactionNumber,
-    required this.history,
-    required this.saved,
-  });
-
-  final String transactionNumber;
-  final Future<List<TransaksiRiwayatPembayaran>> history;
-  final bool saved;
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text('Riwayat Pembayaran $transactionNumber'),
-    content: SizedBox(
-      width: 520,
-      height: 300,
-      child: !saved
-          ? const Center(
-              child: Text('Simpan transaksi untuk melihat riwayat pembayaran.'),
-            )
-          : FutureBuilder<List<TransaksiRiwayatPembayaran>>(
-              future: history,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return const Center(
-                    child: Text('Gagal memuat riwayat pembayaran.'),
-                  );
-                }
-                final rows =
-                    snapshot.data ?? const <TransaksiRiwayatPembayaran>[];
-                if (rows.isEmpty) {
-                  return const Center(
-                    child: Text('Belum ada riwayat pembayaran.'),
-                  );
-                }
-                return ListView.separated(
-                  itemCount: rows.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final row = rows[index];
-                    final date = row.tanggalPembayaran;
-                    return ListTile(
-                      title: Text(
-                        'Rp ${_formatCurrencyDigits(row.nominal.toStringAsFixed(0))}',
-                      ),
-                      subtitle: Text(
-                        '${date.day.toString().padLeft(2, '0')}/'
-                        '${date.month.toString().padLeft(2, '0')}/${date.year} · '
-                        '${row.metodePembayaran}'
-                        '${row.keterangan == null ? '' : ' · ${row.keterangan}'}',
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Tutup'),
-      ),
-    ],
-  );
-}
 
 final _transactionJobUuid = Uuid();
 
@@ -320,13 +251,18 @@ class _TransactionDesktopScreenState
       selectedType == TransactionType.notaris &&
       transactionStatus.trim().toLowerCase() == 'selesai';
 
-  bool get _canSaveForm =>
-      selectedType != TransactionType.notaris ||
-      canSaveNotarisTransaction(
-        ref.read(authControllerProvider).session,
-        editing: _editingTransactionId != null,
-        completing: _notarisCompleted,
-      );
+  bool get _canSaveForm => selectedType == TransactionType.notaris
+      ? canSaveNotarisTransaction(
+          ref.read(authControllerProvider).session,
+          editing: _editingTransactionId != null,
+          completing: _notarisCompleted,
+        )
+      : _editingTransactionId == null ||
+            ref
+                    .read(authControllerProvider)
+                    .session
+                    ?.hasTransactionAccess(update: true) ==
+                true;
 
   List<DummyApplicant> applicants = [];
   List<DummyOfficer> officers = [];
@@ -616,8 +552,34 @@ class _TransactionDesktopScreenState
 
   double get netTotal => totalCost - discount;
 
-  double get remainingPayment =>
-      (netTotal - currentPayment).clamp(0, double.infinity);
+  TransactionPaymentStatement? _watchSavedPayments() {
+    final id = int.tryParse(_editingTransactionId ?? '');
+    return id == null
+        ? null
+        : ref.watch(transactionPaymentStatementProvider(id)).valueOrNull;
+  }
+
+  int? _draftRemainingRupiah() {
+    try {
+      var total = 0;
+      for (final job in selectedJobs) {
+        total = exactRupiah(
+          total +
+              exactRupiah(job.serviceCost, 'Biaya layanan') +
+              exactRupiah(job.otherCost, 'Biaya tambahan'),
+          'Total pekerjaan',
+        );
+      }
+      return total -
+          exactRupiah(discount, 'Potongan') -
+          exactRupiah(currentPayment, 'Pembayaran awal');
+    } on ArgumentError {
+      return null;
+    }
+  }
+
+  String _paymentDisplay(int? value) =>
+      value == null ? '—' : formatPaymentRupiah(value);
 
   String formatPrice(double value) {
     return 'Rp ${_formatCurrencyDigits(value.toStringAsFixed(0))}';
@@ -1515,6 +1477,8 @@ class _TransactionDesktopScreenState
   }
 
   Widget paymentSummary({required bool mobile}) {
+    final editing = _editingTransactionId != null;
+    final statement = _watchSavedPayments();
     final summary = card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1603,38 +1567,41 @@ class _TransactionDesktopScreenState
             ),
           ),
           const SizedBox(height: 14),
-          AnimatedBuilder(
-            animation: Listenable.merge([
-              discountController,
-              currentPaymentController,
-            ]),
-            builder: (context, _) {
-              final currentDiscount = _parseCurrency(discountController.text);
-              final currentPaymentValue = _parseCurrency(
-                currentPaymentController.text,
-              );
-              final currentNetTotal = totalCost - currentDiscount;
-              final remaining = (currentNetTotal - currentPaymentValue)
-                  .clamp(0.0, double.infinity)
-                  .toDouble();
-
-              return _MoneyRow(
-                label: 'Sisa Pembayaran',
-                value: formatPrice(remaining),
-              );
-            },
-          ),
+          if (editing) ...[
+            _MoneyRow(
+              label: 'Total Dibayar',
+              value: _paymentDisplay(statement?.paid),
+            ),
+            const SizedBox(height: 10),
+            _MoneyRow(
+              label: 'Sisa Pembayaran',
+              value: _paymentDisplay(statement?.remaining),
+            ),
+          ] else
+            AnimatedBuilder(
+              animation: Listenable.merge([
+                discountController,
+                currentPaymentController,
+              ]),
+              builder: (context, _) {
+                return _MoneyRow(
+                  label: 'Sisa Pembayaran',
+                  value: _paymentDisplay(_draftRemainingRupiah()),
+                );
+              },
+            ),
           const SizedBox(height: 14),
-          TextFormField(
-            controller: currentPaymentController,
-            keyboardType: TextInputType.number,
-            inputFormatters: const [_CurrencyInputFormatter()],
-            decoration: inputDecoration(labelText: 'Pembayaran Sekarang'),
-            onChanged: (value) {
-              // Simpan nilai numerik tanpa separator untuk persistence.
-              currentPayment = _parseCurrency(value);
-            },
-          ),
+          if (!editing)
+            TextFormField(
+              controller: currentPaymentController,
+              keyboardType: TextInputType.number,
+              inputFormatters: const [_CurrencyInputFormatter()],
+              decoration: inputDecoration(labelText: 'Pembayaran Sekarang'),
+              onChanged: (value) {
+                // Simpan nilai numerik tanpa separator untuk persistence.
+                currentPayment = _parseCurrency(value);
+              },
+            ),
           const SizedBox(height: 14),
           TextFormField(
             controller: noteController,
@@ -2484,6 +2451,8 @@ class _TransactionDesktopScreenState
   }
 
   Widget finishStep() {
+    final editing = _editingTransactionId != null;
+    final statement = _watchSavedPayments();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2549,12 +2518,16 @@ class _TransactionDesktopScreenState
               const SizedBox(height: 10),
               _MoneyRow(
                 label: 'Pembayaran',
-                value: formatPrice(currentPayment),
+                value: editing
+                    ? _paymentDisplay(statement?.paid)
+                    : formatPrice(currentPayment),
               ),
               const SizedBox(height: 10),
               _MoneyRow(
                 label: 'Sisa Tagihan',
-                value: formatPrice(remainingPayment),
+                value: _paymentDisplay(
+                  editing ? statement?.remaining : _draftRemainingRupiah(),
+                ),
               ),
             ],
           ),
@@ -2673,10 +2646,7 @@ class _TransactionDesktopScreenState
       context: context,
       builder: (_) => TransactionPaymentHistoryDialog(
         transactionNumber: transactionNumber,
-        history: id == null
-            ? Future.value(const <TransaksiRiwayatPembayaran>[])
-            : ref.read(transactionRepositoryProvider).getPaymentHistory(id),
-        saved: id != null,
+        transactionId: id,
       ),
     );
   }

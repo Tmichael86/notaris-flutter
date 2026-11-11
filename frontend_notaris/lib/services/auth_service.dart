@@ -135,6 +135,9 @@ class AuthService {
       user: user,
       sidebars: sidebars,
       verifiedAt: DateTime.now(),
+      groupType: data['group_jenis'] is String
+          ? data['group_jenis'] as String
+          : null,
     );
   }
 

@@ -54,6 +54,7 @@ class TransactionCloudRepository {
       db.transaksis,
     )..where((t) => t.id.equals(id) & t.deletedAt.isNull())).getSingle();
     await _guardLocalCompletion(header);
+    await _guardLocalPayments(id);
     await _guardProcessAudit(id);
     final refs = await TransactionCloudReferences(
       db,
@@ -168,6 +169,7 @@ class TransactionCloudRepository {
       throw StateError('Transaction domain mismatch');
     }
     await _guardLocalCompletion(h);
+    await _guardLocalPayments(id);
     final identity = await db
         .customSelect(
           'SELECT local_uuid FROM transaction_cloud_identity WHERE local_uuid=?',
@@ -336,6 +338,29 @@ class TransactionCloudRepository {
     }
   }
 
+  static Future<String?> localPaymentBlockReason(AppDatabase db, int id) async {
+    final localAudit = await db
+        .customSelect(
+          '''SELECT 1 FROM transaksi_riwayat_pembayaran p
+             WHERE p.transaksi_id=? AND (
+               p.status <> 1 OR p.deleted_at IS NOT NULL OR EXISTS (
+                 SELECT 1 FROM transaksi_pembayaran_audit a WHERE a.payment_uuid=p.uuid
+               )
+             ) LIMIT 1''',
+          variables: [Variable(id)],
+        )
+        .getSingleOrNull();
+    return localAudit == null
+        ? null
+        : 'Cicilan, koreksi, dan pembatalan lokal memerlukan kontrak pembayaran cloud.';
+  }
+
+  Future<void> _guardLocalPayments(int id) async {
+    if (await localPaymentBlockReason(db, id) case final reason?) {
+      throw StateError(reason);
+    }
+  }
+
   Future<void> _guardProcessAudit(int id) async {
     final audit = await db
         .customSelect(
@@ -360,6 +385,7 @@ class TransactionCloudRepository {
         throw StateError('Transaction domain mismatch');
       }
       await _guardLocalCompletion(h);
+      await _guardLocalPayments(id);
       final identity = await db
           .customSelect(
             'SELECT * FROM transaction_cloud_identity WHERE local_uuid=?',
@@ -680,6 +706,7 @@ class TransactionCloudRepository {
     if (updating) {
       await _guardLocalCompletion(existing.single);
       final id = existing.single.id;
+      await _guardLocalPayments(id);
       final pending = await db
           .customSelect(
             "SELECT local_uuid FROM transaction_cloud_pending WHERE local_uuid=? AND state='pending'",

@@ -22,6 +22,15 @@ const _legacyJenisSchema = '''
 ''';
 
 const _deedColumns = ['judul_akta', 'nomor_akta', 'tanggal_akta'];
+const _legacyPaymentSchema = '''
+  CREATE TABLE transaksi_riwayat_pembayaran (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uuid TEXT NOT NULL UNIQUE,
+    transaksi_id INTEGER NOT NULL REFERENCES transaksis(id),
+    nominal REAL NOT NULL,
+    urutan_pembayaran INTEGER NOT NULL DEFAULT 1
+  )
+''';
 const _ppatColumns = [
   'status_pekerjaan_ppat',
   'judul_akta_ppat',
@@ -29,7 +38,19 @@ const _ppatColumns = [
   'tanggal_akta_ppat',
 ];
 
+Future<void> stripV23(AppDatabase db) async {
+  for (final name in ['order_insert', 'rupiah_insert', 'rupiah_update']) {
+    await db.customStatement('DROP TRIGGER transaksi_pembayaran_$name');
+  }
+  await db.customStatement('DROP INDEX transaksi_pembayaran_order');
+  await db.customStatement('DROP TABLE transaksi_pembayaran_audit');
+  await db.customStatement(
+    'ALTER TABLE transaksi_riwayat_pembayaran DROP COLUMN nominal_rupiah',
+  );
+}
+
 Future<void> stripV22(AppDatabase db) async {
+  await stripV23(db);
   for (final column in _ppatColumns) {
     await db.customStatement(
       'ALTER TABLE transaksi_details DROP COLUMN $column',
@@ -69,8 +90,8 @@ Future<void> stripV17(AppDatabase db) async {
 }
 
 void main() {
-  for (final version in [20, 21]) {
-    test('V$version upgrades additively to V22 and preserves historical storage', () async {
+  for (final version in [20, 21, 22]) {
+    test('V$version upgrades additively to V23 and preserves historical storage', () async {
       final folder = await Directory.systemTemp.createTemp('notaris_deed_v20_');
       addTearDown(() => folder.delete(recursive: true));
       final file = File('${folder.path}/fixture.sqlite');
@@ -78,8 +99,10 @@ void main() {
       addTearDown(() => db.close());
       if (version == 20) {
         await stripV21(db);
-      } else {
+      } else if (version == 21) {
         await stripV22(db);
+      } else {
+        await stripV23(db);
       }
       for (final statement in [
         "INSERT INTO transaksis(uuid,no_akta,total,status_transaksi,is_sync_dirty) VALUES ('legacy-notaris','10020',100,'Selesai',0),('dirty-notaris','10021',200,'Dalam Proses',1),('legacy-ppat','20020',100,'Selesai',1)",
@@ -92,7 +115,9 @@ void main() {
         "INSERT INTO transaction_cloud_pending VALUES ('dirty-notaris','mutation-v20','{}','pending','create')",
         "INSERT INTO transaction_cloud_feed VALUES ('scope',9)",
         "INSERT INTO petugas_sync_feed(id,scope,cursor) VALUES (1,'scope',4)",
-        if (version == 21) "UPDATE transaksis SET judul_akta='Fidusia',nomor_akta='25211',tanggal_akta=1794355200 WHERE id=1",
+        if (version >= 21) "UPDATE transaksis SET judul_akta='Fidusia',nomor_akta='25211',tanggal_akta=1794355200 WHERE id=1",
+        if (version == 22) "UPDATE transaksi_details SET status_pekerjaan_ppat='selesai',judul_akta_ppat='Akta Jual Beli',nomor_akta_ppat='00125',tanggal_akta_ppat=1794355200 WHERE uuid='detail-ppat'",
+        "INSERT INTO transaksi_riwayat_pembayaran(uuid,transaksi_id,tanggal_pembayaran,nominal,status,deleted_at) VALUES ('legacy-duplicate-order',1,1,1.25,0,2)",
         'PRAGMA user_version=$version',
       ]) {
         await db.customStatement(statement);
@@ -100,7 +125,9 @@ void main() {
       final schema =
           '''
       SELECT type, name, sql FROM sqlite_schema
-      WHERE name NOT LIKE 'sqlite_%' AND name <> 'transaksi_details'
+      WHERE name NOT LIKE 'sqlite_%' AND name NOT LIKE 'transaksi_pembayaran_%'
+      AND name <> 'transaksi_riwayat_pembayaran'
+      ${version < 22 ? "AND name <> 'transaksi_details'" : ''}
       ${version == 20 ? "AND name <> 'transaksis'" : ''}
       ORDER BY type, name
     ''';
@@ -109,9 +136,13 @@ void main() {
       final beforeSchema = await query(schema);
       final headerColumns = await query('PRAGMA table_info(transaksis)');
       final detailColumns = await query('PRAGMA table_info(transaksi_details)');
+      final paymentColumns = await query(
+        'PRAGMA table_info(transaksi_riwayat_pembayaran)',
+      );
       final tables = [
         if (version == 20) 'transaksis',
-        'transaksi_details',
+        if (version < 22) 'transaksi_details',
+        'transaksi_riwayat_pembayaran',
         'sqlite_sequence',
         for (final row in beforeSchema)
           if (row['type'] == 'table') row['name'] as String,
@@ -128,7 +159,10 @@ void main() {
                         version == 20 &&
                         _deedColumns.contains(key)) ||
                     (table == 'transaksi_details' &&
-                        _ppatColumns.contains(key)),
+                        version < 22 &&
+                        _ppatColumns.contains(key)) ||
+                    (table == 'transaksi_riwayat_pembayaran' &&
+                        key == 'nominal_rupiah'),
               ),
           ],
       };
@@ -137,7 +171,7 @@ void main() {
       db = AppDatabase.forTesting(NativeDatabase(file));
       for (var opening = 0; opening < 2; opening++) {
         expect(await query('PRAGMA user_version'), [
-          {'user_version': 22},
+          {'user_version': 23},
         ]);
         expect(await query(schema), beforeSchema);
         expect(await rows(), beforeRows);
@@ -151,14 +185,31 @@ void main() {
         expect(details.take(detailColumns.length), detailColumns);
         expect(
           details.skip(detailColumns.length).map((row) => row['name']),
-          _ppatColumns,
+          version < 22 ? _ppatColumns : isEmpty,
         );
+        final payments = await query(
+          'PRAGMA table_info(transaksi_riwayat_pembayaran)',
+        );
+        expect(payments.take(paymentColumns.length), paymentColumns);
+        expect(payments.last['name'], 'nominal_rupiah');
         expect(
           await query(
-            'SELECT ${_ppatColumns.join(', ')} FROM transaksi_details',
+            'SELECT nominal_rupiah FROM transaksi_riwayat_pembayaran',
           ),
-          everyElement({for (final key in _ppatColumns) key: null}),
+          everyElement({'nominal_rupiah': null}),
         );
+        expect(
+          await query('SELECT * FROM transaksi_pembayaran_audit'),
+          isEmpty,
+        );
+        if (version < 22) {
+          expect(
+            await query(
+              'SELECT ${_ppatColumns.join(', ')} FROM transaksi_details',
+            ),
+            everyElement({for (final key in _ppatColumns) key: null}),
+          );
+        }
         expect(await query('PRAGMA foreign_key_check'), isEmpty);
         expect(await query('PRAGMA integrity_check'), [
           {'integrity_check': 'ok'},
@@ -225,7 +276,7 @@ void main() {
     addTearDown(upgraded.close);
     expect(
       (await upgraded.customSelect('PRAGMA user_version').getSingle()).data,
-      {'user_version': 22},
+      {'user_version': 23},
     );
     final after = await contents(upgraded);
     for (final name in before.keys) {
@@ -233,7 +284,9 @@ void main() {
           before[name] as (Map<String, dynamic>, List<Map<String, dynamic>>);
       final actual =
           after[name] as (Map<String, dynamic>, List<Map<String, dynamic>>);
-      if (name != 'transaksis' && name != 'transaksi_details') {
+      if (name != 'transaksis' &&
+          name != 'transaksi_details' &&
+          name != 'transaksi_riwayat_pembayaran') {
         expect(actual.$1, expected.$1, reason: '$name schema');
       }
       expect(
@@ -242,7 +295,9 @@ void main() {
             ..removeWhere(
               (key, _) =>
                   (name == 'transaksis' && _deedColumns.contains(key)) ||
-                  (name == 'transaksi_details' && _ppatColumns.contains(key)),
+                  (name == 'transaksi_details' && _ppatColumns.contains(key)) ||
+                  (name == 'transaksi_riwayat_pembayaran' &&
+                      key == 'nominal_rupiah'),
             ),
         ),
         expected.$2,
@@ -458,7 +513,7 @@ void main() {
         (await after.customSelect('PRAGMA user_version').getSingle()).read<int>(
           'user_version',
         ),
-        22,
+        23,
       );
       expect(
         await after.customSelect('PRAGMA foreign_key_check').get(),
@@ -509,7 +564,7 @@ void main() {
         (await after.customSelect('PRAGMA user_version').getSingle()).read<int>(
           'user_version',
         ),
-        22,
+        23,
       );
       expect(
         await after.customSelect('PRAGMA foreign_key_check').get(),
@@ -766,6 +821,7 @@ void main() {
              '[{"id":"deleted","name":"Jangan dimigrasikan"}]', 1, 123456)
         ''');
 
+        database.execute(_legacyPaymentSchema);
         database.execute('PRAGMA user_version = 6');
       },
     );
@@ -842,7 +898,7 @@ void main() {
       final version = await inspectionDb
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 22);
+      expect(version.read<int>('user_version'), 23);
     } finally {
       await inspectionDb.close();
     }
@@ -892,6 +948,7 @@ void main() {
           database.execute(
             'CREATE TABLE transaksi_details (uuid TEXT PRIMARY KEY, transaksi_id INTEGER REFERENCES transaksis(id))',
           );
+          database.execute(_legacyPaymentSchema);
           database.execute('PRAGMA user_version = 7');
         },
       ),
@@ -1080,6 +1137,7 @@ void main() {
           database.execute(
             'CREATE TABLE transaksi_details (uuid TEXT PRIMARY KEY, transaksi_id INTEGER REFERENCES transaksis(id))',
           );
+          database.execute(_legacyPaymentSchema);
           database.execute('PRAGMA user_version = 9');
         },
       ),

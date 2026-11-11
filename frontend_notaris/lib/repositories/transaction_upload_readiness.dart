@@ -25,6 +25,10 @@ class TransactionUploadReadiness {
         case final reason?) {
       issues.add(reason);
     }
+    if (await TransactionCloudRepository.localPaymentBlockReason(db, id)
+        case final reason?) {
+      issues.add(reason);
+    }
     if (header.uuid != uuid ||
         header.jenisTransaksi != domain ||
         !{'notaris', 'ppat'}.contains(domain) ||

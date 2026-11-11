@@ -182,6 +182,8 @@ class TransaksiRiwayatPembayarans extends Table {
   IntColumn get transaksiId => integer().references(Transaksis, #id)();
   DateTimeColumn get tanggalPembayaran => dateTime()();
   RealColumn get nominal => real()();
+  // The REAL column remains a compatibility mirror for old rows and feed DTOs.
+  IntColumn get nominalRupiah => integer().nullable()();
   TextColumn get metodePembayaran =>
       text().withDefault(const Constant('Cash'))();
   TextColumn get keterangan => text().nullable()();
@@ -272,7 +274,7 @@ class AppDatabase extends _$AppDatabase {
   final String? petugasBaselinePath;
 
   @override
-  int get schemaVersion => 22;
+  int get schemaVersion => 23;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -289,6 +291,7 @@ class AppDatabase extends _$AppDatabase {
       await _createPpatCloudStorage();
       await _createTransactionCloudStorage();
       await _createRecycleBinStorage();
+      await _createPaymentAuditStorage();
       await _protectPengeluaranReferences();
     },
     onUpgrade: (Migrator m, int from, int to) async {
@@ -487,9 +490,65 @@ class AppDatabase extends _$AppDatabase {
             );
           }
         }
+        if (from < 23) {
+          if (from >= 5) {
+            await m.addColumn(
+              transaksiRiwayatPembayarans,
+              transaksiRiwayatPembayarans.nominalRupiah,
+            );
+          }
+          await _createPaymentAuditStorage();
+        }
       });
     },
   );
+
+  Future<void> _createPaymentAuditStorage() async {
+    await customStatement('''
+      CREATE TABLE transaksi_pembayaran_audit (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        payment_uuid TEXT NOT NULL REFERENCES transaksi_riwayat_pembayaran(uuid),
+        action TEXT NOT NULL CHECK(action IN ('add','edit','cancel')),
+        actor_user_id INTEGER NOT NULL CHECK(actor_user_id > 0),
+        occurred_at INTEGER NOT NULL,
+        reason TEXT,
+        before_state TEXT,
+        after_state TEXT NOT NULL,
+        CHECK(action = 'add' OR (reason IS NOT NULL AND length(trim(reason)) > 0 AND before_state IS NOT NULL))
+      )
+    ''');
+    await customStatement('''
+      CREATE INDEX transaksi_pembayaran_order
+      ON transaksi_riwayat_pembayaran(transaksi_id, urutan_pembayaran)
+    ''');
+    await customStatement('''
+      CREATE INDEX transaksi_pembayaran_audit_uuid
+      ON transaksi_pembayaran_audit(payment_uuid)
+    ''');
+    await customStatement('''
+      CREATE TRIGGER transaksi_pembayaran_order_insert
+      BEFORE INSERT ON transaksi_riwayat_pembayaran
+      WHEN NEW.nominal_rupiah IS NOT NULL AND
+        (NEW.urutan_pembayaran < 1 OR EXISTS (
+          SELECT 1 FROM transaksi_riwayat_pembayaran
+          WHERE transaksi_id = NEW.transaksi_id AND urutan_pembayaran = NEW.urutan_pembayaran
+        ))
+      BEGIN SELECT RAISE(ABORT, 'Duplicate or invalid installment order'); END
+    ''');
+    for (final (suffix, operation) in [
+      ('insert', 'INSERT'),
+      ('update', 'UPDATE OF nominal, nominal_rupiah'),
+    ]) {
+      await customStatement('''
+        CREATE TRIGGER transaksi_pembayaran_rupiah_$suffix
+        BEFORE $operation ON transaksi_riwayat_pembayaran
+        WHEN NEW.nominal_rupiah IS NOT NULL AND
+          (typeof(NEW.nominal_rupiah) <> 'integer' OR NEW.nominal_rupiah <= 0
+           OR NEW.nominal_rupiah > 9007199254740991 OR NEW.nominal <> NEW.nominal_rupiah)
+        BEGIN SELECT RAISE(ABORT, 'Invalid rupiah payment'); END
+      ''');
+    }
+  }
 
   Future<void> _protectPengeluaranReferences() async {
     // Older connections do not enable SQLite foreign_keys globally. Enforce

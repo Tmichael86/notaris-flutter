@@ -14,7 +14,7 @@ import 'package:frontend_notaris/providers/transaction_provider.dart';
 import 'package:frontend_notaris/repositories/transaction_repository.dart';
 import 'package:frontend_notaris/screens/dashboard_desktop_screen.dart';
 
-import '../support/transaction_ui_test_support.dart' show cycleUi;
+import '../support/transaction_ui_test_support.dart' show cycleUi, uiSession;
 
 Future<int> header(
   AppDatabase db,
@@ -468,18 +468,26 @@ void main() {
       await cycleUi(tester);
       expect(find.text('DASH-LOCAL'), findsOneWidget);
       expect(find.text('100%'), findsOneWidget);
-      final payment = (await tester.runAsync(
+      await tester.runAsync(
         () => TransactionRepository(db).addPayment(
+          session: uiSession(),
           transactionId: id,
+          paymentUuid: '00000000-0000-4000-8000-000000000182',
           paymentDate: DateTime(year, 2, 1),
           amount: 100,
         ),
-      ))!;
+      );
       await cycleUi(tester);
       expect(find.text('Rp 100'), findsOneWidget);
-      await tester.runAsync(
-        () => TransactionRepository(db).deletePayment(payment),
-      );
+      await tester.runAsync(() async {
+        final repo = TransactionRepository(db);
+        await repo.cancelPayment(
+          session: uiSession(groupType: 'superadmin'),
+          transactionId: id,
+          expected: (await repo.getPaymentHistory(id)).single,
+          reason: 'Koreksi pembayaran',
+        );
+      });
       await cycleUi(tester);
       expect(find.text('Rp 0'), findsOneWidget);
 

@@ -1,102 +1,108 @@
-import 'dart:async';
-
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/database/app_database.dart';
-import 'package:frontend_notaris/repositories/transaction_repository.dart';
-import 'package:frontend_notaris/screens/transaction_desktop_screen.dart';
+import 'package:frontend_notaris/providers/auth_provider.dart';
+import 'package:frontend_notaris/providers/database_provider.dart';
+import 'package:frontend_notaris/widgets/transaction_payment_history_dialog.dart';
+
+import '../repositories/recycle_bin_repository_test.dart' show seedTransaction;
+import '../support/transaction_ui_test_support.dart'
+    show TransactionUiAuth, uiSession;
 
 void main() {
-  testWidgets(
-    'payment history reads persisted rows, loading, empty and error',
-    (tester) async {
-      final db = AppDatabase.forTesting(NativeDatabase.memory());
-      addTearDown(db.close);
-      final repository = TransactionRepository(db);
-      await db.customStatement(
-        "INSERT INTO pemohons(id,uuid,nama) VALUES(1,'pemohon-fixture','Fixture')",
-      );
-      await db.customStatement(
-        "INSERT INTO petugas(id,uuid,nama,email) VALUES(1,'petugas-fixture','Fixture','fixture@example.invalid')",
-      );
-      await db.customStatement(
-        "INSERT INTO pekerjaan_notaris(id,uuid,nama) VALUES(1,'job-fixture','Fixture')",
-      );
-      final id = await repository.save(
-        nomorTransaksi: '1000311260001',
-        jenisTransaksi: 'notaris',
-        pemohonId: 1,
-        pemohonUuid: 'pemohon-fixture',
-        petugasId: 1,
-        petugasUuid: 'petugas-fixture',
-        status: 'Baru',
-        tanggalTransaksi: DateTime(2026, 11, 3),
-        jobs: const [
-          TransactionJobInput(
-            jenisPekerjaan: 'notaris',
-            namaPekerjaan: 'Fixture',
-            pekerjaanNotarisId: 1,
-            biayaLayanan: 200000,
-            detailUuid: 'fixture-detail',
-          ),
-        ],
-      );
-      Future<void> show(
-        Future<List<TransaksiRiwayatPembayaran>> future, {
-        bool saved = true,
-      }) async {
+  for (final readOnly in [false, true]) {
+    testWidgets(
+      'payment dialog reflects persisted totals and permissions: readOnly=$readOnly',
+      (tester) async {
+        final db = AppDatabase.forTesting(NativeDatabase.memory());
+        addTearDown(db.close);
+        final id = await seedTransaction(db, 'notaris');
+        await db.customStatement(
+          'UPDATE transaksis SET total=200000 WHERE id=?',
+          [id],
+        );
+        final session = uiSession(groupType: 'superadmin');
+        if (readOnly) session.sidebars.single['update'] = 0;
+        tester.view.physicalSize = const Size(1100, 960);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
         await tester.pumpWidget(
-          MaterialApp(
-            home: Scaffold(
-              body: TransactionPaymentHistoryDialog(
-                transactionNumber: '1000311260001',
-                history: future,
-                saved: saved,
+          ProviderScope(
+            overrides: [
+              appDatabaseProvider.overrideWithValue(db),
+              authControllerProvider.overrideWith(
+                (_) => TransactionUiAuth(session),
+              ),
+            ],
+            child: MaterialApp(
+              home: Scaffold(
+                body: TransactionPaymentHistoryDialog(
+                  transactionNumber: '1000611260001',
+                  transactionId: id,
+                ),
               ),
             ),
           ),
         );
-        await tester.pump();
-      }
+        await tester.pumpAndSettle();
+        expect(find.textContaining('06/11/2026 · Cash'), findsOneWidget);
+        expect(find.text('Sisa Tagihan  Rp 199.980'), findsOneWidget);
+        if (readOnly) {
+          expect(find.text('Tambah Pembayaran'), findsNothing);
+          expect(find.byTooltip('Edit cicilan 1'), findsNothing);
+          expect(find.byTooltip('Batalkan cicilan 1'), findsNothing);
+        } else {
+          await tester.tap(find.text('Tambah Pembayaran'));
+          await tester.pumpAndSettle();
+          final amount = find.widgetWithText(TextField, 'Nominal (Rp)');
+          await tester.enterText(amount, '200000');
+          await tester.tap(find.text('Simpan'));
+          await tester.pumpAndSettle();
+          expect(
+            find.text('Total pembayaran melebihi total tagihan.'),
+            findsOneWidget,
+          );
+          expect(find.text('Pembayaran disimpan.'), findsNothing);
+          await tester.enterText(amount, '125000');
+          await tester.tap(find.text('Simpan'));
+          await tester.pumpAndSettle();
+          expect(find.text('Total Dibayar  Rp 125.020'), findsOneWidget);
+          expect(find.text('Sisa Tagihan  Rp 74.980'), findsOneWidget);
 
-      await show(repository.getPaymentHistory(id));
-      await tester.pumpAndSettle();
-      expect(find.text('Belum ada riwayat pembayaran.'), findsOneWidget);
+          await tester.tap(find.byTooltip('Edit cicilan 2'));
+          await tester.pumpAndSettle();
+          await tester.enterText(amount, '130000');
+          await tester.enterText(
+            find.widgetWithText(TextField, 'Alasan'),
+            'Konfirmasi bukti setor',
+          );
+          await tester.tap(find.text('Simpan'));
+          await tester.pumpAndSettle();
+          expect(find.text('Total Dibayar  Rp 130.020'), findsOneWidget);
 
-      await repository.addPayment(
-        transactionId: id,
-        paymentDate: DateTime(2026, 11, 4),
-        amount: 125000,
-        method: 'Cash',
-        note: 'DP fixture',
-      );
-      final pending = Completer<List<TransaksiRiwayatPembayaran>>();
-      await show(pending.future);
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      pending.complete(await repository.getPaymentHistory(id));
-      await tester.pumpAndSettle();
-      expect(find.text('Rp 125.000'), findsOneWidget);
-      expect(
-        find.textContaining('04/11/2026 · Cash · DP fixture'),
-        findsOneWidget,
-      );
-
-      await show(
-        Future<List<TransaksiRiwayatPembayaran>>.delayed(
-          Duration.zero,
-          () => throw StateError('private failure'),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Gagal memuat riwayat pembayaran.'), findsOneWidget);
-      expect(find.textContaining('private failure'), findsNothing);
-
-      await show(Future.value([]), saved: false);
-      expect(
-        find.text('Simpan transaksi untuk melihat riwayat pembayaran.'),
-        findsOneWidget,
-      );
-    },
-  );
+          await tester.tap(find.byTooltip('Batalkan cicilan 2'));
+          await tester.pumpAndSettle();
+          expect(
+            find.textContaining('Riwayat tetap tersimpan'),
+            findsOneWidget,
+          );
+          await tester.enterText(
+            find.widgetWithText(TextField, 'Alasan'),
+            'Salah pencatatan',
+          );
+          await tester.tap(find.text('Konfirmasi Pembatalan'));
+          await tester.pumpAndSettle();
+          expect(find.textContaining('Dibatalkan'), findsOneWidget);
+          expect(find.text('Total Dibayar  Rp 20'), findsOneWidget);
+          expect(find.text('Sisa Tagihan  Rp 199.980'), findsOneWidget);
+        }
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(seconds: 1));
+      },
+    );
+  }
 }

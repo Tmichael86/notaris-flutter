@@ -7,6 +7,8 @@ import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/repositories/transaction_repository.dart';
 import 'package:frontend_notaris/repositories/transaksi_proses_repository.dart';
 
+import '../support/transaction_ui_test_support.dart' show uiSession;
+
 void main() {
   late AppDatabase db;
   late TransactionRepository repository;
@@ -238,7 +240,9 @@ void main() {
       );
 
       final paymentId = await repository.addPayment(
+        session: uiSession(),
         transactionId: transactionId,
+        paymentUuid: '00000000-0000-4000-8000-000000000181',
         paymentDate: DateTime(2026, 10, 14),
         amount: 25000,
       );
@@ -253,7 +257,17 @@ void main() {
         END
       ''');
 
-      await expectLater(repository.deletePayment(paymentId), throwsA(anything));
+      final expected = (await repository.getPaymentHistory(transactionId))
+          .single;
+      await expectLater(
+        repository.cancelPayment(
+          session: uiSession(groupType: 'superadmin'),
+          transactionId: transactionId,
+          expected: expected,
+          reason: 'Koreksi salah transaksi',
+        ),
+        throwsA(anything),
+      );
 
       final history = await repository.getPaymentHistory(transactionId);
       expect(history, hasLength(1));

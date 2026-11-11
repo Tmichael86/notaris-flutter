@@ -7,6 +7,7 @@ import '../database/app_database.dart';
 import '../models/auth_session.dart';
 import '../models/dashboard_transactions.dart';
 import '../models/transaction_monitoring.dart';
+import '../models/transaction_payments.dart';
 
 class NotarisDeedInput {
   const NotarisDeedInput(this.title, this.number, this.date);
@@ -539,33 +540,26 @@ class TransactionRepository {
       throw ArgumentError('Nomor transaksi wajib diisi.');
     }
 
+    var totalPekerjaan = 0;
     for (final job in jobs) {
-      if (!job.biayaLayanan.isFinite ||
-          !job.biayaLainnya.isFinite ||
-          job.biayaLayanan < 0 ||
-          job.biayaLainnya < 0) {
-        throw ArgumentError(
-          'Biaya pekerjaan harus berupa angka valid dan tidak boleh negatif.',
-        );
-      }
+      totalPekerjaan = exactRupiah(
+        totalPekerjaan +
+            exactRupiah(job.biayaLayanan, 'Biaya layanan') +
+            exactRupiah(job.biayaLainnya, 'Biaya tambahan'),
+        'Total pekerjaan',
+      );
     }
-
-    final totalPekerjaan = jobs.fold<double>(0, (sum, job) => sum + job.total);
-    if (!totalPekerjaan.isFinite) {
-      throw ArgumentError('Total pekerjaan tidak valid.');
-    }
-
-    if (!diskon.isFinite || diskon < 0 || diskon > totalPekerjaan) {
+    final diskonRupiah = exactRupiah(diskon, 'Diskon');
+    if (diskonRupiah > totalPekerjaan) {
       throw ArgumentError(
         'Diskon harus bernilai antara Rp 0 dan total pekerjaan.',
       );
     }
 
-    final totalBersih = totalPekerjaan - diskon;
+    final totalBersih = totalPekerjaan - diskonRupiah;
+    final pembayaranAwal = exactRupiah(pembayaranSekarang, 'Pembayaran awal');
 
-    if (!pembayaranSekarang.isFinite ||
-        pembayaranSekarang < 0 ||
-        pembayaranSekarang > totalBersih) {
+    if (pembayaranAwal > totalBersih) {
       throw ArgumentError(
         'Pembayaran awal harus bernilai antara Rp 0 dan total tagihan.',
       );
@@ -707,7 +701,7 @@ class TransactionRepository {
                   tanggalTransaksi: Value(tanggalTransaksi),
                   tanggalJatuhTempo: Value(tanggalJatuhTempo),
                   diskon: Value(diskon),
-                  pembayaranSekarang: Value(pembayaranSekarang),
+                  pembayaranSekarang: Value(pembayaranAwal.toDouble()),
                   metodePembayaran: Value(metodePembayaran),
                   jumlahMaterai: Value(jumlahMaterai),
                   catatan: Value(_nullableText(catatan)),
@@ -720,7 +714,7 @@ class TransactionRepository {
       // A payment entered during transaction creation must also become
       // an auditable history row. Editing an existing transaction must not
       // duplicate the same payment on every save.
-      if (id == null && pembayaranSekarang > 0) {
+      if (id == null && pembayaranAwal > 0) {
         await db
             .into(db.transaksiRiwayatPembayarans)
             .insert(
@@ -728,7 +722,8 @@ class TransactionRepository {
                 uuid: _uuid.v4(),
                 transaksiId: transactionId,
                 tanggalPembayaran: tanggalTransaksi,
-                nominal: pembayaranSekarang,
+                nominal: pembayaranAwal.toDouble(),
+                nominalRupiah: Value(pembayaranAwal),
                 metodePembayaran: Value(metodePembayaran),
                 keterangan: const Value(
                   'Pembayaran awal saat transaksi dibuat',
@@ -743,10 +738,12 @@ class TransactionRepository {
 
       if (id != null) {
         final existingPayments = await getPaymentHistory(id);
-        final totalPaid = existingPayments.fold<double>(
-          0,
-          (sum, payment) => sum + payment.nominal,
-        );
+        final totalPaid = totalActiveRupiah(existingPayments);
+        if (totalPaid > totalBersih) {
+          throw ArgumentError(
+            'Total tagihan tidak boleh lebih kecil dari pembayaran aktif.',
+          );
+        }
         final affected =
             await (db.update(
               db.transaksis,
@@ -772,7 +769,7 @@ class TransactionRepository {
                 tanggalTransaksi: Value(tanggalTransaksi),
                 tanggalJatuhTempo: Value(tanggalJatuhTempo),
                 diskon: Value(diskon),
-                pembayaranSekarang: Value(totalPaid),
+                pembayaranSekarang: Value(totalPaid.toDouble()),
                 metodePembayaran: Value(metodePembayaran),
                 jumlahMaterai: Value(jumlahMaterai),
                 catatan: Value(_nullableText(catatan)),
@@ -1053,109 +1050,329 @@ class TransactionRepository {
         .get();
   }
 
-  /// Adds an installment as its own auditable record.
-  Future<int> addPayment({
-    required int transactionId,
-    required DateTime paymentDate,
-    required double amount,
-    String method = 'Cash',
-    String? note,
-  }) async {
-    if (amount <= 0) {
-      throw ArgumentError('Nominal pembayaran harus lebih dari Rp 0.');
+  Stream<TransactionPaymentStatement> watchPaymentStatement(
+    int transactionId,
+    AuthSession? session,
+  ) async* {
+    if (session?.hasTransactionAccess() != true) {
+      throw StateError('Izin baca Transaksi diperlukan.');
     }
-
-    return db.transaction(() async {
-      final transaction = await findById(transactionId);
-      if (transaction == null) {
-        throw StateError('Transaksi tidak ditemukan.');
-      }
-
-      final history = await getPaymentHistory(transactionId);
-      final paid = history.fold<double>(0, (sum, item) => sum + item.nominal);
-      if (paid + amount > transaction.total) {
-        throw ArgumentError(
-          'Nominal pembayaran melebihi sisa tagihan '
-          'Rp ${(transaction.total - paid).clamp(0, double.infinity).toStringAsFixed(0)}.',
-        );
-      }
-
-      final now = DateTime.now();
-      final paymentId = await db
-          .into(db.transaksiRiwayatPembayarans)
-          .insert(
-            TransaksiRiwayatPembayaransCompanion.insert(
-              uuid: _uuid.v4(),
-              transaksiId: transactionId,
-              tanggalPembayaran: paymentDate,
-              nominal: amount,
-              metodePembayaran: Value(method),
-              keterangan: Value(_nullableText(note)),
-              urutanPembayaran: Value(history.length + 1),
-              createdAt: Value(now),
-              updatedAt: Value(now),
-              isSyncDirty: const Value(true),
-            ),
-          );
-
-      await (db.update(
-        db.transaksis,
-      )..where((t) => t.id.equals(transactionId))).write(
-        TransaksisCompanion(
-          pembayaranSekarang: Value(paid + amount),
-          metodePembayaran: Value(method),
-          updatedAt: Value(now),
-          isSyncDirty: const Value(true),
-        ),
-      );
-
-      return paymentId;
+    final parent = db.transaksis;
+    final payment = db.transaksiRiwayatPembayarans;
+    final query =
+        db.select(parent).join([
+            leftOuterJoin(payment, payment.transaksiId.equalsExp(parent.id)),
+          ])
+          ..where(parent.id.equals(transactionId) & parent.deletedAt.isNull())
+          ..orderBy([
+            OrderingTerm.asc(payment.urutanPembayaran),
+            OrderingTerm.asc(payment.id),
+          ]);
+    yield* query.watch().map((rows) {
+      if (rows.isEmpty) throw StateError('Transaksi tidak ditemukan.');
+      return TransactionPaymentStatement(rows.first.readTable(parent), [
+        for (final row in rows) ?row.readTableOrNull(payment),
+      ]);
     });
   }
 
-  /// Soft-deletes a payment and refreshes the transaction total atomically.
-  ///
-  /// If updating the transaction header fails, the payment must remain active
-  /// so the payment history and cached paid amount cannot diverge.
-  Future<bool> deletePayment(int paymentId) {
-    return db.transaction(() async {
-      final payment =
-          await (db.select(db.transaksiRiwayatPembayarans)
-                ..where((p) => p.id.equals(paymentId) & p.deletedAt.isNull()))
-              .getSingleOrNull();
-      if (payment == null) return false;
+  /// The editor creates a UUID once and reuses it for retries of the same add.
+  Future<int> addPayment({
+    required AuthSession? session,
+    required int transactionId,
+    required String paymentUuid,
+    required DateTime paymentDate,
+    required int amount,
+    String method = 'Cash',
+    String? note,
+  }) async {
+    final actor = _paymentActor(session);
+    _validatePaymentInput(amount, method);
+    if (!RegExp(r'^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$')
+        .hasMatch(paymentUuid)) {
+      throw ArgumentError('UUID pembayaran tidak valid.');
+    }
 
+    return db.transaction(() async {
+      final transaction = await _paymentTransaction(transactionId);
+      final prior = await (db.select(
+        db.transaksiRiwayatPembayarans,
+      )..where((p) => p.uuid.equals(paymentUuid))).getSingleOrNull();
+      if (prior != null) {
+        final original = await db
+            .customSelect(
+              "SELECT after_state FROM transaksi_pembayaran_audit WHERE payment_uuid=? AND action='add'",
+              variables: [Variable(paymentUuid)],
+            )
+            .getSingleOrNull();
+        final input = _paymentInput(paymentDate, amount, method, note);
+        final accepted = original == null
+            ? null
+            : jsonDecode(original.read<String>('after_state')) as Map;
+        if (prior.transaksiId == transactionId &&
+            accepted != null &&
+            input.entries.every(
+              (entry) => accepted[entry.key] == entry.value,
+            )) {
+          return prior.id;
+        }
+        throw StateError('UUID pembayaran sudah digunakan.');
+      }
+
+      final paid =
+          totalActiveRupiah(await getPaymentHistory(transactionId)) + amount;
+      _checkPaymentBalance(transaction, paid);
+      final order =
+          (await db
+                  .customSelect(
+                    'SELECT MAX(urutan_pembayaran) AS last_order FROM transaksi_riwayat_pembayaran WHERE transaksi_id=?',
+                    variables: [Variable(transactionId)],
+                  )
+                  .getSingle())
+              .readNullable<int>('last_order') ??
+          0;
+      final now = DateTime.now();
+      final payment = await db
+          .into(db.transaksiRiwayatPembayarans)
+          .insertReturning(
+            TransaksiRiwayatPembayaransCompanion.insert(
+              uuid: paymentUuid,
+              transaksiId: transactionId,
+              tanggalPembayaran: paymentDate,
+              nominal: amount.toDouble(),
+              nominalRupiah: Value(amount),
+              metodePembayaran: Value(method.trim()),
+              keterangan: Value(_nullableText(note)),
+              urutanPembayaran: Value((order < 0 ? 0 : order) + 1),
+              createdAt: Value(now),
+              updatedAt: Value(now),
+            ),
+          );
+      await _writePaymentAudit('add', actor, now, after: payment);
+      await _updatePaid(transactionId, paid, now);
+      return payment.id;
+    });
+  }
+
+  Future<bool> editPayment({
+    required AuthSession? session,
+    required int transactionId,
+    required TransaksiRiwayatPembayaran expected,
+    required DateTime paymentDate,
+    required int amount,
+    required String method,
+    String? note,
+    required String reason,
+  }) {
+    _validatePaymentInput(amount, method);
+    return _amendPayment(
+      session: session,
+      transactionId: transactionId,
+      expected: expected,
+      reason: reason,
+      amount: amount,
+      paymentDate: paymentDate,
+      method: method.trim(),
+      note: note,
+    );
+  }
+
+  Future<bool> cancelPayment({
+    required AuthSession? session,
+    required int transactionId,
+    required TransaksiRiwayatPembayaran expected,
+    required String reason,
+  }) => _amendPayment(
+    session: session,
+    transactionId: transactionId,
+    expected: expected,
+    reason: reason,
+  );
+
+  Future<bool> _amendPayment({
+    required AuthSession? session,
+    required int transactionId,
+    required TransaksiRiwayatPembayaran expected,
+    required String reason,
+    int? amount,
+    DateTime? paymentDate,
+    String? method,
+    String? note,
+  }) async {
+    final actor = _paymentActor(session, correcting: true);
+    final why = _nullableText(reason);
+    if (why == null) throw ArgumentError('Alasan wajib diisi.');
+    final cancel = amount == null;
+    return db.transaction(() async {
+      final transaction = await _paymentTransaction(transactionId);
+      final query = db.select(db.transaksiRiwayatPembayarans)
+        ..where(
+          (p) =>
+              p.uuid.equals(expected.uuid) &
+              p.transaksiId.equals(transactionId),
+        );
+      final before = await query.getSingleOrNull();
+      if (before == null) {
+        throw StateError('Pembayaran tidak ditemukan pada transaksi ini.');
+      }
+      if (cancel && !isActivePayment(before)) return false;
+      if (before != expected || !isActivePayment(before)) {
+        throw StateError('Pembayaran berubah. Buka kembali riwayat.');
+      }
+      final beforeState = _paymentState(before);
+      if (!cancel &&
+          _paymentInput(
+            paymentDate!,
+            amount,
+            method!,
+            note,
+          ).entries.every((entry) => beforeState[entry.key] == entry.value)) {
+        return false;
+      }
+      final paid =
+          totalActiveRupiah(await getPaymentHistory(transactionId)) -
+          paymentRupiah(before) +
+          (amount ?? 0);
+      _checkPaymentBalance(transaction, paid);
       final now = DateTime.now();
       await (db.update(
         db.transaksiRiwayatPembayarans,
-      )..where((p) => p.id.equals(paymentId) & p.deletedAt.isNull())).write(
+      )..where((p) => p.id.equals(before.id))).write(
         TransaksiRiwayatPembayaransCompanion(
-          status: const Value(0),
-          deletedAt: Value(now),
+          nominal: cancel ? const Value.absent() : Value(amount.toDouble()),
+          nominalRupiah: cancel ? const Value.absent() : Value(amount),
+          tanggalPembayaran: cancel
+              ? const Value.absent()
+              : Value(paymentDate!),
+          metodePembayaran: cancel ? const Value.absent() : Value(method!),
+          keterangan: cancel
+              ? const Value.absent()
+              : Value(_nullableText(note)),
+          status: cancel ? const Value(0) : const Value.absent(),
+          deletedAt: cancel ? Value(now) : const Value.absent(),
           updatedAt: Value(now),
           isSyncDirty: const Value(true),
         ),
       );
-
-      final history = await getPaymentHistory(payment.transaksiId);
-      final paid = history.fold<double>(0, (sum, item) => sum + item.nominal);
-      final affected =
-          await (db.update(db.transaksis)..where(
-                (t) => t.id.equals(payment.transaksiId) & t.deletedAt.isNull(),
-              ))
-              .write(
-                TransaksisCompanion(
-                  pembayaranSekarang: Value(paid),
-                  updatedAt: Value(now),
-                  isSyncDirty: const Value(true),
-                ),
-              );
-      if (affected == 0) {
-        throw StateError('Transaksi tidak ditemukan atau sudah dihapus.');
-      }
-
+      await _writePaymentAudit(
+        cancel ? 'cancel' : 'edit',
+        actor,
+        now,
+        before: before,
+        after: await query.getSingle(),
+        reason: why,
+      );
+      await _updatePaid(transactionId, paid, now);
       return true;
     });
+  }
+
+  static int _paymentActor(AuthSession? session, {bool correcting = false}) {
+    if (session == null ||
+        !session.hasTransactionAccess(update: true) ||
+        (correcting && !session.canCorrectTransactionPayment)) {
+      throw StateError(
+        correcting
+            ? 'Koreksi dan pembatalan memerlukan superadmin dengan izin ubah Transaksi.'
+            : 'Izin ubah Transaksi diperlukan.',
+      );
+    }
+    return session.userId;
+  }
+
+  static void _validatePaymentInput(int amount, String method) {
+    if (exactRupiah(amount, 'Nominal pembayaran') == 0) {
+      throw ArgumentError('Nominal pembayaran harus lebih dari Rp 0.');
+    }
+    if (method.trim().isEmpty) {
+      throw ArgumentError('Metode pembayaran wajib diisi.');
+    }
+  }
+
+  Future<Transaksi> _paymentTransaction(int id) async {
+    final transaction = await findById(id);
+    if (transaction == null ||
+        !{'notaris', 'ppat'}.contains(transaction.jenisTransaksi)) {
+      throw StateError('Transaksi tidak ditemukan.');
+    }
+    final pending = await db
+        .customSelect(
+          "SELECT 1 FROM transaction_cloud_pending WHERE local_uuid=? AND state='pending'",
+          variables: [Variable(transaction.uuid)],
+        )
+        .getSingleOrNull();
+    if (pending != null) {
+      throw StateError('Transaksi memiliki mutasi sinkronisasi tertunda.');
+    }
+    return transaction;
+  }
+
+  static void _checkPaymentBalance(Transaksi transaction, int paid) {
+    if (paid > exactRupiah(transaction.total, 'Total tagihan')) {
+      throw ArgumentError('Total pembayaran melebihi total tagihan.');
+    }
+  }
+
+  static Map<String, Object?> _paymentInput(
+    DateTime date,
+    int amount,
+    String method,
+    String? note,
+  ) => {
+    'date': date.millisecondsSinceEpoch ~/ 1000,
+    'amount': amount,
+    'method': method.trim(),
+    'note': _nullableText(note),
+  };
+
+  static Map<String, Object?> _paymentState(
+    TransaksiRiwayatPembayaran payment,
+  ) => {
+    ..._paymentInput(
+      payment.tanggalPembayaran,
+      paymentRupiah(payment),
+      payment.metodePembayaran,
+      payment.keterangan,
+    ),
+    'order': payment.urutanPembayaran,
+    'status': payment.status,
+    'deleted_at': payment.deletedAt?.millisecondsSinceEpoch,
+  };
+
+  Future<void> _writePaymentAudit(
+    String action,
+    int actor,
+    DateTime now, {
+    TransaksiRiwayatPembayaran? before,
+    required TransaksiRiwayatPembayaran after,
+    String? reason,
+  }) => db.customStatement(
+    'INSERT INTO transaksi_pembayaran_audit(payment_uuid,action,actor_user_id,occurred_at,reason,before_state,after_state) VALUES(?,?,?,?,?,?,?)',
+    [
+      after.uuid,
+      action,
+      actor,
+      now.millisecondsSinceEpoch,
+      reason,
+      before == null ? null : jsonEncode(_paymentState(before)),
+      jsonEncode(_paymentState(after)),
+    ],
+  );
+
+  Future<void> _updatePaid(int id, int paid, DateTime now) async {
+    final affected =
+        await (db.update(
+          db.transaksis,
+        )..where((t) => t.id.equals(id) & t.deletedAt.isNull())).write(
+          TransaksisCompanion(
+            pembayaranSekarang: Value(paid.toDouble()),
+            updatedAt: Value(now),
+            isSyncDirty: const Value(true),
+          ),
+        );
+    if (affected != 1) {
+      throw StateError('Transaksi tidak ditemukan atau sudah dihapus.');
+    }
   }
 
   Future<bool> delete(int id) async {

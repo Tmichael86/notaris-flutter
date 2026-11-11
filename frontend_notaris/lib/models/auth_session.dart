@@ -10,6 +10,7 @@ class AuthSession {
     required this.user,
     required this.sidebars,
     required this.verifiedAt,
+    this.groupType,
     this.isOffline = false,
   });
 
@@ -21,7 +22,11 @@ class AuthSession {
   final Map<String, dynamic> user;
   final List<Map<String, dynamic>> sidebars;
   final DateTime verifiedAt;
+  final String? groupType;
   final bool isOffline;
+
+  bool get canCorrectTransactionPayment =>
+      groupType == 'superadmin' && hasTransactionAccess(update: true);
 
   bool hasTransactionAccess({bool create = false, bool update = false}) {
     if (userId <= 0) return false;
@@ -46,6 +51,7 @@ class AuthSession {
     user: user,
     sidebars: sidebars,
     verifiedAt: verifiedAt,
+    groupType: groupType,
     isOffline: true,
   );
 
@@ -58,6 +64,7 @@ class AuthSession {
     'user': user,
     'sidebars': sidebars,
     'verifiedAt': verifiedAt.toUtc().toIso8601String(),
+    'groupType': groupType,
   };
 
   factory AuthSession.fromJson(Map<String, dynamic> json) {
@@ -101,6 +108,9 @@ class AuthSession {
       user: user,
       sidebars: sidebars,
       verifiedAt: verifiedAt.toLocal(),
+      groupType: json['groupType'] is String
+          ? json['groupType'] as String
+          : null,
     );
   }
 
