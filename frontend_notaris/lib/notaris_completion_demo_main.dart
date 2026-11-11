@@ -176,7 +176,11 @@ Future<void> main() async {
   runCompletionDemo(db);
 }
 
-void runCompletionDemo(AppDatabase db, {bool allowReadOnly = false}) {
+void runCompletionDemo(
+  AppDatabase db, {
+  bool allowReadOnly = false,
+  AuthService Function(Dio)? auth,
+}) {
   final dio = Dio(BaseOptions(baseUrl: 'http://127.0.0.1:0'));
   runApp(
     ProviderScope(
@@ -190,7 +194,9 @@ void runCompletionDemo(AppDatabase db, {bool allowReadOnly = false}) {
           return dio;
         }),
         authServiceProvider.overrideWith(
-          (ref) => CompletionDemoAuth(dio, allowReadOnly: allowReadOnly),
+          (ref) =>
+              auth?.call(dio) ??
+              CompletionDemoAuth(dio, allowReadOnly: allowReadOnly),
         ),
         developmentUiSmokeProvider.overrideWithValue(true),
         petugasManualEnabledProvider.overrideWithValue(false),

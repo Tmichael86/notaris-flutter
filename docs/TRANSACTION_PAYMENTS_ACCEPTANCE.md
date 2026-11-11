@@ -1,18 +1,43 @@
 # Acceptance disposable untuk pembayaran Transaksi
 
-Siapkan Windows demo lokal dengan SQLite v23 baru, tanpa HTTP, publisher, atau
-sinkronisasi. Jangan gunakan launcher development yang membuka SQLite v20.
-Siapkan akun operator dengan akses baca dan ubah Transaksi, akun superadmin
-terverifikasi dengan izin yang sama, dan akun baca saja. Akun superadmin dipakai
-untuk koreksi dan pembatalan. Ulangi alur pada satu transaksi Notaris dan satu
-transaksi PPAT yang independen.
+Jalankan dari root repository pada Windows, dengan Flutter Notaris tertutup.
 
-Fixture Notaris memakai pemohon Bagas Pradipta dan pekerjaan Pembuatan Akta
-Fidusia. Untuk PPAT gunakan Laras Mahendra dan Akta Jual Beli. Keduanya memakai
-Master, harga, dan kategori fixture lokal yang valid. Gunakan tagihan
-Rp3.000.000 dan pembayaran awal Rp500.000. Ambil baseline nomor transaksi,
-detail, proses, completion, jurnal, cursor, dan seluruh riwayat sebelum
-memulai acceptance.
+```powershell
+python .\scripts\payment-demo-acceptance.py prepare
+$demoId = '<profile dari output prepare>'
+python .\scripts\payment-demo-acceptance.py postcheck --id $demoId --expect initial
+python .\scripts\payment-demo-acceptance.py launch --id $demoId
+```
+
+Provisioning membuat PostgreSQL sementara di port 55674 dengan autentikasi
+SCRAM. Go memverifikasi login dan membaca role grup aktif serta izin Transaksi
+melalui endpoint `sidebar-access`. PostgreSQL berhenti sebelum fixture SQLite
+v23 disiapkan. Flutter demo memblokir HTTP dan sinkronisasi.
+
+Sesi demo berlaku 24 jam sejak login Go. Helper Windows menyegel sesi per
+akun dan profil dengan DPAPI pengguna Windows serta tanda tangan yang terikat
+ke ID profil. Sesi development dan penyimpanan aplikasi utama berada di luar
+jalur ini. Launcher memverifikasi helper terhadap build source tepercaya.
+Role berasal dari sesi yang ditandatangani. Saat beralih akun, logout lalu
+login menggunakan password akun tujuan. Saat restart, login kembali.
+
+Untuk melihat password akun, jalankan dari terminal kedua. Windows
+menampilkannya dalam dialog lokal. Jalankan ulang dengan nama akun tujuan.
+
+```powershell
+python .\scripts\payment-demo-acceptance.py credential --id $demoId --account petugas.demo
+```
+
+- `petugas.demo` dapat melihat dan menambah cicilan. Repository pembayaran
+  mensyaratkan izin ubah Transaksi untuk menambah cicilan.
+- `admin.demo` dapat mengoreksi dan membatalkan dengan role superadmin dan
+  izin ubah Transaksi.
+- `pembaca.demo` dapat melihat riwayat pembayaran.
+
+Cari transaksi Notaris `1001111260001`, Bagas Pradipta dan Pembuatan Akta
+Fidusia. PPAT `2001111260001`, Laras Mahendra dan Akta Jual Beli, menjadi
+pembanding yang dilindungi fingerprint. Kedua transaksi bertagihan
+Rp3.000.000 dengan pembayaran awal Rp500.000.
 
 | Aksi di Riwayat Pembayaran | Total dibayar | Sisa |
 |---|---:|---:|
@@ -21,18 +46,23 @@ memulai acceptance.
 | Koreksi ke Rp800.000 dengan alasan bukti setor | Rp1.300.000 | Rp1.700.000 |
 | Batalkan cicilan karena salah transaksi, dengan konfirmasi | Rp500.000 | Rp2.500.000 |
 
-Setelah restart, verifikasi baris kedua tetap ada dengan status Dibatalkan,
-nomor urut dan UUID tetap, serta audit memuat aktor, alasan dan nilai
-sebelum/sesudah. Tambah cicilan baru dan pastikan nomor urutnya 3. Periksa
-bahwa pengurangan tagihan di bawah pembayaran aktif ditolak. Akun operator
-hanya dapat menambah, sedangkan akun baca saja hanya dapat melihat riwayat.
+Tutup Flutter sesudah setiap fase. Jalankan satu postcheck sesuai fase
+sebelum meluncurkan ulang profil yang sama. Saat koreksi, ubah nominal dan
+isi alasan. Pertahankan tanggal, metode, dan keterangan cicilan.
 
-Tutup Flutter sebelum postcheck read-only. Gunakan kriteria ledger repository
-yang sama. Pembayaran aktif memiliki status 1 dan deleted_at kosong. Untuk
-baris baru, baca nominal_rupiah dan cocokkan dengan nominal. Untuk baris
-historis, gunakan nominal hanya bila nilainya rupiah bulat yang valid.
-Jumlahkan pembayaran aktif dan kurangi dari total tagihan, lalu bandingkan
-dengan cache header. Periksa FK/integrity dan pastikan perubahan
-terbatas pada pembayaran, audit, serta cache saldo transaksi yang dipilih.
-Periksa detail pekerjaan, proses, completion, jurnal, cursor dan transaksi
-lain terhadap baseline. Data ini merupakan ledger lokal.
+```powershell
+python .\scripts\payment-demo-acceptance.py postcheck --id $demoId --expect add
+python .\scripts\payment-demo-acceptance.py postcheck --id $demoId --expect edit
+python .\scripts\payment-demo-acceptance.py postcheck --id $demoId --expect cancel
+python .\scripts\payment-demo-acceptance.py postcheck --id $demoId --expect restart
+```
+
+Untuk fase `restart`, buka ulang setelah `cancel` lulus. Login sebagai
+pembaca dan periksa saldo serta baris Dibatalkan, lalu tutup Flutter. Postcheck
+memeriksa jejak peluncuran ulang, role dan expiry, audit, integritas, FK,
+saldo, dan fingerprint tabel terlindungi. Lakukan cleanup setelah evidence
+selesai ditinjau.
+
+```powershell
+python .\scripts\payment-demo-acceptance.py cleanup --id $demoId
+```
