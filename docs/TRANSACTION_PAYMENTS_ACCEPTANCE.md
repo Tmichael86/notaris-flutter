@@ -22,7 +22,9 @@ Role berasal dari sesi yang ditandatangani. Saat beralih akun, logout lalu
 login menggunakan password akun tujuan. Saat restart, login kembali.
 
 Untuk melihat password akun, jalankan dari terminal kedua. Windows
-menampilkannya dalam dialog lokal. Jalankan ulang dengan nama akun tujuan.
+menampilkannya dalam dialog lokal. Terminal menunggu sampai dialog ditutup.
+Jika dialog belum terlihat, periksa taskbar atau tekan Alt+Tab. Ctrl+C
+membatalkan dan menutup helper. Jalankan ulang dengan nama akun tujuan.
 
 ```powershell
 python .\scripts\payment-demo-acceptance.py credential --id $demoId --account petugas.demo

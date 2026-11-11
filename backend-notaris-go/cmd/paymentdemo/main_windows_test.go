@@ -136,3 +136,31 @@ func TestOwnedFilesRejectHardlinks(t *testing.T) {
 		t.Fatal("external file changed")
 	}
 }
+
+// Opt in with a copy of the sealed auth files under an isolated TEMP root.
+func TestProvisionedReaderHandoff(t *testing.T) {
+	id := os.Getenv("NOTARIS_PAYMENT_CHECK_PROFILE")
+	if id == "" {
+		t.Skip("requires a copy of the provisioned auth files")
+	}
+	root, err := profileRoot(id)
+	if err != nil {
+		t.Fatal("invalid profile")
+	}
+	a, err := lookup("pembaca.demo")
+	if err != nil {
+		t.Fatal("missing reader")
+	}
+	var password string
+	if err := unseal(root, id, "handoff-"+a.Username, &password); err != nil {
+		t.Fatal("reader handoff did not open")
+	}
+	s, err := unlock(root, id, a, password, time.Now())
+	if err != nil || s.UserID != a.ID || s.GroupType != "user" ||
+		s.Sidebars[0].Read != 1 || s.Sidebars[0].Create != 0 || s.Sidebars[0].Update != 0 {
+		t.Fatal("reader handoff did not unlock the expected read-only session")
+	}
+	if _, err := unlock(root, id, accounts[1], password, time.Now()); err == nil {
+		t.Fatal("reader handoff unlocked the administrator session")
+	}
+}

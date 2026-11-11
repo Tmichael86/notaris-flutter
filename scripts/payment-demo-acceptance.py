@@ -115,6 +115,30 @@ def auth_status(root, profile):
     return accounts
 
 
+def show_credential(root, profile, account):
+    print(f'Membuka dialog Windows untuk {account}. Terminal menunggu hingga dialog ditutup. '
+          'Jika belum terlihat, periksa taskbar atau tekan Alt+Tab. '
+          'Tekan Ctrl+C untuk membatalkan.', flush=True)
+    args = [str(root / 'session.exe'), 'credential', profile, account]
+    with subprocess.Popen(args, creationflags=subprocess.CREATE_NEW_PROCESS_GROUP) as child:
+        try:
+            status = child.wait(timeout=600)
+        except (KeyboardInterrupt, subprocess.TimeoutExpired) as error:
+            child.terminate()
+            child.wait()
+            if isinstance(error, KeyboardInterrupt):
+                raise RuntimeError('Pembukaan dialog dibatalkan. Jalankan ulang credential bila perlu.') from None
+            raise RuntimeError('Dialog melewati batas 10 menit dan telah ditutup. Jalankan ulang credential.') from None
+    require(status == 0, f'Helper gagal membuka kredensial demo (kode {status}). '
+            'Periksa sesi Windows yang sama dengan saat profil disiapkan.')
+
+
+def verify_original_unchanged(original):
+    file = completion['quiet_sqlite_file'](completion['original_database_path']())
+    require(original['schema'] == 20 and str(file) == original['path'] and
+            digest(file) == original['sha256'], 'SQLite development berubah.')
+
+
 def rupiah_state(payment):
     deleted = payment['deleted_at']
     return {'date': payment['tanggal_pembayaran'], 'amount': payment['nominal_rupiah'],
@@ -248,7 +272,12 @@ def main():
         root = owned_root(args.id)
         load_baseline(root, args.id)
         trusted_helper_sha(root)
-        command([root / 'session.exe', 'credential', args.id, args.account], timeout=600)
+        try:
+            auth_status(root, args.id)
+        except subprocess.CalledProcessError:
+            raise RuntimeError('Sesi demo tidak dapat diverifikasi. Periksa masa berlaku '
+                               'dan gunakan akun Windows yang menyiapkan profil.') from None
+        show_credential(root, args.id, args.account)
         return
     completion['maintenance'](23)
     if args.action == 'prepare':
@@ -262,7 +291,7 @@ def main():
     current = snapshot(root)
     require(current['protected_sha256'] == baseline['initial']['protected_sha256'],
             'Fingerprint data terlindungi berbeda.')
-    require(completion['original_witness']() == baseline['original'], 'SQLite development berubah.')
+    verify_original_unchanged(baseline['original'])
     if args.action == 'postcheck':
         require(args.expect and current['phase'] == ('cancel' if args.expect == 'restart' else args.expect),
                 f"Fase tidak cocok, aktual {current['phase']}.")

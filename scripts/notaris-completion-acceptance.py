@@ -57,22 +57,31 @@ def plain(path, directory=False):
     return path
 
 
-def read_only(file):
+def quiet_sqlite_file(file):
     plain(file)
     for suffix in ('-wal', '-shm', '-journal'):
         require(not os.path.lexists(str(file) + suffix), f'Journal aktif: {file}{suffix}')
+    return file
+
+
+def read_only(file):
+    quiet_sqlite_file(file)
     db = sqlite3.connect(file.as_uri() + '?mode=ro&immutable=1', uri=True)
     db.row_factory = sqlite3.Row
     return db
 
 
-def original_witness():
+def original_database_path():
     profile = json.loads((REPO / '.local/notarisdev-profile.json').read_text(encoding='utf-8-sig'))
     generation = profile.get('generation', '')
     require(profile.get('database') == 'notarisdev' and profile.get('port') == 5432 and
             re.fullmatch(r'[a-f0-9]{32}', generation), 'Pointer notarisdev tidak valid.')
-    file = (Path(os.environ['APPDATA']).resolve(strict=True)
+    return (Path(os.environ['APPDATA']).resolve(strict=True)
             / 'com.notaris/frontend_notaris/notarisdev' / generation / 'offline.sqlite')
+
+
+def original_witness():
+    file = original_database_path()
     with closing(read_only(file)) as db:
         version = db.execute('PRAGMA user_version').fetchone()[0]
     require(version == 20, 'SQLite development asli bukan v20.')
