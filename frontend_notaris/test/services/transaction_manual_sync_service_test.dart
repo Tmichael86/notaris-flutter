@@ -570,7 +570,7 @@ void main() {
     void serve(List<Map<String, dynamic>> changes) {
       transport.respond = (_) async => Transport.json({
         'changes': changes,
-        'next_cursor': changes.length,
+        'next_cursor': changes.isEmpty ? 0 : changes.last['sequence'],
         'has_more': false,
       }, 200);
     }
@@ -604,6 +604,7 @@ void main() {
     });
 
     test('replays the snapshot without reactivating the Master', () async {
+      historical['header']['status'] = 'Selesai';
       serve([create]);
       final result = await run(ManualSyncDirection.download);
       expect(result.cursor, 1);
@@ -618,6 +619,49 @@ void main() {
       final master = await db.select(db.pekerjaanNotarisLocals).getSingle();
       expect(master.status, 0);
       expect(master.deletedAt, isNotNull);
+      final row = (await db.select(db.transaksis).get()).singleWhere(
+        (row) => row.uuid == historical['uuid'],
+      );
+      expect(row.statusTransaksi, 'Selesai');
+      expect(row.judulAkta, isNull);
+    });
+
+    test('newer feed revision cannot overwrite local deed data', () async {
+      serve([create]);
+      await run(ManualSyncDirection.download);
+      // Exercise the deed guard independently of the dirty-state guard.
+      await db.customStatement(
+        "UPDATE transaksis SET judul_akta='Fidusia',nomor_akta='25211' WHERE uuid=?",
+        [historical['uuid']],
+      );
+      final newer = {
+        ...historical,
+        'mutation_id': '00000000-0000-4000-8000-000000000099',
+        'expected_revision': 1,
+      };
+      serve([
+        {
+          'sequence': 2,
+          'operation': 'update',
+          'revision': 2,
+          'aggregate': newer,
+        },
+      ]);
+      await expectLater(
+        run(ManualSyncDirection.download),
+        failure('validation'),
+      );
+      final local = (await db.select(db.transaksis).get()).singleWhere(
+        (row) => row.uuid == historical['uuid'],
+      );
+      expect(local.nomorAkta, '25211');
+      expect(
+        (await db
+                .customSelect('SELECT cursor FROM transaction_cloud_feed')
+                .getSingle())
+            .read<int>('cursor'),
+        1,
+      );
     });
 
     for (final entry in {

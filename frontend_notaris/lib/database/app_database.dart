@@ -44,6 +44,9 @@ class Transaksis extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get uuid => text()();
   TextColumn get noAkta => text()();
+  TextColumn get judulAkta => text().nullable()();
+  TextColumn get nomorAkta => text().nullable()();
+  DateTimeColumn get tanggalAkta => dateTime().nullable()();
   RealColumn get total => real()();
   IntColumn get pemohonId => integer().nullable()();
   TextColumn get pemohonUuid => text().nullable()();
@@ -265,7 +268,7 @@ class AppDatabase extends _$AppDatabase {
   final String? petugasBaselinePath;
 
   @override
-  int get schemaVersion => 20;
+  int get schemaVersion => 21;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -460,6 +463,11 @@ class AppDatabase extends _$AppDatabase {
           await m.createIndex(pengeluaranByDate);
           await m.createIndex(pengeluaranByJenis);
           await _protectPengeluaranReferences();
+        }
+        if (from < 21) {
+          await m.addColumn(transaksis, transaksis.judulAkta);
+          await m.addColumn(transaksis, transaksis.nomorAkta);
+          await m.addColumn(transaksis, transaksis.tanggalAkta);
         }
       });
     },

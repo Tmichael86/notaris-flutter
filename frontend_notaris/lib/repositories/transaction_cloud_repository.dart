@@ -50,6 +50,10 @@ class TransactionCloudRepository {
   }
 
   Future<Map<String, dynamic>> _snapshot(int id, String mutation) async {
+    final header = await (db.select(
+      db.transaksis,
+    )..where((t) => t.id.equals(id) & t.deletedAt.isNull())).getSingle();
+    _guardLocalDeed(header);
     await _guardProcessAudit(id);
     final refs = await TransactionCloudReferences(
       db,
@@ -59,9 +63,6 @@ class TransactionCloudRepository {
     if (refs['domain'] != domain) {
       throw StateError('Transaction push domain mismatch');
     }
-    final header = await (db.select(
-      db.transaksis,
-    )..where((t) => t.id.equals(id) & t.deletedAt.isNull())).getSingle();
     final details =
         await (db.select(db.transaksiDetails)
               ..where(
@@ -166,6 +167,7 @@ class TransactionCloudRepository {
     if (h.jenisTransaksi != domain) {
       throw StateError('Transaction domain mismatch');
     }
+    _guardLocalDeed(h);
     final identity = await db
         .customSelect(
           'SELECT local_uuid FROM transaction_cloud_identity WHERE local_uuid=?',
@@ -300,6 +302,20 @@ class TransactionCloudRepository {
     ];
   }
 
+  static String? localDeedBlockReason(Transaksi row) =>
+      row.jenisTransaksi == 'notaris' &&
+          (row.judulAkta != null ||
+              row.nomorAkta != null ||
+              row.tanggalAkta != null)
+      ? 'Data akta Notaris belum didukung oleh sinkronisasi Transaksi.'
+      : null;
+
+  void _guardLocalDeed(Transaksi row) {
+    if (localDeedBlockReason(row) case final reason?) {
+      throw StateError(reason);
+    }
+  }
+
   Future<void> _guardProcessAudit(int id) async {
     final audit = await db
         .customSelect(
@@ -323,6 +339,7 @@ class TransactionCloudRepository {
       if (h.jenisTransaksi != domain) {
         throw StateError('Transaction domain mismatch');
       }
+      _guardLocalDeed(h);
       final identity = await db
           .customSelect(
             'SELECT * FROM transaction_cloud_identity WHERE local_uuid=?',
@@ -641,6 +658,7 @@ class TransactionCloudRepository {
     }
     final updating = identity != null;
     if (updating) {
+      _guardLocalDeed(existing.single);
       final id = existing.single.id;
       final pending = await db
           .customSelect(

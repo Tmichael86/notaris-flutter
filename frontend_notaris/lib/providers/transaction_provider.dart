@@ -5,6 +5,26 @@ import '../models/dashboard_transactions.dart';
 import '../models/transaction_monitoring.dart';
 import '../repositories/transaction_repository.dart';
 import 'database_provider.dart';
+import 'auth_provider.dart';
+import '../models/auth_session.dart';
+
+bool canSaveNotarisTransaction(
+  AuthSession? session, {
+  required bool editing,
+  required bool completing,
+}) {
+  if (session == null || session.userId <= 0) return false;
+  bool enabled(Object? value) => value == true || value == 1 || value == '1';
+  return session.sidebars.any((access) {
+    final sidebar = access['sidebar'];
+    return sidebar is Map &&
+        sidebar['sidebar_kode'] == 'transaksi' &&
+        (sidebar['status'] == null || enabled(sidebar['status'])) &&
+        enabled(access['read']) &&
+        (editing || enabled(access['create'])) &&
+        (!(editing || completing) || enabled(access['update']));
+  });
+}
 
 final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
   return TransactionRepository(ref.watch(appDatabaseProvider));
@@ -85,7 +105,16 @@ class TransactionController extends AsyncNotifier<void> {
     String metodePembayaran = 'Cash',
     int jumlahMaterai = 0,
     String? catatan,
+    NotarisDeedInput? deed,
   }) async {
+    if (jenisTransaksi == 'notaris' &&
+        !canSaveNotarisTransaction(
+          ref.read(authControllerProvider).session,
+          editing: id != null,
+          completing: status.trim().toLowerCase() == 'selesai',
+        )) {
+      throw StateError('Izin simpan Transaksi Notaris tidak tersedia.');
+    }
     state = const AsyncLoading();
     try {
       final result = await _repository.save(
@@ -105,6 +134,7 @@ class TransactionController extends AsyncNotifier<void> {
         metodePembayaran: metodePembayaran,
         jumlahMaterai: jumlahMaterai,
         catatan: catatan,
+        deed: deed,
       );
       state = const AsyncData(null);
       return result;

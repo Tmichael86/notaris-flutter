@@ -1546,6 +1546,39 @@ class $TransaksisTable extends Transaksis
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _judulAktaMeta = const VerificationMeta(
+    'judulAkta',
+  );
+  @override
+  late final GeneratedColumn<String> judulAkta = GeneratedColumn<String>(
+    'judul_akta',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nomorAktaMeta = const VerificationMeta(
+    'nomorAkta',
+  );
+  @override
+  late final GeneratedColumn<String> nomorAkta = GeneratedColumn<String>(
+    'nomor_akta',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tanggalAktaMeta = const VerificationMeta(
+    'tanggalAkta',
+  );
+  @override
+  late final GeneratedColumn<DateTime> tanggalAkta = GeneratedColumn<DateTime>(
+    'tanggal_akta',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _totalMeta = const VerificationMeta('total');
   @override
   late final GeneratedColumn<double> total = GeneratedColumn<double>(
@@ -1768,6 +1801,9 @@ class $TransaksisTable extends Transaksis
     id,
     uuid,
     noAkta,
+    judulAkta,
+    nomorAkta,
+    tanggalAkta,
     total,
     pemohonId,
     pemohonUuid,
@@ -1818,6 +1854,27 @@ class $TransaksisTable extends Transaksis
       );
     } else if (isInserting) {
       context.missing(_noAktaMeta);
+    }
+    if (data.containsKey('judul_akta')) {
+      context.handle(
+        _judulAktaMeta,
+        judulAkta.isAcceptableOrUnknown(data['judul_akta']!, _judulAktaMeta),
+      );
+    }
+    if (data.containsKey('nomor_akta')) {
+      context.handle(
+        _nomorAktaMeta,
+        nomorAkta.isAcceptableOrUnknown(data['nomor_akta']!, _nomorAktaMeta),
+      );
+    }
+    if (data.containsKey('tanggal_akta')) {
+      context.handle(
+        _tanggalAktaMeta,
+        tanggalAkta.isAcceptableOrUnknown(
+          data['tanggal_akta']!,
+          _tanggalAktaMeta,
+        ),
+      );
     }
     if (data.containsKey('total')) {
       context.handle(
@@ -1989,6 +2046,18 @@ class $TransaksisTable extends Transaksis
         DriftSqlType.string,
         data['${effectivePrefix}no_akta'],
       )!,
+      judulAkta: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}judul_akta'],
+      ),
+      nomorAkta: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nomor_akta'],
+      ),
+      tanggalAkta: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}tanggal_akta'],
+      ),
       total: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}total'],
@@ -2078,6 +2147,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
   final int id;
   final String uuid;
   final String noAkta;
+  final String? judulAkta;
+  final String? nomorAkta;
+  final DateTime? tanggalAkta;
   final double total;
   final int? pemohonId;
   final String? pemohonUuid;
@@ -2101,6 +2173,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
     required this.id,
     required this.uuid,
     required this.noAkta,
+    this.judulAkta,
+    this.nomorAkta,
+    this.tanggalAkta,
     required this.total,
     this.pemohonId,
     this.pemohonUuid,
@@ -2127,6 +2202,15 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
     map['id'] = Variable<int>(id);
     map['uuid'] = Variable<String>(uuid);
     map['no_akta'] = Variable<String>(noAkta);
+    if (!nullToAbsent || judulAkta != null) {
+      map['judul_akta'] = Variable<String>(judulAkta);
+    }
+    if (!nullToAbsent || nomorAkta != null) {
+      map['nomor_akta'] = Variable<String>(nomorAkta);
+    }
+    if (!nullToAbsent || tanggalAkta != null) {
+      map['tanggal_akta'] = Variable<DateTime>(tanggalAkta);
+    }
     map['total'] = Variable<double>(total);
     if (!nullToAbsent || pemohonId != null) {
       map['pemohon_id'] = Variable<int>(pemohonId);
@@ -2176,6 +2260,15 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
       id: Value(id),
       uuid: Value(uuid),
       noAkta: Value(noAkta),
+      judulAkta: judulAkta == null && nullToAbsent
+          ? const Value.absent()
+          : Value(judulAkta),
+      nomorAkta: nomorAkta == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nomorAkta),
+      tanggalAkta: tanggalAkta == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tanggalAkta),
       total: Value(total),
       pemohonId: pemohonId == null && nullToAbsent
           ? const Value.absent()
@@ -2229,6 +2322,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
       id: serializer.fromJson<int>(json['id']),
       uuid: serializer.fromJson<String>(json['uuid']),
       noAkta: serializer.fromJson<String>(json['noAkta']),
+      judulAkta: serializer.fromJson<String?>(json['judulAkta']),
+      nomorAkta: serializer.fromJson<String?>(json['nomorAkta']),
+      tanggalAkta: serializer.fromJson<DateTime?>(json['tanggalAkta']),
       total: serializer.fromJson<double>(json['total']),
       pemohonId: serializer.fromJson<int?>(json['pemohonId']),
       pemohonUuid: serializer.fromJson<String?>(json['pemohonUuid']),
@@ -2263,6 +2359,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
       'id': serializer.toJson<int>(id),
       'uuid': serializer.toJson<String>(uuid),
       'noAkta': serializer.toJson<String>(noAkta),
+      'judulAkta': serializer.toJson<String?>(judulAkta),
+      'nomorAkta': serializer.toJson<String?>(nomorAkta),
+      'tanggalAkta': serializer.toJson<DateTime?>(tanggalAkta),
       'total': serializer.toJson<double>(total),
       'pemohonId': serializer.toJson<int?>(pemohonId),
       'pemohonUuid': serializer.toJson<String?>(pemohonUuid),
@@ -2289,6 +2388,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
     int? id,
     String? uuid,
     String? noAkta,
+    Value<String?> judulAkta = const Value.absent(),
+    Value<String?> nomorAkta = const Value.absent(),
+    Value<DateTime?> tanggalAkta = const Value.absent(),
     double? total,
     Value<int?> pemohonId = const Value.absent(),
     Value<String?> pemohonUuid = const Value.absent(),
@@ -2312,6 +2414,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
     id: id ?? this.id,
     uuid: uuid ?? this.uuid,
     noAkta: noAkta ?? this.noAkta,
+    judulAkta: judulAkta.present ? judulAkta.value : this.judulAkta,
+    nomorAkta: nomorAkta.present ? nomorAkta.value : this.nomorAkta,
+    tanggalAkta: tanggalAkta.present ? tanggalAkta.value : this.tanggalAkta,
     total: total ?? this.total,
     pemohonId: pemohonId.present ? pemohonId.value : this.pemohonId,
     pemohonUuid: pemohonUuid.present ? pemohonUuid.value : this.pemohonUuid,
@@ -2341,6 +2446,11 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
       id: data.id.present ? data.id.value : this.id,
       uuid: data.uuid.present ? data.uuid.value : this.uuid,
       noAkta: data.noAkta.present ? data.noAkta.value : this.noAkta,
+      judulAkta: data.judulAkta.present ? data.judulAkta.value : this.judulAkta,
+      nomorAkta: data.nomorAkta.present ? data.nomorAkta.value : this.nomorAkta,
+      tanggalAkta: data.tanggalAkta.present
+          ? data.tanggalAkta.value
+          : this.tanggalAkta,
       total: data.total.present ? data.total.value : this.total,
       pemohonId: data.pemohonId.present ? data.pemohonId.value : this.pemohonId,
       pemohonUuid: data.pemohonUuid.present
@@ -2391,6 +2501,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
           ..write('id: $id, ')
           ..write('uuid: $uuid, ')
           ..write('noAkta: $noAkta, ')
+          ..write('judulAkta: $judulAkta, ')
+          ..write('nomorAkta: $nomorAkta, ')
+          ..write('tanggalAkta: $tanggalAkta, ')
           ..write('total: $total, ')
           ..write('pemohonId: $pemohonId, ')
           ..write('pemohonUuid: $pemohonUuid, ')
@@ -2419,6 +2532,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
     id,
     uuid,
     noAkta,
+    judulAkta,
+    nomorAkta,
+    tanggalAkta,
     total,
     pemohonId,
     pemohonUuid,
@@ -2446,6 +2562,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
           other.id == this.id &&
           other.uuid == this.uuid &&
           other.noAkta == this.noAkta &&
+          other.judulAkta == this.judulAkta &&
+          other.nomorAkta == this.nomorAkta &&
+          other.tanggalAkta == this.tanggalAkta &&
           other.total == this.total &&
           other.pemohonId == this.pemohonId &&
           other.pemohonUuid == this.pemohonUuid &&
@@ -2471,6 +2590,9 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
   final Value<int> id;
   final Value<String> uuid;
   final Value<String> noAkta;
+  final Value<String?> judulAkta;
+  final Value<String?> nomorAkta;
+  final Value<DateTime?> tanggalAkta;
   final Value<double> total;
   final Value<int?> pemohonId;
   final Value<String?> pemohonUuid;
@@ -2494,6 +2616,9 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
     this.id = const Value.absent(),
     this.uuid = const Value.absent(),
     this.noAkta = const Value.absent(),
+    this.judulAkta = const Value.absent(),
+    this.nomorAkta = const Value.absent(),
+    this.tanggalAkta = const Value.absent(),
     this.total = const Value.absent(),
     this.pemohonId = const Value.absent(),
     this.pemohonUuid = const Value.absent(),
@@ -2518,6 +2643,9 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
     this.id = const Value.absent(),
     required String uuid,
     required String noAkta,
+    this.judulAkta = const Value.absent(),
+    this.nomorAkta = const Value.absent(),
+    this.tanggalAkta = const Value.absent(),
     required double total,
     this.pemohonId = const Value.absent(),
     this.pemohonUuid = const Value.absent(),
@@ -2544,6 +2672,9 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
     Expression<int>? id,
     Expression<String>? uuid,
     Expression<String>? noAkta,
+    Expression<String>? judulAkta,
+    Expression<String>? nomorAkta,
+    Expression<DateTime>? tanggalAkta,
     Expression<double>? total,
     Expression<int>? pemohonId,
     Expression<String>? pemohonUuid,
@@ -2568,6 +2699,9 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
       if (id != null) 'id': id,
       if (uuid != null) 'uuid': uuid,
       if (noAkta != null) 'no_akta': noAkta,
+      if (judulAkta != null) 'judul_akta': judulAkta,
+      if (nomorAkta != null) 'nomor_akta': nomorAkta,
+      if (tanggalAkta != null) 'tanggal_akta': tanggalAkta,
       if (total != null) 'total': total,
       if (pemohonId != null) 'pemohon_id': pemohonId,
       if (pemohonUuid != null) 'pemohon_uuid': pemohonUuid,
@@ -2594,6 +2728,9 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
     Value<int>? id,
     Value<String>? uuid,
     Value<String>? noAkta,
+    Value<String?>? judulAkta,
+    Value<String?>? nomorAkta,
+    Value<DateTime?>? tanggalAkta,
     Value<double>? total,
     Value<int?>? pemohonId,
     Value<String?>? pemohonUuid,
@@ -2618,6 +2755,9 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
       id: id ?? this.id,
       uuid: uuid ?? this.uuid,
       noAkta: noAkta ?? this.noAkta,
+      judulAkta: judulAkta ?? this.judulAkta,
+      nomorAkta: nomorAkta ?? this.nomorAkta,
+      tanggalAkta: tanggalAkta ?? this.tanggalAkta,
       total: total ?? this.total,
       pemohonId: pemohonId ?? this.pemohonId,
       pemohonUuid: pemohonUuid ?? this.pemohonUuid,
@@ -2651,6 +2791,15 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
     }
     if (noAkta.present) {
       map['no_akta'] = Variable<String>(noAkta.value);
+    }
+    if (judulAkta.present) {
+      map['judul_akta'] = Variable<String>(judulAkta.value);
+    }
+    if (nomorAkta.present) {
+      map['nomor_akta'] = Variable<String>(nomorAkta.value);
+    }
+    if (tanggalAkta.present) {
+      map['tanggal_akta'] = Variable<DateTime>(tanggalAkta.value);
     }
     if (total.present) {
       map['total'] = Variable<double>(total.value);
@@ -2718,6 +2867,9 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
           ..write('id: $id, ')
           ..write('uuid: $uuid, ')
           ..write('noAkta: $noAkta, ')
+          ..write('judulAkta: $judulAkta, ')
+          ..write('nomorAkta: $nomorAkta, ')
+          ..write('tanggalAkta: $tanggalAkta, ')
           ..write('total: $total, ')
           ..write('pemohonId: $pemohonId, ')
           ..write('pemohonUuid: $pemohonUuid, ')
@@ -17267,6 +17419,9 @@ typedef $$TransaksisTableCreateCompanionBuilder = TransaksisCompanion Function({
   Value<int> id,
   required String uuid,
   required String noAkta,
+  Value<String?> judulAkta,
+  Value<String?> nomorAkta,
+  Value<DateTime?> tanggalAkta,
   required double total,
   Value<int?> pemohonId,
   Value<String?> pemohonUuid,
@@ -17291,6 +17446,9 @@ typedef $$TransaksisTableUpdateCompanionBuilder = TransaksisCompanion Function({
   Value<int> id,
   Value<String> uuid,
   Value<String> noAkta,
+  Value<String?> judulAkta,
+  Value<String?> nomorAkta,
+  Value<DateTime?> tanggalAkta,
   Value<double> total,
   Value<int?> pemohonId,
   Value<String?> pemohonUuid,
@@ -17403,6 +17561,21 @@ class $$TransaksisTableFilterComposer
 
   ColumnFilters<String> get noAkta => $composableBuilder(
     column: $table.noAkta,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get judulAkta => $composableBuilder(
+    column: $table.judulAkta,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nomorAkta => $composableBuilder(
+    column: $table.nomorAkta,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get tanggalAkta => $composableBuilder(
+    column: $table.tanggalAkta,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -17605,6 +17778,21 @@ class $$TransaksisTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get judulAkta => $composableBuilder(
+    column: $table.judulAkta,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nomorAkta => $composableBuilder(
+    column: $table.nomorAkta,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get tanggalAkta => $composableBuilder(
+    column: $table.tanggalAkta,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get total => $composableBuilder(
     column: $table.total,
     builder: (column) => ColumnOrderings(column),
@@ -17718,6 +17906,17 @@ class $$TransaksisTableAnnotationComposer
 
   GeneratedColumn<String> get noAkta =>
       $composableBuilder(column: $table.noAkta, builder: (column) => column);
+
+  GeneratedColumn<String> get judulAkta =>
+      $composableBuilder(column: $table.judulAkta, builder: (column) => column);
+
+  GeneratedColumn<String> get nomorAkta =>
+      $composableBuilder(column: $table.nomorAkta, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get tanggalAkta => $composableBuilder(
+    column: $table.tanggalAkta,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get total =>
       $composableBuilder(column: $table.total, builder: (column) => column);
@@ -17913,6 +18112,9 @@ class $$TransaksisTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String> uuid = const Value.absent(),
                 Value<String> noAkta = const Value.absent(),
+                Value<String?> judulAkta = const Value.absent(),
+                Value<String?> nomorAkta = const Value.absent(),
+                Value<DateTime?> tanggalAkta = const Value.absent(),
                 Value<double> total = const Value.absent(),
                 Value<int?> pemohonId = const Value.absent(),
                 Value<String?> pemohonUuid = const Value.absent(),
@@ -17936,6 +18138,9 @@ class $$TransaksisTableTableManager
                 id: id,
                 uuid: uuid,
                 noAkta: noAkta,
+                judulAkta: judulAkta,
+                nomorAkta: nomorAkta,
+                tanggalAkta: tanggalAkta,
                 total: total,
                 pemohonId: pemohonId,
                 pemohonUuid: pemohonUuid,
@@ -17961,6 +18166,9 @@ class $$TransaksisTableTableManager
                 Value<int> id = const Value.absent(),
                 required String uuid,
                 required String noAkta,
+                Value<String?> judulAkta = const Value.absent(),
+                Value<String?> nomorAkta = const Value.absent(),
+                Value<DateTime?> tanggalAkta = const Value.absent(),
                 required double total,
                 Value<int?> pemohonId = const Value.absent(),
                 Value<String?> pemohonUuid = const Value.absent(),
@@ -17984,6 +18192,9 @@ class $$TransaksisTableTableManager
                 id: id,
                 uuid: uuid,
                 noAkta: noAkta,
+                judulAkta: judulAkta,
+                nomorAkta: nomorAkta,
+                tanggalAkta: tanggalAkta,
                 total: total,
                 pemohonId: pemohonId,
                 pemohonUuid: pemohonUuid,

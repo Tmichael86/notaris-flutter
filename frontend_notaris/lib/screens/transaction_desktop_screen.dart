@@ -208,6 +208,7 @@ class DummyTransactionJob {
 
   /// Stable local detail UUID; null for a newly added job.
   final String localDetailUuid;
+  final TransaksiDetail? loadedDetail;
 
   DummyTransactionJob({
     required this.id,
@@ -224,6 +225,7 @@ class DummyTransactionJob {
     this.masterCategoryId,
     this.priceUuid,
     this.categoryUuid,
+    this.loadedDetail,
     String? localDetailUuid,
   }) : localDetailUuid = localDetailUuid ?? _transactionJobUuid.v4();
 
@@ -246,9 +248,11 @@ class DummyTransaction {
   final double discount;
   final double currentPayment;
   final String note;
+  final NotarisDeedInput? deed;
 
   const DummyTransaction({
     this.uuid,
+    this.deed,
     required this.id,
     required this.number,
     required this.type,
@@ -304,6 +308,24 @@ class _TransactionDesktopScreenState
   final currentPaymentController = TextEditingController();
   final noteController = TextEditingController();
   final materaiController = TextEditingController();
+  final _deedTitle = TextEditingController();
+  final _deedNumber = TextEditingController();
+  DateTime? _deedDate;
+  NotarisDeedInput? _loadedDeed;
+  bool _loadedCompleted = false;
+  String? _deedError;
+
+  bool get _notarisCompleted =>
+      selectedType == TransactionType.notaris &&
+      transactionStatus.trim().toLowerCase() == 'selesai';
+
+  bool get _canSaveForm =>
+      selectedType != TransactionType.notaris ||
+      canSaveNotarisTransaction(
+        ref.read(authControllerProvider).session,
+        editing: _editingTransactionId != null,
+        completing: _notarisCompleted,
+      );
 
   List<DummyApplicant> applicants = [];
   List<DummyOfficer> officers = [];
@@ -566,6 +588,15 @@ class _TransactionDesktopScreenState
     materaiController.text = '$materai';
   }
 
+  void _loadDeed(NotarisDeedInput? deed, {bool completed = false}) {
+    _loadedCompleted = completed;
+    _loadedDeed = deed;
+    _deedTitle.text = deed?.title ?? '';
+    _deedNumber.text = deed?.number ?? '';
+    _deedDate = deed?.date;
+    _deedError = null;
+  }
+
   List<DummyCategory> get availableCategories =>
       selectedType == TransactionType.notaris
       ? notarisCategories
@@ -612,6 +643,7 @@ class _TransactionDesktopScreenState
     });
 
     _syncEditableControllers();
+    _loadDeed(null);
     _refreshTransactionNumber();
   }
 
@@ -634,6 +666,7 @@ class _TransactionDesktopScreenState
     });
 
     _syncEditableControllers();
+    _loadDeed(null);
     _refreshTransactionNumber();
   }
 
@@ -657,6 +690,7 @@ class _TransactionDesktopScreenState
     });
 
     _syncEditableControllers();
+    _loadDeed(transaction.deed, completed: _notarisCompleted);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -800,6 +834,7 @@ class _TransactionDesktopScreenState
               masterPpatId: detail.pekerjaanPpatId,
               priceUuid: detail.hargaUuid,
               categoryUuid: detail.kategoriUuid,
+              loadedDetail: jenis == 'notaris' ? detail : null,
             ),
           );
         }
@@ -827,6 +862,16 @@ class _TransactionDesktopScreenState
             discount: row.diskon,
             currentPayment: row.pembayaranSekarang,
             note: row.catatan ?? '',
+            deed:
+                row.judulAkta == null &&
+                    row.nomorAkta == null &&
+                    row.tanggalAkta == null
+                ? null
+                : NotarisDeedInput(
+                    row.judulAkta ?? '',
+                    row.nomorAkta ?? '',
+                    row.tanggalAkta?.toUtc(),
+                  ),
           ),
         );
       }
@@ -1614,7 +1659,35 @@ class _TransactionDesktopScreenState
   }
 
   Future<void> _saveTransaction() async {
-    if (_isSaving) return;
+    if (_isSaving || !_canSaveForm) return;
+
+    NotarisDeedInput? deed;
+    if (_notarisCompleted) {
+      final entered = NotarisDeedInput(
+        _deedTitle.text.trim(),
+        _deedNumber.text.trim(),
+        _deedDate,
+      );
+      final historicalBlank =
+          _loadedCompleted &&
+          _loadedDeed == null &&
+          entered.title.isEmpty &&
+          entered.number.isEmpty &&
+          entered.date == null;
+      if (entered.missingField case final field? when !historicalBlank) {
+        setState(() {
+          _currentStep = _workflowSteps.length - 1;
+          _deedError = field;
+        });
+        return;
+      }
+      if (!historicalBlank &&
+          (entered.title != _loadedDeed?.title ||
+              entered.number != _loadedDeed?.number ||
+              entered.date != _loadedDeed?.date)) {
+        deed = entered;
+      }
+    }
 
     if (!_validateCurrentStep()) return;
 
@@ -1641,7 +1714,8 @@ class _TransactionDesktopScreenState
       return;
     }
 
-    if (deadline.trim().isEmpty) {
+    if (deadline.trim().isEmpty &&
+        !(_editingTransactionId != null && _notarisCompleted)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Tanggal deadline wajib dipilih.')),
       );
@@ -1752,6 +1826,7 @@ class _TransactionDesktopScreenState
                     pekerjaanPpatId: job.masterPpatId,
                     hargaUuid: job.priceUuid,
                     kategoriUuid: job.categoryUuid,
+                    unchangedDetail: job.loadedDetail,
                     kategoriSnapshot: job.categories
                         .map((category) => category.name)
                         .join(', '),
@@ -1778,6 +1853,7 @@ class _TransactionDesktopScreenState
             metodePembayaran: paymentType,
             jumlahMaterai: materai,
             catatan: note,
+            deed: deed,
           );
 
       if (!mounted) return;
@@ -1787,6 +1863,8 @@ class _TransactionDesktopScreenState
       setState(() {
         _editingTransactionId = savedId.toString();
         _isSaving = false;
+        _loadedCompleted = _notarisCompleted;
+        if (deed != null) _loadedDeed = deed;
       });
       ref.invalidate(transactionsProvider);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1916,7 +1994,7 @@ class _TransactionDesktopScreenState
         child: const Text('Reset'),
       ),
       ElevatedButton.icon(
-        onPressed: _isSaving ? null : _saveTransaction,
+        onPressed: _isSaving || !_canSaveForm ? null : _saveTransaction,
         style: primaryButtonStyle(),
         icon: const Icon(Icons.save_outlined, size: 18),
         label: const Text('Simpan Transaksi'),
@@ -2345,6 +2423,68 @@ class _TransactionDesktopScreenState
     );
   }
 
+  Widget _deedFields() {
+    final editable = _canSaveForm && !_isSaving;
+    return Column(
+      children: [
+        TextFormField(
+          controller: _deedTitle,
+          readOnly: !editable,
+          decoration: inputDecoration(labelText: 'Judul Akta').copyWith(
+            errorText: _deedError == 'Judul Akta'
+                ? 'Judul Akta wajib diisi.'
+                : null,
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: _deedNumber,
+          readOnly: !editable,
+          decoration: inputDecoration(labelText: 'Nomor Akta').copyWith(
+            errorText: _deedError == 'Nomor Akta'
+                ? 'Nomor Akta wajib diisi.'
+                : null,
+          ),
+        ),
+        const SizedBox(height: 12),
+        InputDecorator(
+          decoration: inputDecoration(labelText: 'Tanggal Akta').copyWith(
+            errorText: _deedError == 'Tanggal Akta'
+                ? 'Tanggal Akta wajib diisi.'
+                : null,
+            suffixIcon: IconButton(
+              tooltip: 'Pilih tanggal akta',
+              onPressed: editable ? _pickDeedDate : null,
+              icon: const Icon(Icons.calendar_month_outlined),
+            ),
+          ),
+          child: Text(
+            _deedDate == null
+                ? 'DD/MM/YYYY'
+                : _formatTransactionDate(_deedDate!),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickDeedDate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _deedDate ?? DateTime.now(),
+      firstDate: DateTime(1),
+      lastDate: DateTime(9999, 12, 31),
+      helpText: 'Pilih tanggal akta',
+      cancelText: 'Batal',
+      confirmText: 'Pilih',
+    );
+    if (date == null || !mounted || !_canSaveForm) return;
+    setState(() {
+      _deedDate = DateTime.utc(date.year, date.month, date.day);
+      _deedError = null;
+    });
+  }
+
   Widget finishStep() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2364,13 +2504,30 @@ class _TransactionDesktopScreenState
               ),
               const SizedBox(height: 18),
               SearchableDropdown<String>(
+                key: const ValueKey('finish-transaction-status'),
                 value: transactionStatus,
                 items: const ['Baru', 'Dalam Proses', 'Selesai'],
                 label: 'Status Transaksi',
+                enabled:
+                    selectedType != TransactionType.notaris ||
+                    canSaveNotarisTransaction(
+                      ref.watch(authControllerProvider).session,
+                      editing: _editingTransactionId != null,
+                      completing: false,
+                    ),
                 onChanged: (value) {
-                  if (value != null) setState(() => transactionStatus = value);
+                  if (value != null) {
+                    setState(() {
+                      transactionStatus = value;
+                      _deedError = null;
+                    });
+                  }
                 },
               ),
+              if (_notarisCompleted) ...[
+                const SizedBox(height: 16),
+                _deedFields(),
+              ],
             ],
           ),
         ),
@@ -2461,7 +2618,7 @@ class _TransactionDesktopScreenState
           ),
           const SizedBox(width: 14),
           ElevatedButton.icon(
-            onPressed: _isSaving ? null : _nextStep,
+            onPressed: _isSaving || (last && !_canSaveForm) ? null : _nextStep,
             style: primaryButtonStyle(),
             icon: Icon(
               last ? Icons.save_outlined : Icons.arrow_forward,
@@ -2651,6 +2808,8 @@ class _TransactionDesktopScreenState
     currentPaymentController.dispose();
     noteController.dispose();
     materaiController.dispose();
+    _deedTitle.dispose();
+    _deedNumber.dispose();
     super.dispose();
   }
 }

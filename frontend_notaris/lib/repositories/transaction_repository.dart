@@ -7,6 +7,21 @@ import '../database/app_database.dart';
 import '../models/dashboard_transactions.dart';
 import '../models/transaction_monitoring.dart';
 
+class NotarisDeedInput {
+  const NotarisDeedInput(this.title, this.number, this.date);
+
+  final String title;
+  final String number;
+  final DateTime? date;
+
+  String? get missingField {
+    if (title.trim().isEmpty) return 'Judul Akta';
+    if (number.trim().isEmpty) return 'Nomor Akta';
+    if (date == null) return 'Tanggal Akta';
+    return null;
+  }
+}
+
 /// Input for one selected Notaris/PPAT job in a transaction.
 class TransactionJobInput {
   const TransactionJobInput({
@@ -21,6 +36,7 @@ class TransactionJobInput {
     this.prosesSnapshot,
     this.hargaUuid,
     this.kategoriUuid,
+    this.unchangedDetail,
     required this.detailUuid,
   });
 
@@ -36,6 +52,9 @@ class TransactionJobInput {
   final String? prosesSnapshot;
   final String? hargaUuid;
   final String? kategoriUuid;
+
+  /// The row shown in the form when the user left an existing job untouched.
+  final TransaksiDetail? unchangedDetail;
 
   /// Stable detail UUID generated when the job is selected, and preserved
   /// across subsequent edits of the same transaction.
@@ -380,6 +399,7 @@ class TransactionRepository {
     String metodePembayaran = 'Cash',
     int jumlahMaterai = 0,
     String? catatan,
+    NotarisDeedInput? deed,
   }) async {
     if (jobs.isEmpty) {
       throw ArgumentError('Transaksi harus memiliki minimal satu pekerjaan.');
@@ -394,6 +414,7 @@ class TransactionRepository {
           '${jenisTransaksi.toUpperCase()}.',
         );
       }
+      if (job.unchangedDetail != null) continue;
       if (job.jenisPekerjaan == 'notaris' && job.pekerjaanNotarisId == null) {
         throw ArgumentError('Referensi pekerjaan Notaris wajib diisi.');
       }
@@ -444,8 +465,51 @@ class TransactionRepository {
     }
 
     final now = DateTime.now();
+    final completingNotaris =
+        jenisTransaksi == 'notaris' && status.trim().toLowerCase() == 'selesai';
+    if (deed != null && !completingNotaris) {
+      throw ArgumentError('Data akta hanya dapat diubah saat Notaris Selesai.');
+    }
+    if (deed?.missingField case final field?) {
+      throw ArgumentError('$field wajib diisi.');
+    }
+    final date = deed?.date;
+    final dateOnly = date == null
+        ? null
+        : DateTime.utc(date.year, date.month, date.day);
 
     return db.transaction(() async {
+      final original = id == null
+          ? null
+          : await (db.select(db.transaksis)
+                  ..where((t) => t.id.equals(id) & t.deletedAt.isNull()))
+                .getSingleOrNull();
+      if (id != null && original?.jenisTransaksi != jenisTransaksi) {
+        throw StateError('Transaksi tidak ditemukan atau jenisnya berbeda.');
+      }
+      final wasComplete =
+          original?.statusTransaksi.trim().toLowerCase() == 'selesai';
+      if (completingNotaris &&
+          !wasComplete &&
+          deed == null &&
+          (original?.judulAkta?.trim().isNotEmpty != true ||
+              original?.nomorAkta?.trim().isNotEmpty != true ||
+              original?.tanggalAkta == null)) {
+        throw ArgumentError('Judul, Nomor, dan Tanggal Akta wajib diisi.');
+      }
+      if (original != null &&
+          jenisTransaksi == 'notaris' &&
+          (deed != null || completingNotaris != wasComplete)) {
+        final pending = await db
+            .customSelect(
+              "SELECT 1 FROM transaction_cloud_pending WHERE local_uuid=? AND state='pending'",
+              variables: [Variable(original.uuid)],
+            )
+            .getSingleOrNull();
+        if (pending != null) {
+          throw StateError('Transaksi memiliki mutasi sinkronisasi tertunda.');
+        }
+      }
       final pemohon =
           await (db.select(db.pemohons)..where(
                 (p) =>
@@ -466,6 +530,7 @@ class TransactionRepository {
         throw ArgumentError('Pemohon atau Petugas lokal tidak valid.');
       }
       for (final job in jobs) {
+        if (job.unchangedDetail != null) continue;
         if (jenisTransaksi == 'notaris') {
           if (job.pekerjaanPpatId != null ||
               await (db.select(db.pekerjaanNotarisLocals)..where(
@@ -525,6 +590,9 @@ class TransactionRepository {
                   petugasUuid: Value(petugasUuid),
                   jenisTransaksi: Value(jenisTransaksi),
                   statusTransaksi: Value(status),
+                  judulAkta: Value(deed?.title.trim()),
+                  nomorAkta: Value(deed?.number.trim()),
+                  tanggalAkta: Value(dateOnly),
                   tanggalTransaksi: Value(tanggalTransaksi),
                   tanggalJatuhTempo: Value(tanggalJatuhTempo),
                   diskon: Value(diskon),
@@ -581,6 +649,15 @@ class TransactionRepository {
                 petugasUuid: Value(petugasUuid),
                 jenisTransaksi: Value(jenisTransaksi),
                 statusTransaksi: Value(status),
+                judulAkta: deed == null
+                    ? const Value.absent()
+                    : Value(deed.title.trim()),
+                nomorAkta: deed == null
+                    ? const Value.absent()
+                    : Value(deed.number.trim()),
+                tanggalAkta: deed == null
+                    ? const Value.absent()
+                    : Value(dateOnly),
                 tanggalTransaksi: Value(tanggalTransaksi),
                 tanggalJatuhTempo: Value(tanggalJatuhTempo),
                 diskon: Value(diskon),
@@ -634,6 +711,15 @@ class TransactionRepository {
 
       for (final job in jobs) {
         final existing = existingByUuid[job.detailUuid];
+        if (job.unchangedDetail case final unchanged?) {
+          if (existing != unchanged ||
+              unchanged.jenisPekerjaan != job.jenisPekerjaan ||
+              unchanged.biayaLayanan != job.biayaLayanan ||
+              unchanged.biayaLainnya != job.biayaLainnya) {
+            throw StateError('Detail pekerjaan berubah. Buka ulang transaksi.');
+          }
+          continue;
+        }
         // Null provenance on an unchanged legacy detail stays unresolved. Never
         // infer a historical price from labels, amounts or integer IDs.
         final priceUuid = job.hargaUuid ?? existing?.hargaUuid;
