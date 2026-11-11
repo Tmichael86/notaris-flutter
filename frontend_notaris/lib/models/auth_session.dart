@@ -23,28 +23,42 @@ class AuthSession {
   final DateTime verifiedAt;
   final bool isOffline;
 
+  bool hasTransactionAccess({bool create = false, bool update = false}) {
+    if (userId <= 0) return false;
+    bool enabled(Object? value) => value == true || value == 1 || value == '1';
+    return sidebars.any((access) {
+      final sidebar = access['sidebar'];
+      return sidebar is Map &&
+          sidebar['sidebar_kode'] == 'transaksi' &&
+          (sidebar['status'] == null || enabled(sidebar['status'])) &&
+          enabled(access['read']) &&
+          (!create || enabled(access['create'])) &&
+          (!update || enabled(access['update']));
+    });
+  }
+
   AuthSession asOffline() => AuthSession(
-        token: token,
-        userId: userId,
-        groupId: groupId,
-        userName: userName,
-        groupName: groupName,
-        user: user,
-        sidebars: sidebars,
-        verifiedAt: verifiedAt,
-        isOffline: true,
-      );
+    token: token,
+    userId: userId,
+    groupId: groupId,
+    userName: userName,
+    groupName: groupName,
+    user: user,
+    sidebars: sidebars,
+    verifiedAt: verifiedAt,
+    isOffline: true,
+  );
 
   Map<String, dynamic> toJson() => {
-        'token': token,
-        'userId': userId,
-        'groupId': groupId,
-        'userName': userName,
-        'groupName': groupName,
-        'user': user,
-        'sidebars': sidebars,
-        'verifiedAt': verifiedAt.toUtc().toIso8601String(),
-      };
+    'token': token,
+    'userId': userId,
+    'groupId': groupId,
+    'userName': userName,
+    'groupName': groupName,
+    'user': user,
+    'sidebars': sidebars,
+    'verifiedAt': verifiedAt.toUtc().toIso8601String(),
+  };
 
   factory AuthSession.fromJson(Map<String, dynamic> json) {
     final user = Map<String, dynamic>.from(
@@ -53,9 +67,9 @@ class AuthSession {
     final rawSidebars = json['sidebars'];
     final sidebars = rawSidebars is List
         ? rawSidebars
-            .whereType<Map>()
-            .map((item) => Map<String, dynamic>.from(item))
-            .toList()
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList()
         : <Map<String, dynamic>>[];
 
     final userId = _asInt(json['userId'] ?? user['id']);
@@ -63,8 +77,9 @@ class AuthSession {
     final userName = (json['userName'] ?? user['nama'] ?? user['username'])
         ?.toString()
         .trim();
-    final groupName =
-        (json['groupName'] ?? user['group_nama'])?.toString().trim();
+    final groupName = (json['groupName'] ?? user['group_nama'])
+        ?.toString()
+        .trim();
     final token = json['token']?.toString() ?? '';
     final verifiedAt = DateTime.tryParse(json['verifiedAt']?.toString() ?? '');
 

@@ -21,7 +21,7 @@ class TransactionUploadReadiness {
     final header = await (db.select(
       db.transaksis,
     )..where((r) => r.id.equals(id))).getSingle();
-    if (TransactionCloudRepository.localDeedBlockReason(header)
+    if (await TransactionCloudRepository.localCompletionBlockReason(db, header)
         case final reason?) {
       issues.add(reason);
     }

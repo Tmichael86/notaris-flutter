@@ -22,8 +22,23 @@ const _legacyJenisSchema = '''
 ''';
 
 const _deedColumns = ['judul_akta', 'nomor_akta', 'tanggal_akta'];
+const _ppatColumns = [
+  'status_pekerjaan_ppat',
+  'judul_akta_ppat',
+  'nomor_akta_ppat',
+  'tanggal_akta_ppat',
+];
+
+Future<void> stripV22(AppDatabase db) async {
+  for (final column in _ppatColumns) {
+    await db.customStatement(
+      'ALTER TABLE transaksi_details DROP COLUMN $column',
+    );
+  }
+}
 
 Future<void> stripV21(AppDatabase db) async {
+  await stripV22(db);
   for (final column in _deedColumns) {
     await db.customStatement('ALTER TABLE transaksis DROP COLUMN $column');
   }
@@ -54,40 +69,49 @@ Future<void> stripV17(AppDatabase db) async {
 }
 
 void main() {
-  test(
-    'V20 upgrades additively to V21 and preserves historical storage',
-    () async {
+  for (final version in [20, 21]) {
+    test('V$version upgrades additively to V22 and preserves historical storage', () async {
       final folder = await Directory.systemTemp.createTemp('notaris_deed_v20_');
       addTearDown(() => folder.delete(recursive: true));
       final file = File('${folder.path}/fixture.sqlite');
       var db = AppDatabase.forTesting(NativeDatabase(file));
       addTearDown(() => db.close());
-      await stripV21(db);
+      if (version == 20) {
+        await stripV21(db);
+      } else {
+        await stripV22(db);
+      }
       for (final statement in [
         "INSERT INTO transaksis(uuid,no_akta,total,status_transaksi,is_sync_dirty) VALUES ('legacy-notaris','10020',100,'Selesai',0),('dirty-notaris','10021',200,'Dalam Proses',1),('legacy-ppat','20020',100,'Selesai',1)",
         "UPDATE transaksis SET jenis_transaksi='ppat' WHERE uuid='legacy-ppat'",
         "INSERT INTO transaksi_details(uuid,transaksi_id,jenis_pekerjaan,nama_pekerjaan_snapshot) VALUES ('detail-v20',1,'notaris','Jasa')",
+        "INSERT INTO transaksi_details(uuid,transaksi_id,jenis_pekerjaan,nama_pekerjaan_snapshot) VALUES ('detail-ppat',3,'ppat','Jual Beli')",
         "INSERT INTO transaksi_proses(uuid,transaksi_id,transaksi_detail_uuid,nama_proses_snapshot) VALUES ('proses-v20',1,'detail-v20','Review')",
         "INSERT INTO transaksi_proses_riwayat(uuid,transaksi_proses_id,status_baru,created_at) VALUES ('audit-v20',1,'valid',1)",
         "INSERT INTO transaksi_riwayat_pembayaran(uuid,transaksi_id,tanggal_pembayaran,nominal) VALUES ('pay-v20',1,1,50)",
         "INSERT INTO transaction_cloud_pending VALUES ('dirty-notaris','mutation-v20','{}','pending','create')",
         "INSERT INTO transaction_cloud_feed VALUES ('scope',9)",
         "INSERT INTO petugas_sync_feed(id,scope,cursor) VALUES (1,'scope',4)",
-        'PRAGMA user_version=20',
+        if (version == 21) "UPDATE transaksis SET judul_akta='Fidusia',nomor_akta='25211',tanggal_akta=1794355200 WHERE id=1",
+        'PRAGMA user_version=$version',
       ]) {
         await db.customStatement(statement);
       }
-      const schema = '''
+      final schema =
+          '''
       SELECT type, name, sql FROM sqlite_schema
-      WHERE name NOT LIKE 'sqlite_%' AND name <> 'transaksis'
+      WHERE name NOT LIKE 'sqlite_%' AND name <> 'transaksi_details'
+      ${version == 20 ? "AND name <> 'transaksis'" : ''}
       ORDER BY type, name
     ''';
       Future<List<Map<String, Object?>>> query(String sql) async =>
           (await db.customSelect(sql).get()).map((row) => row.data).toList();
       final beforeSchema = await query(schema);
       final headerColumns = await query('PRAGMA table_info(transaksis)');
+      final detailColumns = await query('PRAGMA table_info(transaksi_details)');
       final tables = [
-        'transaksis',
+        if (version == 20) 'transaksis',
+        'transaksi_details',
         'sqlite_sequence',
         for (final row in beforeSchema)
           if (row['type'] == 'table') row['name'] as String,
@@ -99,7 +123,12 @@ void main() {
               'SELECT * FROM "$table" ORDER BY rowid',
             ))
               {...row}..removeWhere(
-                (key, _) => table == 'transaksis' && _deedColumns.contains(key),
+                (key, _) =>
+                    (table == 'transaksis' &&
+                        version == 20 &&
+                        _deedColumns.contains(key)) ||
+                    (table == 'transaksi_details' &&
+                        _ppatColumns.contains(key)),
               ),
           ],
       };
@@ -108,7 +137,7 @@ void main() {
       db = AppDatabase.forTesting(NativeDatabase(file));
       for (var opening = 0; opening < 2; opening++) {
         expect(await query('PRAGMA user_version'), [
-          {'user_version': 21},
+          {'user_version': 22},
         ]);
         expect(await query(schema), beforeSchema);
         expect(await rows(), beforeRows);
@@ -116,17 +145,19 @@ void main() {
         expect(columns.take(headerColumns.length), headerColumns);
         expect(
           columns.skip(headerColumns.length).map((row) => row['name']),
-          _deedColumns,
+          version == 20 ? _deedColumns : isEmpty,
+        );
+        final details = await query('PRAGMA table_info(transaksi_details)');
+        expect(details.take(detailColumns.length), detailColumns);
+        expect(
+          details.skip(detailColumns.length).map((row) => row['name']),
+          _ppatColumns,
         );
         expect(
           await query(
-            'SELECT judul_akta, nomor_akta, tanggal_akta FROM transaksis',
+            'SELECT ${_ppatColumns.join(', ')} FROM transaksi_details',
           ),
-          everyElement({
-            'judul_akta': null,
-            'nomor_akta': null,
-            'tanggal_akta': null,
-          }),
+          everyElement({for (final key in _ppatColumns) key: null}),
         );
         expect(await query('PRAGMA foreign_key_check'), isEmpty);
         expect(await query('PRAGMA integrity_check'), [
@@ -137,8 +168,8 @@ void main() {
           db = AppDatabase.forTesting(NativeDatabase(file));
         }
       }
-    },
-  );
+    });
+  }
 
   test('V19 copy upgrades through V20 and preserves existing rows', () async {
     final folder = await Directory.systemTemp.createTemp('pengeluaran_v19_');
@@ -194,7 +225,7 @@ void main() {
     addTearDown(upgraded.close);
     expect(
       (await upgraded.customSelect('PRAGMA user_version').getSingle()).data,
-      {'user_version': 21},
+      {'user_version': 22},
     );
     final after = await contents(upgraded);
     for (final name in before.keys) {
@@ -202,14 +233,16 @@ void main() {
           before[name] as (Map<String, dynamic>, List<Map<String, dynamic>>);
       final actual =
           after[name] as (Map<String, dynamic>, List<Map<String, dynamic>>);
-      if (name != 'transaksis') {
+      if (name != 'transaksis' && name != 'transaksi_details') {
         expect(actual.$1, expected.$1, reason: '$name schema');
       }
       expect(
         actual.$2.map(
           (row) => {...row}
             ..removeWhere(
-              (key, _) => name == 'transaksis' && _deedColumns.contains(key),
+              (key, _) =>
+                  (name == 'transaksis' && _deedColumns.contains(key)) ||
+                  (name == 'transaksi_details' && _ppatColumns.contains(key)),
             ),
         ),
         expected.$2,
@@ -425,7 +458,7 @@ void main() {
         (await after.customSelect('PRAGMA user_version').getSingle()).read<int>(
           'user_version',
         ),
-        21,
+        22,
       );
       expect(
         await after.customSelect('PRAGMA foreign_key_check').get(),
@@ -476,7 +509,7 @@ void main() {
         (await after.customSelect('PRAGMA user_version').getSingle()).read<int>(
           'user_version',
         ),
-        21,
+        22,
       );
       expect(
         await after.customSelect('PRAGMA foreign_key_check').get(),
@@ -809,7 +842,7 @@ void main() {
       final version = await inspectionDb
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 21);
+      expect(version.read<int>('user_version'), 22);
     } finally {
       await inspectionDb.close();
     }

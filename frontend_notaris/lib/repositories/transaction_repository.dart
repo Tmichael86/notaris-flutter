@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
+import '../models/auth_session.dart';
 import '../models/dashboard_transactions.dart';
 import '../models/transaction_monitoring.dart';
 
@@ -20,6 +21,15 @@ class NotarisDeedInput {
     if (date == null) return 'Tanggal Akta';
     return null;
   }
+}
+
+enum PpatJobStatus {
+  baru('Baru'),
+  dalamProses('Dalam Proses'),
+  selesai('Selesai');
+
+  const PpatJobStatus(this.label);
+  final String label;
 }
 
 /// Input for one selected Notaris/PPAT job in a transaction.
@@ -377,6 +387,107 @@ class TransactionRepository {
               t.status.equals(1),
         ))
         .get();
+  }
+
+  Future<TransaksiDetail> readPpatJob({
+    required AuthSession? session,
+    required int transactionId,
+    required String detailUuid,
+  }) async {
+    if (session?.hasTransactionAccess() != true) {
+      throw StateError('Izin baca Transaksi diperlukan.');
+    }
+    final detail = db.transaksiDetails;
+    final parent = db.transaksis;
+    final row =
+        await (db.select(detail).join([
+              innerJoin(parent, parent.id.equalsExp(detail.transaksiId)),
+            ])..where(
+              detail.transaksiId.equals(transactionId) &
+                  detail.uuid.equals(detailUuid) &
+                  detail.jenisPekerjaan.equals('ppat') &
+                  detail.status.equals(1) &
+                  detail.deletedAt.isNull() &
+                  parent.jenisTransaksi.equals('ppat') &
+                  parent.deletedAt.isNull(),
+            ))
+            .getSingleOrNull();
+    if (row == null) throw StateError('Detail pekerjaan PPAT tidak ditemukan.');
+    return row.readTable(detail);
+  }
+
+  Future<void> savePpatJobStatus({
+    required AuthSession? session,
+    required TransaksiDetail expected,
+    required PpatJobStatus status,
+    String? title,
+    String? number,
+    DateTime? date,
+  }) async {
+    if (session?.hasTransactionAccess(update: true) != true) {
+      throw StateError('Izin ubah Transaksi diperlukan.');
+    }
+    if (status != PpatJobStatus.selesai &&
+        (title != null || number != null || date != null)) {
+      throw ArgumentError(
+        'Data akta hanya dapat diedit saat pekerjaan Selesai.',
+      );
+    }
+    await db.transaction(() async {
+      final detail = await readPpatJob(
+        session: session,
+        transactionId: expected.transaksiId,
+        detailUuid: expected.uuid,
+      );
+      if (detail != expected) {
+        throw StateError('Detail pekerjaan berubah. Buka ulang status PPAT.');
+      }
+      final complete = status == PpatJobStatus.selesai;
+      final nextStatus =
+          status == PpatJobStatus.baru && detail.statusPekerjaanPpat == null
+          ? null
+          : status.name;
+      final nextTitle = complete ? _nullableText(title) : detail.judulAktaPpat;
+      final nextNumber = complete
+          ? _nullableText(number)
+          : detail.nomorAktaPpat;
+      final nextDate = complete
+          ? (date == null
+                ? null
+                : DateTime.utc(date.year, date.month, date.day))
+          : detail.tanggalAktaPpat;
+      if (nextStatus == detail.statusPekerjaanPpat &&
+          nextTitle == detail.judulAktaPpat &&
+          nextNumber == detail.nomorAktaPpat &&
+          nextDate?.millisecondsSinceEpoch ==
+              detail.tanggalAktaPpat?.millisecondsSinceEpoch) {
+        return;
+      }
+      final pending = await db
+          .customSelect(
+            "SELECT 1 FROM transaction_cloud_pending m JOIN transaksis t ON t.uuid=m.local_uuid WHERE t.id=? AND m.state='pending'",
+            variables: [Variable(detail.transaksiId)],
+          )
+          .getSingleOrNull();
+      if (pending != null) {
+        throw StateError('Transaksi memiliki mutasi sinkronisasi tertunda.');
+      }
+      await (db.update(db.transaksiDetails)..where(
+            (d) =>
+                d.uuid.equals(detail.uuid) &
+                d.transaksiId.equals(detail.transaksiId),
+          ))
+          .write(
+            TransaksiDetailsCompanion(
+              statusPekerjaanPpat: Value(nextStatus),
+              judulAktaPpat: Value(nextTitle),
+              nomorAktaPpat: Value(nextNumber),
+              tanggalAktaPpat: Value(nextDate),
+              updatedAt: Value(DateTime.now()),
+              isSyncDirty: const Value(true),
+            ),
+          );
+    });
   }
 
   /// Saves the header and all selected jobs atomically.

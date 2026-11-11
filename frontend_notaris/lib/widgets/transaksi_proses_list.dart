@@ -106,7 +106,8 @@ class TransaksiProsesList extends ConsumerWidget {
             index: index,
             name: process.namaProsesSnapshot,
             status: _statusLabel(process.statusProses),
-            reviewColor: embedded ? _reviewColor(process.statusProses) : null,
+            embedded: embedded,
+            badgeColor: _reviewColor(process.statusProses),
             onValidate: canValidate
                 ? () => showDialog<void>(
                     context: context,
@@ -182,6 +183,7 @@ class TransaksiProsesList extends ConsumerWidget {
 
   static Color _reviewColor(String? status) => switch (status) {
     ProcessValidationStatus.valid => Colors.green.shade800,
+    ProcessValidationStatus.belumValid => Colors.amber.shade900,
     ProcessValidationStatus.dalamPengerjaan ||
     ProcessValidationStatus.menungguValidasi => Colors.orange.shade900,
     ProcessValidationStatus.perluRevisi => AppColors.primaryDark,
@@ -194,7 +196,8 @@ class _ProcessRow extends StatelessWidget {
     required this.index,
     required this.name,
     required this.status,
-    this.reviewColor,
+    this.embedded = false,
+    this.badgeColor = AppColors.textSecondary,
     this.onValidate,
     this.onWorkflow,
   });
@@ -202,13 +205,14 @@ class _ProcessRow extends StatelessWidget {
   final int index;
   final String name;
   final String status;
-  final Color? reviewColor;
+  final bool embedded;
+  final Color badgeColor;
   final VoidCallback? onValidate;
   final VoidCallback? onWorkflow;
 
   @override
   Widget build(BuildContext context) {
-    if (reviewColor case final color?) {
+    if (embedded) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
@@ -236,7 +240,7 @@ class _ProcessRow extends StatelessWidget {
             const SizedBox(width: 8),
             Flexible(
               flex: 2,
-              child: TransactionReviewBadge(status, color: color),
+              child: TransactionReviewBadge(status, color: badgeColor),
             ),
           ],
         ),
@@ -278,24 +282,7 @@ class _ProcessRow extends StatelessWidget {
             ),
       trailing: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 160),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: AppColors.selectedMenuBg,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            child: Text(
-              status,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
+        child: TransactionReviewBadge(status, color: badgeColor),
       ),
     );
   }

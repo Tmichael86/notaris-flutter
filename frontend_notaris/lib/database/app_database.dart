@@ -98,6 +98,10 @@ class TransaksiDetails extends Table {
   RealColumn get biayaLayanan => real().withDefault(const Constant(0))();
   RealColumn get biayaLainnya => real().withDefault(const Constant(0))();
   RealColumn get totalSnapshot => real().withDefault(const Constant(0))();
+  TextColumn get statusPekerjaanPpat => text().nullable()();
+  TextColumn get judulAktaPpat => text().nullable()();
+  TextColumn get nomorAktaPpat => text().nullable()();
+  DateTimeColumn get tanggalAktaPpat => dateTime().nullable()();
 
   DateTimeColumn get createdAt => dateTime().nullable()();
   DateTimeColumn get updatedAt => dateTime().nullable()();
@@ -268,7 +272,7 @@ class AppDatabase extends _$AppDatabase {
   final String? petugasBaselinePath;
 
   @override
-  int get schemaVersion => 21;
+  int get schemaVersion => 22;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -468,6 +472,20 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(transaksis, transaksis.judulAkta);
           await m.addColumn(transaksis, transaksis.nomorAkta);
           await m.addColumn(transaksis, transaksis.tanggalAkta);
+        }
+        if (from < 22) {
+          if (from >= 4) {
+            await m.addColumn(
+              transaksiDetails,
+              transaksiDetails.statusPekerjaanPpat,
+            );
+            await m.addColumn(transaksiDetails, transaksiDetails.judulAktaPpat);
+            await m.addColumn(transaksiDetails, transaksiDetails.nomorAktaPpat);
+            await m.addColumn(
+              transaksiDetails,
+              transaksiDetails.tanggalAktaPpat,
+            );
+          }
         }
       });
     },

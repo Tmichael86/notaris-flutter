@@ -10,6 +10,7 @@ import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/models/auth_session.dart';
 import 'package:frontend_notaris/services/transaction_manual_sync_service.dart';
 import 'package:frontend_notaris/repositories/transaction_repository.dart';
+import 'package:frontend_notaris/repositories/transaction_cloud_repository.dart';
 import 'package:frontend_notaris/repositories/sync_log_repository.dart';
 import 'package:frontend_notaris/repositories/sync_monitor_repository.dart';
 
@@ -868,6 +869,99 @@ void main() {
       ],
     );
   }
+
+  test(
+    'PPAT replay preserves local completion and blocks a newer revision',
+    () async {
+      final other = await ppat();
+      await run(
+        ManualSyncDirection.upload,
+        selectedId: other,
+        module: 'transaksi_ppat',
+      );
+      await db.customStatement(
+        "UPDATE transaksi_details SET status_pekerjaan_ppat='selesai', nomor_akta_ppat='25' WHERE transaksi_id=?",
+        [other],
+      );
+      final cloud = TransactionCloudRepository(
+        db,
+        http,
+        domain: 'ppat',
+        scope: profile.transactionScope,
+        petugasScope: profile.petugasScope,
+        masterScope: profile.masterScope,
+      );
+      void serve(int revision, Map<String, dynamic> aggregate) {
+        transport.respond = (_) async => Transport.json({
+          'changes': [
+            {
+              'sequence': revision,
+              'revision': revision,
+              'operation': revision == 1 ? 'create' : 'update',
+              'aggregate': aggregate,
+            },
+          ],
+          'next_cursor': revision,
+          'has_more': false,
+        }, 200);
+      }
+
+      final accepted = transport.aggregate!;
+      serve(1, accepted);
+      expect(await cloud.pullPage(), 1);
+      final pending =
+          (await db
+                  .customSelect('SELECT * FROM transaction_cloud_pending')
+                  .getSingle())
+              .data;
+      final identity =
+          (await db
+                  .customSelect('SELECT * FROM transaction_cloud_identity')
+                  .getSingle())
+              .data;
+      serve(2, {
+        ...accepted,
+        'expected_revision': 1,
+        'mutation_id': '00000000-0000-4000-8000-000000000109',
+      });
+      await expectLater(
+        cloud.pullPage(),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            contains('data akta PPAT'),
+          ),
+        ),
+      );
+      final detail = (await db.select(db.transaksiDetails).get()).singleWhere(
+        (row) => row.transaksiId == other,
+      );
+      expect(detail.nomorAktaPpat, '25');
+      expect(detail.statusPekerjaanPpat, 'selesai');
+      expect(
+        (await db
+                .customSelect('SELECT cursor FROM transaction_cloud_feed')
+                .getSingle())
+            .read<int>('cursor'),
+        1,
+      );
+      expect(
+        (await db
+                .customSelect('SELECT * FROM transaction_cloud_pending')
+                .getSingle())
+            .data,
+        pending,
+      );
+      expect(
+        (await db
+                .customSelect('SELECT * FROM transaction_cloud_identity')
+                .getSingle())
+            .data,
+        identity,
+      );
+    },
+  );
 
   test('PPAT selective upload does not send dirty Notaris; upload/download selections are explicit', () async {
     final other = await ppat();

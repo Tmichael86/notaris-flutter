@@ -53,7 +53,7 @@ class TransactionCloudRepository {
     final header = await (db.select(
       db.transaksis,
     )..where((t) => t.id.equals(id) & t.deletedAt.isNull())).getSingle();
-    _guardLocalDeed(header);
+    await _guardLocalCompletion(header);
     await _guardProcessAudit(id);
     final refs = await TransactionCloudReferences(
       db,
@@ -167,7 +167,7 @@ class TransactionCloudRepository {
     if (h.jenisTransaksi != domain) {
       throw StateError('Transaction domain mismatch');
     }
-    _guardLocalDeed(h);
+    await _guardLocalCompletion(h);
     final identity = await db
         .customSelect(
           'SELECT local_uuid FROM transaction_cloud_identity WHERE local_uuid=?',
@@ -302,16 +302,36 @@ class TransactionCloudRepository {
     ];
   }
 
-  static String? localDeedBlockReason(Transaksi row) =>
-      row.jenisTransaksi == 'notaris' &&
-          (row.judulAkta != null ||
-              row.nomorAkta != null ||
-              row.tanggalAkta != null)
-      ? 'Data akta Notaris belum didukung oleh sinkronisasi Transaksi.'
-      : null;
+  static Future<String?> localCompletionBlockReason(
+    AppDatabase db,
+    Transaksi row,
+  ) async {
+    if (row.jenisTransaksi == 'notaris' &&
+        (row.judulAkta != null ||
+            row.nomorAkta != null ||
+            row.tanggalAkta != null)) {
+      return 'Data akta Notaris belum didukung oleh sinkronisasi Transaksi.';
+    }
+    if (row.jenisTransaksi != 'ppat') return null;
+    final completion =
+        await (db.select(db.transaksiDetails)
+              ..where(
+                (detail) =>
+                    detail.transaksiId.equals(row.id) &
+                    (detail.statusPekerjaanPpat.isNotNull() |
+                        detail.judulAktaPpat.isNotNull() |
+                        detail.nomorAktaPpat.isNotNull() |
+                        detail.tanggalAktaPpat.isNotNull()),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    return completion == null
+        ? null
+        : 'Status pekerjaan dan data akta PPAT belum didukung oleh sinkronisasi Transaksi.';
+  }
 
-  void _guardLocalDeed(Transaksi row) {
-    if (localDeedBlockReason(row) case final reason?) {
+  Future<void> _guardLocalCompletion(Transaksi row) async {
+    if (await localCompletionBlockReason(db, row) case final reason?) {
       throw StateError(reason);
     }
   }
@@ -339,7 +359,7 @@ class TransactionCloudRepository {
       if (h.jenisTransaksi != domain) {
         throw StateError('Transaction domain mismatch');
       }
-      _guardLocalDeed(h);
+      await _guardLocalCompletion(h);
       final identity = await db
           .customSelect(
             'SELECT * FROM transaction_cloud_identity WHERE local_uuid=?',
@@ -658,7 +678,7 @@ class TransactionCloudRepository {
     }
     final updating = identity != null;
     if (updating) {
-      _guardLocalDeed(existing.single);
+      await _guardLocalCompletion(existing.single);
       final id = existing.single.id;
       final pending = await db
           .customSelect(

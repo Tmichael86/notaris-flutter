@@ -13,17 +13,11 @@ bool canSaveNotarisTransaction(
   required bool editing,
   required bool completing,
 }) {
-  if (session == null || session.userId <= 0) return false;
-  bool enabled(Object? value) => value == true || value == 1 || value == '1';
-  return session.sidebars.any((access) {
-    final sidebar = access['sidebar'];
-    return sidebar is Map &&
-        sidebar['sidebar_kode'] == 'transaksi' &&
-        (sidebar['status'] == null || enabled(sidebar['status'])) &&
-        enabled(access['read']) &&
-        (editing || enabled(access['create'])) &&
-        (!(editing || completing) || enabled(access['update']));
-  });
+  return session?.hasTransactionAccess(
+        create: !editing,
+        update: editing || completing,
+      ) ??
+      false;
 }
 
 final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {

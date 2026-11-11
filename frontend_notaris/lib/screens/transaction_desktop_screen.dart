@@ -17,6 +17,7 @@ import '../providers/pekerjaan_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../repositories/transaction_repository.dart';
 import '../widgets/transaksi_proses_list.dart';
+import '../widgets/ppat_completion_dialog.dart';
 
 enum TransactionType { notaris, ppat }
 
@@ -1341,10 +1342,7 @@ class _TransactionDesktopScreenState
                   label: const Text('Daftar Proses'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: () => _showSimpleInfoDialog(
-                    'Status PPAT',
-                    'Prototype status PPAT untuk ${job.name}.',
-                  ),
+                  onPressed: () => _showPpatJobStatus(job),
                   style: outlinedButtonStyle(),
                   icon: const Icon(
                     Icons.assignment_turned_in_outlined,
@@ -2702,6 +2700,30 @@ class _TransactionDesktopScreenState
         ],
       ),
     );
+  }
+
+  Future<void> _showPpatJobStatus(DummyTransactionJob job) async {
+    final id = int.tryParse(_editingTransactionId ?? '');
+    try {
+      if (id == null) {
+        throw StateError(
+          'Simpan pekerjaan pada transaksi sebelum mengubah status PPAT.',
+        );
+      }
+      final detail = await ref
+          .read(transactionRepositoryProvider)
+          .readPpatJob(
+            session: ref.read(authControllerProvider).session,
+            transactionId: id,
+            detailUuid: job.localDetailUuid,
+          );
+      if (mounted) await showPpatCompletionDialog(context, detail);
+    } on StateError catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
   }
 
   void _showProcessDialog(DummyTransactionJob job) {

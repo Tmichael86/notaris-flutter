@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend_notaris/core/theme/app_colors.dart';
+import 'package:frontend_notaris/core/widgets/transaction_review_dialog.dart';
 import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/providers/auth_provider.dart';
 import 'package:frontend_notaris/providers/database_provider.dart';
@@ -13,9 +17,13 @@ import '../support/transaction_ui_test_support.dart';
 void main() {
   late AppDatabase database;
   late int transactionId;
+  late Directory folder;
+  late File file;
 
   setUp(() async {
-    database = AppDatabase(NativeDatabase.memory());
+    folder = await Directory.systemTemp.createTemp('process-badge-');
+    file = File('${folder.path}/fixture.sqlite');
+    database = AppDatabase(NativeDatabase(file));
     transactionId = await database
         .into(database.transaksis)
         .insert(
@@ -50,6 +58,7 @@ void main() {
 
   tearDown(() async {
     await database.close();
+    await folder.delete(recursive: true);
   });
 
   Future<void> disposeSubject(WidgetTester tester) async {
@@ -64,8 +73,10 @@ void main() {
     required String detailUuid,
     List<TransaksiProsesFallbackItem> fallback = const [],
     bool? permission,
+    bool embedded = false,
   }) {
     return ProviderScope(
+      key: ValueKey((database, permission)),
       overrides: [
         appDatabaseProvider.overrideWithValue(database),
         if (permission != null)
@@ -83,12 +94,21 @@ void main() {
               detailUuid: detailUuid,
               fallbackProcesses: fallback,
               allowDirectValidation: permission != null,
+              embedded: embedded,
             ),
           ),
         ),
       ),
     );
   }
+
+  Color badgeColor(WidgetTester tester, String text) => tester
+      .widget<TransactionReviewBadge>(
+        find.byWidgetPredicate(
+          (widget) => widget is TransactionReviewBadge && widget.label == text,
+        ),
+      )
+      .color;
 
   testWidgets('draft uses the process snapshot without querying SQLite', (
     tester,
@@ -221,6 +241,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(badgeColor(tester, 'Belum Diinisialisasi'), AppColors.textSecondary);
     await tester.tap(find.widgetWithText(TextButton, 'Detail Proses'));
     await tester.pumpAndSettle();
     expect(find.byType(SwitchListTile), findsNothing);
@@ -233,9 +254,20 @@ void main() {
     await tester.enterText(find.byType(TextFormField), 'Berkas lengkap');
     await tester.tap(find.byType(SwitchListTile));
     await tester.pumpAndSettle();
+    expect(badgeColor(tester, 'Belum Valid'), Colors.amber.shade900);
+    await database.customStatement('''
+      CREATE TRIGGER fail_process_color BEFORE UPDATE ON transaksi_proses
+      BEGIN SELECT RAISE(ABORT, 'fixture failure'); END;
+    ''');
+    await tester.tap(find.text('Simpan'));
+    await tester.pumpAndSettle();
+    expect(find.text('Gagal menyimpan validasi proses.'), findsOneWidget);
+    expect(badgeColor(tester, 'Belum Valid'), Colors.amber.shade900);
+    await database.customStatement('DROP TRIGGER fail_process_color');
     await tester.tap(find.text('Simpan'));
     await tester.pumpAndSettle();
     expect(find.text('Valid'), findsOneWidget);
+    expect(badgeColor(tester, 'Valid'), Colors.green.shade800);
 
     await tester.tap(find.widgetWithText(TextButton, 'Detail Proses'));
     await tester.pumpAndSettle();
@@ -246,6 +278,26 @@ void main() {
     expect(find.text('Valid'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
+    await tester.pumpWidget(
+      buildSubject(
+        id: transactionId,
+        detailUuid: 'process-list-detail',
+        embedded: true,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(badgeColor(tester, 'Valid'), Colors.green.shade800);
+    expect(find.text('Detail Proses'), findsNothing);
+    await tester.pumpWidget(
+      buildSubject(
+        id: transactionId,
+        detailUuid: 'other-process-list-detail',
+        embedded: true,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(badgeColor(tester, 'Belum Diinisialisasi'), AppColors.textSecondary);
+
     await disposeSubject(tester);
     final processes = await database.select(database.transaksiProses).get();
     expect(processes.map((row) => row.statusProses), ['valid', null]);
@@ -254,6 +306,18 @@ void main() {
         .select(database.transaksiProsesRiwayat)
         .get();
     expect(history.map((row) => row.statusBaru), ['belum_valid', 'valid']);
+    await database.close();
+    database = AppDatabase(NativeDatabase(file));
+    await tester.pumpWidget(
+      buildSubject(
+        id: transactionId,
+        detailUuid: 'process-list-detail',
+        embedded: true,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(badgeColor(tester, 'Valid'), Colors.green.shade800);
+    await disposeSubject(tester);
   });
 
   testWidgets('user without permission cannot open the validation editor', (

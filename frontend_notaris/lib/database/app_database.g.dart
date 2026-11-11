@@ -4394,6 +4394,51 @@ class $TransaksiDetailsTable extends TransaksiDetails
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _statusPekerjaanPpatMeta =
+      const VerificationMeta('statusPekerjaanPpat');
+  @override
+  late final GeneratedColumn<String> statusPekerjaanPpat =
+      GeneratedColumn<String>(
+        'status_pekerjaan_ppat',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _judulAktaPpatMeta = const VerificationMeta(
+    'judulAktaPpat',
+  );
+  @override
+  late final GeneratedColumn<String> judulAktaPpat = GeneratedColumn<String>(
+    'judul_akta_ppat',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nomorAktaPpatMeta = const VerificationMeta(
+    'nomorAktaPpat',
+  );
+  @override
+  late final GeneratedColumn<String> nomorAktaPpat = GeneratedColumn<String>(
+    'nomor_akta_ppat',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tanggalAktaPpatMeta = const VerificationMeta(
+    'tanggalAktaPpat',
+  );
+  @override
+  late final GeneratedColumn<DateTime> tanggalAktaPpat =
+      GeneratedColumn<DateTime>(
+        'tanggal_akta_ppat',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -4480,6 +4525,10 @@ class $TransaksiDetailsTable extends TransaksiDetails
     biayaLayanan,
     biayaLainnya,
     totalSnapshot,
+    statusPekerjaanPpat,
+    judulAktaPpat,
+    nomorAktaPpat,
+    tanggalAktaPpat,
     createdAt,
     updatedAt,
     status,
@@ -4630,6 +4679,42 @@ class $TransaksiDetailsTable extends TransaksiDetails
         ),
       );
     }
+    if (data.containsKey('status_pekerjaan_ppat')) {
+      context.handle(
+        _statusPekerjaanPpatMeta,
+        statusPekerjaanPpat.isAcceptableOrUnknown(
+          data['status_pekerjaan_ppat']!,
+          _statusPekerjaanPpatMeta,
+        ),
+      );
+    }
+    if (data.containsKey('judul_akta_ppat')) {
+      context.handle(
+        _judulAktaPpatMeta,
+        judulAktaPpat.isAcceptableOrUnknown(
+          data['judul_akta_ppat']!,
+          _judulAktaPpatMeta,
+        ),
+      );
+    }
+    if (data.containsKey('nomor_akta_ppat')) {
+      context.handle(
+        _nomorAktaPpatMeta,
+        nomorAktaPpat.isAcceptableOrUnknown(
+          data['nomor_akta_ppat']!,
+          _nomorAktaPpatMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tanggal_akta_ppat')) {
+      context.handle(
+        _tanggalAktaPpatMeta,
+        tanggalAktaPpat.isAcceptableOrUnknown(
+          data['tanggal_akta_ppat']!,
+          _tanggalAktaPpatMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -4741,6 +4826,22 @@ class $TransaksiDetailsTable extends TransaksiDetails
         DriftSqlType.double,
         data['${effectivePrefix}total_snapshot'],
       )!,
+      statusPekerjaanPpat: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status_pekerjaan_ppat'],
+      ),
+      judulAktaPpat: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}judul_akta_ppat'],
+      ),
+      nomorAktaPpat: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nomor_akta_ppat'],
+      ),
+      tanggalAktaPpat: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}tanggal_akta_ppat'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -4790,6 +4891,10 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
   final double biayaLayanan;
   final double biayaLainnya;
   final double totalSnapshot;
+  final String? statusPekerjaanPpat;
+  final String? judulAktaPpat;
+  final String? nomorAktaPpat;
+  final DateTime? tanggalAktaPpat;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final int status;
@@ -4812,6 +4917,10 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     required this.biayaLayanan,
     required this.biayaLainnya,
     required this.totalSnapshot,
+    this.statusPekerjaanPpat,
+    this.judulAktaPpat,
+    this.nomorAktaPpat,
+    this.tanggalAktaPpat,
     this.createdAt,
     this.updatedAt,
     required this.status,
@@ -4851,6 +4960,18 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     map['biaya_layanan'] = Variable<double>(biayaLayanan);
     map['biaya_lainnya'] = Variable<double>(biayaLainnya);
     map['total_snapshot'] = Variable<double>(totalSnapshot);
+    if (!nullToAbsent || statusPekerjaanPpat != null) {
+      map['status_pekerjaan_ppat'] = Variable<String>(statusPekerjaanPpat);
+    }
+    if (!nullToAbsent || judulAktaPpat != null) {
+      map['judul_akta_ppat'] = Variable<String>(judulAktaPpat);
+    }
+    if (!nullToAbsent || nomorAktaPpat != null) {
+      map['nomor_akta_ppat'] = Variable<String>(nomorAktaPpat);
+    }
+    if (!nullToAbsent || tanggalAktaPpat != null) {
+      map['tanggal_akta_ppat'] = Variable<DateTime>(tanggalAktaPpat);
+    }
     if (!nullToAbsent || createdAt != null) {
       map['created_at'] = Variable<DateTime>(createdAt);
     }
@@ -4899,6 +5020,18 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       biayaLayanan: Value(biayaLayanan),
       biayaLainnya: Value(biayaLainnya),
       totalSnapshot: Value(totalSnapshot),
+      statusPekerjaanPpat: statusPekerjaanPpat == null && nullToAbsent
+          ? const Value.absent()
+          : Value(statusPekerjaanPpat),
+      judulAktaPpat: judulAktaPpat == null && nullToAbsent
+          ? const Value.absent()
+          : Value(judulAktaPpat),
+      nomorAktaPpat: nomorAktaPpat == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nomorAktaPpat),
+      tanggalAktaPpat: tanggalAktaPpat == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tanggalAktaPpat),
       createdAt: createdAt == null && nullToAbsent
           ? const Value.absent()
           : Value(createdAt),
@@ -4941,6 +5074,12 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       biayaLayanan: serializer.fromJson<double>(json['biayaLayanan']),
       biayaLainnya: serializer.fromJson<double>(json['biayaLainnya']),
       totalSnapshot: serializer.fromJson<double>(json['totalSnapshot']),
+      statusPekerjaanPpat: serializer.fromJson<String?>(
+        json['statusPekerjaanPpat'],
+      ),
+      judulAktaPpat: serializer.fromJson<String?>(json['judulAktaPpat']),
+      nomorAktaPpat: serializer.fromJson<String?>(json['nomorAktaPpat']),
+      tanggalAktaPpat: serializer.fromJson<DateTime?>(json['tanggalAktaPpat']),
       createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
       status: serializer.fromJson<int>(json['status']),
@@ -4970,6 +5109,10 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       'biayaLayanan': serializer.toJson<double>(biayaLayanan),
       'biayaLainnya': serializer.toJson<double>(biayaLainnya),
       'totalSnapshot': serializer.toJson<double>(totalSnapshot),
+      'statusPekerjaanPpat': serializer.toJson<String?>(statusPekerjaanPpat),
+      'judulAktaPpat': serializer.toJson<String?>(judulAktaPpat),
+      'nomorAktaPpat': serializer.toJson<String?>(nomorAktaPpat),
+      'tanggalAktaPpat': serializer.toJson<DateTime?>(tanggalAktaPpat),
       'createdAt': serializer.toJson<DateTime?>(createdAt),
       'updatedAt': serializer.toJson<DateTime?>(updatedAt),
       'status': serializer.toJson<int>(status),
@@ -4995,6 +5138,10 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     double? biayaLayanan,
     double? biayaLainnya,
     double? totalSnapshot,
+    Value<String?> statusPekerjaanPpat = const Value.absent(),
+    Value<String?> judulAktaPpat = const Value.absent(),
+    Value<String?> nomorAktaPpat = const Value.absent(),
+    Value<DateTime?> tanggalAktaPpat = const Value.absent(),
     Value<DateTime?> createdAt = const Value.absent(),
     Value<DateTime?> updatedAt = const Value.absent(),
     int? status,
@@ -5027,6 +5174,18 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     biayaLayanan: biayaLayanan ?? this.biayaLayanan,
     biayaLainnya: biayaLainnya ?? this.biayaLainnya,
     totalSnapshot: totalSnapshot ?? this.totalSnapshot,
+    statusPekerjaanPpat: statusPekerjaanPpat.present
+        ? statusPekerjaanPpat.value
+        : this.statusPekerjaanPpat,
+    judulAktaPpat: judulAktaPpat.present
+        ? judulAktaPpat.value
+        : this.judulAktaPpat,
+    nomorAktaPpat: nomorAktaPpat.present
+        ? nomorAktaPpat.value
+        : this.nomorAktaPpat,
+    tanggalAktaPpat: tanggalAktaPpat.present
+        ? tanggalAktaPpat.value
+        : this.tanggalAktaPpat,
     createdAt: createdAt.present ? createdAt.value : this.createdAt,
     updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
     status: status ?? this.status,
@@ -5075,6 +5234,18 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       totalSnapshot: data.totalSnapshot.present
           ? data.totalSnapshot.value
           : this.totalSnapshot,
+      statusPekerjaanPpat: data.statusPekerjaanPpat.present
+          ? data.statusPekerjaanPpat.value
+          : this.statusPekerjaanPpat,
+      judulAktaPpat: data.judulAktaPpat.present
+          ? data.judulAktaPpat.value
+          : this.judulAktaPpat,
+      nomorAktaPpat: data.nomorAktaPpat.present
+          ? data.nomorAktaPpat.value
+          : this.nomorAktaPpat,
+      tanggalAktaPpat: data.tanggalAktaPpat.present
+          ? data.tanggalAktaPpat.value
+          : this.tanggalAktaPpat,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       status: data.status.present ? data.status.value : this.status,
@@ -5106,6 +5277,10 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
           ..write('biayaLayanan: $biayaLayanan, ')
           ..write('biayaLainnya: $biayaLainnya, ')
           ..write('totalSnapshot: $totalSnapshot, ')
+          ..write('statusPekerjaanPpat: $statusPekerjaanPpat, ')
+          ..write('judulAktaPpat: $judulAktaPpat, ')
+          ..write('nomorAktaPpat: $nomorAktaPpat, ')
+          ..write('tanggalAktaPpat: $tanggalAktaPpat, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('status: $status, ')
@@ -5133,6 +5308,10 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     biayaLayanan,
     biayaLainnya,
     totalSnapshot,
+    statusPekerjaanPpat,
+    judulAktaPpat,
+    nomorAktaPpat,
+    tanggalAktaPpat,
     createdAt,
     updatedAt,
     status,
@@ -5159,6 +5338,10 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
           other.biayaLayanan == this.biayaLayanan &&
           other.biayaLainnya == this.biayaLainnya &&
           other.totalSnapshot == this.totalSnapshot &&
+          other.statusPekerjaanPpat == this.statusPekerjaanPpat &&
+          other.judulAktaPpat == this.judulAktaPpat &&
+          other.nomorAktaPpat == this.nomorAktaPpat &&
+          other.tanggalAktaPpat == this.tanggalAktaPpat &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.status == this.status &&
@@ -5183,6 +5366,10 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
   final Value<double> biayaLayanan;
   final Value<double> biayaLainnya;
   final Value<double> totalSnapshot;
+  final Value<String?> statusPekerjaanPpat;
+  final Value<String?> judulAktaPpat;
+  final Value<String?> nomorAktaPpat;
+  final Value<DateTime?> tanggalAktaPpat;
   final Value<DateTime?> createdAt;
   final Value<DateTime?> updatedAt;
   final Value<int> status;
@@ -5205,6 +5392,10 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     this.biayaLayanan = const Value.absent(),
     this.biayaLainnya = const Value.absent(),
     this.totalSnapshot = const Value.absent(),
+    this.statusPekerjaanPpat = const Value.absent(),
+    this.judulAktaPpat = const Value.absent(),
+    this.nomorAktaPpat = const Value.absent(),
+    this.tanggalAktaPpat = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.status = const Value.absent(),
@@ -5228,6 +5419,10 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     this.biayaLayanan = const Value.absent(),
     this.biayaLainnya = const Value.absent(),
     this.totalSnapshot = const Value.absent(),
+    this.statusPekerjaanPpat = const Value.absent(),
+    this.judulAktaPpat = const Value.absent(),
+    this.nomorAktaPpat = const Value.absent(),
+    this.tanggalAktaPpat = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.status = const Value.absent(),
@@ -5254,6 +5449,10 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     Expression<double>? biayaLayanan,
     Expression<double>? biayaLainnya,
     Expression<double>? totalSnapshot,
+    Expression<String>? statusPekerjaanPpat,
+    Expression<String>? judulAktaPpat,
+    Expression<String>? nomorAktaPpat,
+    Expression<DateTime>? tanggalAktaPpat,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? status,
@@ -5280,6 +5479,11 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
       if (biayaLayanan != null) 'biaya_layanan': biayaLayanan,
       if (biayaLainnya != null) 'biaya_lainnya': biayaLainnya,
       if (totalSnapshot != null) 'total_snapshot': totalSnapshot,
+      if (statusPekerjaanPpat != null)
+        'status_pekerjaan_ppat': statusPekerjaanPpat,
+      if (judulAktaPpat != null) 'judul_akta_ppat': judulAktaPpat,
+      if (nomorAktaPpat != null) 'nomor_akta_ppat': nomorAktaPpat,
+      if (tanggalAktaPpat != null) 'tanggal_akta_ppat': tanggalAktaPpat,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (status != null) 'status': status,
@@ -5305,6 +5509,10 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     Value<double>? biayaLayanan,
     Value<double>? biayaLainnya,
     Value<double>? totalSnapshot,
+    Value<String?>? statusPekerjaanPpat,
+    Value<String?>? judulAktaPpat,
+    Value<String?>? nomorAktaPpat,
+    Value<DateTime?>? tanggalAktaPpat,
     Value<DateTime?>? createdAt,
     Value<DateTime?>? updatedAt,
     Value<int>? status,
@@ -5330,6 +5538,10 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
       biayaLayanan: biayaLayanan ?? this.biayaLayanan,
       biayaLainnya: biayaLainnya ?? this.biayaLainnya,
       totalSnapshot: totalSnapshot ?? this.totalSnapshot,
+      statusPekerjaanPpat: statusPekerjaanPpat ?? this.statusPekerjaanPpat,
+      judulAktaPpat: judulAktaPpat ?? this.judulAktaPpat,
+      nomorAktaPpat: nomorAktaPpat ?? this.nomorAktaPpat,
+      tanggalAktaPpat: tanggalAktaPpat ?? this.tanggalAktaPpat,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       status: status ?? this.status,
@@ -5391,6 +5603,20 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     if (totalSnapshot.present) {
       map['total_snapshot'] = Variable<double>(totalSnapshot.value);
     }
+    if (statusPekerjaanPpat.present) {
+      map['status_pekerjaan_ppat'] = Variable<String>(
+        statusPekerjaanPpat.value,
+      );
+    }
+    if (judulAktaPpat.present) {
+      map['judul_akta_ppat'] = Variable<String>(judulAktaPpat.value);
+    }
+    if (nomorAktaPpat.present) {
+      map['nomor_akta_ppat'] = Variable<String>(nomorAktaPpat.value);
+    }
+    if (tanggalAktaPpat.present) {
+      map['tanggal_akta_ppat'] = Variable<DateTime>(tanggalAktaPpat.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -5430,6 +5656,10 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
           ..write('biayaLayanan: $biayaLayanan, ')
           ..write('biayaLainnya: $biayaLainnya, ')
           ..write('totalSnapshot: $totalSnapshot, ')
+          ..write('statusPekerjaanPpat: $statusPekerjaanPpat, ')
+          ..write('judulAktaPpat: $judulAktaPpat, ')
+          ..write('nomorAktaPpat: $nomorAktaPpat, ')
+          ..write('tanggalAktaPpat: $tanggalAktaPpat, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('status: $status, ')
@@ -19904,6 +20134,10 @@ typedef $$TransaksiDetailsTableCreateCompanionBuilder =
       Value<double> biayaLayanan,
       Value<double> biayaLainnya,
       Value<double> totalSnapshot,
+      Value<String?> statusPekerjaanPpat,
+      Value<String?> judulAktaPpat,
+      Value<String?> nomorAktaPpat,
+      Value<DateTime?> tanggalAktaPpat,
       Value<DateTime?> createdAt,
       Value<DateTime?> updatedAt,
       Value<int> status,
@@ -19928,6 +20162,10 @@ typedef $$TransaksiDetailsTableUpdateCompanionBuilder =
       Value<double> biayaLayanan,
       Value<double> biayaLainnya,
       Value<double> totalSnapshot,
+      Value<String?> statusPekerjaanPpat,
+      Value<String?> judulAktaPpat,
+      Value<String?> nomorAktaPpat,
+      Value<DateTime?> tanggalAktaPpat,
       Value<DateTime?> createdAt,
       Value<DateTime?> updatedAt,
       Value<int> status,
@@ -20090,6 +20328,26 @@ class $$TransaksiDetailsTableFilterComposer
 
   ColumnFilters<double> get totalSnapshot => $composableBuilder(
     column: $table.totalSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get statusPekerjaanPpat => $composableBuilder(
+    column: $table.statusPekerjaanPpat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get judulAktaPpat => $composableBuilder(
+    column: $table.judulAktaPpat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nomorAktaPpat => $composableBuilder(
+    column: $table.nomorAktaPpat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get tanggalAktaPpat => $composableBuilder(
+    column: $table.tanggalAktaPpat,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -20288,6 +20546,26 @@ class $$TransaksiDetailsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get statusPekerjaanPpat => $composableBuilder(
+    column: $table.statusPekerjaanPpat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get judulAktaPpat => $composableBuilder(
+    column: $table.judulAktaPpat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nomorAktaPpat => $composableBuilder(
+    column: $table.nomorAktaPpat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get tanggalAktaPpat => $composableBuilder(
+    column: $table.tanggalAktaPpat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -20450,6 +20728,26 @@ class $$TransaksiDetailsTableAnnotationComposer
 
   GeneratedColumn<double> get totalSnapshot => $composableBuilder(
     column: $table.totalSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get statusPekerjaanPpat => $composableBuilder(
+    column: $table.statusPekerjaanPpat,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get judulAktaPpat => $composableBuilder(
+    column: $table.judulAktaPpat,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get nomorAktaPpat => $composableBuilder(
+    column: $table.nomorAktaPpat,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get tanggalAktaPpat => $composableBuilder(
+    column: $table.tanggalAktaPpat,
     builder: (column) => column,
   );
 
@@ -20622,6 +20920,10 @@ class $$TransaksiDetailsTableTableManager
                 Value<double> biayaLayanan = const Value.absent(),
                 Value<double> biayaLainnya = const Value.absent(),
                 Value<double> totalSnapshot = const Value.absent(),
+                Value<String?> statusPekerjaanPpat = const Value.absent(),
+                Value<String?> judulAktaPpat = const Value.absent(),
+                Value<String?> nomorAktaPpat = const Value.absent(),
+                Value<DateTime?> tanggalAktaPpat = const Value.absent(),
                 Value<DateTime?> createdAt = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
                 Value<int> status = const Value.absent(),
@@ -20644,6 +20946,10 @@ class $$TransaksiDetailsTableTableManager
                 biayaLayanan: biayaLayanan,
                 biayaLainnya: biayaLainnya,
                 totalSnapshot: totalSnapshot,
+                statusPekerjaanPpat: statusPekerjaanPpat,
+                judulAktaPpat: judulAktaPpat,
+                nomorAktaPpat: nomorAktaPpat,
+                tanggalAktaPpat: tanggalAktaPpat,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 status: status,
@@ -20668,6 +20974,10 @@ class $$TransaksiDetailsTableTableManager
                 Value<double> biayaLayanan = const Value.absent(),
                 Value<double> biayaLainnya = const Value.absent(),
                 Value<double> totalSnapshot = const Value.absent(),
+                Value<String?> statusPekerjaanPpat = const Value.absent(),
+                Value<String?> judulAktaPpat = const Value.absent(),
+                Value<String?> nomorAktaPpat = const Value.absent(),
+                Value<DateTime?> tanggalAktaPpat = const Value.absent(),
                 Value<DateTime?> createdAt = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
                 Value<int> status = const Value.absent(),
@@ -20690,6 +21000,10 @@ class $$TransaksiDetailsTableTableManager
                 biayaLayanan: biayaLayanan,
                 biayaLainnya: biayaLainnya,
                 totalSnapshot: totalSnapshot,
+                statusPekerjaanPpat: statusPekerjaanPpat,
+                judulAktaPpat: judulAktaPpat,
+                nomorAktaPpat: nomorAktaPpat,
+                tanggalAktaPpat: tanggalAktaPpat,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 status: status,
