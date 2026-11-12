@@ -5,7 +5,6 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/notaris_completion_demo_main.dart';
 import 'package:frontend_notaris/payment_demo_main.dart';
 import 'package:frontend_notaris/repositories/transaction_repository.dart';
@@ -42,7 +41,7 @@ void main() {
           FileSystemEntityType.notFound) {
         throw StateError('Fixture harus baru.');
       }
-      final db = AppDatabase.forTesting(NativeDatabase(file));
+      final db = PaymentDemoDatabase(NativeDatabase(file));
       try {
         final repo = TransactionRepository(db);
         await db.transaction(() async {
@@ -206,7 +205,7 @@ Future<void> rehearsePaymentCheckpoints(File original) async {
       ('edit', 1300000),
       ('cancel', 500000),
     ]) {
-      final db = AppDatabase.forTesting(NativeDatabase(file));
+      final db = PaymentDemoDatabase(NativeDatabase(file));
       try {
         final repo = TransactionRepository(db);
         final records = await db.select(db.transaksis).get();
@@ -251,7 +250,7 @@ Future<void> rehearsePaymentCheckpoints(File original) async {
       expect(evidence['paid'], expectedPaid);
       expect(evidence['protected_sha256'], baseline['protected_sha256']);
     }
-    final reopened = AppDatabase.forTesting(NativeDatabase(file));
+    final reopened = PaymentDemoDatabase(NativeDatabase(file));
     try {
       final rows = await reopened
           .select(reopened.transaksiRiwayatPembayarans)

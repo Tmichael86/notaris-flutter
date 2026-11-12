@@ -69,7 +69,7 @@ def main():
     parser.add_argument('--source-id')
     parser.add_argument('--id')
     args = parser.parse_args()
-    maintenance(23)
+    maintenance(23, compatible=(24,))
     if args.action == 'prepare':
         require(args.id is None, 'Prepare selalu membuat profil baru.')
         prepare(args.source_id)

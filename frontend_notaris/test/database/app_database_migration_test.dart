@@ -91,7 +91,7 @@ Future<void> stripV17(AppDatabase db) async {
 
 void main() {
   for (final version in [20, 21, 22]) {
-    test('V$version upgrades additively to V23 and preserves historical storage', () async {
+    test('V$version upgrades additively to V24 and preserves historical storage', () async {
       final folder = await Directory.systemTemp.createTemp('notaris_deed_v20_');
       addTearDown(() => folder.delete(recursive: true));
       final file = File('${folder.path}/fixture.sqlite');
@@ -171,7 +171,7 @@ void main() {
       db = AppDatabase.forTesting(NativeDatabase(file));
       for (var opening = 0; opening < 2; opening++) {
         expect(await query('PRAGMA user_version'), [
-          {'user_version': 23},
+          {'user_version': 24},
         ]);
         expect(await query(schema), beforeSchema);
         expect(await rows(), beforeRows);
@@ -276,7 +276,7 @@ void main() {
     addTearDown(upgraded.close);
     expect(
       (await upgraded.customSelect('PRAGMA user_version').getSingle()).data,
-      {'user_version': 23},
+      {'user_version': 24},
     );
     final after = await contents(upgraded);
     for (final name in before.keys) {
@@ -513,7 +513,7 @@ void main() {
         (await after.customSelect('PRAGMA user_version').getSingle()).read<int>(
           'user_version',
         ),
-        23,
+        24,
       );
       expect(
         await after.customSelect('PRAGMA foreign_key_check').get(),
@@ -564,7 +564,7 @@ void main() {
         (await after.customSelect('PRAGMA user_version').getSingle()).read<int>(
           'user_version',
         ),
-        23,
+        24,
       );
       expect(
         await after.customSelect('PRAGMA foreign_key_check').get(),
@@ -898,7 +898,7 @@ void main() {
       final version = await inspectionDb
           .customSelect('PRAGMA user_version')
           .getSingle();
-      expect(version.read<int>('user_version'), 23);
+      expect(version.read<int>('user_version'), 24);
     } finally {
       await inspectionDb.close();
     }

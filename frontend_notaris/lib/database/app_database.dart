@@ -274,7 +274,7 @@ class AppDatabase extends _$AppDatabase {
   final String? petugasBaselinePath;
 
   @override
-  int get schemaVersion => 23;
+  int get schemaVersion => 24;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -292,6 +292,7 @@ class AppDatabase extends _$AppDatabase {
       await _createTransactionCloudStorage();
       await _createRecycleBinStorage();
       await _createPaymentAuditStorage();
+      if (schemaVersion >= 24) await _createHandoverStorage();
       await _protectPengeluaranReferences();
     },
     onUpgrade: (Migrator m, int from, int to) async {
@@ -499,9 +500,32 @@ class AppDatabase extends _$AppDatabase {
           }
           await _createPaymentAuditStorage();
         }
+        if (from < 24 && to >= 24) await _createHandoverStorage();
       });
     },
   );
+
+  Future<void> _createHandoverStorage() async {
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS transaksi_serah_terima (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        uuid TEXT NOT NULL UNIQUE,
+        transaksi_id INTEGER NOT NULL REFERENCES transaksis(id) ON DELETE RESTRICT,
+        uraian TEXT,
+        keperluan TEXT,
+        created_by INTEGER NOT NULL CHECK (created_by > 0),
+        created_at INTEGER NOT NULL,
+        updated_by INTEGER CHECK (updated_by > 0),
+        updated_at INTEGER,
+        revision INTEGER NOT NULL DEFAULT 1 CHECK (revision > 0),
+        CHECK ((updated_by IS NULL) = (updated_at IS NULL))
+      )
+    ''');
+    await customStatement('''
+      CREATE INDEX IF NOT EXISTS transaksi_serah_terima_parent
+      ON transaksi_serah_terima(transaksi_id, id)
+    ''');
+  }
 
   Future<void> _createPaymentAuditStorage() async {
     await customStatement('''

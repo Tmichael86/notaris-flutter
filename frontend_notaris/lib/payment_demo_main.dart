@@ -190,6 +190,13 @@ Future<AppDatabase> openPaymentDemo(String id) => openPaymentFixture(
   File(p.join(paymentDemoRoot(id).path, 'offline.sqlite')),
 );
 
+class PaymentDemoDatabase extends AppDatabase {
+  PaymentDemoDatabase(super.executor) : super.forTesting();
+
+  @override
+  int get schemaVersion => 23;
+}
+
 Future<AppDatabase> openPaymentFixture(
   File file, {
   bool readOnly = false,
@@ -203,7 +210,7 @@ Future<AppDatabase> openPaymentFixture(
       )) {
     throw StateError('SQLite pembayaran tidak terverifikasi.');
   }
-  final db = AppDatabase.forTesting(
+  final db = PaymentDemoDatabase(
     NativeDatabase(
       file,
       enableMigrations: false,

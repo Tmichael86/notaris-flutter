@@ -11,6 +11,7 @@ import 'package:frontend_notaris/models/auth_session.dart';
 import 'package:frontend_notaris/services/transaction_manual_sync_service.dart';
 import 'package:frontend_notaris/repositories/transaction_repository.dart';
 import 'package:frontend_notaris/repositories/transaction_cloud_repository.dart';
+import 'package:frontend_notaris/repositories/transaction_handover_repository.dart';
 import 'package:frontend_notaris/repositories/sync_log_repository.dart';
 import 'package:frontend_notaris/repositories/sync_monitor_repository.dart';
 
@@ -833,6 +834,74 @@ void main() {
     expect((await monitor())['color'], 'green');
     expect((await SyncLogRepository(db).list(status: 'failed')).length, 1);
   });
+  test(
+    'local handover blocks a newer feed without advancing the cursor',
+    () async {
+      await run(ManualSyncDirection.upload, selectedId: id);
+      final accepted = transport.aggregate!;
+      final cloud = TransactionCloudRepository(
+        db,
+        http,
+        scope: profile.transactionScope,
+        petugasScope: profile.petugasScope,
+        masterScope: profile.masterScope,
+      );
+      void serve(int revision, Map<String, dynamic> aggregate) {
+        transport.respond = (_) async => Transport.json({
+          'changes': [
+            {
+              'sequence': revision,
+              'revision': revision,
+              'operation': revision == 1 ? 'create' : 'update',
+              'aggregate': aggregate,
+            },
+          ],
+          'next_cursor': revision,
+          'has_more': false,
+        }, 200);
+      }
+
+      final handover = TransactionHandoverRepository(db);
+      Future<void> draft() => handover.save(
+        transactionId: id,
+        session: session,
+        uuid: '62c86647-a750-47e1-a611-09e87467c4f0',
+        description: 'Salinan akta',
+        purpose: '',
+      );
+      await expectLater(draft(), throwsA(isA<HandoverRejected>()));
+      serve(1, accepted);
+      expect((await cloud.pullBatch(confirmAcknowledgements: true)).cursor, 1);
+      await draft();
+      serve(2, {
+        ...accepted,
+        'expected_revision': 1,
+        'mutation_id': '00000000-0000-4000-8000-000000000211',
+      });
+      await expectLater(
+        cloud.pullPage(),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            TransactionHandoverRepository.localOnlyMessage,
+          ),
+        ),
+      );
+      expect(
+        (await db
+                .customSelect('SELECT cursor FROM transaction_cloud_feed')
+                .getSingle())
+            .read<int>('cursor'),
+        1,
+      );
+      expect(
+        (await handover.read(id, session)).records.single.description,
+        'Salinan akta',
+      );
+    },
+  );
+
   Future<int> ppat() async {
     await db.customStatement(
       "INSERT INTO pekerjaan_ppat(id,uuid,nama,is_sync_dirty) VALUES(40,?,'J PPAT',0)",

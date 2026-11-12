@@ -279,7 +279,7 @@ def main():
                                'dan gunakan akun Windows yang menyiapkan profil.') from None
         show_credential(root, args.id, args.account)
         return
-    completion['maintenance'](23)
+    completion['maintenance'](23, compatible=(24,))
     if args.action == 'prepare':
         require(args.id is None, 'Prepare selalu membuat profil baru.')
         prepare()

@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
 import 'transaction_cloud_references.dart';
+import 'transaction_handover_repository.dart';
 
 class TransactionPullBatch {
   const TransactionPullBatch(this.cursor, this.count, this.hasMore);
@@ -54,6 +55,7 @@ class TransactionCloudRepository {
       db.transaksis,
     )..where((t) => t.id.equals(id) & t.deletedAt.isNull())).getSingle();
     await _guardLocalCompletion(header);
+    await _guardLocalHandover(id);
     await _guardLocalPayments(id);
     await _guardProcessAudit(id);
     final refs = await TransactionCloudReferences(
@@ -168,6 +170,7 @@ class TransactionCloudRepository {
     if (h.jenisTransaksi != domain) {
       throw StateError('Transaction domain mismatch');
     }
+    await _guardLocalHandover(id);
     await _guardLocalCompletion(h);
     await _guardLocalPayments(id);
     final identity = await db
@@ -338,6 +341,13 @@ class TransactionCloudRepository {
     }
   }
 
+  Future<void> _guardLocalHandover(int id) async {
+    if (await TransactionHandoverRepository.cloudBlockReason(db, id)
+        case final reason?) {
+      throw StateError(reason);
+    }
+  }
+
   static Future<String?> localPaymentBlockReason(AppDatabase db, int id) async {
     final localAudit = await db
         .customSelect(
@@ -385,6 +395,7 @@ class TransactionCloudRepository {
         throw StateError('Transaction domain mismatch');
       }
       await _guardLocalCompletion(h);
+      await _guardLocalHandover(id);
       await _guardLocalPayments(id);
       final identity = await db
           .customSelect(
@@ -706,6 +717,7 @@ class TransactionCloudRepository {
     if (updating) {
       await _guardLocalCompletion(existing.single);
       final id = existing.single.id;
+      await _guardLocalHandover(id);
       await _guardLocalPayments(id);
       final pending = await db
           .customSelect(

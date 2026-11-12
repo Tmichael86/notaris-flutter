@@ -20,6 +20,7 @@ import '../repositories/transaction_repository.dart';
 import '../widgets/transaksi_proses_list.dart';
 import '../widgets/ppat_completion_dialog.dart';
 import '../widgets/transaction_invoice_dialog.dart';
+import '../widgets/transaction_handover_dialog.dart';
 import '../widgets/transaction_payment_history_dialog.dart';
 
 enum TransactionType { notaris, ppat }
@@ -2001,6 +2002,19 @@ class _TransactionDesktopScreenState
           style: outlinedButtonStyle(),
           icon: const Icon(Icons.receipt_long_outlined, size: 18),
           label: const Text('Lihat Invoice'),
+        ),
+      if (invoiceId != null &&
+          session?.hasTransactionAccess() == true &&
+          ref.read(transactionRepositoryProvider).db.schemaVersion >= 24)
+        OutlinedButton.icon(
+          onPressed: () => showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => TransactionHandoverDialog(transactionId: invoiceId),
+          ),
+          style: outlinedButtonStyle(),
+          icon: const Icon(Icons.assignment_outlined, size: 18),
+          label: const Text('Serah Terima'),
         ),
     ];
     return Flex(

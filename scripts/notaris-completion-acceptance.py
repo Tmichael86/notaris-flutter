@@ -35,7 +35,7 @@ def require(condition, reason):
         raise RuntimeError(reason)
 
 
-def maintenance(schema=21):
+def maintenance(schema=21, *, compatible=()):
     require(os.name == 'nt', 'Windows diperlukan.')
     tasks = subprocess.check_output(
         ['tasklist.exe', '/FI', 'IMAGENAME eq frontend_notaris.exe', '/FO', 'CSV', '/NH'],
@@ -44,7 +44,8 @@ def maintenance(schema=21):
     require(not any(row and row[0].lower() == 'frontend_notaris.exe'
                     for row in csv.reader(tasks.splitlines())), 'Tutup Flutter Notaris dahulu.')
     source = (FRONTEND / 'lib/database/app_database.dart').read_text(encoding='utf-8')
-    require(re.search(rf'get schemaVersion\s*=>\s*{schema}\s*;', source),
+    versions = '|'.join(str(version) for version in (schema, *compatible))
+    require(re.search(rf'get schemaVersion\s*=>\s*(?:{versions})\s*;', source),
             f'Source Flutter bukan Drift v{schema}.')
 
 
