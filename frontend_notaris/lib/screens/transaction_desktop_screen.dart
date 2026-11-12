@@ -19,6 +19,7 @@ import '../providers/transaction_provider.dart';
 import '../repositories/transaction_repository.dart';
 import '../widgets/transaksi_proses_list.dart';
 import '../widgets/ppat_completion_dialog.dart';
+import '../widgets/transaction_invoice_dialog.dart';
 import '../widgets/transaction_payment_history_dialog.dart';
 
 enum TransactionType { notaris, ppat }
@@ -1982,7 +1983,26 @@ class _TransactionDesktopScreenState
   }
 
   Widget pageHeader({required bool mobile}) {
-    ref.watch(authControllerProvider);
+    final session = ref.watch(authControllerProvider).session;
+    final invoiceId = int.tryParse(_editingTransactionId ?? '');
+    final actions = [
+      OutlinedButton.icon(
+        onPressed: showTransactionSearchDialog,
+        style: outlinedButtonStyle(),
+        icon: const Icon(Icons.search, size: 18),
+        label: const Text('Cari No. Transaksi'),
+      ),
+      if (invoiceId != null && session?.hasTransactionAccess() == true)
+        OutlinedButton.icon(
+          onPressed: () => showDialog<void>(
+            context: context,
+            builder: (_) => TransactionInvoiceDialog(transactionId: invoiceId),
+          ),
+          style: outlinedButtonStyle(),
+          icon: const Icon(Icons.receipt_long_outlined, size: 18),
+          label: const Text('Lihat Invoice'),
+        ),
+    ];
     return Flex(
       direction: mobile ? Axis.vertical : Axis.horizontal,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2014,15 +2034,25 @@ class _TransactionDesktopScreenState
           ],
         ),
         if (mobile) const SizedBox(height: 14),
-        SizedBox(
-          width: mobile ? double.infinity : null,
-          child: OutlinedButton.icon(
-            onPressed: showTransactionSearchDialog,
-            style: outlinedButtonStyle(),
-            icon: const Icon(Icons.search, size: 18),
-            label: const Text('Cari No. Transaksi'),
+        if (mobile)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < actions.length; i++) ...[
+                if (i > 0) const SizedBox(height: 8),
+                actions[i],
+              ],
+            ],
+          )
+        else
+          Flexible(
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: actions,
+            ),
           ),
-        ),
       ],
     );
   }

@@ -4,6 +4,18 @@ import '../database/app_database.dart';
 // integers exactly. Older fractional values are never silently rounded.
 const maxExactRupiah = 9007199254740991;
 
+String formatPaymentRupiah(int amount) {
+  final digits = amount.abs().toString().replaceAllMapped(
+    RegExp(r'\B(?=(\d{3})+(?!\d))'),
+    (_) => '.',
+  );
+  return '${amount < 0 ? '-' : ''}Rp $digits';
+}
+
+String formatPaymentDate(DateTime date) =>
+    '${date.day.toString().padLeft(2, '0')}/'
+    '${date.month.toString().padLeft(2, '0')}/${date.year}';
+
 int exactRupiah(num value, String label) {
   if (!value.isFinite ||
       value < 0 ||

@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../database/app_database.dart';
 import '../models/auth_session.dart';
 import '../models/dashboard_transactions.dart';
+import '../models/transaction_invoice.dart';
 import '../models/transaction_monitoring.dart';
 import '../models/transaction_payments.dart';
 
@@ -388,6 +389,161 @@ class TransactionRepository {
               t.status.equals(1),
         ))
         .get();
+  }
+
+  Future<TransactionInvoice> readInvoice({
+    required int transactionId,
+    required AuthSession? session,
+  }) async {
+    if (session?.hasTransactionAccess() != true) {
+      throw const TransactionInvoiceUnavailable(
+        'Izin baca Transaksi diperlukan.',
+      );
+    }
+    // One SELECT keeps the snapshot consistent, works on query-only SQLite,
+    // and reads each detail/payment once even when both lists are long.
+    final rows = await db
+        .customSelect(
+          '''
+      WITH selected AS (
+        SELECT * FROM transaksis WHERE id = ? AND deleted_at IS NULL
+          AND lower(trim(status_transaksi)) != 'dihapus'
+          AND jenis_transaksi IN ('notaris', 'ppat') AND trim(no_akta) != ''
+      ), parts(kind, id) AS (
+        SELECT 'applicant', a.id FROM selected t JOIN pemohons a
+          ON (t.pemohon_id IS NOT NULL OR t.pemohon_uuid IS NOT NULL)
+         AND (t.pemohon_id IS NULL OR a.id = t.pemohon_id)
+         AND (t.pemohon_uuid IS NULL OR a.uuid = t.pemohon_uuid)
+        UNION ALL
+        SELECT 'job', d.id FROM selected t JOIN transaksi_details d
+          ON d.transaksi_id = t.id AND d.status = 1 AND d.deleted_at IS NULL
+        UNION ALL
+        SELECT 'payment', p.id FROM selected t JOIN transaksi_riwayat_pembayaran p
+          ON p.transaksi_id = t.id AND p.status = 1 AND p.deleted_at IS NULL
+      )
+      SELECT t.no_akta AS invoice_number, t.jenis_transaksi AS invoice_domain,
+             t.tanggal_transaksi AS invoice_date, t.total AS invoice_billed,
+             t.diskon AS invoice_discount, part.kind AS invoice_part,
+             a.nama AS invoice_applicant, a.alamat AS invoice_address,
+             d.nama_pekerjaan_snapshot AS job_name, d.jenis_pekerjaan AS job_domain,
+             d.biaya_layanan AS job_service, d.biaya_lainnya AS job_additional,
+             d.total_snapshot AS job_total, p.*
+      FROM selected t LEFT JOIN parts part ON 1
+      LEFT JOIN pemohons a ON part.kind = 'applicant' AND part.id = a.id
+      LEFT JOIN transaksi_details d ON part.kind = 'job' AND part.id = d.id
+      LEFT JOIN transaksi_riwayat_pembayaran p ON part.kind = 'payment' AND part.id = p.id
+      ORDER BY part.kind, p.tanggal_pembayaran, p.urutan_pembayaran, part.id
+      ''',
+          variables: [Variable(transactionId)],
+        )
+        .get();
+    if (rows.isEmpty) {
+      throw const TransactionInvoiceUnavailable(
+        'Transaksi aktif tidak ditemukan.',
+      );
+    }
+    final header = rows.first;
+    final domain = header.read<String>('invoice_domain');
+    final applicants = rows
+        .where((row) => row.data['invoice_part'] == 'applicant')
+        .toList();
+    if (applicants.length != 1 ||
+        applicants.single.read<String>('invoice_applicant').trim().isEmpty) {
+      throw const TransactionInvoiceUnavailable(
+        'Identitas pemohon perlu diverifikasi.',
+      );
+    }
+    final details = rows.where((row) => row.data['invoice_part'] == 'job');
+    final payments = [
+      for (final row in rows)
+        if (row.data['invoice_part'] == 'payment')
+          db.transaksiRiwayatPembayarans.map(row.data),
+    ];
+    try {
+      final jobs = <InvoiceJob>[];
+      var subtotal = 0;
+      for (final detail in details) {
+        final name = detail.read<String>('job_name');
+        if (detail.data['job_domain'] != domain || name.trim().isEmpty) {
+          throw const TransactionInvoiceUnavailable(
+            'Rincian pekerjaan transaksi perlu ditinjau.',
+          );
+        }
+        final service = exactRupiah(
+          detail.read<double>('job_service'),
+          'Biaya layanan',
+        );
+        final additional = exactRupiah(
+          detail.read<double>('job_additional'),
+          'Biaya tambahan',
+        );
+        final total = exactRupiah(
+          detail.read<double>('job_total'),
+          'Total pekerjaan',
+        );
+        if (service + additional != total) {
+          throw const TransactionInvoiceUnavailable(
+            'Total rincian pekerjaan tidak sesuai snapshot.',
+          );
+        }
+        subtotal = exactRupiah(subtotal + total, 'Subtotal pekerjaan');
+        jobs.add(InvoiceJob(name, service, additional, total));
+      }
+      if (jobs.isEmpty) {
+        throw const TransactionInvoiceUnavailable(
+          'Rincian pekerjaan transaksi perlu ditinjau.',
+        );
+      }
+      final billed = exactRupiah(
+        header.read<double>('invoice_billed'),
+        'Total tagihan',
+      );
+      final discount = exactRupiah(
+        header.read<double>('invoice_discount'),
+        'Potongan',
+      );
+      if (subtotal - discount != billed) {
+        throw const TransactionInvoiceUnavailable(
+          'Rincian dan potongan tidak sesuai total tagihan tersimpan.',
+        );
+      }
+      final paid = totalActiveRupiah(payments);
+      if (paid > billed) {
+        throw const TransactionInvoiceUnavailable(
+          'Pembayaran historis melebihi tagihan.',
+        );
+      }
+      final person = applicants.single;
+      return TransactionInvoice(
+        number: header.read<String>('invoice_number'),
+        domain: domain,
+        applicant: person.read<String>('invoice_applicant'),
+        address: person.readNullable<String>('invoice_address'),
+        transactionDate: header.readNullable<DateTime>('invoice_date'),
+        printDate: DateTime.now(),
+        subtotal: subtotal,
+        discount: discount,
+        billed: billed,
+        paid: paid,
+        jobs: jobs,
+        payments: [
+          for (final row in payments)
+            InvoicePayment(
+              row.tanggalPembayaran,
+              row.metodePembayaran,
+              paymentRupiah(row),
+            ),
+        ],
+      );
+    } on ArgumentError {
+      throw const TransactionInvoiceUnavailable(
+        'Tagihan atau nominal historis bukan rupiah bulat yang valid.',
+      );
+    } on StateError {
+      throw const TransactionInvoiceUnavailable(
+        'Nominal pembayaran historis perlu ditinjau.',
+      );
+    }
   }
 
   Future<TransaksiDetail> readPpatJob({

@@ -186,8 +186,14 @@ class PaymentDemoAuth extends AuthService {
   }
 }
 
-Future<AppDatabase> openPaymentDemo(String id) async {
-  final file = File(p.join(paymentDemoRoot(id).path, 'offline.sqlite'));
+Future<AppDatabase> openPaymentDemo(String id) => openPaymentFixture(
+  File(p.join(paymentDemoRoot(id).path, 'offline.sqlite')),
+);
+
+Future<AppDatabase> openPaymentFixture(
+  File file, {
+  bool readOnly = false,
+}) async {
   if (!file.existsSync() ||
       !p.equals(file.path, file.resolveSymbolicLinksSync()) ||
       ['-wal', '-shm', '-journal'].any(
@@ -205,6 +211,7 @@ Future<AppDatabase> openPaymentDemo(String id) async {
         if (sqlite.select('PRAGMA user_version').single.values.single != 23) {
           throw StateError('SQLite demo pembayaran harus v23.');
         }
+        if (readOnly) sqlite.execute('PRAGMA query_only = ON');
       },
     ),
   );

@@ -8,18 +8,6 @@ import '../models/transaction_payments.dart';
 import '../providers/auth_provider.dart';
 import '../providers/transaction_provider.dart';
 
-String formatPaymentRupiah(int amount) {
-  final digits = amount.abs().toString().replaceAllMapped(
-    RegExp(r'\B(?=(\d{3})+(?!\d))'),
-    (_) => '.',
-  );
-  return '${amount < 0 ? '-' : ''}Rp $digits';
-}
-
-String _dateLabel(DateTime date) =>
-    '${date.day.toString().padLeft(2, '0')}/'
-    '${date.month.toString().padLeft(2, '0')}/${date.year}';
-
 String _amountLabel(TransaksiRiwayatPembayaran row) {
   try {
     return formatPaymentRupiah(paymentRupiah(row));
@@ -89,7 +77,7 @@ class TransactionPaymentHistoryDialog extends ConsumerWidget {
                                   'Cicilan ${row.urutanPembayaran} · ${_amountLabel(row)}',
                                 ),
                                 subtitle: Text(
-                                  '${_dateLabel(row.tanggalPembayaran)} · ${row.metodePembayaran}'
+                                  '${formatPaymentDate(row.tanggalPembayaran)} · ${row.metodePembayaran}'
                                   '${row.keterangan == null ? '' : ' · ${row.keterangan}'}\n'
                                   '${active ? 'Aktif' : 'Dibatalkan'}',
                                 ),
@@ -319,7 +307,7 @@ Future<void> _edit(
                               }
                             },
                       icon: const Icon(Icons.calendar_month_outlined),
-                      label: Text(_dateLabel(date)),
+                      label: Text(formatPaymentDate(date)),
                     ),
                     TextField(
                       controller: note,
