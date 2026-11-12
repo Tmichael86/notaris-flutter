@@ -23,8 +23,11 @@ login menggunakan password akun tujuan. Saat restart, login kembali.
 
 Untuk melihat password akun, jalankan dari terminal kedua. Windows
 menampilkannya dalam dialog lokal. Terminal menunggu sampai dialog ditutup.
-Jika dialog belum terlihat, periksa taskbar atau tekan Alt+Tab. Ctrl+C
-membatalkan dan menutup helper. Jalankan ulang dengan nama akun tujuan.
+Jika dialog belum terlihat, periksa taskbar atau tekan Alt+Tab. Ctrl+C di
+terminal membatalkan dan menutup helper. Untuk login, ketik baris password
+atau salin dengan Ctrl+C saat dialog aktif dan tempel ke kolom Password.
+Flutter demo mengenali salinan dialog jika nama akun sesuai dengan Username.
+Jalankan ulang dengan nama akun tujuan saat berganti akun.
 
 ```powershell
 python .\scripts\payment-demo-acceptance.py credential --id $demoId --account petugas.demo

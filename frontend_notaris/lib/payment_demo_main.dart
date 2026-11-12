@@ -16,6 +16,21 @@ import 'services/auth_service.dart';
 const paymentDemoNotaris = '1001111260001';
 const paymentDemoPpat = '2001111260001';
 
+// Ctrl+C on the Win32 credential dialog copies its caption, body and button.
+// Flutter may remove newlines from this text before the form submits it.
+final _credentialDialogCopy = RegExp(
+  r'^-{27}\s*Kredensial pembayaran demo\s*-{27}\s*'
+  r'(petugas\.demo|admin\.demo|pembaca\.demo)\s*([A-Za-z0-9_-]{32})'
+  r'\s*-{27}\s*OK\s*-{27}\s*$',
+);
+
+@visibleForTesting
+String? paymentDemoPasswordInput(String account, String input) {
+  final copy = _credentialDialogCopy.firstMatch(input);
+  if (copy == null) return input;
+  return copy.group(1) == account ? copy.group(2)! : null;
+}
+
 Directory paymentDemoRoot(String id) {
   if (!RegExp(r'^[0-9a-f]{32}$').hasMatch(id)) {
     throw StateError('ID profil pembayaran tidak valid.');
@@ -99,43 +114,71 @@ class PaymentDemoAuth extends AuthService {
   }) async {
     final account = username.trim();
     if (!usernames.contains(account)) {
+      if (kDebugMode) debugPrint('Payment demo login: ACCOUNT_NOT_FOUND');
       throw const AuthException('Kredensial atau sesi demo tidak valid.');
     }
+    final candidate = paymentDemoPasswordInput(account, password);
+    if (candidate == null) {
+      if (kDebugMode) {
+        debugPrint('Payment demo login: CREDENTIAL_ACCOUNT_MISMATCH');
+      }
+      throw const AuthException(
+        'Kredensial yang disalin berasal dari akun demo lain.',
+      );
+    }
+    var failure = 'HELPER_VERIFICATION_FAILED';
     try {
       final file = await _verifiedHelper();
+      failure = 'HELPER_START_FAILED';
       final helper = await Process.start(file.path, ['unlock', id, account]);
       final output = utf8.decoder.bind(helper.stdout).join();
       final drained = helper.stderr.drain<void>();
-      helper.stdin.write(jsonEncode(password));
+      failure = 'HELPER_INPUT_FAILED';
+      helper.stdin.write(jsonEncode(candidate));
       await helper.stdin.close();
+      failure = 'HELPER_TIMEOUT';
       final status = await helper.exitCode.timeout(
         const Duration(seconds: 10),
         onTimeout: () {
           helper.kill();
-          return 1;
+          throw StateError('Payment demo helper timeout.');
         },
       );
+      failure = 'HELPER_OUTPUT_FAILED';
       final text = await output;
       await drained;
-      if (status != 0) throw StateError('Unlock ditolak.');
+      if (status != 0) {
+        failure = 'HELPER_UNLOCK_REJECTED';
+        throw StateError('Unlock ditolak.');
+      }
+      failure = 'SESSION_PAYLOAD_INVALID';
       final data = jsonDecode(text) as Map<String, dynamic>;
       final expiry = DateTime.parse(data['expiresAt'] as String);
       final now = DateTime.now();
-      if (data['profile'] != id ||
-          data['username'] != account ||
-          !now.isBefore(expiry)) {
-        throw StateError('Sesi terverifikasi tidak berlaku.');
+      if (data['profile'] != id || data['username'] != account) {
+        failure = 'SESSION_BINDING_MISMATCH';
+        throw StateError('Profil atau akun sesi berbeda.');
+      }
+      if (!now.isBefore(expiry)) {
+        failure = 'SESSION_EXPIRED';
+        throw StateError('Sesi kedaluwarsa.');
       }
       // No server JWT is persisted or needed for a fully offline demo.
       final session = ExpiringPaymentDemoSession(
         AuthSession.fromJson({...data, 'token': 'offline-payment-demo'}),
         expiry,
       );
-      if (!session.hasTransactionAccess() || now.isBefore(session.verifiedAt)) {
+      if (now.isBefore(session.verifiedAt)) {
+        failure = 'SESSION_NOT_YET_VALID';
+        throw StateError('Waktu verifikasi sesi belum berlaku.');
+      }
+      if (!session.hasTransactionAccess()) {
+        failure = 'SESSION_PERMISSION_INVALID';
         throw StateError('Izin demo tidak valid.');
       }
       return session;
     } catch (_) {
+      if (kDebugMode) debugPrint('Payment demo login: $failure');
       throw const AuthException(
         'Kredensial atau sesi demo tidak valid atau kedaluwarsa.',
       );

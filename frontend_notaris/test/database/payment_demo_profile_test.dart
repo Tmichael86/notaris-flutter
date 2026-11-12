@@ -15,6 +15,24 @@ import 'package:path/path.dart' as p;
 import '../support/transaction_ui_test_support.dart' show uiSession;
 
 void main() {
+  test('demo accepts an intact Windows dialog copy for the same account', () {
+    const password = 'abcdefghijklmnopqrstuvwxyz12-AB_';
+    const separator = '---------------------------';
+    const copied =
+        '$separator\r\nKredensial pembayaran demo\r\n'
+        '$separator\r\npembaca.demo\n$password\r\n$separator\r\nOK   \r\n$separator\r\n';
+    for (final input in [copied, copied.replaceAll(RegExp(r'[\r\n]'), '')]) {
+      expect(paymentDemoPasswordInput('pembaca.demo', input), password);
+      expect(paymentDemoPasswordInput('admin.demo', input), isNull);
+    }
+    expect(paymentDemoPasswordInput('pembaca.demo', password), password);
+    final unrelated = copied.replaceFirst(
+      'Kredensial pembayaran demo',
+      'Other',
+    );
+    expect(paymentDemoPasswordInput('pembaca.demo', unrelated), unrelated);
+  });
+
   final id = Platform.environment['NOTARIS_PAYMENT_PREPARE'];
   test(
     'prepare owned payment fixture with initial cash and protected references',
