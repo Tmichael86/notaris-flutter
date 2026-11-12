@@ -2360,11 +2360,7 @@ class _TransactionDesktopScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              sectionHeader(
-                icon: Icons.folder_open_outlined,
-                title: 'Dokumen',
-                trailing: const _Tag(text: 'Prototype', muted: true),
-              ),
+              sectionHeader(icon: Icons.folder_open_outlined, title: 'Dokumen'),
               const SizedBox(height: 16),
               Container(
                 width: double.infinity,
@@ -2383,7 +2379,7 @@ class _TransactionDesktopScreenState
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Kelengkapan dokumen akan dihubungkan ke data dokumen transaksi pada tahap implementasi database.',
+                        'Pengelolaan lampiran transaksi belum tersedia. Aturan penyimpanan dan akses dokumen belum terverifikasi.',
                         style: TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 13,
@@ -2395,12 +2391,9 @@ class _TransactionDesktopScreenState
               ),
               const SizedBox(height: 16),
               OutlinedButton.icon(
-                onPressed: () => _showSimpleInfoDialog(
-                  'Dokumen',
-                  'Modul dokumen transaksi akan diimplementasikan setelah struktur transaksi inti selesai.',
-                ),
+                onPressed: null,
                 style: outlinedButtonStyle(),
-                icon: const Icon(Icons.add, size: 18),
+                icon: const Icon(Icons.folder_outlined, size: 18),
                 label: const Text('Kelola Dokumen'),
               ),
             ],
