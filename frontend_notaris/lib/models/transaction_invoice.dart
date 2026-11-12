@@ -4,6 +4,7 @@ class TransactionInvoice {
     required this.domain,
     required this.applicant,
     required this.address,
+    required this.responsibleStaffName,
     required this.transactionDate,
     required this.printDate,
     required this.subtotal,
@@ -19,6 +20,7 @@ class TransactionInvoice {
   final String domain;
   final String applicant;
   final String? address;
+  final String? responsibleStaffName;
   final DateTime? transactionDate;
   final DateTime printDate;
   final int subtotal;

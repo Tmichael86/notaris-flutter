@@ -425,10 +425,14 @@ class TransactionRepository {
              t.tanggal_transaksi AS invoice_date, t.total AS invoice_billed,
              t.diskon AS invoice_discount, part.kind AS invoice_part,
              a.nama AS invoice_applicant, a.alamat AS invoice_address,
+             o.nama AS invoice_responsible_staff,
              d.nama_pekerjaan_snapshot AS job_name, d.jenis_pekerjaan AS job_domain,
              d.biaya_layanan AS job_service, d.biaya_lainnya AS job_additional,
              d.total_snapshot AS job_total, p.*
       FROM selected t LEFT JOIN parts part ON 1
+      LEFT JOIN petugas o
+        ON (o.id = t.petugas_id OR (t.petugas_id IS NULL AND o.uuid = t.petugas_uuid))
+       AND (t.petugas_uuid IS NULL OR o.uuid = t.petugas_uuid)
       LEFT JOIN pemohons a ON part.kind = 'applicant' AND part.id = a.id
       LEFT JOIN transaksi_details d ON part.kind = 'job' AND part.id = d.id
       LEFT JOIN transaksi_riwayat_pembayaran p ON part.kind = 'payment' AND part.id = p.id
@@ -444,6 +448,9 @@ class TransactionRepository {
     }
     final header = rows.first;
     final domain = header.read<String>('invoice_domain');
+    final staffName = header
+        .readNullable<String>('invoice_responsible_staff')
+        ?.trim();
     final applicants = rows
         .where((row) => row.data['invoice_part'] == 'applicant')
         .toList();
@@ -519,6 +526,7 @@ class TransactionRepository {
         domain: domain,
         applicant: person.read<String>('invoice_applicant'),
         address: person.readNullable<String>('invoice_address'),
+        responsibleStaffName: staffName?.isNotEmpty == true ? staffName : null,
         transactionDate: header.readNullable<DateTime>('invoice_date'),
         printDate: DateTime.now(),
         subtotal: subtotal,

@@ -37,6 +37,14 @@ void main() {
     await db.customStatement(
       "INSERT INTO pemohons(id,uuid,nama) VALUES(2,'ppat-applicant','Laras Mahendra')",
     );
+    await db.customStatement(
+      "UPDATE petugas SET nama='Dimas Prasetyo', no_telp='081234567890' WHERE id=1",
+    );
+    await db.customStatement(
+      "INSERT INTO petugas(id,uuid,nama,email,user_id) VALUES"
+      "(2,'officer-ppat','Sinta Permata','sinta@example.invalid',NULL),"
+      "(3,'print-user','Operator Pencetak','print@example.invalid',1)",
+    );
     notaris = await repo.save(
       nomorTransaksi: '1001111260001',
       jenisTransaksi: 'notaris',
@@ -71,8 +79,8 @@ void main() {
       jenisTransaksi: 'ppat',
       pemohonId: 2,
       pemohonUuid: 'ppat-applicant',
-      petugasId: 1,
-      petugasUuid: 'officer',
+      petugasId: 2,
+      petugasUuid: 'officer-ppat',
       status: 'Dalam Proses',
       tanggalTransaksi: date,
       pembayaranSekarang: 300000,
@@ -100,6 +108,7 @@ void main() {
         (n.number, n.domain, n.applicant, n.address),
         ('1001111260001', 'notaris', 'Bagas Pradipta', 'Talun, Blitar'),
       );
+      expect(n.responsibleStaffName, 'Dimas Prasetyo');
       expect(n.jobs.map((row) => row.name), [
         'Pembuatan Akta Fidusia',
         'Perubahan Perjanjian',
@@ -122,6 +131,7 @@ void main() {
         [ppat],
       );
       final p = await read(ppat);
+      expect(p.responsibleStaffName, 'Sinta Permata');
       expect(
         (p.number, p.domain, p.applicant, p.address, p.transactionDate),
         ('2001111260001', 'ppat', 'Laras Mahendra', null, null),
@@ -134,6 +144,39 @@ void main() {
       expect(p.payments.single.amount, 300000);
     },
   );
+
+  test('PIC uses the saved local reference and rejects a missing or mismatched assignment', () async {
+    Future<TransactionInvoice> assignment(int? id, String? uuid) async {
+      await db.customStatement(
+        'UPDATE transaksis SET petugas_id=?, petugas_uuid=? WHERE id=?',
+        [id, uuid, notaris],
+      );
+      return read(notaris);
+    }
+
+    final original = await read(notaris);
+    expect(original.responsibleStaffName, 'Dimas Prasetyo');
+    expect((await assignment(1, null)).responsibleStaffName, 'Dimas Prasetyo');
+    expect(
+      (await assignment(null, 'officer')).responsibleStaffName,
+      'Dimas Prasetyo',
+    );
+    expect((await assignment(1, 'officer-ppat')).responsibleStaffName, isNull);
+    expect((await assignment(999, 'officer')).responsibleStaffName, isNull);
+    final unassigned = await assignment(null, null);
+    expect(unassigned.responsibleStaffName, isNull);
+    expect(
+      (unassigned.billed, unassigned.paid, unassigned.remaining),
+      (original.billed, original.paid, original.remaining),
+    );
+    expect(
+      latin1.decode(
+        (await renderTransactionInvoice(unassigned)).take(5).toList(),
+      ),
+      '%PDF-',
+    );
+    expect(original.responsibleStaffName, 'Dimas Prasetyo');
+  });
 
   test(
     'active add, correction and cancellation produce independent snapshots',
@@ -235,17 +278,16 @@ void main() {
       final n = await read(notaris);
       final p = await read(ppat);
       final normal = await renderTransactionInvoice(n);
+      final ppatPdf = await renderTransactionInvoice(p);
       expect(latin1.decode(normal.take(5).toList()), '%PDF-');
-      expect(
-        latin1.decode((await renderTransactionInvoice(p)).take(5).toList()),
-        '%PDF-',
-      );
+      expect(latin1.decode(ppatPdf.take(5).toList()), '%PDF-');
       final long = await renderTransactionInvoice(
         TransactionInvoice(
           number: n.number,
           domain: n.domain,
           applicant: n.applicant,
           address: n.address,
+          responsibleStaffName: n.responsibleStaffName,
           transactionDate: n.transactionDate,
           printDate: n.printDate,
           subtotal: 8500000,
@@ -273,6 +315,7 @@ void main() {
           'notaris-invoice-pdf-',
         );
         await File('${out.path}/notaris.pdf').writeAsBytes(normal);
+        await File('${out.path}/ppat.pdf').writeAsBytes(ppatPdf);
         await File('${out.path}/multi-page.pdf').writeAsBytes(long);
         stdout.writeln('Invoice PDF smoke: ${out.path}');
       }

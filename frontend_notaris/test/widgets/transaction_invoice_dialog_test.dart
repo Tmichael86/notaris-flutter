@@ -23,6 +23,10 @@ void main() {
       addTearDown(db.close);
       await seedTransaction(db, 'notaris');
       final id = await seedTransaction(db, 'ppat');
+      Future<int> changes() async =>
+          (await db.customSelect('SELECT total_changes() AS n').getSingle())
+              .read<int>('n');
+      final before = await changes();
       final session = recoverySession(update: false, only: 'transaksi');
       const channel = MethodChannel('net.nfet.printing');
       const codec = StandardMethodCodec();
@@ -116,6 +120,7 @@ void main() {
       await tester.pump();
       expect(prints, 1);
       expect(printed, orderedEquals(preview!));
+      expect(await changes(), before);
       expect(
         find.text('Pencetakan dibatalkan atau tidak selesai.'),
         findsOneWidget,

@@ -23,6 +23,7 @@ Future<Uint8List> renderTransactionInvoice(TransactionInvoice invoice) async {
   final fields = [
     invoice.number,
     ?invoice.address,
+    ?invoice.responsibleStaffName,
     ...invoice.jobs.map((job) => job.name),
     ...invoice.payments.map((payment) => payment.method),
   ];
@@ -90,6 +91,11 @@ Future<Uint8List> renderTransactionInvoice(TransactionInvoice invoice) async {
         ),
         if (invoice.address?.trim().isNotEmpty == true)
           pdf.Text(invoice.address!, style: _body),
+        pdf.SizedBox(height: 6),
+        pdf.Text(
+          'Petugas Penanggung Jawab: ${invoice.responsibleStaffName ?? 'Tidak dapat diverifikasi'}',
+          style: _body,
+        ),
         pdf.SizedBox(height: 9),
         if (invoice.transactionDate case final date?)
           pdf.Text(

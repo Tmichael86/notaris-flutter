@@ -59,6 +59,7 @@ void main() {
           (invoice.billed, invoice.paid, invoice.remaining),
           (3000000, 500000, 2500000),
         );
+        expect(invoice.responsibleStaffName, 'Dimas Prasetyo');
       }
       expect(
         (await db.customSelect('PRAGMA query_only').getSingle())
