@@ -1299,22 +1299,13 @@ class _TransactionDesktopScreenState
                   ),
                   style: outlinedButtonStyle(),
                   icon: const Icon(Icons.calculate_outlined, size: 17),
-                  label: const Text('Kalkulator Pajak'),
+                  label: const Text('Kalkulator Pajak (Prototipe)'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _showProcessDialog(job),
                   style: outlinedButtonStyle(),
                   icon: const Icon(Icons.format_list_bulleted, size: 17),
                   label: const Text('Daftar Proses'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => _showPpatJobStatus(job),
-                  style: outlinedButtonStyle(),
-                  icon: const Icon(
-                    Icons.assignment_turned_in_outlined,
-                    size: 17,
-                  ),
-                  label: const Text('Status PPAT'),
                 ),
               ],
             )
@@ -2546,6 +2537,23 @@ class _TransactionDesktopScreenState
               if (_notarisCompleted) ...[
                 const SizedBox(height: 16),
                 _deedFields(),
+              ],
+              if (selectedType == TransactionType.ppat &&
+                  selectedJobs.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                sectionHeader(
+                  icon: Icons.assignment_turned_in_outlined,
+                  title: 'Status pekerjaan PPAT',
+                ),
+                for (final job in selectedJobs)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(job.name),
+                    trailing: OutlinedButton(
+                      onPressed: () => _showPpatJobStatus(job),
+                      child: const Text('Status PPAT'),
+                    ),
+                  ),
               ],
             ],
           ),

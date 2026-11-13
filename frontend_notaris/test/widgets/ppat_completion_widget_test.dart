@@ -54,6 +54,13 @@ void main() {
       await tester.tap(find.text('2000611260001').last);
       await tester.pumpAndSettle();
       final action = find.widgetWithText(OutlinedButton, 'Status PPAT');
+      expect(action, findsNothing);
+      expect(find.text('Kalkulator Pajak (Prototipe)'), findsOneWidget);
+      expect(find.text('Daftar Proses'), findsOneWidget);
+      final finish = find.text('Selesai Transaksi').first;
+      await tester.ensureVisible(finish);
+      await tester.tap(finish);
+      await tester.pumpAndSettle();
       await tester.ensureVisible(action);
       await tester.tap(action);
       await tester.pumpAndSettle();
