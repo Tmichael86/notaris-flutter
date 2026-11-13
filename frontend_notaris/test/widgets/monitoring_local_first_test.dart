@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:frontend_notaris/core/widgets/app_shell.dart';
+import 'package:frontend_notaris/core/widgets/searchable_dropdown.dart';
 import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/models/transaction_monitoring.dart';
 import 'package:frontend_notaris/providers/auth_provider.dart';
@@ -69,6 +72,7 @@ void main() {
     String search = '',
     String job = '',
     String category = '',
+    int officerId = 0,
     DateTime? from,
     DateTime? until,
     int index = 0,
@@ -78,7 +82,7 @@ void main() {
     search: search,
     job: job,
     category: category,
-    officerId: 0,
+    officerId: officerId,
     from: from,
     until: until,
     index: index,
@@ -209,6 +213,23 @@ void main() {
       expect((await repo.watchMonitoringOptions('').first).officers, {
         officer: 'Petugas nyata',
       });
+      expect(
+        (await repo
+                .watchMonitoringPage(
+                  filter(officerId: officer, search: 'contact'),
+                )
+                .first)
+            .rows
+            .single
+            .transaction
+            .id,
+        id,
+      );
+      expect(
+        (await repo.watchMonitoringPage(filter(officerId: officer + 1)).first)
+            .total,
+        0,
+      );
       await update.write(
         const TransaksisCompanion(pemohonUuid: Value('unmatched')),
       );
@@ -284,130 +305,283 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('AppShell requires Monitoring menu access and Transaksi read', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      final loader = FontLoader('MonitoringTestSans')
+        ..addFont(rootBundle.load('assets/fonts/NotoSans-Regular.ttf'));
+      await loader.load();
+    });
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    for (final (menu, read) in [(false, true), (true, false), (true, true)]) {
+      final session = uiSession(permission: read);
+      if (menu) {
+        session.sidebars.add({
+          'sidebar': {
+            'sidebar_nama': 'Monitoring',
+            'sidebar_kode': 'monitoring',
+          },
+          'read': 1,
+        });
+      }
+      await tester.pumpWidget(
+        ProviderScope(
+          key: ValueKey((menu, read)),
+          overrides: [
+            authControllerProvider.overrideWith(
+              (_) => TransactionUiAuth(session),
+            ),
+            appDatabaseProvider.overrideWithValue(db),
+          ],
+          child: MaterialApp(
+            theme: ThemeData(fontFamily: 'MonitoringTestSans'),
+            home: AppShell(session: session),
+          ),
+        ),
+      );
+      await cycleUi(tester);
+      expect(find.text('Monitoring'), menu ? findsOneWidget : findsNothing);
+      if (menu) {
+        await tester.tap(find.text('Monitoring'));
+        await cycleUi(tester);
+        expect(find.byType(MonitoringDesktopScreen), findsOneWidget);
+        expect(
+          find.text('Data Monitoring'),
+          read ? findsOneWidget : findsNothing,
+        );
+        expect(
+          find.textContaining('Izin baca Transaksi diperlukan'),
+          read ? findsNothing : findsOneWidget,
+        );
+      }
+      expect(tester.takeException(), isNull);
+    }
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+
   testWidgets(
-    'compact Monitoring scrolls to Detail, shows active scoped processes and writes nothing',
+    'page navigation, Petugas, combined filters and Reset use the full result set',
     (tester) async {
-      tester.view.physicalSize = const Size(420, 900);
+      tester.view.physicalSize = const Size(1366, 900);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
-      final id = await tester.runAsync(() async {
-        final selected = await header('Detail-Test');
-        final other = await header('Other-Transaction', deleted: true);
-        await detail(selected, 'd-selected', 'Snapshot A', 'Kategori asli');
-        await detail(selected, 'd-second', 'Snapshot B', 'Kategori kedua');
-        await detail(
-          selected,
-          'd-inactive',
-          'Snapshot nonaktif',
-          'Kategori asli',
-          active: false,
-        );
-        Future<void> process(
-          String name,
-          String detailUuid,
-          int transactionId,
-        ) => db
-            .into(db.transaksiProses)
+      await tester.runAsync(() async {
+        final officer = await db
+            .into(db.petugasLocals)
             .insert(
-              TransaksiProsesCompanion.insert(
-                uuid: name,
-                transaksiId: transactionId,
-                transaksiDetailUuid: detailUuid,
-                namaProsesSnapshot: name,
+              PetugasLocalsCompanion.insert(
+                uuid: 'scoped-officer',
+                nama: 'Nadia Pertiwi',
+                email: 'nadia@example.invalid',
               ),
             );
-        await process('Proses legacy', 'd-selected', selected);
-        for (var i = 1; i <= 12; i++) {
-          await process('Langkah $i', 'd-second', selected);
+        for (var i = 1; i <= 25; i++) {
+          final id = await header(
+            'MON-${i.toString().padLeft(2, '0')}',
+            domain: i.isEven ? 'ppat' : 'notaris',
+          );
+          if (i <= 2) {
+            await (db.update(
+              db.transaksis,
+            )..where((t) => t.id.equals(id))).write(
+              TransaksisCompanion(
+                petugasId: Value(officer),
+                petugasUuid: const Value('scoped-officer'),
+              ),
+            );
+          }
         }
-        await process('Proses salah induk', 'd-second', other);
-        await process('Proses detail nonaktif', 'd-inactive', selected);
-        await detail(other, 'd-foreign', 'Pekerjaan asing', 'Kategori asing');
-        await process('UUID detail transaksi lain', 'd-foreign', selected);
-        return selected;
       });
-      const tables = [
-        'transaksis',
-        'transaksi_details',
-        'transaksi_proses',
-        'transaksi_proses_riwayat',
-        'transaction_cloud_pending',
-        'transaction_cloud_identity',
-      ];
-      Future<List<List<Map<String, dynamic>>>> snapshot() async => [
-        for (final table in tables)
-          (await db.customSelect('SELECT * FROM $table ORDER BY rowid').get())
-              .map((row) => row.data)
-              .toList(),
-      ];
-      final baseline = await tester.runAsync(snapshot);
       await mount(tester);
+      Future<void> tap(Finder finder) async {
+        await tester.ensureVisible(finder);
+        await tester.tap(finder);
+        await cycleUi(tester);
+      }
+
+      expect(find.text('Halaman 1 / 3'), findsOneWidget);
+      await tap(find.text('Next'));
+      expect(find.text('Halaman 2 / 3'), findsOneWidget);
+      expect(find.text('MON-15'), findsOneWidget);
+      expect(find.text('MON-25'), findsNothing);
+      await tap(find.text('Previous'));
+      expect(find.text('MON-25'), findsOneWidget);
+      await tap(find.text('Next'));
+      await tap(
+        find.byWidgetPredicate(
+          (w) => w is SearchableDropdown<int> && w.label == 'Petugas',
+        ),
+      );
+      await tap(find.text('Nadia Pertiwi').last);
       expect(find.text('Halaman 1 / 1'), findsOneWidget);
-      final horizontal = find.byWidgetPredicate(
-        (w) =>
-            w is SingleChildScrollView && w.scrollDirection == Axis.horizontal,
-      );
-      await tester.ensureVisible(horizontal);
-      final scroll = tester
-          .widget<SingleChildScrollView>(horizontal)
-          .controller!;
-      expect(scroll.position.maxScrollExtent, greaterThan(0));
-      scroll.jumpTo(scroll.position.maxScrollExtent);
-      await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Detail'));
+      expect(find.text('MON-01'), findsOneWidget);
+      expect(find.text('MON-02'), findsOneWidget);
+      expect(find.text('MON-15'), findsNothing);
+
+      final search = find.byType(TextField);
+      await tester.ensureVisible(search);
+      await tester.enterText(search, 'MON-02');
+      await tester.pump(const Duration(milliseconds: 500));
       await cycleUi(tester);
-      expect(find.text('Detail Monitoring'), findsOneWidget);
-      Finder inDialog(String text) =>
-          find.descendant(of: find.byType(Dialog), matching: find.text(text));
-      expect(inDialog('Notaris'), findsOneWidget);
-      expect(inDialog('Detail-Test'), findsNWidgets(2));
-      expect(inDialog('Snapshot B'), findsOneWidget);
-      expect(
-        tester.getTopLeft(inDialog('Jenis')).dx,
-        tester.getTopLeft(inDialog('No. Transaksi')).dx,
-      );
-      tester.view.physicalSize = const Size(1280, 800);
-      await tester.pumpAndSettle();
-      expect(
-        tester.getTopLeft(inDialog('Jenis')).dx,
-        greaterThan(tester.getTopLeft(inDialog('No. Transaksi')).dx),
-      );
-      expect(
-        tester
-            .getSize(find.byKey(const Key('transaction-review-surface')))
-            .width,
-        closeTo(860, 1),
-      );
-      tester.view.physicalSize = const Size(420, 650);
-      await tester.pumpAndSettle();
-      final body = find.descendant(
-        of: find.byType(Dialog),
-        matching: find.byType(Scrollable),
-      );
-      expect(
-        tester.state<ScrollableState>(body).position.maxScrollExtent,
-        greaterThan(0),
-      );
-      await tester.ensureVisible(inDialog('Langkah 12'));
-      await tester.pumpAndSettle();
-      expect(inDialog('Langkah 12').hitTestable(), findsOneWidget);
-      expect(find.byTooltip('Tutup').hitTestable(), findsOneWidget);
-      expect(find.text('Proses legacy'), findsOneWidget);
-      expect(inDialog('Belum Diinisialisasi'), findsNWidgets(13));
-      expect(find.text('Proses salah induk'), findsNothing);
-      expect(find.text('Proses detail nonaktif'), findsNothing);
-      expect(find.text('UUID detail transaksi lain'), findsNothing);
-      await tester.tap(find.byTooltip('Tutup'));
-      await tester.pumpAndSettle();
-      expect(find.byType(Dialog), findsNothing);
-      expect(await tester.runAsync(snapshot), baseline);
-      expect(id, isNotNull);
+      expect(find.text('MON-02'), findsWidgets);
+      expect(find.text('Menampilkan 1 dari 1 transaksi'), findsOneWidget);
+      expect(find.text('MON-01'), findsNothing);
+      await tap(find.text('Reset'));
+      expect(find.text('Halaman 1 / 3'), findsOneWidget);
+      expect(find.text('MON-25'), findsOneWidget);
+      expect(tester.widget<TextField>(search).controller?.text, isEmpty);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 1));
     },
   );
+
+  for (final domain in ['notaris', 'ppat']) {
+    testWidgets(
+      'compact $domain Monitoring scrolls to Detail, shows active scoped processes and writes nothing',
+      (tester) async {
+        tester.view.physicalSize = const Size(420, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final id = await tester.runAsync(() async {
+          final selected = await header('Detail-Test', domain: domain);
+          final other = await header('Other-Transaction', deleted: true);
+          await detail(selected, 'd-selected', 'Snapshot A', 'Kategori asli');
+          await detail(selected, 'd-second', 'Snapshot B', 'Kategori kedua');
+          await detail(
+            selected,
+            'd-inactive',
+            'Snapshot nonaktif',
+            'Kategori asli',
+            active: false,
+          );
+          Future<void> process(
+            String name,
+            String detailUuid,
+            int transactionId,
+          ) => db
+              .into(db.transaksiProses)
+              .insert(
+                TransaksiProsesCompanion.insert(
+                  uuid: name,
+                  transaksiId: transactionId,
+                  transaksiDetailUuid: detailUuid,
+                  namaProsesSnapshot: name,
+                ),
+              );
+          await process('Proses legacy', 'd-selected', selected);
+          for (var i = 1; i <= 12; i++) {
+            await process('Langkah $i', 'd-second', selected);
+          }
+          await process('Proses salah induk', 'd-second', other);
+          await process('Proses detail nonaktif', 'd-inactive', selected);
+          await detail(other, 'd-foreign', 'Pekerjaan asing', 'Kategori asing');
+          await process('UUID detail transaksi lain', 'd-foreign', selected);
+          await db.customStatement(
+            "UPDATE transaksi_details SET jenis_pekerjaan=? WHERE transaksi_id=?",
+            [domain, selected],
+          );
+          await db.customStatement(
+            "INSERT INTO transaction_cloud_feed(scope,cursor) VALUES('fixture',9)",
+          );
+          return selected;
+        });
+        const tables = [
+          'transaksis',
+          'transaksi_details',
+          'transaksi_proses',
+          'transaksi_proses_riwayat',
+          'transaksi_riwayat_pembayaran',
+          'transaksi_pembayaran_audit',
+          'transaction_cloud_pending',
+          'transaction_cloud_identity',
+          'transaction_cloud_feed',
+        ];
+        Future<List<List<Map<String, dynamic>>>> snapshot() async => [
+          for (final table in tables)
+            (await db.customSelect('SELECT * FROM $table ORDER BY rowid').get())
+                .map((row) => row.data)
+                .toList(),
+        ];
+        final baseline = await tester.runAsync(snapshot);
+        await mount(tester);
+        expect(find.text('Halaman 1 / 1'), findsOneWidget);
+        final horizontal = find.byWidgetPredicate(
+          (w) =>
+              w is SingleChildScrollView &&
+              w.scrollDirection == Axis.horizontal,
+        );
+        await tester.ensureVisible(horizontal);
+        final scroll = tester
+            .widget<SingleChildScrollView>(horizontal)
+            .controller!;
+        expect(scroll.position.maxScrollExtent, greaterThan(0));
+        scroll.jumpTo(scroll.position.maxScrollExtent);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Detail'));
+        await cycleUi(tester);
+        expect(find.text('Detail Monitoring'), findsOneWidget);
+        Finder inDialog(String text) =>
+            find.descendant(of: find.byType(Dialog), matching: find.text(text));
+        expect(
+          inDialog(domain == 'notaris' ? 'Notaris' : 'PPAT'),
+          findsOneWidget,
+        );
+        expect(inDialog('Detail-Test'), findsNWidgets(2));
+        expect(inDialog('Snapshot B'), findsOneWidget);
+        expect(
+          tester.getTopLeft(inDialog('Jenis')).dx,
+          tester.getTopLeft(inDialog('No. Transaksi')).dx,
+        );
+        tester.view.physicalSize = const Size(1280, 800);
+        await tester.pumpAndSettle();
+        expect(
+          tester.getTopLeft(inDialog('Jenis')).dx,
+          greaterThan(tester.getTopLeft(inDialog('No. Transaksi')).dx),
+        );
+        expect(
+          tester
+              .getSize(find.byKey(const Key('transaction-review-surface')))
+              .width,
+          closeTo(860, 1),
+        );
+        tester.view.physicalSize = const Size(420, 650);
+        await tester.pumpAndSettle();
+        final body = find.descendant(
+          of: find.byType(Dialog),
+          matching: find.byType(Scrollable),
+        );
+        expect(
+          tester.state<ScrollableState>(body).position.maxScrollExtent,
+          greaterThan(0),
+        );
+        await tester.ensureVisible(inDialog('Langkah 12'));
+        await tester.pumpAndSettle();
+        expect(inDialog('Langkah 12').hitTestable(), findsOneWidget);
+        expect(find.byTooltip('Tutup').hitTestable(), findsOneWidget);
+        expect(find.text('Proses legacy'), findsOneWidget);
+        expect(inDialog('Belum Diinisialisasi'), findsNWidgets(13));
+        expect(find.text('Proses salah induk'), findsNothing);
+        expect(find.text('Proses detail nonaktif'), findsNothing);
+        expect(find.text('UUID detail transaksi lain'), findsNothing);
+        await tester.tap(find.byTooltip('Tutup'));
+        await tester.pumpAndSettle();
+        expect(find.byType(Dialog), findsNothing);
+        expect(await tester.runAsync(snapshot), baseline);
+        expect(id, isNotNull);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(milliseconds: 1));
+      },
+    );
+  }
 
   testWidgets('Monitoring distinguishes loading, error and empty states', (
     tester,

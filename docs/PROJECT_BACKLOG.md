@@ -53,10 +53,10 @@ completed push, publisher, bidirectional/global sync or production release.
   Tax calculator, PPAT status, document/note workflow, invoice/receipt still need
   scoped completion/acceptance (historical non-goals in process-validation-
   implementation.md are backlog, not authorization to implement them now).
-- **Monitoring menu (transactions) — prototype.** monitoring_desktop_screen.dart
-  directly seeds monitoringData with DummyMonitoringItem. Bind to authoritative
-  transaction/process data. This existing menu is distinct from the new Monitoring
-  Sinkronisasi requirement.
+- **Monitoring Transaksi — read-only V1 implemented.** Drift supplies the
+  filterable Notaris/PPAT list and per-job process details. Final Windows
+  acceptance is tracked in MONITORING_TRANSACTION_ACCEPTANCE.md. Excel
+  export remains disabled and is an outstanding Laravel-parity item.
 - **Pengeluaran/Piutang/Penghasilan — prototype screens.** These screen files seed
   in-memory _PengeluaranItem/_PiutangItem/_Row lists. Complete persistence, payment/
   transaction linkage, business calculations, API authorization and acceptance.

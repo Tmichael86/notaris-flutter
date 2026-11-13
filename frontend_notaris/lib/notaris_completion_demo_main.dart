@@ -182,6 +182,7 @@ void runCompletionDemo(
   bool allowReadOnly = false,
   AuthService Function(Dio)? auth,
   TransactionDocumentProfile? documents,
+  String banner = 'PROFIL DEMONSTRASI',
 }) {
   final dio = Dio(BaseOptions(baseUrl: 'http://127.0.0.1:0'));
   runApp(
@@ -205,12 +206,12 @@ void runCompletionDemo(
         if (documents != null)
           transactionDocumentProfileProvider.overrideWithValue(documents),
       ],
-      child: const Directionality(
+      child: Directionality(
         textDirection: TextDirection.ltr,
         child: Banner(
-          message: 'PROFIL DEMONSTRASI',
+          message: banner,
           location: BannerLocation.topEnd,
-          child: MyApp(),
+          child: const MyApp(),
         ),
       ),
     ),

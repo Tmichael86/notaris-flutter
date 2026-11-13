@@ -117,6 +117,33 @@ func TestRoleAndPermissionsMustMatchAuthenticatedAccount(t *testing.T) {
 	}
 }
 
+func TestMonitoringProfileUsesExplicitReadOnlySidebarPolicy(t *testing.T) {
+	now := time.Now()
+	for _, a := range accounts {
+		s := testSession("profile", a, now)
+		s.Sidebars[0].Create = 0
+		s.Sidebars[0].Update = 0
+		monitoring := access{}
+		monitoring.Sidebar.Code, monitoring.Sidebar.Name, monitoring.Sidebar.Status = "monitoring", "Monitoring", 1
+		if a.Username == "pembaca.demo" {
+			monitoring.Read = 1
+		}
+		s.Sidebars = append([]access{monitoring}, s.Sidebars...)
+		if !s.validFor("profile", a, now, true) || s.valid("profile", a, now) {
+			t.Fatal("Monitoring policy accepted outside its profile or rejected valid access")
+		}
+		s.Sidebars[0].Read = 1 - monitoring.Read
+		if s.validFor("profile", a, now, true) {
+			t.Fatal("unexpected Monitoring read grant accepted")
+		}
+		s.Sidebars[0] = monitoring
+		s.Sidebars[1].Delete = 1
+		if s.validFor("profile", a, now, true) {
+			t.Fatal("transaction delete grant accepted on read-only profile")
+		}
+	}
+}
+
 func TestOwnedFilesRejectHardlinks(t *testing.T) {
 	root, _, _ := testProfile(t)
 	outside := filepath.Join(t.TempDir(), "unrelated.sqlite")

@@ -67,6 +67,7 @@ type access struct {
 	Read    int `json:"read"`
 	Create  int `json:"create"`
 	Update  int `json:"update"`
+	Delete  int `json:"delete"`
 	Sidebar struct {
 		Code   string `json:"sidebar_kode"`
 		Name   string `json:"sidebar_nama"`
@@ -93,15 +94,50 @@ type storedSession struct {
 }
 
 func (s verifiedSession) valid(id string, a account, now time.Time) bool {
-	return s.Profile == id && s.Username == a.Username &&
+	return s.validFor(id, a, now, false)
+}
+
+func (s verifiedSession) validFor(id string, a account, now time.Time, monitoring bool) bool {
+	if !(s.Profile == id && s.Username == a.Username &&
 		s.UserID == a.ID && s.GroupID == a.ID && s.GroupType == a.Role &&
 		s.UserName != "" && s.GroupName != "" && !s.VerifiedAt.IsZero() &&
 		!now.Before(s.VerifiedAt) && now.Before(s.ExpiresAt) &&
-		s.ExpiresAt.Sub(s.VerifiedAt) <= 24*time.Hour &&
-		len(s.Sidebars) == 1 && s.Sidebars[0].Read == 1 &&
-		s.Sidebars[0].Update == a.Update && s.Sidebars[0].Create == a.Create &&
-		s.Sidebars[0].Sidebar.Code == "transaksi" &&
-		s.Sidebars[0].Sidebar.Status == 1
+		s.ExpiresAt.Sub(s.VerifiedAt) <= 24*time.Hour) {
+		return false
+	}
+	allowed := monitoring && a.Username == "pembaca.demo"
+	create, update := a.Create, a.Update
+	if monitoring {
+		create, update = 0, 0
+	}
+	want := 1
+	if monitoring {
+		want++
+	}
+	if len(s.Sidebars) != want {
+		return false
+	}
+	found := map[string]bool{}
+	for _, p := range s.Sidebars {
+		if found[p.Sidebar.Code] || p.Sidebar.Status != 1 || (monitoring && p.Delete != 0) {
+			return false
+		}
+		found[p.Sidebar.Code] = true
+		switch p.Sidebar.Code {
+		case "transaksi":
+			if p.Read != 1 || p.Create != create || p.Update != update {
+				return false
+			}
+		case "monitoring":
+			if !monitoring || (p.Read == 1) != allowed || p.Read < 0 || p.Read > 1 ||
+				p.Sidebar.Name != "Monitoring" || p.Create != 0 || p.Update != 0 {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return found["transaksi"] && found["monitoring"] == monitoring
 }
 
 func profileID(public ed25519.PublicKey) string {
@@ -230,8 +266,16 @@ func writeNew(path string, value []byte) error {
 }
 
 func activeSession(root, id string, a account, now time.Time) (storedSession, error) {
+	monitoring := false
+	if _, err := os.Lstat(filepath.Join(root, "monitoring-owner")); !os.IsNotExist(err) {
+		marker, readErr := readOwnedFile(root, "monitoring-owner")
+		if readErr != nil || string(marker) != id {
+			return storedSession{}, rejected
+		}
+		monitoring = true
+	}
 	var stored storedSession
-	if unseal(root, id, a.Username, &stored) != nil || !stored.Session.valid(id, a, now) {
+	if unseal(root, id, a.Username, &stored) != nil || !stored.Session.validFor(id, a, now, monitoring) {
 		return storedSession{}, rejected
 	}
 	return stored, nil
@@ -245,7 +289,7 @@ func unlock(root, id string, a account, password string, now time.Time) (verifie
 	return stored.Session, nil
 }
 
-func verifyAccount(server *httptest.Server, cfg config.Config, id string, a account, password string) (verifiedSession, error) {
+func verifyAccount(server *httptest.Server, cfg config.Config, id string, a account, password string, monitoring bool) (verifiedSession, error) {
 	payload, _ := json.Marshal(map[string]string{"username": a.Username, "password": password})
 	defer clear(payload)
 	resp, err := server.Client().Post(server.URL+"/api/v1/auth/login", "application/json", bytes.NewReader(payload))
@@ -296,13 +340,13 @@ func verifyAccount(server *httptest.Server, cfg config.Config, id string, a acco
 	d := info.Data
 	s := verifiedSession{id, d.User.Username, d.User.ID, d.User.GroupID, d.User.Name, d.User.Group,
 		d.Role, d.Verified, claims.ExpiresAt.Time, d.Sidebars}
-	if !s.valid(id, a, time.Now()) {
+	if !s.validFor(id, a, time.Now(), monitoring) {
 		return verifiedSession{}, rejected
 	}
 	return s, nil
 }
 
-func provision(dbName, dataDir string) (string, error) {
+func provision(dbName, dataDir string, monitoring bool) (string, error) {
 	password := os.Getenv("PGPASSWORD")
 	if !regexp.MustCompile(`^payment_demo_[0-9a-f]{16}$`).MatchString(dbName) ||
 		!regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(password) {
@@ -337,6 +381,11 @@ func provision(dbName, dataDir string) (string, error) {
 		if e := tx.Exec("INSERT INTO sidebar(id,sidebar_nama,sidebar_kode,sidebar_route,status) VALUES(1,'Transaksi','transaksi','/transaksi',1)").Error; e != nil {
 			return e
 		}
+		if monitoring {
+			if e := tx.Exec("INSERT INTO sidebar(id,sidebar_nama,sidebar_kode,sidebar_route,status) VALUES(2,'Monitoring','monitoring','/monitoring',1)").Error; e != nil {
+				return e
+			}
+		}
 		for _, a := range accounts {
 			password := base64.RawURLEncoding.EncodeToString(randomBytes(24))
 			hash, e := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -350,8 +399,17 @@ func provision(dbName, dataDir string) (string, error) {
 			if e = tx.Exec("INSERT INTO users(id,group_id,username,nama,password,status) VALUES(?,?,?,?,?,1)", a.ID, a.ID, a.Username, a.Name, string(hash)).Error; e != nil {
 				return e
 			}
-			if e = tx.Exec(`INSERT INTO sidebar_akses(group_id,sidebar_id,"read","create","update","delete") VALUES(?,1,1,?,?,0)`, a.ID, a.Create, a.Update).Error; e != nil {
+			create, update := a.Create, a.Update
+			if monitoring {
+				create, update = 0, 0
+			}
+			if e = tx.Exec(`INSERT INTO sidebar_akses(group_id,sidebar_id,"read","create","update","delete") VALUES(?,1,1,?,?,0)`, a.ID, create, update).Error; e != nil {
 				return e
+			}
+			if monitoring && a.Username == "pembaca.demo" {
+				if e = tx.Exec(`INSERT INTO sidebar_akses(group_id,sidebar_id,"read","create","update","delete") VALUES(?,2,1,0,0,0)`, a.ID).Error; e != nil {
+					return e
+				}
 			}
 		}
 		return nil
@@ -375,13 +433,13 @@ func provision(dbName, dataDir string) (string, error) {
 	id := profileID(public)
 	sessions := make(map[string]verifiedSession)
 	for _, a := range accounts {
-		s, e := verifyAccount(server, cfg, id, a, passwords[a.Username])
+		s, e := verifyAccount(server, cfg, id, a, passwords[a.Username], monitoring)
 		if e != nil {
 			return "", e
 		}
 		sessions[a.Username] = s
 	}
-	if _, err = verifyAccount(server, cfg, id, accounts[1], passwords[accounts[0].Username]); err == nil {
+	if _, err = verifyAccount(server, cfg, id, accounts[1], passwords[accounts[0].Username], monitoring); err == nil {
 		return "", rejected
 	}
 	root, err := profileRoot(id)
@@ -393,6 +451,11 @@ func provision(dbName, dataDir string) (string, error) {
 	}
 	if err = writeNew(filepath.Join(root, "owner"), []byte(id)); err != nil {
 		return "", err
+	}
+	if monitoring {
+		if err = writeNew(filepath.Join(root, "monitoring-owner"), []byte(id)); err != nil {
+			return "", err
+		}
 	}
 	if err = writeNew(filepath.Join(root, "public.key"), public); err != nil {
 		return "", err
@@ -420,8 +483,8 @@ func randomBytes(n int) []byte {
 }
 
 func run(args []string) error {
-	if len(args) == 3 && args[0] == "provision" {
-		id, err := provision(args[1], args[2])
+	if len(args) == 3 && (args[0] == "provision" || args[0] == "provision-monitoring") {
+		id, err := provision(args[1], args[2], args[0] == "provision-monitoring")
 		if err == nil {
 			fmt.Println(id)
 		}
@@ -450,8 +513,16 @@ func run(args []string) error {
 				return e
 			}
 			s := stored.Session
-			output = append(output, map[string]any{"username": s.Username, "id": s.UserID, "role": s.GroupType,
-				"read": s.Sidebars[0].Read, "create": s.Sidebars[0].Create, "update": s.Sidebars[0].Update, "expiresAt": s.ExpiresAt})
+			info := map[string]any{"username": s.Username, "id": s.UserID, "role": s.GroupType,
+				"expiresAt": s.ExpiresAt}
+			for _, p := range s.Sidebars {
+				if p.Sidebar.Code == "monitoring" {
+					info["monitoring"] = p.Read
+				} else {
+					info["read"], info["create"], info["update"] = p.Read, p.Create, p.Update
+				}
+			}
+			output = append(output, info)
 		}
 		return json.NewEncoder(os.Stdout).Encode(output)
 	}
