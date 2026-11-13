@@ -11,6 +11,7 @@ import '../models/transaction_invoice.dart';
 import '../providers/auth_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../services/transaction_invoice_pdf.dart';
+import 'transaction_dialog_section.dart';
 
 class TransactionInvoiceDialog extends ConsumerStatefulWidget {
   const TransactionInvoiceDialog({super.key, required this.transactionId});
@@ -113,12 +114,23 @@ class _TransactionInvoiceDialogState
                   )
                 : SizedBox(
                     width: 690,
-                    height: min(670, MediaQuery.sizeOf(context).height * .64),
+                    height: min(670, MediaQuery.sizeOf(context).height * .57),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text(
-                          'Identitas kantor belum tersedia di konfigurasi lokal.',
+                        TransactionDialogSection(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${document.invoice.domain.toUpperCase()} · ${document.invoice.number}',
+                                style: Theme.of(context).textTheme.titleSmall,
+                              ),
+                              const Text(
+                                'Identitas kantor belum tersedia di konfigurasi lokal.',
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Expanded(

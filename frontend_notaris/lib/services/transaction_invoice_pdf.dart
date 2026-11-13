@@ -11,6 +11,7 @@ const _maroon = PdfColor.fromInt(0xff6e2331);
 const _muted = PdfColor.fromInt(0xff544b4d);
 const _tint = PdfColor.fromInt(0xfff4eaec);
 const _line = PdfColor.fromInt(0xffe4dadd);
+const _paper = PdfColor.fromInt(0xfff8f7f7);
 
 Future<Uint8List> renderTransactionInvoice(TransactionInvoice invoice) async {
   final regular = await rootBundle.load('assets/fonts/NotoSans-Regular.ttf');
@@ -83,28 +84,41 @@ Future<Uint8List> renderTransactionInvoice(TransactionInvoice invoice) async {
           '${invoice.domain == 'ppat' ? 'PPAT' : 'Notaris'}  |  ${invoice.number}',
           style: _body,
         ),
-        pdf.SizedBox(height: 17),
-        _section('Pemohon'),
-        pdf.Text(
-          invoice.applicant,
-          style: _body.copyWith(fontWeight: pdf.FontWeight.bold),
-        ),
-        if (invoice.address?.trim().isNotEmpty == true)
-          pdf.Text(invoice.address!, style: _body),
-        pdf.SizedBox(height: 6),
-        pdf.Text(
-          'Petugas Penanggung Jawab: ${invoice.responsibleStaffName ?? 'Tidak dapat diverifikasi'}',
-          style: _body,
-        ),
-        pdf.SizedBox(height: 9),
-        if (invoice.transactionDate case final date?)
-          pdf.Text(
-            'Tanggal transaksi: ${formatPaymentDate(date)}',
-            style: _small,
+        pdf.SizedBox(height: 16),
+        pdf.Container(
+          width: double.infinity,
+          padding: const pdf.EdgeInsets.all(12),
+          decoration: const pdf.BoxDecoration(
+            color: _paper,
+            borderRadius: pdf.BorderRadius.all(pdf.Radius.circular(6)),
           ),
-        pdf.Text(
-          'Tanggal cetak: ${formatPaymentDate(invoice.printDate)}',
-          style: _small,
+          child: pdf.Column(
+            crossAxisAlignment: pdf.CrossAxisAlignment.start,
+            children: [
+              _section('Pemohon'),
+              pdf.Text(
+                invoice.applicant,
+                style: _body.copyWith(fontWeight: pdf.FontWeight.bold),
+              ),
+              if (invoice.address?.trim().isNotEmpty == true)
+                pdf.Text(invoice.address!, style: _body),
+              pdf.SizedBox(height: 6),
+              pdf.Text(
+                'Petugas Penanggung Jawab: ${invoice.responsibleStaffName ?? 'Tidak dapat diverifikasi'}',
+                style: _body,
+              ),
+              pdf.SizedBox(height: 9),
+              if (invoice.transactionDate case final date?)
+                pdf.Text(
+                  'Tanggal transaksi: ${formatPaymentDate(date)}',
+                  style: _small,
+                ),
+              pdf.Text(
+                'Tanggal cetak: ${formatPaymentDate(invoice.printDate)}',
+                style: _small,
+              ),
+            ],
+          ),
         ),
         pdf.SizedBox(height: 18),
         _section('Rincian Pekerjaan'),
@@ -145,13 +159,17 @@ Future<Uint8List> renderTransactionInvoice(TransactionInvoice invoice) async {
         pdf.Inseparable(
           child: pdf.Container(
             padding: const pdf.EdgeInsets.all(12),
-            decoration: const pdf.BoxDecoration(color: _tint),
+            decoration: const pdf.BoxDecoration(
+              color: _tint,
+              borderRadius: pdf.BorderRadius.all(pdf.Radius.circular(6)),
+            ),
             child: pdf.Column(
               children: [
                 _summary('Subtotal pekerjaan', invoice.subtotal),
                 _summary('Potongan', invoice.discount),
                 _summary('Total tagihan', invoice.billed),
                 _summary('Total dibayar', invoice.paid),
+                pdf.Divider(color: _line),
                 _summary('Sisa tagihan', invoice.remaining, bold: true),
                 pdf.SizedBox(height: 3),
                 pdf.Align(
@@ -210,7 +228,10 @@ pdf.Table _table(
     children: [
       for (var index = 0; index < values.length; index++)
         pdf.Padding(
-          padding: const pdf.EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+          padding: pdf.EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: heading ? 8 : 6,
+          ),
           child: pdf.Text(
             values[index],
             textAlign: numericColumns.contains(index)

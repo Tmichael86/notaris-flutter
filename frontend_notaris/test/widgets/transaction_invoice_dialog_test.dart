@@ -125,6 +125,9 @@ void main() {
         find.text('Pencetakan dibatalkan atau tidak selesai.'),
         findsOneWidget,
       );
+      tester.view.physicalSize = const Size(1024, 640);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byType(PdfPreview), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 1));
