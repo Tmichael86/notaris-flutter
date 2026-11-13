@@ -74,6 +74,8 @@ void main() {
         expect(find.text('Impor dokumen'), findsNothing);
         await tester.tap(find.text('Tutup'));
         await tester.pumpAndSettle();
+        tester.view.physicalSize = const Size(1024, 640);
+        await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump(const Duration(milliseconds: 1));

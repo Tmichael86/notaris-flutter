@@ -9,6 +9,7 @@ import '../providers/transaction_document_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../repositories/transaction_document_repository.dart';
 import '../services/windows_transaction_document_store.dart';
+import 'transaction_dialog_section.dart';
 
 class TransactionDocumentDialog extends ConsumerStatefulWidget {
   const TransactionDocumentDialog({
@@ -281,18 +282,21 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
     return PopScope(
       canPop: !_busy,
       child: AlertDialog(
-        title: Text(
-          _transactionNumber == null
-              ? 'Kelola Dokumen'
-              : 'Kelola Dokumen · ${_owner?.domain.toUpperCase() ?? ''} $_transactionNumber',
-        ),
+        title: const Text('Kelola Dokumen'),
         content: SizedBox(
-          width: 610,
+          width: 640,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (_owner case final owner?) ...[
+                  Text(
+                    '${owner.domain.toUpperCase()} · $_transactionNumber',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 12),
+                ],
                 if (_busy) const LinearProgressIndicator(),
                 if (_message case final message?)
                   Padding(
@@ -301,7 +305,10 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
                   ),
                 if (canRead) ...[
                   if (canCorrect && _correction != null) ...[
-                    Text(_display(_correctionTarget!.displayName)),
+                    TransactionDialogSection(
+                      child: Text(_display(_correctionTarget!.displayName)),
+                    ),
+                    const SizedBox(height: 12),
                     if (_correction == 'edit') ...[
                       TextField(
                         controller: _title,
@@ -309,6 +316,9 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
                         maxLength: 255,
                         decoration: const InputDecoration(
                           labelText: 'Judul dokumen',
+                          helperText:
+                              'Judul tampilan boleh diisi tanpa ekstensi file.',
+                          helperMaxLines: 2,
                         ),
                       ),
                       TextField(
@@ -347,7 +357,22 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
                         ),
                         FilledButton(
                           onPressed: _busy ? null : _confirmCorrection,
-                          child: const Text('Konfirmasi'),
+                          style: _correction == 'archive'
+                              ? FilledButton.styleFrom(
+                                  backgroundColor: Theme.of(context)
+                                      .colorScheme
+                                      .error,
+                                  foregroundColor: Theme.of(context)
+                                      .colorScheme
+                                      .onError,
+                                )
+                              : null,
+                          child: Text(switch (_correction) {
+                            'edit' => 'Simpan metadata',
+                            'replace' => 'Lanjutkan penggantian',
+                            'archive' => 'Konfirmasi arsip',
+                            _ => 'Pulihkan dokumen',
+                          }),
                         ),
                       ],
                     ),
@@ -366,10 +391,17 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
                       icon: const Icon(Icons.arrow_back),
                       label: const Text('Daftar dokumen'),
                     ),
-                    Text(_display(document.displayName)),
+                    TransactionDialogSection(
+                      child: Text(
+                        '${_display(document.originalName)} · Versi ${document.versionNumber}',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     if (_image case final image?)
                       SizedBox(
-                        height: 300,
+                        height: (MediaQuery.sizeOf(context).height * .43)
+                            .clamp(120.0, 480.0)
+                            .toDouble(),
                         child: RawImage(image: image, fit: BoxFit.contain),
                       ),
                     if (_pages > 1)
@@ -401,21 +433,26 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
                       child: const Text('Kembali ke daftar'),
                     ),
                     for (final version in _history!)
-                      ListTile(
-                        title: Text(
-                          'Versi ${version.versionNumber}${version.current ? ' · Aktif' : ''} · ${_display(version.originalName)}',
-                        ),
-                        subtitle: SelectableText(
-                          '${MaterialLocalizations.of(context).formatShortDate(version.importedAt.toLocal())} · Aktor ${version.actor} · ${version.digest.length} byte\nSHA-256 ${version.digest.sha256}',
-                        ),
-                        trailing: TextButton(
-                          onPressed: _busy
-                              ? null
-                              : () {
-                                  _historicalPreview = true;
-                                  _preview(version, 0);
-                                },
-                          child: const Text('Preview'),
+                      TransactionDialogSection(
+                        highlight: version.current,
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.history_outlined),
+                          title: Text(
+                            'Versi ${version.versionNumber}${version.current ? ' · Aktif' : ''} · ${_display(version.originalName)}',
+                          ),
+                          subtitle: SelectableText(
+                            '${_date(context, version.importedAt)} · Akun #${version.actor} · ${_size(version.digest.length)}\nSHA-256 ${version.digest.sha256}',
+                          ),
+                          trailing: TextButton(
+                            onPressed: _busy
+                                ? null
+                                : () {
+                                    _historicalPreview = true;
+                                    _preview(version, 0);
+                                  },
+                            child: const Text('Preview'),
+                          ),
                         ),
                       ),
                   ] else if (!_archived || canCorrect) ...[
@@ -437,61 +474,80 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
                     if (!_busy && _message == null && _documents.isEmpty)
                       const Text('Belum ada dokumen.'),
                     for (final document in _documents) ...[
-                      ListTile(
-                        title: Text(
-                          _display(document.displayName),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          'Versi ${document.versionNumber} · ${document.type.name.toUpperCase()} · ${document.digest.length} byte · '
-                          '${MaterialLocalizations.of(context).formatShortDate(document.importedAt.toLocal())}'
-                          '${document.detailUuid == null ? ' · Transaksi' : ' · Detail pekerjaan'}'
-                          '${document.description == null ? '' : '\n${_display(document.description!)}'}',
-                        ),
-                        trailing: _archived
-                            ? null
-                            : OutlinedButton(
-                                onPressed: _busy
-                                    ? null
-                                    : () => _preview(document, 0),
-                                child: const Text('Preview'),
-                              ),
-                      ),
-                      if (canCorrect)
-                        Wrap(
-                          children: [
-                            TextButton(
-                              onPressed: _busy
-                                  ? null
-                                  : () => _showHistory(document),
-                              child: Text(
-                                'Riwayat · ${_display(document.displayName)}',
-                              ),
-                            ),
-                            if (_archived)
-                              TextButton(
-                                onPressed: _busy
-                                    ? null
-                                    : () =>
-                                          _beginCorrection(document, 'restore'),
-                                child: const Text('Restore'),
-                              )
-                            else
-                              for (final (action, label) in [
-                                ('edit', 'Edit metadata'),
-                                ('replace', 'Ganti file'),
-                                ('archive', 'Arsipkan'),
-                              ])
-                                TextButton(
-                                  onPressed: _busy
-                                      ? null
-                                      : () =>
-                                            _beginCorrection(document, action),
-                                  child: Text(label),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: TransactionDialogSection(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(
+                                  document.type == DocumentFileType.pdf
+                                      ? Icons.picture_as_pdf_outlined
+                                      : Icons.image_outlined,
                                 ),
-                          ],
+                                title: Text(
+                                  _display(document.displayName),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                subtitle: Text(
+                                  '${_archived ? 'Diarsipkan' : 'Aktif'} · Versi ${document.versionNumber} · ${document.type.name.toUpperCase()} · ${_size(document.digest.length)} · '
+                                  '${_date(context, document.updatedAt ?? document.importedAt)}'
+                                  '${document.detailUuid == null ? ' · Transaksi' : ' · Detail pekerjaan'}'
+                                  '${document.displayName == document.originalName ? '' : '\nFile asli: ${_display(document.originalName)}'}'
+                                  '${document.description == null ? '' : '\n${_display(document.description!)}'}',
+                                ),
+                                trailing: _archived
+                                    ? null
+                                    : OutlinedButton(
+                                        onPressed: _busy
+                                            ? null
+                                            : () => _preview(document, 0),
+                                        child: const Text('Preview'),
+                                      ),
+                              ),
+                              if (canCorrect)
+                                Wrap(
+                                  children: [
+                                    TextButton(
+                                      onPressed: _busy
+                                          ? null
+                                          : () => _showHistory(document),
+                                      child: Text('Riwayat versi'),
+                                    ),
+                                    if (_archived)
+                                      TextButton(
+                                        onPressed: _busy
+                                            ? null
+                                            : () => _beginCorrection(
+                                                document,
+                                                'restore',
+                                              ),
+                                        child: const Text('Restore'),
+                                      )
+                                    else
+                                      for (final (action, label) in [
+                                        ('edit', 'Edit metadata'),
+                                        ('replace', 'Ganti file'),
+                                        ('archive', 'Arsipkan'),
+                                      ])
+                                        TextButton(
+                                          onPressed: _busy
+                                              ? null
+                                              : () => _beginCorrection(
+                                                  document,
+                                                  action,
+                                                ),
+                                          child: Text(label),
+                                        ),
+                                  ],
+                                ),
+                            ],
+                          ),
                         ),
+                      ),
                     ],
                   ],
                 ] else
@@ -527,6 +583,18 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
       ),
     );
   }
+}
+
+String _size(int bytes) => bytes < 1024
+    ? '$bytes byte'
+    : bytes < 1024 * 1024
+    ? '${(bytes / 1024).toStringAsFixed(1)} KiB'
+    : '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MiB';
+
+String _date(BuildContext context, DateTime time) {
+  final local = time.toLocal();
+  final labels = MaterialLocalizations.of(context);
+  return '${labels.formatShortDate(local)} ${labels.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
 }
 
 String _display(String name) => name.replaceAll(

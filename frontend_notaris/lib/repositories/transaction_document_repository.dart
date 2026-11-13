@@ -29,6 +29,10 @@ class TransactionDocument {
       revision = row.read<int>('revision'),
       versionNumber = row.read<int>('version_number'),
       current = row.read<int>('is_current') == 1,
+      updatedAt = switch (row.readNullable<int>('document_updated_at')) {
+        final value? => DateTime.fromMillisecondsSinceEpoch(value, isUtc: true),
+        null => null,
+      },
       actor = row.read<int>('created_by'),
       importedAt = DateTime.fromMillisecondsSinceEpoch(
         row.read<int>('created_at'),
@@ -46,6 +50,7 @@ class TransactionDocument {
   final int actor, revision, versionNumber;
   final bool archived, current;
   final DateTime importedAt;
+  final DateTime? updatedAt;
   final DocumentFileType type;
   final DocumentDigest digest;
 }
@@ -390,7 +395,7 @@ class TransactionDocumentRepository {
   }) async =>
       (await _db
               .customSelect(
-                '''SELECT d.document_uuid,d.detail_uuid,v.version_uuid,v.version_number,d.archived_at,
+                '''SELECT d.document_uuid,d.detail_uuid,v.version_uuid,v.version_number,d.archived_at,d.updated_at AS document_updated_at,
           ${_db.schemaVersion >= 26 ? 'd.title,d.description,d.revision' : 'NULL AS title,NULL AS description,1 AS revision'},
           (v.version_number=(SELECT MAX(newer.version_number) FROM transaction_document_versions newer
              WHERE newer.document_uuid=d.document_uuid)) AS is_current,
