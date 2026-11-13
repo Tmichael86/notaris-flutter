@@ -295,6 +295,7 @@ class AppDatabase extends _$AppDatabase {
       await _createPaymentAuditStorage();
       if (schemaVersion >= 24) await _createHandoverStorage();
       if (schemaVersion >= 25) await _createTransactionDocumentStorage();
+      if (schemaVersion >= 26) await _createDocumentLifecycle();
       await _protectPengeluaranReferences();
     },
     onUpgrade: (Migrator m, int from, int to) async {
@@ -504,6 +505,7 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 24 && to >= 24) await _createHandoverStorage();
         if (from < 25 && to >= 25) await _createTransactionDocumentStorage();
+        if (from < 26 && to >= 26) await _createDocumentLifecycle();
       });
     },
   );
@@ -824,10 +826,13 @@ class AppDatabase extends _$AppDatabase {
 
 /// Schema v25 for the explicitly bound document profile runtime.
 class DocumentProfileDatabase extends AppDatabase {
-  DocumentProfileDatabase(super.executor) : super.forTesting();
+  DocumentProfileDatabase(super.executor, {this.lifecycle = false})
+    : super.forTesting();
+
+  final bool lifecycle;
 
   @override
-  int get schemaVersion => 25;
+  int get schemaVersion => lifecycle ? 26 : 25;
 }
 
 LazyDatabase _openConnection() {

@@ -36,16 +36,20 @@ def sha(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest()
 
 
+def protected_fingerprint(db):
+    schema = [tuple(row) for row in db.execute('''SELECT type,name,sql FROM sqlite_schema
+        WHERE name NOT LIKE 'transaction_document%' AND tbl_name NOT LIKE 'transaction_document%'
+        ORDER BY type,name''')]
+    protected = {name: [dict(row) for row in db.execute(f'SELECT * FROM "{name}" ORDER BY rowid')]
+                 for kind, name, _ in schema if kind == 'table'}
+    return hashlib.sha256(json.dumps([schema, protected], sort_keys=True).encode()).hexdigest()
+
+
 def snapshot(root):
     with closing(read_only(root / 'offline.sqlite')) as db:
         require(db.execute('PRAGMA user_version').fetchone()[0] == 25 and
                 [row[0] for row in db.execute('PRAGMA integrity_check')] == ['ok'] and
                 not db.execute('PRAGMA foreign_key_check').fetchall(), 'Schema, integrity atau FK tidak cocok.')
-        schema = [tuple(row) for row in db.execute('''SELECT type,name,sql FROM sqlite_schema
-            WHERE name NOT LIKE 'transaction_document%' AND tbl_name NOT LIKE 'transaction_document%'
-            ORDER BY type,name''')]
-        protected = {name: [dict(row) for row in db.execute(f'SELECT * FROM "{name}" ORDER BY rowid')]
-                     for kind, name, _ in schema if kind == 'table'}
         records = [dict(row) for row in db.execute('''SELECT t.jenis_transaksi AS domain,
             d.document_uuid,d.detail_uuid,v.version_uuid,v.original_display_name AS name,
             v.media_type,v.byte_size,v.sha256,v.created_by
@@ -64,7 +68,7 @@ def snapshot(root):
         )]
         committed = db.execute("SELECT count(*) FROM transaction_document_operations WHERE state='committed'").fetchone()[0]
         require(counts == [len(records)] * 3 and committed == len(records), 'Metadata atau receipt impor tidak lengkap.')
-        digest = hashlib.sha256(json.dumps([schema, protected], sort_keys=True).encode()).hexdigest()
+        digest = protected_fingerprint(db)
         return digest, records, store[0] if store else None
 
 

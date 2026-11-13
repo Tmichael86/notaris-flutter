@@ -27,7 +27,15 @@ class TransactionDocumentDialog extends ConsumerStatefulWidget {
 class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
   late final TransactionDocumentRepository _repository;
   DocumentOwner? _owner;
+  String? _transactionNumber;
   List<TransactionDocument> _documents = [];
+  bool _archived = false;
+  List<TransactionDocument>? _history;
+  TransactionDocument? _correctionTarget;
+  String? _correction;
+  final _title = TextEditingController();
+  final _notes = TextEditingController();
+  bool _historicalPreview = false;
   bool _busy = false;
   String? _message;
   TransactionDocument? _selected;
@@ -48,9 +56,12 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
         .findById(widget.transactionId);
     if (row == null) throw const DocumentFileFailure('invalid_owner');
     final owner = (id: row.id, uuid: row.uuid, domain: row.jenisTransaksi);
-    final documents = await _repository.listActive(owner);
+    final documents = _archived
+        ? await _repository.listArchived(owner)
+        : await _repository.listActive(owner);
     if (!mounted || ref.read(authControllerProvider).session != session) return;
     _owner = owner;
+    _transactionNumber = row.noAkta;
     _documents = documents;
   });
 
@@ -75,6 +86,13 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
           'Preview tidak tersedia dalam batas pemrosesan.',
         'permission' || 'session_changed' =>
           'Sesi berubah atau izin Transaksi tidak mencukupi.',
+        'document_changed' =>
+          'Dokumen sudah berubah. Muat ulang sebelum melanjutkan.',
+        'already_archived' => 'Dokumen sudah diarsipkan.',
+        'already_restored' => 'Dokumen sudah aktif.',
+        'reason_required' => 'Alasan wajib diisi.',
+        'invalid_owner' ||
+        'document_not_found' => 'Dokumen tidak tersedia pada transaksi ini.',
         _ => 'Operasi dokumen gagal. Muat ulang sebelum mencoba lagi.',
       };
     } on Exception {
@@ -109,57 +127,138 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
     }
   });
 
-  Future<void> _preview(TransactionDocument document, int page) =>
-      _run(() async {
-        final session = ref.read(authControllerProvider).session;
-        _selected = document;
-        _image?.dispose();
-        _image = null;
-        _pages = 0;
-        final result = await _repository.previewActive(
-          _owner!,
-          document.uuid,
-          page: page,
-        );
-        final pdf = result.pdf;
-        ui.Image? image = result.image;
-        if (pdf != null) {
-          final buffer = await ui.ImmutableBuffer.fromUint8List(pdf.bgra);
+  Future<void> _preview(TransactionDocument document, int page) => _run(
+    () async {
+      final session = ref.read(authControllerProvider).session;
+      _selected = document;
+      _image?.dispose();
+      _image = null;
+      _pages = 0;
+      final result = _historicalPreview
+          ? await _repository.previewVersion(
+              _owner!,
+              document.uuid,
+              document.versionUuid,
+              page: page,
+            )
+          : await _repository.previewActive(_owner!, document.uuid, page: page);
+      final pdf = result.pdf;
+      ui.Image? image = result.image;
+      if (pdf != null) {
+        final buffer = await ui.ImmutableBuffer.fromUint8List(pdf.bgra);
+        try {
+          final descriptor = ui.ImageDescriptor.raw(
+            buffer,
+            width: pdf.width,
+            height: pdf.height,
+            pixelFormat: ui.PixelFormat.bgra8888,
+          );
           try {
-            final descriptor = ui.ImageDescriptor.raw(
-              buffer,
-              width: pdf.width,
-              height: pdf.height,
-              pixelFormat: ui.PixelFormat.bgra8888,
-            );
+            final codec = await descriptor.instantiateCodec();
             try {
-              final codec = await descriptor.instantiateCodec();
-              try {
-                image = (await codec.getNextFrame()).image;
-              } finally {
-                codec.dispose();
-              }
+              image = (await codec.getNextFrame()).image;
             } finally {
-              descriptor.dispose();
+              codec.dispose();
             }
           } finally {
-            buffer.dispose();
+            descriptor.dispose();
           }
+        } finally {
+          buffer.dispose();
         }
-        if (!mounted || ref.read(authControllerProvider).session != session) {
-          image?.dispose();
-          return;
-        }
-        _image = image;
-        _page = page;
-        _pages = pdf?.pageCount ?? 0;
-      });
+      }
+      if (!mounted || ref.read(authControllerProvider).session != session) {
+        image?.dispose();
+        return;
+      }
+      _image = image;
+      _page = page;
+      _pages = pdf?.pageCount ?? 0;
+    },
+  );
 
   @override
   void dispose() {
     _image?.dispose();
+    _title.dispose();
+    _notes.dispose();
     super.dispose();
   }
+
+  void _beginCorrection(TransactionDocument document, String action) =>
+      setState(() {
+        _correctionTarget = document;
+        _correction = action;
+        _title.text = document.title ?? document.originalName;
+        _notes.text = action == 'edit' ? document.description ?? '' : '';
+        _message = null;
+      });
+
+  Future<void> _confirmCorrection() => _run(() async {
+    final session = ref.read(authControllerProvider).session;
+    final owner = _owner!;
+    final document = _correctionTarget!;
+    final action = _correction!;
+    final operation = const Uuid().v4();
+    if (action == 'replace') {
+      final pending = await _repository.pendingReplacement(
+        owner,
+        document.uuid,
+      );
+      if (!mounted || ref.read(authControllerProvider).session != session) {
+        return;
+      }
+      if (pending != null) {
+        await _repository.resumeReplacement(
+          owner: owner,
+          uuid: document.uuid,
+          expectedRevision: pending.revision,
+          operationUuid: pending.operationUuid,
+        );
+      } else {
+        if (!mounted) return;
+        final path =
+            (widget.pickSource ?? WindowsTransactionDocumentStore.pickSource)();
+        if (path == null ||
+            !mounted ||
+            ref.read(authControllerProvider).session != session) {
+          return;
+        }
+        await _repository.replace(
+          owner: owner,
+          uuid: document.uuid,
+          expectedRevision: document.revision,
+          operationUuid: operation,
+          sourcePath: path,
+        );
+      }
+    } else {
+      await _repository.correct(
+        owner: owner,
+        uuid: document.uuid,
+        expectedRevision: document.revision,
+        operationUuid: operation,
+        action: DocumentCorrection.values.byName(action),
+        title: _title.text,
+        description: _notes.text,
+        reason: _notes.text,
+      );
+    }
+    final documents = _archived
+        ? await _repository.listArchived(owner)
+        : await _repository.listActive(owner);
+    if (!mounted || _owner != owner) return;
+    _documents = documents;
+    _correction = null;
+    _correctionTarget = null;
+    _message = 'Perubahan dokumen tersimpan.';
+  });
+
+  Future<void> _showHistory(TransactionDocument document) => _run(() async {
+    final owner = _owner!;
+    final versions = await _repository.history(owner, document.uuid);
+    if (mounted && _owner == owner) _history = versions;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -171,13 +270,22 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
       _selected = null;
       _documents = [];
       _owner = null;
+      _history = null;
+      _correction = null;
+      _correctionTarget = null;
+      _archived = false;
     });
     final canRead = session?.hasTransactionAccess() == true;
     final canImport = session?.hasTransactionAccess(update: true) == true;
+    final canCorrect = _repository.canCorrect;
     return PopScope(
       canPop: !_busy,
       child: AlertDialog(
-        title: const Text('Kelola Dokumen'),
+        title: Text(
+          _transactionNumber == null
+              ? 'Kelola Dokumen'
+              : 'Kelola Dokumen · ${_owner?.domain.toUpperCase() ?? ''} $_transactionNumber',
+        ),
         content: SizedBox(
           width: 610,
           child: SingleChildScrollView(
@@ -192,12 +300,65 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
                     child: Text(message),
                   ),
                 if (canRead) ...[
-                  if (_selected case final document?) ...[
+                  if (canCorrect && _correction != null) ...[
+                    Text(_display(_correctionTarget!.displayName)),
+                    if (_correction == 'edit') ...[
+                      TextField(
+                        controller: _title,
+                        enabled: !_busy,
+                        maxLength: 255,
+                        decoration: const InputDecoration(
+                          labelText: 'Judul dokumen',
+                        ),
+                      ),
+                      TextField(
+                        controller: _notes,
+                        enabled: !_busy,
+                        maxLength: 1000,
+                        decoration: const InputDecoration(
+                          labelText: 'Deskripsi',
+                        ),
+                      ),
+                    ] else if (_correction == 'replace')
+                      const Text(
+                        'Buat versi baru atau lanjutkan penggantian yang tertunda. Versi lama tetap tersimpan.',
+                      )
+                    else
+                      TextField(
+                        controller: _notes,
+                        enabled: !_busy,
+                        maxLength: 500,
+                        decoration: InputDecoration(
+                          labelText: _correction == 'archive'
+                              ? 'Alasan arsip'
+                              : 'Alasan restore',
+                        ),
+                      ),
+                    Wrap(
+                      children: [
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => setState(() {
+                                  _correction = null;
+                                  _correctionTarget = null;
+                                }),
+                          child: const Text('Batal'),
+                        ),
+                        FilledButton(
+                          onPressed: _busy ? null : _confirmCorrection,
+                          child: const Text('Konfirmasi'),
+                        ),
+                      ],
+                    ),
+                  ] else if (_selected case final document?
+                      when !_historicalPreview || canCorrect) ...[
                     TextButton.icon(
                       onPressed: _busy
                           ? null
                           : () => setState(() {
                               _selected = null;
+                              _historicalPreview = false;
                               _image?.dispose();
                               _image = null;
                               _message = null;
@@ -232,10 +393,50 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
                           ),
                         ],
                       ),
-                  ] else ...[
+                  ] else if (canCorrect && _history != null) ...[
+                    TextButton(
+                      onPressed: _busy
+                          ? null
+                          : () => setState(() => _history = null),
+                      child: const Text('Kembali ke daftar'),
+                    ),
+                    for (final version in _history!)
+                      ListTile(
+                        title: Text(
+                          'Versi ${version.versionNumber}${version.current ? ' · Aktif' : ''} · ${_display(version.originalName)}',
+                        ),
+                        subtitle: SelectableText(
+                          '${MaterialLocalizations.of(context).formatShortDate(version.importedAt.toLocal())} · Aktor ${version.actor} · ${version.digest.length} byte\nSHA-256 ${version.digest.sha256}',
+                        ),
+                        trailing: TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () {
+                                  _historicalPreview = true;
+                                  _preview(version, 0);
+                                },
+                          child: const Text('Preview'),
+                        ),
+                      ),
+                  ] else if (!_archived || canCorrect) ...[
+                    if (canCorrect)
+                      TextButton(
+                        onPressed: _busy || _owner == null
+                            ? null
+                            : () {
+                                setState(() {
+                                  _archived = !_archived;
+                                  _documents = [];
+                                });
+                                _load();
+                              },
+                        child: Text(
+                          _archived ? 'Tampilkan aktif' : 'Tampilkan arsip',
+                        ),
+                      ),
                     if (!_busy && _message == null && _documents.isEmpty)
                       const Text('Belum ada dokumen.'),
-                    for (final document in _documents)
+                    for (final document in _documents) ...[
                       ListTile(
                         title: Text(
                           _display(document.displayName),
@@ -243,15 +444,55 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         subtitle: Text(
-                          '${document.type.name.toUpperCase()} · ${document.digest.length} byte · '
+                          'Versi ${document.versionNumber} · ${document.type.name.toUpperCase()} · ${document.digest.length} byte · '
                           '${MaterialLocalizations.of(context).formatShortDate(document.importedAt.toLocal())}'
-                          '${document.detailUuid == null ? ' · Transaksi' : ' · Detail pekerjaan'}',
+                          '${document.detailUuid == null ? ' · Transaksi' : ' · Detail pekerjaan'}'
+                          '${document.description == null ? '' : '\n${_display(document.description!)}'}',
                         ),
-                        trailing: OutlinedButton(
-                          onPressed: _busy ? null : () => _preview(document, 0),
-                          child: const Text('Preview'),
-                        ),
+                        trailing: _archived
+                            ? null
+                            : OutlinedButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () => _preview(document, 0),
+                                child: const Text('Preview'),
+                              ),
                       ),
+                      if (canCorrect)
+                        Wrap(
+                          children: [
+                            TextButton(
+                              onPressed: _busy
+                                  ? null
+                                  : () => _showHistory(document),
+                              child: Text(
+                                'Riwayat · ${_display(document.displayName)}',
+                              ),
+                            ),
+                            if (_archived)
+                              TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : () =>
+                                          _beginCorrection(document, 'restore'),
+                                child: const Text('Restore'),
+                              )
+                            else
+                              for (final (action, label) in [
+                                ('edit', 'Edit metadata'),
+                                ('replace', 'Ganti file'),
+                                ('archive', 'Arsipkan'),
+                              ])
+                                TextButton(
+                                  onPressed: _busy
+                                      ? null
+                                      : () =>
+                                            _beginCorrection(document, action),
+                                  child: Text(label),
+                                ),
+                          ],
+                        ),
+                    ],
                   ],
                 ] else
                   const Text('Izin baca Transaksi diperlukan.'),
@@ -260,12 +501,20 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
           ),
         ),
         actions: [
-          if (canRead && _selected == null)
+          if (canRead &&
+              _selected == null &&
+              _history == null &&
+              _correction == null &&
+              (!_archived || canCorrect))
             TextButton(
               onPressed: _busy ? null : _load,
               child: const Text('Muat ulang'),
             ),
-          if (canImport && _selected == null)
+          if (canImport &&
+              _selected == null &&
+              _history == null &&
+              _correction == null &&
+              !_archived)
             FilledButton(
               onPressed: _busy || _owner == null ? null : _import,
               child: const Text('Impor dokumen'),

@@ -7,6 +7,9 @@ import 'package:path/path.dart' as p;
 
 import 'database/app_database.dart';
 import 'notaris_completion_demo_main.dart';
+import 'payment_demo_main.dart';
+
+import 'package:dio/dio.dart';
 
 Directory documentDemoRoot(String id) {
   if (!RegExp(r'^[a-f0-9]{32}$').hasMatch(id)) {
@@ -36,6 +39,32 @@ Future<void> main() async {
   }
   HttpOverrides.global = CompletionDemoNoHttp();
   const id = String.fromEnvironment('NOTARIS_DOCUMENT_DEMO_ID');
+  const helperSha = String.fromEnvironment('NOTARIS_DOCUMENT_HELPER_SHA256');
+  if (helperSha.isNotEmpty) {
+    if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(helperSha)) {
+      throw StateError('Fingerprint helper demo tidak valid.');
+    }
+    final root = paymentDemoRoot(id);
+    final marker = File(p.join(root.path, 'document-lifecycle-owner'));
+    if (!marker.existsSync() ||
+        !p.equals(marker.path, marker.resolveSymbolicLinksSync()) ||
+        marker.readAsStringSync() != id) {
+      throw StateError('Profil khusus lifecycle dokumen diperlukan.');
+    }
+    final verifier = Dio();
+    try {
+      await PaymentDemoAuth(verifier, id, helperSha).verifyProfile();
+    } finally {
+      verifier.close();
+    }
+    final (db, file) = await openDocumentDemo(id, lifecycle: true);
+    runCompletionDemo(
+      db,
+      auth: (dio) => PaymentDemoAuth(dio, id, helperSha),
+      documents: (databasePath: file.path, appDirectory: root.path),
+    );
+    return;
+  }
   final (db, dbFile) = await openDocumentDemo(id);
   runCompletionDemo(
     db,
@@ -44,8 +73,18 @@ Future<void> main() async {
   );
 }
 
-Future<(DocumentProfileDatabase, File)> openDocumentDemo(String id) async {
-  final root = documentDemoRoot(id);
+Future<(DocumentProfileDatabase, File)> openDocumentDemo(
+  String id, {
+  bool lifecycle = false,
+}) => _openDocumentDatabase(
+  lifecycle ? paymentDemoRoot(id) : documentDemoRoot(id),
+  lifecycle: lifecycle,
+);
+
+Future<(DocumentProfileDatabase, File)> _openDocumentDatabase(
+  Directory root, {
+  bool lifecycle = false,
+}) async {
   final dbFile = File(p.join(root.path, 'offline.sqlite'));
   if (!dbFile.existsSync() ||
       !p.equals(dbFile.path, dbFile.resolveSymbolicLinksSync()) ||
@@ -64,13 +103,13 @@ Future<(DocumentProfileDatabase, File)> openDocumentDemo(String id) async {
       dbFile,
       enableMigrations: false,
       setup: (sqlite) {
-        if (sqlite.select('PRAGMA user_version').single.values.single != 25) {
-          throw StateError(
-            'SQLite demo dokumen harus dipersiapkan sebagai v25.',
-          );
+        if (sqlite.select('PRAGMA user_version').single.values.single !=
+            (lifecycle ? 26 : 25)) {
+          throw StateError('Versi SQLite demo dokumen tidak sesuai.');
         }
       },
     ),
+    lifecycle: lifecycle,
   );
   try {
     final transactions = await db.select(db.transaksis).get();

@@ -305,3 +305,20 @@ transaksi tujuan melalui alur impor. Dokumen terarsip mempertahankan byte,
 kepemilikan, dan audit, serta dapat direstorasi oleh akun berizin. Archive,
 restore, dan replace memerlukan superadmin terverifikasi dengan Update
 Transaksi. V1 tidak menyediakan penghapusan permanen.
+
+Phase B menambah judul, deskripsi, dan revisi dokumen melalui migrasi aditif
+v25 → v26. Audit menyimpan keadaan sebelum dan sesudah, aktor, waktu, serta
+alasan arsip atau restore. Versi dengan urutan tertinggi menjadi versi aktif
+dalam commit yang sama dengan audit. Recovery replace memverifikasi kembali
+aktor, pemilik, revisi dan hash sebelum melanjutkan operasi yang sama.
+
+Acceptance Phase B membutuhkan profil baru dengan sesi terverifikasi yang
+dipisahkan dari Phase A. Launcher menolak profil tanpa marker lifecycle dan
+helper autentikasi yang cocok. `scripts/document-lifecycle-acceptance.py`
+menggunakan provisioner sesi demo existing untuk membuat tiga akun di cluster
+baru yang terikat ke loopback `127.0.0.1:55674`. Helper memeriksa database,
+host, port, marker dan direktori data sebelum membuat skema autentikasi atau
+akun. Sesi dibuat lewat autentikasi Go dan disegel dengan DPAPI. Setelah
+provisioning, cluster dihentikan dan Flutter memakai sesi lokal. Postcheck
+memverifikasi data terlindungi, receipt, audit dan byte seluruh versi. Preview
+dan perilaku tombol tetap diperiksa pada acceptance Windows interaktif.

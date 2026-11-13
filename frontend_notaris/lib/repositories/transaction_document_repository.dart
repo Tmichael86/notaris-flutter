@@ -1,4 +1,5 @@
 import 'dart:ffi';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -12,6 +13,8 @@ import '../services/auth_service.dart';
 import '../services/transaction_document_preview.dart';
 import '../services/windows_transaction_document_store.dart';
 
+part 'transaction_document_lifecycle.dart';
+
 typedef DocumentOwner = ({int id, String uuid, String domain});
 
 class TransactionDocument {
@@ -19,7 +22,13 @@ class TransactionDocument {
     : uuid = row.read<String>('document_uuid'),
       versionUuid = row.read<String>('version_uuid'),
       detailUuid = row.readNullable<String>('detail_uuid'),
-      displayName = row.read<String>('original_display_name'),
+      originalName = row.read<String>('original_display_name'),
+      title = row.readNullable<String>('title'),
+      description = row.readNullable<String>('description'),
+      archived = row.readNullable<int>('archived_at') != null,
+      revision = row.read<int>('revision'),
+      versionNumber = row.read<int>('version_number'),
+      current = row.read<int>('is_current') == 1,
       actor = row.read<int>('created_by'),
       importedAt = DateTime.fromMillisecondsSinceEpoch(
         row.read<int>('created_at'),
@@ -31,9 +40,11 @@ class TransactionDocument {
         sha256: row.read<String>('sha256'),
       );
 
-  final String uuid, versionUuid, displayName;
-  final String? detailUuid;
-  final int actor;
+  final String uuid, versionUuid, originalName;
+  String get displayName => title ?? originalName;
+  final String? detailUuid, title, description;
+  final int actor, revision, versionNumber;
+  final bool archived, current;
   final DateTime importedAt;
   final DocumentFileType type;
   final DocumentDigest digest;
@@ -147,7 +158,7 @@ class TransactionDocumentRepository {
             lease.digestSource(sourcePath) != _digest(prior)) {
           throw const DocumentFileFailure('operation_exists');
         }
-        final document = await _one(owner, prior.read<String>('document_uuid'));
+        final document = await _importReceipt(owner, prior);
         lease.readBlob(document.versionUuid, document.type, document.digest);
         _sameActor(actor, update: true);
         return document;
@@ -155,6 +166,9 @@ class TransactionDocumentRepository {
       final documentId = const Uuid().v4(), versionId = const Uuid().v4();
       await _db.transaction(() async {
         await _owner(owner, detailUuid: detailUuid);
+        if (_db.schemaVersion == 26 && await _auditRow(operationUuid) != null) {
+          throw const DocumentFileFailure('operation_mismatch');
+        }
         _sameActor(actor, update: true);
         await _db.customStatement(
           '''INSERT INTO transaction_document_operations(
@@ -224,10 +238,7 @@ class TransactionDocumentRepository {
       await _owner(owner, detailUuid: detailUuid);
       final state = intent.read<String>('state');
       if (state == 'committed') {
-        final document = await _one(
-          owner,
-          intent.read<String>('document_uuid'),
-        );
+        final document = await _importReceipt(owner, intent);
         lease.readBlob(document.versionUuid, document.type, document.digest);
         _sameActor(actor, update: true);
         return document;
@@ -253,12 +264,7 @@ class TransactionDocumentRepository {
     final digest = _digest(intent);
     await _owner(owner, detailUuid: detail);
     _sameActor(actor, update: true);
-    try {
-      lease.readBlob(version, type, digest);
-    } on DocumentFileFailure catch (error) {
-      if (error.code != 'blob_open' || error.nativeCode != 2) rethrow;
-      lease.publish(operation, version, type, digest);
-    }
+    _publishVerified(lease, operation, version, type, digest);
     await _db.transaction(() async {
       await _owner(owner, detailUuid: detail);
       _sameActor(actor, update: true);
@@ -314,7 +320,7 @@ class TransactionDocumentRepository {
 
   Future<String> _profile() async {
     if (!Platform.isWindows ||
-        _db.schemaVersion != 25 ||
+        !{25, 26}.contains(_db.schemaVersion) ||
         !p.windows.isAbsolute(_databasePath)) {
       throw const DocumentFileFailure('invalid_profile');
     }
@@ -326,7 +332,7 @@ class TransactionDocumentRepository {
         (await _db.customSelect('PRAGMA user_version').getSingle()).read<int>(
               'user_version',
             ) !=
-            25) {
+            _db.schemaVersion) {
       throw const DocumentFileFailure('invalid_profile');
     }
     return p.windows.normalize(database).toLowerCase();
@@ -379,21 +385,32 @@ class TransactionDocumentRepository {
   Future<List<TransactionDocument>> _visible(
     DocumentOwner owner, {
     String? uuid,
+    bool? archived = false,
+    bool history = false,
   }) async =>
       (await _db
               .customSelect(
-                '''SELECT d.document_uuid,d.detail_uuid,v.version_uuid,
+                '''SELECT d.document_uuid,d.detail_uuid,v.version_uuid,v.version_number,d.archived_at,
+          ${_db.schemaVersion >= 26 ? 'd.title,d.description,d.revision' : 'NULL AS title,NULL AS description,1 AS revision'},
+          (v.version_number=(SELECT MAX(newer.version_number) FROM transaction_document_versions newer
+             WHERE newer.document_uuid=d.document_uuid)) AS is_current,
           v.original_display_name,v.byte_size,v.media_type,v.sha256,v.created_by,v.created_at
         FROM transaction_documents d JOIN transaksis t ON t.uuid=d.transaksi_uuid
         JOIN transaction_document_versions v ON v.document_uuid=d.document_uuid
-        WHERE t.id=? AND t.uuid=? AND t.jenis_transaksi=? AND d.archived_at IS NULL
+        WHERE t.id=? AND t.uuid=? AND t.jenis_transaksi=?
+          ${archived == null
+                    ? ''
+                    : archived
+                    ? 'AND d.archived_at IS NOT NULL'
+                    : 'AND d.archived_at IS NULL'}
           AND t.deleted_at IS NULL AND lower(trim(t.status_transaksi))<>'dihapus'
           AND (? IS NULL OR d.document_uuid=?)
           AND (d.detail_uuid IS NULL OR EXISTS (SELECT 1 FROM transaksi_details j WHERE j.uuid=d.detail_uuid
             AND j.transaksi_id=t.id AND j.jenis_pekerjaan=t.jenis_transaksi AND j.status=1 AND j.deleted_at IS NULL))
-          AND NOT EXISTS (SELECT 1 FROM transaction_document_versions newer
+          ${history ? '' : '''AND NOT EXISTS (SELECT 1 FROM transaction_document_versions newer
             WHERE newer.document_uuid=d.document_uuid AND newer.version_number>v.version_number)
-        ORDER BY v.created_at DESC,d.document_uuid''',
+          '''}
+        ORDER BY v.version_number DESC,v.created_at DESC,d.document_uuid''',
                 variables: [
                   Variable(owner.id),
                   Variable(owner.uuid),
@@ -410,6 +427,17 @@ class TransactionDocumentRepository {
     final rows = await _visible(owner, uuid: uuid);
     if (rows.length != 1) throw const DocumentFileFailure('document_not_found');
     return rows.single;
+  }
+
+  Future<TransactionDocument> _importReceipt(
+    DocumentOwner owner,
+    QueryRow intent,
+  ) async {
+    final current = await _one(owner, intent.read<String>('document_uuid'));
+    if (current.versionUuid != intent.read<String>('version_uuid')) {
+      throw const DocumentFileFailure('document_changed');
+    }
+    return current;
   }
 
   Future<QueryRow?> _intent(String uuid) => _db
@@ -432,6 +460,21 @@ class TransactionDocumentRepository {
         intent.read<int>('actor_group_id') != actor.groupId) {
       throw const DocumentFileFailure('operation_mismatch');
     }
+  }
+}
+
+void _publishVerified(
+  DocumentStoreLease lease,
+  String operation,
+  String version,
+  DocumentFileType type,
+  DocumentDigest digest,
+) {
+  try {
+    lease.readBlob(version, type, digest);
+  } on DocumentFileFailure catch (error) {
+    if (error.code != 'blob_open' || error.nativeCode != 2) rethrow;
+    lease.publish(operation, version, type, digest);
   }
 }
 

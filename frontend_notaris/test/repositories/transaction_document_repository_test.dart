@@ -1,4 +1,5 @@
 import 'dart:ffi';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
@@ -7,7 +8,9 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/models/auth_session.dart';
+import 'package:frontend_notaris/payment_demo_main.dart';
 import 'package:frontend_notaris/repositories/transaction_document_repository.dart';
+import 'package:frontend_notaris/repositories/transaction_document_cloud_guard.dart';
 import 'package:frontend_notaris/services/transaction_document_preview.dart';
 import 'package:frontend_notaris/services/windows_transaction_document_store.dart';
 import 'package:path/path.dart' as p;
@@ -77,6 +80,271 @@ void main() {
       await source.writeAsBytes(png);
     });
     tearDown(() => db.close());
+
+    test('v25 migration, metadata audit, archive and restore preserve original bytes and cloud block', () async {
+      final imported = await repository().importFile(
+        owner: notaris,
+        operationUuid: _operation,
+        sourcePath: source.path,
+      );
+      final original = await source.readAsBytes();
+      final tables = [
+        'transaksis',
+        'transaksi_details',
+        'transaksi_proses',
+        'transaksi_riwayat_pembayaran',
+        'transaksi_serah_terima',
+        'transaction_cloud_identity',
+        'transaction_cloud_pending',
+        'transaction_cloud_feed',
+        'transaction_document_versions',
+      ];
+      Future<List<Object>> snapshot() async => [
+        for (final table in tables)
+          (await db.customSelect('SELECT * FROM $table ORDER BY rowid').get())
+              .map((r) => r.data)
+              .toList(),
+      ];
+      final before = await snapshot();
+      await db.close();
+      db = DocumentProfileDatabase(
+        NativeDatabase(databaseFile),
+        lifecycle: true,
+      );
+      final repo = repository();
+      Future<void> edit(int rev) => repo.correct(
+        owner: notaris,
+        uuid: imported.uuid,
+        expectedRevision: rev,
+        operationUuid: _otherOperation,
+        action: DocumentCorrection.edit,
+        title: 'Judul baru',
+        description: 'Catatan dokumen',
+      );
+      expect(await snapshot(), before);
+      await expectLater(edit(1), _failure('permission'));
+      session = recoverySession(update: false, only: 'transaksi');
+      await expectLater(
+        repo.history(notaris, imported.uuid),
+        _failure('permission'),
+      );
+      final readOnly = session!;
+      session = AuthSession.fromJson({
+        ...readOnly.toJson(),
+        'groupType': 'superadmin',
+        'verifiedAt': DateTime.now().toUtc().toIso8601String(),
+      });
+      await expectLater(edit(1), _failure('permission'));
+      session = ExpiringPaymentDemoSession(
+        uiSession(groupType: 'superadmin'),
+        DateTime.now().subtract(const Duration(seconds: 1)),
+      );
+      await expectLater(edit(1), _failure('permission'));
+      session = uiSession(userId: 42, groupType: 'superadmin');
+      await edit(1);
+      await edit(1);
+      await expectLater(edit(2), _failure('operation_mismatch'));
+      final audit = await db
+          .customSelect('SELECT * FROM transaction_document_audit')
+          .getSingle();
+      expect(jsonDecode(audit.read<String>('before_state'))['title'], isNull);
+      expect(
+        jsonDecode(audit.read<String>('after_state'))['title'],
+        'Judul baru',
+      );
+      final edited = (await repo.listActive(notaris)).single;
+      expect(
+        (edited.revision, edited.versionUuid, edited.digest),
+        (2, imported.versionUuid, imported.digest),
+      );
+      const archive = '3e3c0d11-2192-4abb-aa24-be593d5f0d03';
+      const restore = '3e3c0d11-2192-4abb-aa24-be593d5f0d04';
+      Future<void> archiveAt(int rev) => repo.correct(
+        owner: notaris,
+        uuid: imported.uuid,
+        expectedRevision: rev,
+        operationUuid: archive,
+        action: DocumentCorrection.archive,
+        reason: 'Salah transaksi',
+      );
+      await expectLater(archiveAt(1), _failure('document_changed'));
+      await archiveAt(2);
+      await archiveAt(2);
+      expect(await repo.listActive(notaris), isEmpty);
+      expect(
+        await transactionDocumentUploadBlockReason(db, notaris.uuid),
+        transactionDocumentUploadBlock,
+      );
+      expect(await transactionDocumentUploadBlockReason(db, ppat.uuid), isNull);
+      await expectLater(
+        repo.readActive(notaris, imported.uuid),
+        _failure('document_not_found'),
+      );
+      expect(
+        (await repo.listArchived(notaris)).single.versionUuid,
+        imported.versionUuid,
+      );
+      await expectLater(
+        repo.history(ppat, imported.uuid),
+        _failure('document_not_found'),
+      );
+      await repo.correct(
+        owner: notaris,
+        uuid: imported.uuid,
+        expectedRevision: 3,
+        operationUuid: restore,
+        action: DocumentCorrection.restore,
+        reason: 'Koreksi arsip',
+      );
+      expect((await repo.readActive(notaris, imported.uuid)).bytes, original);
+      expect(await snapshot(), before);
+      expect(
+        (await db
+                .customSelect(
+                  'SELECT action,reason FROM transaction_document_audit ORDER BY rowid',
+                )
+                .get())
+            .map((r) => r.data),
+        [
+          {'action': 'edit', 'reason': null},
+          {'action': 'archive', 'reason': 'Salah transaksi'},
+          {'action': 'restore', 'reason': 'Koreksi arsip'},
+        ],
+      );
+      expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
+      expect(
+        (await db.customSelect('PRAGMA integrity_check').getSingle())
+            .data
+            .values
+            .single,
+        'ok',
+      );
+      await db.close();
+      db = DocumentProfileDatabase(
+        NativeDatabase(databaseFile),
+        lifecycle: true,
+      );
+      expect((await repository().listActive(notaris)).single.revision, 4);
+    });
+
+    test('replacement rolls back on commit failure and resumes the same immutable version', () async {
+      await db.close();
+      db = DocumentProfileDatabase(
+        NativeDatabase(databaseFile),
+        lifecycle: true,
+      );
+      final repo = repository();
+      final first = await repo.importFile(
+        owner: ppat,
+        operationUuid: _operation,
+        sourcePath: source.path,
+      );
+      final replacement = File(p.join(folder.path, 'New.png'));
+      final recorder = ui.PictureRecorder();
+      ui.Canvas(recorder)
+          .drawColor(const ui.Color(0xff445566), ui.BlendMode.src);
+      final picture = recorder.endRecording();
+      final replacementImage = await picture.toImage(2, 2);
+      picture.dispose();
+      try {
+        await replacement.writeAsBytes(
+          (await replacementImage.toByteData(format: ui.ImageByteFormat.png))!
+              .buffer
+              .asUint8List(),
+        );
+      } finally {
+        replacementImage.dispose();
+      }
+      session = uiSession(userId: 42, groupType: 'superadmin');
+      Future<TransactionDocument> replace() => repo.replace(
+        owner: ppat,
+        uuid: first.uuid,
+        expectedRevision: 1,
+        operationUuid: _otherOperation,
+        sourcePath: replacement.path,
+      );
+      await db.customStatement(
+        '''CREATE TRIGGER fixture_reject_replace BEFORE INSERT ON transaction_document_audit
+        WHEN NEW.action='replace' BEGIN SELECT RAISE(ABORT,'fixture failure'); END''',
+      );
+      await expectLater(replace(), throwsException);
+      expect(
+        (await repo.listActive(ppat)).single.versionUuid,
+        first.versionUuid,
+      );
+      expect(
+        (await repo.pendingReplacement(ppat, first.uuid))?.operationUuid,
+        _otherOperation,
+      );
+      await db.customStatement('DROP TRIGGER fixture_reject_replace');
+      await db.close();
+      db = DocumentProfileDatabase(
+        NativeDatabase(databaseFile),
+        lifecycle: true,
+      );
+      final reopened = repository();
+      final latest = await reopened.resumeReplacement(
+        owner: ppat,
+        uuid: first.uuid,
+        expectedRevision: 1,
+        operationUuid: _otherOperation,
+      );
+      expect(latest.uuid, first.uuid);
+      expect(latest.versionUuid, isNot(first.versionUuid));
+      expect((latest.versionNumber, latest.revision), (2, 2));
+      expect(latest.digest.sha256, isNot(first.digest.sha256));
+      expect(
+        await transactionDocumentUploadBlockReason(db, ppat.uuid),
+        transactionDocumentUploadBlock,
+      );
+      expect(
+        latest.digest.sha256,
+        sha256.convert(replacement.readAsBytesSync()).toString(),
+      );
+      expect(
+        (await reopened.replace(
+          owner: ppat,
+          uuid: first.uuid,
+          expectedRevision: 1,
+          operationUuid: _otherOperation,
+          sourcePath: replacement.path,
+        )).versionUuid,
+        latest.versionUuid,
+      );
+      await expectLater(
+        reopened.replace(
+          owner: ppat,
+          uuid: first.uuid,
+          expectedRevision: 1,
+          operationUuid: '3e3c0d11-2192-4abb-aa24-be593d5f0d05',
+          sourcePath: replacement.path,
+        ),
+        _failure('document_changed'),
+      );
+      expect(
+        (await reopened.history(
+          ppat,
+          first.uuid,
+        )).map((v) => (v.versionNumber, v.current)),
+        [(2, true), (1, false)],
+      );
+      final image = (await reopened.previewVersion(
+        ppat,
+        first.uuid,
+        first.versionUuid,
+      )).image!;
+      expect((image.width, image.height), (3, 3));
+      image.dispose();
+      session = uiSession(userId: 37);
+      await expectLater(
+        reopened.previewVersion(ppat, first.uuid, first.versionUuid),
+        _failure('permission'),
+      );
+      expect(
+        (await reopened.listActive(ppat)).single.versionUuid,
+        latest.versionUuid,
+      );
+    });
 
     test('imports into both domains, permits authorized read, and persists on reopen', () async {
       final before = await source.readAsBytes();

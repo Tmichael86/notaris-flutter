@@ -3,6 +3,51 @@ part of 'app_database.dart';
 // The v25 migration is exercised on disposable databases. The application
 // remains on v24 until the managed storage and preview gates are validated.
 extension _TransactionDocumentSchema on AppDatabase {
+  Future<void> _createDocumentLifecycle() async {
+    await customStatement(
+      'ALTER TABLE transaction_documents ADD COLUMN title TEXT',
+    );
+    await customStatement(
+      'ALTER TABLE transaction_documents ADD COLUMN description TEXT',
+    );
+    await customStatement(
+      'ALTER TABLE transaction_documents ADD COLUMN revision INTEGER NOT NULL DEFAULT 1 CHECK(revision>0)',
+    );
+    await customStatement(
+      'ALTER TABLE transaction_document_operations ADD COLUMN expected_document_revision INTEGER CHECK(expected_document_revision>0)',
+    );
+    await customStatement(
+      '''CREATE TRIGGER transaction_document_expected_revision_immutable
+      BEFORE UPDATE OF expected_document_revision ON transaction_document_operations
+      WHEN OLD.expected_document_revision IS NOT NEW.expected_document_revision
+      BEGIN SELECT RAISE(ABORT,'Immutable expected document revision'); END''',
+    );
+    await customStatement('''CREATE TABLE transaction_document_audit (
+      operation_uuid TEXT NOT NULL PRIMARY KEY CHECK(${_documentUuid('operation_uuid')}),
+      document_uuid TEXT NOT NULL REFERENCES transaction_documents(document_uuid),
+      action TEXT NOT NULL CHECK(action IN ('edit','replace','archive','restore')),
+      actor_user_id INTEGER NOT NULL CHECK(actor_user_id>0),
+      actor_group_id INTEGER NOT NULL CHECK(actor_group_id>0),
+      occurred_at INTEGER NOT NULL,
+      before_state TEXT NOT NULL CHECK(json_valid(before_state)),
+      after_state TEXT NOT NULL CHECK(json_valid(after_state)),
+      reason TEXT CHECK(reason IS NULL OR length(trim(reason)) BETWEEN 1 AND 500),
+      CHECK(action NOT IN ('archive','restore') OR reason IS NOT NULL)
+    )''');
+    await customStatement('''CREATE TRIGGER transaction_document_audit_insert
+      BEFORE INSERT ON transaction_document_audit
+      WHEN EXISTS(SELECT 1 FROM transaction_document_audit WHERE operation_uuid=NEW.operation_uuid)
+        OR NOT EXISTS(SELECT 1 FROM transaction_documents WHERE document_uuid=NEW.document_uuid)
+      BEGIN SELECT RAISE(ABORT,'Invalid document audit'); END''');
+    for (final operation in ['UPDATE', 'DELETE']) {
+      await customStatement(
+        '''CREATE TRIGGER transaction_document_audit_no_${operation.toLowerCase()}
+        BEFORE $operation ON transaction_document_audit
+        BEGIN SELECT RAISE(ABORT,'Document audit is immutable'); END''',
+      );
+    }
+  }
+
   Future<void> _createTransactionDocumentStorage() async {
     await customStatement('''
       CREATE TABLE transaction_document_store (
