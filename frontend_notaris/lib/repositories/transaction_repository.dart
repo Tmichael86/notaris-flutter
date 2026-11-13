@@ -117,7 +117,7 @@ class TransactionRepository {
     categories: row.readNullable<String>('category_names'),
   );
 
-  Stream<MonitoringPage> watchMonitoringPage(MonitoringFilter filter) {
+  (String, List<Variable>) _monitoringMatch(MonitoringFilter filter) {
     final variables = <Variable>[];
     String bind<T extends Object>(T value) {
       variables.add(Variable<T>(value));
@@ -147,25 +147,32 @@ class TransactionRepository {
           AND instr(lower(d.nama_pekerjaan_snapshot), ${bind(search)}) > 0))''',
       );
     }
-    final index = bind(filter.index);
+    return (conditions.join(' AND '), variables);
+  }
+
+  static String _monitoringOrder(String alias) =>
+      '$alias.tanggal_transaksi DESC, $alias.id DESC';
+
+  Stream<MonitoringPage> watchMonitoringPage(MonitoringFilter filter) {
+    final (where, variables) = _monitoringMatch(filter);
     return db
         .customSelect(
           '''
       WITH matching AS NOT MATERIALIZED (
         SELECT t.id, t.tanggal_transaksi FROM transaksis t $_monitoringContacts
-        WHERE ${conditions.join(' AND ')}
+        WHERE $where
       ), bounds AS (
         SELECT count(*) AS monitoring_total,
-          min($index, max(0, (count(*) - 1) / $monitoringPageSize)) AS monitoring_index FROM matching
+          min(?, max(0, (count(*) - 1) / $monitoringPageSize)) AS monitoring_index FROM matching
       ), page AS (
-        SELECT id FROM matching ORDER BY tanggal_transaksi DESC, id DESC LIMIT $monitoringPageSize
+        SELECT id FROM matching ORDER BY ${_monitoringOrder('matching')} LIMIT $monitoringPageSize
           OFFSET (SELECT monitoring_index * $monitoringPageSize FROM bounds)
       )
       SELECT $_monitoringColumns, bounds.* FROM bounds LEFT JOIN page ON TRUE
       LEFT JOIN transaksis t ON t.id=page.id $_monitoringContacts
-      ORDER BY t.tanggal_transaksi DESC, t.id DESC
+      ORDER BY ${_monitoringOrder('t')}
       ''',
-          variables: variables,
+          variables: [...variables, Variable(filter.index)],
           readsFrom: _monitoringTables,
         )
         .watch()
@@ -179,6 +186,81 @@ class TransactionRepository {
             ],
           ),
         );
+  }
+
+  Future<List<MonitoringExportRow>> readMonitoringExport(
+    MonitoringFilter filter,
+    AuthSession? session,
+  ) async {
+    if (session?.canExportMonitoring != true) {
+      throw StateError('Izin baca Monitoring dan Transaksi diperlukan.');
+    }
+    final (where, variables) = _monitoringMatch(filter);
+    final paymentColumns = db.transaksiRiwayatPembayarans.$columns
+        .map(
+          (column) => 'payments.${column.$name} AS "payment.${column.$name}"',
+        )
+        .join(', ');
+    // A single SELECT keeps the header and payments consistent even when
+    // SQLite is opened with query_only and cannot begin an IMMEDIATE transaction.
+    final rows = await db.customSelect('''
+        WITH matching AS MATERIALIZED (
+          SELECT t.id FROM transaksis t $_monitoringContacts
+          WHERE $where ORDER BY ${_monitoringOrder('t')} LIMIT ${monitoringExportLimit + 1}
+        ), summary AS MATERIALIZED (
+        SELECT $_monitoringColumns,
+          (SELECT group_concat(DISTINCT nullif(trim(d.estimasi_waktu_snapshot), ''))
+            FROM transaksi_details d WHERE $_monitoringDetail) AS estimates,
+          (SELECT group_concat(DISTINCT nullif(trim(p.nama_proses_snapshot), ''))
+            FROM transaksi_details d JOIN transaksi_proses p
+              ON p.transaksi_detail_uuid=d.uuid AND p.transaksi_id=d.transaksi_id
+            WHERE $_monitoringDetail AND p.deleted_at IS NULL) AS processes
+        FROM matching JOIN transaksis t ON t.id=matching.id $_monitoringContacts
+        WHERE (SELECT count(*) FROM matching) <= $monitoringExportLimit
+        )
+        SELECT summary.*, $paymentColumns,
+          summary.id AS export_id, payments.id AS export_payment_id,
+          (SELECT count(*) FROM matching) AS export_count
+        FROM (SELECT 1) LEFT JOIN summary ON 1
+        LEFT JOIN transaksi_riwayat_pembayaran payments
+          ON payments.transaksi_id=summary.id AND payments.status=1 AND payments.deleted_at IS NULL
+        ORDER BY ${_monitoringOrder('summary')}, payments.id
+        ''', variables: variables).get();
+    final count = rows.first.read<int>('export_count');
+    if (count > monitoringExportLimit) {
+      throw StateError(
+        'Hasil melebihi $monitoringExportLimit transaksi. Persempit filter sebelum ekspor.',
+      );
+    }
+    if (count == 0) return [];
+    final result = <MonitoringExportRow>[];
+    for (var i = 0; i < rows.length;) {
+      final source = rows[i];
+      final id = source.read<int>('export_id');
+      final row = _monitoringRow(source);
+      final payments = <TransaksiRiwayatPembayaran>[];
+      while (i < rows.length && rows[i].read<int>('export_id') == id) {
+        final payment = rows[i++];
+        if (payment.readNullable<int>('export_payment_id') != null) {
+          payments.add(
+            db.transaksiRiwayatPembayarans.map(
+              payment.data,
+              tablePrefix: 'payment',
+            ),
+          );
+        }
+      }
+      result.add((
+        row: row,
+        estimates: source.readNullable<String>('estimates'),
+        processes: source.readNullable<String>('processes'),
+        remaining: TransactionPaymentStatement(
+          row.transaction,
+          payments,
+        ).remaining,
+      ));
+    }
+    return result;
   }
 
   Set<ResultSetImplementation> get _monitoringTables => {

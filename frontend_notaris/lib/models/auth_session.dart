@@ -28,17 +28,30 @@ class AuthSession {
   bool get canCorrectTransactionPayment =>
       groupType == 'superadmin' && hasTransactionAccess(update: true);
 
+  bool get canExportMonitoring =>
+      hasTransactionAccess() &&
+      sidebars.any((access) {
+        final sidebar = access['sidebar'];
+        return sidebar is Map &&
+            sidebar['sidebar_nama']?.toString().trim().toLowerCase() ==
+                'monitoring' &&
+            (sidebar['status'] == null || _enabled(sidebar['status'])) &&
+            _enabled(access['read']);
+      });
+
+  static bool _enabled(Object? value) =>
+      value == true || value == 1 || value == '1';
+
   bool hasTransactionAccess({bool create = false, bool update = false}) {
     if (userId <= 0) return false;
-    bool enabled(Object? value) => value == true || value == 1 || value == '1';
     return sidebars.any((access) {
       final sidebar = access['sidebar'];
       return sidebar is Map &&
           sidebar['sidebar_kode'] == 'transaksi' &&
-          (sidebar['status'] == null || enabled(sidebar['status'])) &&
-          enabled(access['read']) &&
-          (!create || enabled(access['create'])) &&
-          (!update || enabled(access['update']));
+          (sidebar['status'] == null || _enabled(sidebar['status'])) &&
+          _enabled(access['read']) &&
+          (!create || _enabled(access['create'])) &&
+          (!update || _enabled(access['update']));
     });
   }
 

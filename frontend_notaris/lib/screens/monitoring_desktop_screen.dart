@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,7 @@ import '../models/auth_session.dart';
 import '../models/transaction_monitoring.dart';
 import '../providers/auth_provider.dart';
 import '../providers/transaction_provider.dart';
+import '../services/monitoring_excel_export.dart';
 import '../widgets/transaksi_proses_list.dart';
 import '../core/theme/app_colors.dart';
 import '../core/widgets/transaction_review_dialog.dart';
@@ -39,7 +42,12 @@ String _monitoringMoney(double amount) =>
     'Rp ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.')}';
 
 class MonitoringDesktopScreen extends ConsumerStatefulWidget {
-  const MonitoringDesktopScreen({super.key});
+  const MonitoringDesktopScreen({
+    super.key,
+    this.exporter = const MonitoringExcelExport(),
+  });
+
+  final MonitoringExcelExport exporter;
 
   @override
   ConsumerState<MonitoringDesktopScreen> createState() =>
@@ -229,6 +237,7 @@ class _MonitoringDesktopScreenState
   final _searchDebouncer = Debouncer();
 
   String _searchQuery = '';
+  bool _exporting = false;
 
   void _changeType(MonitoringTransactionType type) {
     setState(() {
@@ -251,9 +260,10 @@ class _MonitoringDesktopScreenState
 
   @override
   Widget build(BuildContext context) {
-    if (!_canReadTransactions(
-      ref.watch(authControllerProvider.select((state) => state.session)),
-    )) {
+    final session = ref.watch(
+      authControllerProvider.select((state) => state.session),
+    );
+    if (!_canReadTransactions(session)) {
       return const Padding(
         padding: EdgeInsets.all(20),
         child: Text('Izin baca Transaksi diperlukan untuk membuka Monitoring.'),
@@ -283,7 +293,18 @@ class _MonitoringDesktopScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildPageHeader(mobile: mobile),
+              _buildPageHeader(
+                mobile: mobile,
+                export:
+                    Platform.isWindows &&
+                        session?.canExportMonitoring == true &&
+                        !_exporting
+                    ? () => _export(
+                        filter,
+                        options.asData?.value.officers[filter.officerId],
+                      )
+                    : null,
+              ),
               const SizedBox(height: 18),
               _buildFilters(options, mobile: mobile),
               const SizedBox(height: 18),
@@ -295,13 +316,48 @@ class _MonitoringDesktopScreenState
     );
   }
 
-  Widget _buildPageHeader({required bool mobile}) {
+  Future<void> _export(MonitoringFilter filter, String? officerLabel) async {
+    if (_exporting) return;
+    setState(() => _exporting = true);
+    String? message;
+    try {
+      final count = await widget.exporter.run(
+        repository: ref.read(transactionRepositoryProvider),
+        currentSession: () =>
+            mounted ? ref.read(authControllerProvider).session : null,
+        filter: filter,
+        officerLabel: officerLabel,
+      );
+      if (count != null) {
+        message = 'Excel tersimpan. $count transaksi diekspor.';
+      }
+    } on FileSystemException {
+      message = 'Excel gagal disimpan. Pilih nama file baru dan lokasi yang dapat ditulis.';
+    } on StateError catch (error) {
+      message = error.message;
+    } catch (_) {
+      message = 'Ekspor Excel gagal.';
+    } finally {
+      if (mounted) {
+        setState(() => _exporting = false);
+        if (message != null) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(message)));
+        }
+      }
+    }
+  }
+
+  Widget _buildPageHeader({
+    required bool mobile,
+    required VoidCallback? export,
+  }) {
     final excelButton = Tooltip(
-      message: 'Export Excel belum tersedia.',
+      message: 'Ekspor seluruh hasil filter ke Excel',
       child: ElevatedButton.icon(
-        onPressed: null,
+        onPressed: export,
         icon: const Icon(Icons.table_view_outlined, size: 18),
-        label: const Text('Excel'),
+        label: Text(_exporting ? 'Mengekspor…' : 'Excel'),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.green.shade600,
           foregroundColor: Colors.white,

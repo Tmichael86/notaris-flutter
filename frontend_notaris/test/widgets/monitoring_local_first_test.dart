@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
@@ -9,12 +10,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/core/widgets/app_shell.dart';
 import 'package:frontend_notaris/core/widgets/searchable_dropdown.dart';
 import 'package:frontend_notaris/database/app_database.dart';
+import 'package:frontend_notaris/models/auth_session.dart';
 import 'package:frontend_notaris/models/transaction_monitoring.dart';
 import 'package:frontend_notaris/providers/auth_provider.dart';
 import 'package:frontend_notaris/providers/database_provider.dart';
 import 'package:frontend_notaris/providers/transaction_provider.dart';
 import 'package:frontend_notaris/repositories/transaction_repository.dart';
 import 'package:frontend_notaris/screens/monitoring_desktop_screen.dart';
+import 'package:frontend_notaris/services/monitoring_excel_export.dart';
 
 import '../support/transaction_ui_test_support.dart';
 
@@ -271,21 +274,32 @@ void main() {
     bool allowed = true,
     bool rejectDatabase = false,
     List<Override> overrides = const [],
+    bool canExport = false,
+    MonitoringExcelExport exporter = const MonitoringExcelExport(),
   }) async {
+    final session = uiSession(permission: allowed);
+    if (canExport) {
+      session.sidebars.add({
+        'sidebar': {'sidebar_nama': 'Monitoring', 'status': 1},
+        'read': 1,
+      });
+    }
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           authControllerProvider.overrideWith(
-            (_) => TransactionUiAuth(uiSession(permission: allowed)),
+            (_) => TransactionUiAuth(session),
           ),
           appDatabaseProvider.overrideWith(
             (_) => rejectDatabase ? throw StateError('Query tanpa izin') : db,
           ),
           ...overrides,
         ],
-        child: const MaterialApp(
+        child: MaterialApp(
           home: Scaffold(
-            body: SingleChildScrollView(child: MonitoringDesktopScreen()),
+            body: SingleChildScrollView(
+              child: MonitoringDesktopScreen(exporter: exporter),
+            ),
           ),
         ),
       ),
@@ -367,6 +381,7 @@ void main() {
   testWidgets(
     'page navigation, Petugas, combined filters and Reset use the full result set',
     (tester) async {
+      final exporter = _RecordingExporter();
       tester.view.physicalSize = const Size(1366, 900);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -398,7 +413,7 @@ void main() {
           }
         }
       });
-      await mount(tester);
+      await mount(tester, canExport: true, exporter: exporter);
       Future<void> tap(Finder finder) async {
         await tester.ensureVisible(finder);
         await tester.tap(finder);
@@ -410,6 +425,17 @@ void main() {
       expect(find.text('Halaman 2 / 3'), findsOneWidget);
       expect(find.text('MON-15'), findsOneWidget);
       expect(find.text('MON-25'), findsNothing);
+      if (Platform.isWindows) {
+        await tester.ensureVisible(find.text('Excel'));
+        await tester.tap(find.text('Excel'));
+        await tester.pump();
+        expect(find.text('Mengekspor…'), findsOneWidget);
+        expect(exporter.filter?.index, 1);
+        exporter.outcome.complete(25);
+        await cycleUi(tester);
+        expect(find.textContaining('25 transaksi diekspor'), findsOneWidget);
+        expect(find.text('Halaman 2 / 3'), findsOneWidget);
+      }
       await tap(find.text('Previous'));
       expect(find.text('MON-25'), findsOneWidget);
       await tap(find.text('Next'));
@@ -614,4 +640,20 @@ void main() {
     unawaited(pages.close());
     await tester.pump();
   });
+}
+
+class _RecordingExporter extends MonitoringExcelExport {
+  final outcome = Completer<int?>();
+  MonitoringFilter? filter;
+
+  @override
+  Future<int?> run({
+    required TransactionRepository repository,
+    required AuthSession? Function() currentSession,
+    required MonitoringFilter filter,
+    String? officerLabel,
+  }) {
+    this.filter = filter;
+    return outcome.future;
+  }
 }

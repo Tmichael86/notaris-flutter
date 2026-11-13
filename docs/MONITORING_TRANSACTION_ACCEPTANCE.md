@@ -42,5 +42,8 @@ python $runner postcheck --id $id
 Each postcheck checks schema, integrity, FK, transaction counts, cursor, and the
 full SQLite SHA-256. Byte equality with the original fixture covers all rows
 and schema, including payment, process, audit, dirty, identity, and mutation
-state. The manual acceptance record is pending until both sessions and their
-postchecks pass. Excel remains disabled and is outside read-only V1.
+state. Both manual sessions and their postchecks passed on profile
+`397a5cb62ed78ec0f911ec971ac128c0`. The SQLite SHA-256 remained
+`1a9fc90cdb5217bd3dbd251b01d066c93599d87b9a2104238adb28efbf5f9f58`.
+The subsequent XLSX feature has a separate checklist in
+[Monitoring Excel Export](MONITORING_EXCEL_EXPORT.md).

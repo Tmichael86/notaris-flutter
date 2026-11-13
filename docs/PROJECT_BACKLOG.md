@@ -55,8 +55,8 @@ completed push, publisher, bidirectional/global sync or production release.
   implementation.md are backlog, not authorization to implement them now).
 - **Monitoring Transaksi — read-only V1 implemented.** Drift supplies the
   filterable Notaris/PPAT list and per-job process details. Final Windows
-  acceptance is tracked in MONITORING_TRANSACTION_ACCEPTANCE.md. Excel
-  export remains disabled and is an outstanding Laravel-parity item.
+  acceptance passed. The local XLSX export and its remaining parity gap
+  are tracked in MONITORING_EXCEL_EXPORT.md.
 - **Pengeluaran/Piutang/Penghasilan — prototype screens.** These screen files seed
   in-memory _PengeluaranItem/_PiutangItem/_Row lists. Complete persistence, payment/
   transaction linkage, business calculations, API authorization and acceptance.
