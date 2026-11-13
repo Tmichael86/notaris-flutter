@@ -7,6 +7,7 @@ import '../models/transaction_payments.dart';
 import '../providers/auth_provider.dart';
 import '../providers/database_provider.dart';
 import '../repositories/transaction_handover_repository.dart';
+import 'transaction_dialog_section.dart';
 
 class TransactionHandoverDialog extends ConsumerStatefulWidget {
   const TransactionHandoverDialog({super.key, required this.transactionId});
@@ -100,13 +101,9 @@ class _HandoverDialogState extends ConsumerState<TransactionHandoverDialog> {
         builder: (context, snapshot) {
           final data = allowed ? snapshot.data : null;
           return AlertDialog(
-            title: Text(
-              data == null
-                  ? 'Serah Terima Dokumen'
-                  : 'Serah Terima • ${data.number}',
-            ),
+            title: const Text('Serah Terima Dokumen'),
             content: SizedBox(
-              width: 540,
+              width: 580,
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,16 +118,35 @@ class _HandoverDialogState extends ConsumerState<TransactionHandoverDialog> {
                             : 'Memuat data cetak…',
                       )
                     else ...[
-                      const Text(
-                        'Data persiapan surat. Bukti resmi belum dapat dicetak karena identitas kantor dan pihak penyerah belum terverifikasi.',
+                      TransactionDialogSection(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Transaksi ${data.number}',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
+                            if (data.applicant case final applicant?)
+                              Text('Pemohon: $applicant'),
+                            if (data.staff case final staff?)
+                              Text('Petugas penanggung jawab: $staff'),
+                          ],
+                        ),
                       ),
-                      if (data.applicant case final applicant?)
-                        Text('Pemohon: $applicant'),
-                      if (data.staff case final staff?)
-                        Text('Petugas penanggung jawab: $staff'),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Data persiapan surat. Cetak resmi menunggu verifikasi identitas kantor dan pihak penyerah.',
+                      ),
                       if (_notice case final notice?) Text(notice),
                       const SizedBox(height: 12),
                       if (editing) ...[
+                        Text(
+                          _editing == null
+                              ? 'Tambah data cetak'
+                              : 'Edit data cetak',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 8),
                         TextField(
                           controller: _description,
                           enabled: !_saving,
@@ -156,30 +172,42 @@ class _HandoverDialogState extends ConsumerState<TransactionHandoverDialog> {
                             ),
                           ),
                       ] else if (data.records.isEmpty)
-                        const Text('Belum ada data cetak.')
+                        const TransactionDialogSection(
+                          child: Text('Belum ada data cetak.'),
+                        )
                       else
                         for (final record in data.records)
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(record.description ?? 'Uraian kosong'),
-                            subtitle: Text(
-                              [
-                                if (record.purpose case final purpose?)
-                                  'Keperluan: $purpose',
-                                'Dibuat ${formatPaymentDate(record.createdAt)} oleh akun #${record.createdBy}',
-                                if (record.updatedBy case final actor?)
-                                  'Diubah ${formatPaymentDate(record.updatedAt!)} oleh akun #$actor',
-                              ].join('\n'),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: TransactionDialogSection(
+                              child: ListTile(
+                                leading: const Icon(Icons.description_outlined),
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(
+                                  record.description ?? 'Uraian kosong',
+                                ),
+                                subtitle: Text(
+                                  [
+                                    if (record.purpose case final purpose?)
+                                      'Keperluan: $purpose',
+                                    'Dibuat ${formatPaymentDate(record.createdAt)} oleh akun #${record.createdBy}',
+                                    if (record.updatedBy case final actor?)
+                                      'Diubah ${formatPaymentDate(record.updatedAt!)} oleh akun #$actor',
+                                  ].join('\n'),
+                                ),
+                                trailing:
+                                    session?.hasTransactionAccess(
+                                          update: true,
+                                        ) ==
+                                        true
+                                    ? IconButton(
+                                        tooltip: 'Edit data cetak',
+                                        onPressed: () => _edit(record),
+                                        icon: const Icon(Icons.edit_outlined),
+                                      )
+                                    : null,
+                              ),
                             ),
-                            trailing:
-                                session?.hasTransactionAccess(update: true) ==
-                                    true
-                                ? IconButton(
-                                    tooltip: 'Edit data cetak',
-                                    onPressed: () => _edit(record),
-                                    icon: const Icon(Icons.edit_outlined),
-                                  )
-                                : null,
                           ),
                     ],
                   ],
