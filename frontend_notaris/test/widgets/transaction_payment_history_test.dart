@@ -99,6 +99,9 @@ void main() {
           expect(find.text('Total Dibayar  Rp 20'), findsOneWidget);
           expect(find.text('Sisa Tagihan  Rp 199.980'), findsOneWidget);
         }
+        tester.view.physicalSize = const Size(760, 540);
+        await tester.pumpAndSettle();
+        expect(find.text('Sisa Tagihan  Rp 199.980'), findsOneWidget);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump(const Duration(seconds: 1));

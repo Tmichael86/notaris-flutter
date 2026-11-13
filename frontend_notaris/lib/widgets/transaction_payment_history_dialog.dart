@@ -7,6 +7,7 @@ import '../database/app_database.dart';
 import '../models/transaction_payments.dart';
 import '../providers/auth_provider.dart';
 import '../providers/transaction_provider.dart';
+import 'transaction_dialog_section.dart';
 
 String _amountLabel(TransaksiRiwayatPembayaran row) {
   try {
@@ -38,88 +39,116 @@ class TransactionPaymentHistoryDialog extends ConsumerWidget {
     final canAdd = session?.hasTransactionAccess(update: true) == true;
     final canCorrect = session?.canCorrectTransactionPayment == true;
     return AlertDialog(
-      title: Text('Riwayat Pembayaran $transactionNumber'),
+      title: const Text('Riwayat Pembayaran'),
       content: SizedBox(
-        width: 580,
-        height: 340,
+        width: 620,
+        height: MediaQuery.sizeOf(context).height * .56,
         child:
             statement?.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (_, _) =>
                   const Center(child: Text('Gagal memuat riwayat pembayaran.')),
-              data: (data) => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              data: (data) => ListView(
                 children: [
-                  if (data.issue case final issue?) Text(issue),
-                  if (data.paid case final paid?)
-                    Text('Total Dibayar  ${formatPaymentRupiah(paid)}'),
-                  if (data.remaining case final remaining?) ...[
-                    Text('Sisa Tagihan  ${formatPaymentRupiah(remaining)}'),
-                    if (remaining < 0)
-                      const Text('Pembayaran historis melebihi tagihan.'),
-                  ],
-                  const Divider(),
-                  Expanded(
-                    child: data.payments.isEmpty
-                        ? const Center(
-                            child: Text('Belum ada riwayat pembayaran.'),
-                          )
-                        : ListView.separated(
-                            itemCount: data.payments.length,
-                            separatorBuilder: (_, _) =>
-                                const Divider(height: 1),
-                            itemBuilder: (context, index) {
-                              final row = data.payments[index];
-                              final active = isActivePayment(row);
-                              return ListTile(
-                                contentPadding: EdgeInsets.zero,
-                                title: Text(
-                                  'Cicilan ${row.urutanPembayaran} · ${_amountLabel(row)}',
-                                ),
-                                subtitle: Text(
-                                  '${formatPaymentDate(row.tanggalPembayaran)} · ${row.metodePembayaran}'
-                                  '${row.keterangan == null ? '' : ' · ${row.keterangan}'}\n'
-                                  '${active ? 'Aktif' : 'Dibatalkan'}',
-                                ),
-                                trailing:
-                                    active && canCorrect && data.issue == null
-                                    ? Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            tooltip:
-                                                'Edit cicilan ${row.urutanPembayaran}',
-                                            onPressed: () => _edit(
-                                              context,
-                                              ref,
-                                              id!,
-                                              row: row,
-                                            ),
-                                            icon: const Icon(
-                                              Icons.edit_outlined,
-                                            ),
-                                          ),
-                                          IconButton(
-                                            tooltip:
-                                                'Batalkan cicilan ${row.urutanPembayaran}',
-                                            onPressed: () => _edit(
-                                              context,
-                                              ref,
-                                              id!,
-                                              row: row,
-                                              cancel: true,
-                                            ),
-                                            icon: const Icon(
-                                              Icons.cancel_outlined,
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                    : null,
-                              );
-                            },
-                          ),
+                  Text(
+                    '${data.transaction.jenisTransaksi.toUpperCase()} · ${data.transaction.noAkta}',
+                    style: Theme.of(context).textTheme.titleSmall,
                   ),
+                  const SizedBox(height: 12),
+                  TransactionDialogSection(
+                    highlight: true,
+                    child: Wrap(
+                      spacing: 20,
+                      runSpacing: 8,
+                      children: [
+                        if (data.issue case final issue?)
+                          Text(issue)
+                        else ...[
+                          if (data.billed case final billed?)
+                            Text(
+                              'Total Tagihan  ${formatPaymentRupiah(billed)}',
+                            ),
+                          if (data.paid case final paid?)
+                            Text('Total Dibayar  ${formatPaymentRupiah(paid)}'),
+                          if (data.remaining case final remaining?) ...[
+                            Text(
+                              'Sisa Tagihan  ${formatPaymentRupiah(remaining)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            if (remaining < 0)
+                              const Text(
+                                'Pembayaran historis melebihi tagihan.',
+                              ),
+                          ],
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Rincian cicilan',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 8),
+                  if (data.payments.isEmpty)
+                    const TransactionDialogSection(
+                      child: Text('Belum ada riwayat pembayaran.'),
+                    )
+                  else
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: data.payments.length,
+                      separatorBuilder: (_, _) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final row = data.payments[index];
+                        final active = isActivePayment(row);
+                        return ListTile(
+                          leading: Icon(
+                            active
+                                ? Icons.receipt_long_outlined
+                                : Icons.history_outlined,
+                          ),
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            'Cicilan ${row.urutanPembayaran} · ${_amountLabel(row)}',
+                          ),
+                          subtitle: Text(
+                            '${formatPaymentDate(row.tanggalPembayaran)} · ${row.metodePembayaran}'
+                            '${row.keterangan == null ? '' : ' · ${row.keterangan}'}\n'
+                            '${active ? 'Aktif' : 'Dibatalkan'}',
+                          ),
+                          trailing: active && canCorrect && data.issue == null
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      tooltip:
+                                          'Edit cicilan ${row.urutanPembayaran}',
+                                      onPressed: () =>
+                                          _edit(context, ref, id!, row: row),
+                                      icon: const Icon(Icons.edit_outlined),
+                                    ),
+                                    IconButton(
+                                      tooltip:
+                                          'Batalkan cicilan ${row.urutanPembayaran}',
+                                      onPressed: () => _edit(
+                                        context,
+                                        ref,
+                                        id!,
+                                        row: row,
+                                        cancel: true,
+                                      ),
+                                      icon: const Icon(Icons.cancel_outlined),
+                                    ),
+                                  ],
+                                )
+                              : null,
+                        );
+                      },
+                    ),
                 ],
               ),
             ) ??
@@ -256,8 +285,10 @@ Future<void> _edit(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   if (cancel)
-                    Text(
-                      'Batalkan cicilan ${row!.urutanPembayaran} sebesar ${_amountLabel(row)}? Riwayat tetap tersimpan.',
+                    TransactionDialogSection(
+                      child: Text(
+                        'Batalkan cicilan ${row!.urutanPembayaran} sebesar ${_amountLabel(row)}? Riwayat tetap tersimpan.',
+                      ),
                     )
                   else ...[
                     TextField(
@@ -268,6 +299,7 @@ Future<void> _edit(
                         labelText: 'Nominal (Rp)',
                       ),
                     ),
+                    const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: method,
                       decoration: const InputDecoration(
@@ -289,6 +321,7 @@ Future<void> _edit(
                           ? null
                           : (value) => setState(() => method = value ?? method),
                     ),
+                    const SizedBox(height: 12),
                     OutlinedButton.icon(
                       onPressed: saving
                           ? null
@@ -318,10 +351,13 @@ Future<void> _edit(
                     ),
                   ],
                   if (row != null)
-                    TextField(
-                      controller: reason,
-                      enabled: !saving,
-                      decoration: const InputDecoration(labelText: 'Alasan'),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: TextField(
+                        controller: reason,
+                        enabled: !saving,
+                        decoration: const InputDecoration(labelText: 'Alasan'),
+                      ),
                     ),
                   if (error case final message?)
                     Text(
@@ -340,6 +376,12 @@ Future<void> _edit(
               ),
               FilledButton(
                 onPressed: saving ? null : save,
+                style: cancel
+                    ? FilledButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.error,
+                        foregroundColor: Theme.of(context).colorScheme.onError,
+                      )
+                    : null,
                 child: Text(cancel ? 'Konfirmasi Pembatalan' : 'Simpan'),
               ),
             ],
