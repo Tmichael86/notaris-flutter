@@ -11,9 +11,12 @@ import 'package:frontend_notaris/models/auth_session.dart';
 import 'package:frontend_notaris/services/transaction_manual_sync_service.dart';
 import 'package:frontend_notaris/repositories/transaction_repository.dart';
 import 'package:frontend_notaris/repositories/transaction_cloud_repository.dart';
+import 'package:frontend_notaris/repositories/transaction_document_cloud_guard.dart';
 import 'package:frontend_notaris/repositories/transaction_handover_repository.dart';
 import 'package:frontend_notaris/repositories/sync_log_repository.dart';
 import 'package:frontend_notaris/repositories/sync_monitor_repository.dart';
+
+import '../database/transaction_document_schema_test.dart' show seedDocument;
 
 class Transport implements HttpClientAdapter {
   int calls = 0;
@@ -111,7 +114,7 @@ void main() {
   ).read()).singleWhere((r) => r['module'] == 'transaksi_notaris');
   setUp(() async {
     folder = await Directory.systemTemp.createTemp('transaction_manual_unit_');
-    db = AppDatabase.forTesting(
+    db = DocumentProfileDatabase(
       NativeDatabase(File('${folder.path}/a.sqlite')),
     );
     await db.customSelect('SELECT 1').get();
@@ -938,6 +941,162 @@ void main() {
       ],
     );
   }
+
+  test(
+    'local document blocks only its owning transaction before HTTP or ACK',
+    () async {
+      final owner = (await (db.select(
+        db.transaksis,
+      )..where((row) => row.id.equals(id))).getSingle()).uuid;
+      final other = await ppat();
+      await seedDocument(db, owner, null);
+      final cloud = TransactionCloudRepository(
+        db,
+        http,
+        scope: profile.transactionScope,
+        petugasScope: profile.petugasScope,
+        masterScope: profile.masterScope,
+      );
+      final eligibility = await service().checkUploadEligibility(
+        selectedModule: 'transaksi_notaris',
+        transactionId: id,
+        uuid: owner,
+      );
+      expect(eligibility, contains(transactionDocumentUploadBlock));
+      await expectLater(
+        cloud.pushCreate(id),
+        throwsA(
+          isA<StateError>().having(
+            (error) => error.message,
+            'message',
+            transactionDocumentUploadBlock,
+          ),
+        ),
+      );
+      expect(transport.calls, 0);
+      expect(
+        await db.customSelect('SELECT * FROM transaction_cloud_pending').get(),
+        isEmpty,
+      );
+      expect(
+        await db.customSelect('SELECT * FROM transaction_cloud_feed').get(),
+        isEmpty,
+      );
+      expect(
+        await db.customSelect('SELECT * FROM transaction_cloud_identity').get(),
+        isEmpty,
+      );
+
+      await run(
+        ManualSyncDirection.upload,
+        selectedId: other,
+        module: 'transaksi_ppat',
+      );
+      expect(transport.calls, 1);
+      expect(transport.aggregate!['domain'], 'ppat');
+      expect(transport.aggregate!['uuid'], isNot(owner));
+    },
+  );
+
+  test('replay retains document metadata and rejects cross-owner detail without advancing cursor', () async {
+    await run(ManualSyncDirection.upload, selectedId: id);
+    final accepted = transport.aggregate!;
+    final detail = (accepted['details'] as List).single as Map;
+    final cloud = TransactionCloudRepository(
+      db,
+      http,
+      scope: profile.transactionScope,
+      petugasScope: profile.petugasScope,
+      masterScope: profile.masterScope,
+    );
+    void serve(int revision, String operation, Map<String, dynamic> aggregate) {
+      transport.respond = (_) async => Transport.json({
+        'changes': [
+          {
+            'sequence': revision,
+            'revision': revision,
+            'operation': operation,
+            'aggregate': aggregate,
+          },
+        ],
+        'next_cursor': revision,
+        'has_more': false,
+      }, 200);
+    }
+
+    serve(1, 'create', accepted);
+    await expectLater(
+      seedDocument(db, accepted['uuid'] as String, detail['uuid'] as String),
+      throwsException,
+    );
+    expect((await cloud.pullBatch(confirmAcknowledgements: true)).cursor, 1);
+    await seedDocument(
+      db,
+      accepted['uuid'] as String,
+      detail['uuid'] as String,
+    );
+    Future<List<Map<String, Object?>>> attachment() async => [
+      for (final table in [
+        'transaction_documents',
+        'transaction_document_versions',
+      ])
+        (await db.customSelect('SELECT * FROM $table').getSingle()).data,
+    ];
+    final before = await attachment();
+    final updated = {
+      ...accepted,
+      'expected_revision': 1,
+      'mutation_id': '00000000-0000-4000-8000-000000000212',
+      'header': {...accepted['header'] as Map, 'note': 'Updated'},
+    };
+    final other = await ppat();
+    final foreignDetail = await (db.select(
+      db.transaksiDetails,
+    )..where((row) => row.transaksiId.equals(other))).getSingle();
+    serve(2, 'update', {
+      ...updated,
+      'details': [
+        {...detail, 'uuid': foreignDetail.uuid},
+      ],
+    });
+    await expectLater(
+      cloud.pullBatch(),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          'Detail UUID belongs to another transaction',
+        ),
+      ),
+    );
+    expect(
+      (await db
+              .customSelect('SELECT cursor FROM transaction_cloud_feed')
+              .getSingle())
+          .read<int>('cursor'),
+      1,
+    );
+    expect(await attachment(), before);
+    serve(2, 'update', updated);
+    expect((await cloud.pullBatch()).cursor, 2);
+    expect(await attachment(), before);
+    serve(3, 'delete', {
+      ...updated,
+      'expected_revision': 2,
+      'mutation_id': '00000000-0000-4000-8000-000000000213',
+      'deleted_at': '2026-11-12T07:00:00Z',
+    });
+    expect((await cloud.pullBatch()).cursor, 3);
+    expect(await attachment(), before);
+    expect(
+      (await db
+              .customSelect('SELECT deleted_at FROM transaksis WHERE id=$id')
+              .getSingle())
+          .data['deleted_at'],
+      isNotNull,
+    );
+    expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
+  });
 
   test(
     'local payment audit blocks a newer feed without changing cursor or ACK',

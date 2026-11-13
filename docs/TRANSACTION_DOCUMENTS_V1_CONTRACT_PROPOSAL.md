@@ -1,12 +1,15 @@
 # Usulan Kontrak V1 Lampiran Transaksi
 
-**Status usulan untuk persetujuan produk.** Baseline desain adalah `ee94b4d`,
-Drift v24. Kelola Dokumen tetap nonaktif sampai implementasi dan acceptance
-disetujui. Kontrak berlaku sama untuk Notaris dan PPAT.
+**Kontrak produk V1 disetujui pada instruksi Phase A.** Aturan ini berlaku
+sama untuk Notaris dan PPAT. Phase A mencakup impor, daftar aktif, preview
+lokal, ekspor eksplisit bila diperlukan, pelaporan file hilang atau rusak,
+persistensi, otorisasi, dan isolasi profil. Replace, archive, restore, dan
+akses histori adalah Phase B. Kelola Dokumen baru dapat diaktifkan setelah
+operasi Phase A dan pemeriksaan keamanannya lulus.
 
-## 1. Fakta Laravel dan keputusan baru
+## 1. Fakta Laravel dan keputusan produk V1
 
-| Terverifikasi dari checkout Laravel | Usulan produk V1 |
+| Terverifikasi dari checkout Laravel | Keputusan produk V1 |
 | --- | --- |
 | UI aktif memiliki Cetak Invoice dan Cetak Serah Terima. `cetakDokumen` tidak memiliki rantai lengkap dari UI hingga penyimpanan. | Lampiran berupa byte file yang diimpor ke penyimpanan lokal aplikasi. PDF hasil cetak, data Serah Terima, dan data akta tetap fitur terpisah. |
 | Tidak ditemukan kepemilikan, versi, izin aksi, atau retensi lampiran transaksi. Validasi unggah gambar akun hanya berlaku untuk akun. | Kepemilikan transaksi dengan detail opsional, PDF/JPEG/PNG hingga 20 MiB per versi, izin per aksi, versi lama dipertahankan, dan arsip tanpa hapus permanen. |
@@ -31,7 +34,7 @@ Temuan dan rujukan kode Laravel ada pada [audit Slice 7](TRANSACTION_DOCUMENTS_A
   transaksi tersebut, termasuk saat membuka versi lama. Detail opsional juga
   diverifikasi dengan PK dan UUID lokal. Aksi dari pilihan UI lama ditolak
   saat owner, detail, atau sesi telah berubah.
-- Usulan untuk soft delete existing. Transaksi atau detail yang dihapus
+- Aturan soft delete existing. Transaksi atau detail yang dihapus
   mempertahankan kaitan dan byte lampiran, tetapi dokumen terkait disembunyikan
   dan aksinya diblokir selama owner/detail nonaktif. Restore owner/detail lewat
   alur existing membuat dokumen yang masih aktif terlihat kembali. Arsip tetap
@@ -46,9 +49,9 @@ tabel usulan. Waktu dicatat dalam UTC dan ditampilkan dalam waktu lokal.
 | Tabel | Kolom utama dan batasan |
 | --- | --- |
 | `transaction_document_store` | Satu baris `id = 1` dengan `store_uuid` unik. Dibuat saat inisialisasi penyimpanan untuk DB yang sudah terverifikasi. UUID ini mengikat DB dan manifest direktori file. |
-| `transaction_documents` | `document_uuid` PK, `transaksi_id` wajib FK, `transaksi_detail_id` opsional FK, `created_at/by`, `updated_at/by`, `archived_at/by` berpasangan dan awalnya NULL. Indeks `(transaksi_id, archived_at, created_at, document_uuid)` dan indeks untuk FK detail. |
+| `transaction_documents` | `document_uuid` PK, `transaksi_uuid` wajib FK, `detail_uuid` opsional FK, `created_at/by`, `updated_at/by`, `archived_at/by` berpasangan dan awalnya NULL. Indeks `(transaksi_uuid, archived_at, created_at, document_uuid)` dan indeks untuk FK detail. |
 | `transaction_document_versions` | `version_uuid` PK, `document_uuid` FK, `version_number >= 1`, `original_display_name`, `byte_size` dalam 1–20.971.520, `media_type` dari allowlist, `sha256` berbentuk 64 digit heksadesimal lowercase, `created_at/by`. `UNIQUE(document_uuid, version_number)`. Versi aktif adalah versi committed dengan nomor tertinggi. |
-| `transaction_document_operations` | `operation_uuid` PK, `action`, `state`, `actor_user_id`, `actor_group_id`, `started_at`, `finished_at`, `transaksi_id`, `transaksi_detail_id` opsional, `document_uuid`, `version_uuid` bila berlaku, `expected_version` bila berlaku, metadata byte terverifikasi setelah staging, dan `error_code` tersanitasi bila gagal. Baris intent boleh menunjuk dokumen/versi yang belum dibuat. Setelah hasil terminal, baris menjadi bukti audit dan idempotency. Indeks `(state, started_at)`. |
+| `transaction_document_operations` | `operation_uuid` PK, `action`, `state`, `actor_user_id`, `actor_group_id`, `started_at`, `finished_at`, `transaksi_uuid`, `detail_uuid` opsional, `document_uuid`, `version_uuid` bila berlaku, `expected_version` bila berlaku, metadata byte terverifikasi setelah staging, dan `error_code` tersanitasi bila gagal. Baris intent boleh menunjuk dokumen/versi yang belum dibuat. Setelah hasil terminal, baris menjadi bukti audit dan idempotency. Indeks `(state, started_at)`. |
 
 FK memakai `RESTRICT` untuk data yang sudah committed. Periksa relasi detail
 ke transaksi/domain dan immutability owner/versi di repository dan dengan
@@ -92,12 +95,18 @@ otomatis.
 
 | Aksi | Syarat sesi | Hasil |
 | --- | --- | --- |
-| List dan inspect | Read `transaksi` | Daftar dokumen aktif pada owner yang diminta. Histori versi dan arsip melalui tampilan eksplisit. Metadata atau kondisi file ditampilkan sesuai bukti yang tersedia. |
-| Open | Read `transaksi` | Buka versi yang dipilih atau versi terakhir, sesudah verifikasi owner, ukuran dan SHA-256 dari byte yang sama dengan yang diberikan ke viewer. Gunakan viewer yang disetujui, baca saja, dengan akses ke file managed melalui handle yang tervalidasi atau salinan baca terisolasi. |
-| Export | Read `transaksi` | Salin byte versi terverifikasi ke tujuan lokal pilihan pengguna. Gunakan publish tanpa overwrite, termasuk saat tujuan muncul sesudah dialog. Tolak tujuan yang mengarah ke store aplikasi atau DB. Jangan meninggalkan file tujuan parsial yang terlihat berhasil. |
+| List dan inspect aktif | Read `transaksi` | Daftar dokumen aktif pada owner yang diminta. Metadata atau kondisi file ditampilkan sesuai bukti yang tersedia. |
+| Open versi aktif | Read `transaksi` | Buka versi aktif sesudah verifikasi owner, ukuran dan SHA-256 dari byte yang sama dengan yang diberikan ke viewer. Gunakan viewer baca saja dengan akses melalui handle yang tervalidasi atau salinan baca terisolasi. PDF dirender lokal tanpa scripting atau peluncuran aplikasi eksternal otomatis. |
+| Export versi aktif | Read `transaksi` | Salin byte versi terverifikasi ke tujuan lokal pilihan pengguna. Gunakan publish tanpa overwrite, termasuk saat tujuan muncul sesudah dialog. Tolak tujuan yang mengarah ke store aplikasi atau DB. Jangan meninggalkan file tujuan parsial yang terlihat berhasil. |
 | Import | Read + Update `transaksi` | Salin file yang dipilih, validasi, lalu commit dokumen baru dan versi 1. Sumber tetap utuh. |
-| Replace | Read + Update `transaksi` dan `groupType == 'superadmin'` terverifikasi | Tambah versi dengan nomor berikutnya hanya jika versi yang diharapkan masih aktif dan dokumen belum diarsipkan. Versi lama dan byte lama tetap tersedia. |
-| Archive | Read + Update `transaksi` dan `groupType == 'superadmin'` terverifikasi | Commit perubahan `archived_at/by` dan audit. Gunakan versi yang diharapkan dan tolak perubahan bersamaan. File dan histori tetap tersedia pada tampilan arsip. |
+| Histori versi dan akses arsip (Phase B) | Read + Update `transaksi` dan `groupType == 'superadmin'` terverifikasi | Meliputi daftar, inspect, open, dan export versi sebelumnya atau dokumen terarsip. |
+| Replace (Phase B) | Read + Update `transaksi` dan `groupType == 'superadmin'` terverifikasi | Tambah versi dengan nomor berikutnya hanya jika versi yang diharapkan masih aktif dan dokumen belum diarsipkan. Versi lama dan byte lama tetap tersedia. |
+| Archive (Phase B) | Read + Update `transaksi` dan `groupType == 'superadmin'` terverifikasi | Commit perubahan `archived_at/by` dan audit. Gunakan versi yang diharapkan dan tolak perubahan bersamaan. File dan histori tetap tersedia pada tampilan arsip. |
+| Restore arsip (Phase B) | Read + Update `transaksi` dan `groupType == 'superadmin'` terverifikasi | Aktifkan kembali dokumen terarsip setelah verifikasi owner/detail, arsip dan versi yang diharapkan. Pertahankan identitas dan seluruh versi. Catat audit restore secara atomik. |
+
+Keputusan terbaru menggantikan proposal sebelumnya yang memberi pembaca
+akses histori/arsip dan mengecualikan restore arsip dari V1. Restore arsip
+berbeda dari Restore transaksi melalui Recycle Bin existing.
 
 Gunakan `AuthSession.hasTransactionAccess` untuk permission dan pola role
 terverifikasi seperti koreksi pembayaran. Otorisasi ada di repository/service
@@ -125,8 +134,9 @@ rusak. Tidak ada fallback otomatis ke dokumen lain atau versi lama.
   validasi. MIME dari pemilih file dan magic bytes saja tidak cukup.
 - Periksa signature dan struktur dengan parser/decoder yang dibatasi sumber
   dayanya. Tetapkan batas dimensi/decode gambar dan kompleksitas PDF sebelum
-  implementasi. File rusak, ambigu, tidak dapat divalidasi, atau memerlukan
-  password ditolak pada usulan V1. Usulan PDF hanya untuk dokumen pasif.
+  preview dapat diaktifkan. JPEG dan PNG harus berhasil didekode. File rusak,
+  ambigu, tidak dapat divalidasi, atau memerlukan password ditolak. PDF
+  dirender secara pasif.
   Konten aktif atau attachment tertanam ditolak dan viewer tidak menjalankan
   skrip, aksi eksternal, atau membuka koneksi jaringan. Tipe file yang sah
   tetap diperlakukan sebagai input tidak tepercaya.
@@ -137,7 +147,8 @@ rusak. Tidak ada fallback otomatis ke dokumen lain atau versi lama.
   atau deduplikasi lintas dokumen.
 - Histori menampilkan versi, nama file pada versi itu, aktor dan waktu.
   Arsip mempertahankan seluruh versi, metadata, dan byte. V1 tidak menyediakan
-  rename, restore arsip, hapus permanen, atau retensi otomatis. Jika disk
+  rename, hapus permanen, garbage collection otomatis, atau kedaluwarsa
+  retensi. Restore arsip dikerjakan pada Phase B. Jika disk
   penuh, laporkan kegagalan sebelum metadata dokumen dipublikasikan. Ruang
   penyimpanan perlu dimasukkan dalam backup profil.
 
@@ -171,7 +182,9 @@ Status intent yang diusulkan adalah `staging`, `verified`, `interrupted`,
 `committed`, dan `rejected`. `committed` dan `rejected` adalah hasil terminal.
 `verified` menyimpan ukuran, tipe, dan hash sehingga recovery dapat mengenali
 stage atau blob final tanpa bergantung pada catatan filesystem tambahan.
-Status `interrupted` tidak menyatakan bahwa versi sudah committed.
+`rejected` hanya dipakai bila ketiadaan blob final sudah dipastikan. Jika blob
+final mungkin ada tanpa commit, gunakan `interrupted` agar Upload tetap
+terblokir sampai hasil operasi diketahui.
 
 SQLite dan filesystem tidak berbagi transaksi atomik. Listrik padam atau
 kerusakan disk tetap bisa meninggalkan blob tanpa metadata, atau metadata
@@ -192,8 +205,9 @@ journal, cursor, pembayaran, akta, atau data Serah Terima. Tidak ada endpoint,
 PostgreSQL, publisher, unggahan byte, atau path dalam payload cloud.
 
 `TransactionHandoverRepository.cloudBlockReason` memberi preseden guard lokal
-yang digunakan serializer dan readiness Upload. Usulan V1 memblokir Upload
-transaksi yang punya dokumen committed, termasuk arsip, di kedua jalur agar
+yang digunakan serializer dan readiness Upload. V1 memblokir Upload
+transaksi yang punya dokumen committed, termasuk arsip, atau intent impor
+yang belum selesai, di kedua jalur agar
 serialisasi aggregate tidak diam-diam menghilangkan lampiran. Mutasi dokumen
 juga ditolak bila ada jurnal cloud yang belum selesai untuk owner itu. Pada
 commit, cek jurnal di transaksi SQLite yang sama dengan mutasi dokumen.
@@ -226,28 +240,58 @@ tahan manipulasi oleh administrator lokal.
 | --- | --- |
 | 1. Metadata dan guard | Fresh schema dan upgrade Drift v24 → v25 melalui migrasi existing. Fingerprint seluruh tabel lama, transaksi, child, pembayaran, dan sync state identik. Integrity OK dan FK 0. Coba FK OFF, detail lintas transaksi/domain, rekey, akses tanpa izin, sesi expired, dan lintas profil. |
 | 2. Storage dan operasi | Uji PDF/JPEG/PNG valid, boundary 20 MiB, ekstensi palsu, corrupt, konten aktif, path Windows berbahaya, nama Unicode/panjang/duplikat, disk penuh, sumber tetap identik, serta hash byte. Injeksi kegagalan di setiap tahap, termasuk sebelum/sesudah rename dan commit ambigu. Uji retry, restart, replace serentak, arsip, file hilang, restore pasangan snapshot/blob, dan histori. |
-| 3. UI dan acceptance Windows | Hubungkan aksi pada Dokumen & Catatan setelah fase sebelumnya lulus. Gunakan profil baru, satu transaksi per domain, operator Update, pembaca dan superadmin terverifikasi, serta sampel ber-hash. Verifikasi initial → import → open/export → replace/archive → restart. Periksa byte, izin, owner dan fingerprint data terlindungi setelah tiap fase. |
+| 3. UI dan acceptance Windows | Hubungkan aksi pada Dokumen & Catatan setelah fase sebelumnya lulus. Gunakan profil baru, satu transaksi per domain, operator Update dan pembaca, serta sampel ber-hash. Verifikasi INITIAL → IMPORT → OPEN → RESTART → READ-ONLY PERMISSION. Periksa byte, izin, owner dan fingerprint data terlindungi setelah tiap fase. |
 | 4. Readiness rollout | Regresi guard Upload dan replay, termasuk konflik detail dan tombstone. Dokumentasikan recovery, backup dan batas viewer. Rollout serta migrasi profil development asli memerlukan persetujuan terpisah. |
 
 Reuse Drift `AppDatabase`, provider database dan sesi, serta pola repository
 Transaksi dan Serah Terima. Tambahkan repository dokumen dan komponen storage
 yang menerima binding profil dari wiring existing. Jangan menambahkan router,
-mesin sync, atau mengganti shared shell. Fase desain saat ini hanya mengubah
-dokumen ini. SQLite development asli, PostgreSQL, dan profil demo tidak dibuka.
+mesin sync, atau mengganti shared shell. SQLite development asli, PostgreSQL,
+dan profil demo lama tidak digunakan untuk implementasi maupun acceptance.
 
-## 11. Keputusan yang perlu disetujui produk
+## 11. Checkpoint implementasi dan dependensi Phase B
 
-1. Setujui kepemilikan opsional per detail, visibilitas setelah soft delete
-   owner/detail, serta akses read untuk histori versi dan arsip.
-2. Setujui PDF pasif/JPEG/PNG hingga 20 MiB, penolakan PDF berpassword atau
-   berfitur aktif, batas decoding, dan viewer Windows yang disetujui. Usulan
-   tujuan ekspor dibatasi ke volume lokal, tanpa overwrite.
-3. Setujui izin per aksi, replace/archive khusus superadmin dengan izin Update,
-   dan retensi semua versi tanpa restore arsip atau hapus permanen di V1.
-   Putuskan apakah kuota per profil diperlukan sebelum rollout.
-4. Setujui blok Upload selama transaksi memiliki lampiran, termasuk arsip, dan
-   kebijakan gagal tertutup saat replay akan memutus hubungan. Putuskan apakah
-   cakupan fase pertama hanya profil demonstrasi atau profil lokal lainnya.
-5. Setujui backup berpasangan dan proses review untuk blob yatim atau file
-   hilang sebelum menentukan pengelola recovery. Storage ber-ACL tanpa
-   enkripsi aplikasi perlu diterima sebagai batas proteksi V1.
+1. Store Windows membuka satu komponen path pada satu waktu relatif terhadap
+   handle direktori. Ia menolak reparse point, drive jaringan, ADS, dan sumber
+   di dalam direktori managed. Direktori dan file managed memakai DACL
+   terlindung dengan satu ACE untuk SID pengguna proses. File sumber dibuka
+   tanpa write/delete sharing, disalin dan di-hash per 64 KiB, lalu diperiksa
+   kembali. Store memakai lock eksklusif Windows dan rename relatif terhadap
+   handle tujuan NTFS tanpa overwrite. Nama file sumber hanya masuk metadata.
+   Mekanisme handle relatif dan rename mengikuti kontrak Windows.
+   [NtCreateFile](https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntcreatefile)
+   [FILE_RENAME_INFORMATION](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information)
+2. Repository memeriksa izin Transaksi, pemilik dan detail, dan path DB yang
+   sedang dibuka. Ia memverifikasi byte sebelum commit dan sebelum memberi
+   hasil baca. Setelah commit gagal, operasi verified dapat dipulihkan oleh
+   aktor dan pemilik yang sama dari staging atau blob yang cocok. Staging yang
+   belum terverifikasi dan file tak dikenal dipertahankan. Batas listrik padam
+   dan backup berpasangan pada bagian 7 tetap berlaku.
+3. PDF memakai helper lokal terpisah dari jalur Invoice dengan PDFium build
+   Chromium 5200 yang dibundel `printing` 5.15.1. Dimensi dicek sebelum
+   alokasi bitmap, dengan maksimum 1.536 piksel per sisi dan 2.097.152 piksel
+   per preview. Proses dibatasi job 256 MiB, lima detik waktu CPU pengguna,
+   serta timeout wall-clock sepuluh detik di Flutter. Worker tidak memulai
+   form-fill, skrip, aksi tautan, atau handler sistem. Pemeriksaan attachment
+   dan daftar JavaScript memakai API PDFium. Fixture dengan OpenAction, aksi
+   tambahan, Launch, URI, JavaScript, dan SubmitForm menguji jalur render
+   tanpa mengaktifkan form-fill atau callback. Job membatasi sumber daya.
+   Parser native masih berjalan dengan hak pengguna Windows yang sama dan
+   tetap memiliki risiko bug parser. [API aksi PDFium](https://pdfium.googlesource.com/pdfium/+/a793e97ab5e1b336096368615e54ebef5ddfcc93/public/fpdf_formfill.h)
+   [Batas memori Job Object](https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-jobobject_basic_limit_information)
+   Gambar memakai batas sumber 8.192 piksel per sisi dan 16.777.216 piksel
+   total sebelum decode, lalu memakai batas output yang sama dengan PDF.
+   File valid yang gagal dirender tetap dapat disimpan jika validasi impornya
+   sudah lulus. Batas ukuran file tetap 20 MiB.
+4. Storage pada checkpoint ini menggunakan direktori `transaction-documents`
+   dengan hash path profil DB dan UUID store dari SQLite. Manifest menyimpan
+   keduanya dan diverifikasi setiap kali store dibuka. Prosedur backup dan
+   restore/portabilitas masih memerlukan acceptance. Runtime v25 dan UI
+   Kelola Dokumen tersedia lewat entrypoint disposable `document_demo_main`.
+   Launcher profil lama tetap memakai database dan versi skema masing-masing.
+5. Phase B memerlukan acceptance Phase A, cek konkurensi replace/restore,
+   verifikasi superadmin untuk setiap akses histori/arsip, serta pengujian
+   backup dan restore pasangan SQLite/byte. Tidak ada UI Phase B di sini.
+6. Rollout profil existing memerlukan backup dan persetujuan terpisah. Kuota
+   per profil dan penanggung jawab review blob yatim perlu ditetapkan sebelum
+   rollout jika memang diperlukan secara operasional.

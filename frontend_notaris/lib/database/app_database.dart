@@ -14,6 +14,7 @@ import 'pengeluaran_tables.dart';
 import 'daos/pekerjaan_dao.dart';
 
 part 'app_database.g.dart';
+part 'transaction_document_schema.dart';
 
 // 1. Tabel Pemohon
 class Pemohons extends Table {
@@ -293,6 +294,7 @@ class AppDatabase extends _$AppDatabase {
       await _createRecycleBinStorage();
       await _createPaymentAuditStorage();
       if (schemaVersion >= 24) await _createHandoverStorage();
+      if (schemaVersion >= 25) await _createTransactionDocumentStorage();
       await _protectPengeluaranReferences();
     },
     onUpgrade: (Migrator m, int from, int to) async {
@@ -501,6 +503,7 @@ class AppDatabase extends _$AppDatabase {
           await _createPaymentAuditStorage();
         }
         if (from < 24 && to >= 24) await _createHandoverStorage();
+        if (from < 25 && to >= 25) await _createTransactionDocumentStorage();
       });
     },
   );
@@ -817,6 +820,14 @@ class AppDatabase extends _$AppDatabase {
       ),
     );
   }
+}
+
+/// Schema v25 for the explicitly bound document profile runtime.
+class DocumentProfileDatabase extends AppDatabase {
+  DocumentProfileDatabase(super.executor) : super.forTesting();
+
+  @override
+  int get schemaVersion => 25;
 }
 
 LazyDatabase _openConnection() {

@@ -15,6 +15,7 @@ import 'providers/auth_provider.dart';
 import 'providers/database_provider.dart';
 import 'providers/development_smoke_provider.dart';
 import 'providers/petugas_manual_sync_provider.dart';
+import 'providers/transaction_document_provider.dart';
 import 'services/auth_service.dart';
 
 const completionDemoSchema = 21;
@@ -180,6 +181,7 @@ void runCompletionDemo(
   AppDatabase db, {
   bool allowReadOnly = false,
   AuthService Function(Dio)? auth,
+  TransactionDocumentProfile? documents,
 }) {
   final dio = Dio(BaseOptions(baseUrl: 'http://127.0.0.1:0'));
   runApp(
@@ -200,6 +202,8 @@ void runCompletionDemo(
         ),
         developmentUiSmokeProvider.overrideWithValue(true),
         petugasManualEnabledProvider.overrideWithValue(false),
+        if (documents != null)
+          transactionDocumentProfileProvider.overrideWithValue(documents),
       ],
       child: const Directionality(
         textDirection: TextDirection.ltr,

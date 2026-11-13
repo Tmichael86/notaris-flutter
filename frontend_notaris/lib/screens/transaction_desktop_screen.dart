@@ -16,10 +16,12 @@ import '../models/transaction_payments.dart';
 import '../providers/people_provider.dart';
 import '../providers/pekerjaan_provider.dart';
 import '../providers/transaction_provider.dart';
+import '../providers/transaction_document_provider.dart';
 import '../repositories/transaction_repository.dart';
 import '../widgets/transaksi_proses_list.dart';
 import '../widgets/ppat_completion_dialog.dart';
 import '../widgets/transaction_invoice_dialog.dart';
+import '../widgets/transaction_document_dialog.dart';
 import '../widgets/transaction_handover_dialog.dart';
 import '../widgets/transaction_payment_history_dialog.dart';
 
@@ -2353,6 +2355,11 @@ class _TransactionDesktopScreenState
   }
 
   Widget documentsStep() {
+    final transactionId = int.tryParse(_editingTransactionId ?? '');
+    final enabled = ref.watch(transactionDocumentProfileProvider) != null;
+    final canRead =
+        ref.watch(authControllerProvider).session?.hasTransactionAccess() ==
+        true;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2369,18 +2376,18 @@ class _TransactionDesktopScreenState
                   color: AppColors.background,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.info_outline,
                       size: 20,
                       color: AppColors.textSecondary,
                     ),
-                    SizedBox(width: 10),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Pengelolaan lampiran transaksi belum tersedia. Aturan penyimpanan dan akses dokumen belum terverifikasi.',
-                        style: TextStyle(
+                        enabled ? 'Lampiran disimpan lokal pada profil ini.' : 'Pengelolaan lampiran transaksi belum tersedia. Aturan penyimpanan dan akses dokumen belum terverifikasi.',
+                        style: const TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 13,
                         ),
@@ -2391,7 +2398,15 @@ class _TransactionDesktopScreenState
               ),
               const SizedBox(height: 16),
               OutlinedButton.icon(
-                onPressed: null,
+                onPressed: !enabled || !canRead || transactionId == null
+                    ? null
+                    : () => showDialog<void>(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) => TransactionDocumentDialog(
+                          transactionId: transactionId,
+                        ),
+                      ),
                 style: outlinedButtonStyle(),
                 icon: const Icon(Icons.folder_outlined, size: 18),
                 label: const Text('Kelola Dokumen'),

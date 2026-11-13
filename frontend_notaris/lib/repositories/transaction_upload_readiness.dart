@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import '../database/app_database.dart';
 import 'transaction_cloud_references.dart';
 import 'transaction_cloud_repository.dart';
+import 'transaction_document_cloud_guard.dart';
 import 'transaction_handover_repository.dart';
 
 /// Read-only assessment, never authorization, mutation creation or scope binding.
@@ -22,6 +23,10 @@ class TransactionUploadReadiness {
     final header = await (db.select(
       db.transaksis,
     )..where((r) => r.id.equals(id))).getSingle();
+    if (await transactionDocumentUploadBlockReason(db, header.uuid)
+        case final reason?) {
+      issues.add(reason);
+    }
     if (await TransactionCloudRepository.localCompletionBlockReason(db, header)
         case final reason?) {
       issues.add(reason);
