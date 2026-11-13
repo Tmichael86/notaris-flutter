@@ -295,3 +295,13 @@ dan profil demo lama tidak digunakan untuk implementasi maupun acceptance.
 6. Rollout profil existing memerlukan backup dan persetujuan terpisah. Kuota
    per profil dan penanggung jawab review blob yatim perlu ditetapkan sebelum
    rollout jika memang diperlukan secara operasional.
+
+## 12. Backlog Phase B untuk koreksi salah impor
+
+Operator dapat mengedit metadata tampilan dengan audit. Replace membuat versi
+immutable baru dan mempertahankan byte serta riwayat versi lama. Untuk salah
+transaksi, arsipkan dokumen di transaksi asal dan impor file yang benar ke
+transaksi tujuan melalui alur impor. Dokumen terarsip mempertahankan byte,
+kepemilikan, dan audit, serta dapat direstorasi oleh akun berizin. Archive,
+restore, dan replace memerlukan superadmin terverifikasi dengan Update
+Transaksi. V1 tidak menyediakan penghapusan permanen.

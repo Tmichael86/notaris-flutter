@@ -1,6 +1,7 @@
 """Prepare and verify the disposable offline Windows document demo."""
 
 import argparse
+from collections import Counter
 from contextlib import closing
 import hashlib
 import json
@@ -71,17 +72,34 @@ def source_hashes(root):
     return {name: sha(root / name) for name in samples}
 
 
+def verify_owners(records, stage):
+    names = Counter(row['name'] for row in records)
+    unexpected = sum(count for name, count in names.items() if name not in samples)
+    require(unexpected == 0, f'Dokumen tambahan di luar skenario: {unexpected}.')
+    issues = []
+    for name, (owner, _, _) in samples.items():
+        number = '1001111260001' if owner == 'notaris' else '2001111260001'
+        if any(row['name'] == name and row['domain'] != owner for row in records):
+            issues.append(f'Owner dokumen salah: {name} harus di {owner.upper()} {number}')
+        if names[name] > 1:
+            issues.append(f'Dokumen duplikat: {name} ({names[name]} salinan)')
+        if stage and stage != 'initial' and not names[name]:
+            issues.append(f'Dokumen wajib belum diimpor: {name}')
+    require(not issues, '. '.join(issues) + '.' if issues else '')
+
+
 def verify(root, baseline, stage=None):
     protected, records, store = snapshot(root)
-    require(protected == baseline['protected_sha256'] and baseline['source_sha256'] == source_hashes(root),
-            'Data terlindungi atau sampel sumber berubah.')
-    names = [row['name'] for row in records]
-    require(len(names) == len(set(names)) and set(names) <= samples.keys(), 'Dokumen demo di luar skenario.')
+    require(protected == baseline['protected_sha256'],
+            f"Fingerprint SQLite terlindungi berubah (expected {baseline['protected_sha256']}, aktual {protected}).")
+    sources = source_hashes(root)
+    for name in samples:
+        require(sources[name] == baseline['source_sha256'].get(name), f'SHA-256 sampel sumber berubah: {name}.')
+    require(sources == baseline['source_sha256'], 'Daftar hash sampel sumber berbeda dari baseline.')
     if stage == 'initial':
         require(not records and store is None and not os.path.lexists(root / 'transaction-documents'),
                 'Profil initial sudah memiliki lampiran.')
-    elif stage:
-        require(set(names) == samples.keys(), 'Impor ketiga fixture sebelum postcheck.')
+    verify_owners(records, stage)
     if records:
         require(re.fullmatch('[a-f0-9-]{36}', store or ''), 'Store UUID tidak valid.')
         key = hashlib.sha256(str(root / 'offline.sqlite').lower().encode()).hexdigest()
@@ -92,15 +110,16 @@ def verify(root, baseline, stage=None):
         require(manifest == {'format': 1, 'profile_key': key, 'store_uuid': store}, 'Manifest store berbeda.')
         blob_names = set()
         for row in records:
-            domain, media_type, ext = samples[row['name']]
-            require(row['domain'] == domain and row['media_type'] == media_type and row['created_by'] == 1 and
+            _, media_type, ext = samples[row['name']]
+            require(row['media_type'] == media_type and row['created_by'] == 1 and
                     row['detail_uuid'] is None and re.fullmatch('[a-f0-9-]{36}', row['version_uuid']),
-                    'Owner, metadata atau aktor impor berbeda.')
+                    f"Metadata atau aktor impor berbeda: {row['name']}.")
             blob = home / 'blobs' / f"{row['version_uuid']}.{ext}"
             blob_names.add(blob.name)
+            require(os.path.lexists(blob), f"File managed hilang: {row['name']}.")
             require(row['sha256'] == baseline['source_sha256'][row['name']] == sha(blob) and
                     row['byte_size'] == blob.stat().st_size == (root / row['name']).stat().st_size,
-                    'Byte, ukuran atau SHA-256 file managed berbeda.')
+                    f"Byte, ukuran atau SHA-256 file managed berbeda: {row['name']}.")
         require({entry.name for entry in (home / 'blobs').iterdir()} == blob_names and
                 not any((home / 'staging').iterdir()), 'Ada blob atau staging di luar skenario.')
     return records
@@ -133,17 +152,37 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=('prepare', 'launch', 'postcheck'))
     parser.add_argument('--id')
+    parser.add_argument('--samples-from')
     parser.add_argument('--expect', choices=stages)
     args = parser.parse_args()
     legacy['maintenance'](24)
     if args.action == 'prepare':
         require(args.id is None, 'Prepare selalu menggunakan ID baru.')
+        verified_samples = None
+        if args.samples_from:
+            source = plain(root_for(args.samples_from), directory=True)
+            require(plain(source / 'owner').read_text(encoding='ascii') == args.samples_from,
+                    'Marker profil sampel berbeda.')
+            require(not os.path.lexists(source / 'launch.lock'), 'Profil sampel sedang digunakan.')
+            source_baseline = json.loads(plain(source / 'baseline.json').read_text(encoding='utf-8'))
+            verified_samples = {name: plain(source / name).read_bytes() for name in samples}
+            require(source_baseline['id'] == args.samples_from and
+                    {name: hashlib.sha256(data).hexdigest() for name, data in verified_samples.items()}
+                    == source_baseline['source_sha256'], 'SHA-256 sampel sumber berbeda.')
         id = uuid4().hex
         root = root_for(id)
         root.mkdir()
         (root / 'owner').write_text(id, encoding='ascii')
+        env = {**os.environ, 'NOTARIS_DOCUMENT_PREPARE': id}
+        env.pop('NOTARIS_DOCUMENT_REUSE_SAMPLES', None)
+        if verified_samples is not None:
+            env['NOTARIS_DOCUMENT_REUSE_SAMPLES'] = '1'
         subprocess.run(['flutter.bat', 'test', '--no-pub', 'test/database/document_demo_prepare_test.dart'],
-                       cwd=front, env={**os.environ, 'NOTARIS_DOCUMENT_PREPARE': id}, check=True)
+                       cwd=front, env=env, check=True)
+        if verified_samples is not None:
+            for name, data in verified_samples.items():
+                with (root / name).open('xb') as stream:
+                    stream.write(data)
         protected, _, _ = snapshot(root)
         baseline = {'id': id, 'protected_sha256': protected, 'source_sha256': source_hashes(root)}
         (root / 'baseline.json').write_text(json.dumps(baseline, indent=2), encoding='utf-8')
@@ -151,6 +190,7 @@ def main():
         print(f'PREPARED {id} | {root / "offline.sqlite"}')
         return
 
+    require(args.samples_from is None, '--samples-from hanya berlaku saat prepare.')
     id = args.id
     root = plain(root_for(id), directory=True)
     require(plain(root / 'owner').read_text(encoding='ascii') == id, 'Marker profil berbeda.')

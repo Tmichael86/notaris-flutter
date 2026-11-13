@@ -53,6 +53,7 @@ void main() {
     } finally {
       await runtime.close();
     }
+    if (Platform.environment['NOTARIS_DOCUMENT_REUSE_SAMPLES'] == '1') return;
     await File(p.join(root.path, 'Salinan Fidusia.pdf'))
         .writeAsBytes(await samplePdf(595, 842));
     await File(p.join(root.path, 'Foto AJB.jpg')).writeAsBytes(sampleJpeg());
