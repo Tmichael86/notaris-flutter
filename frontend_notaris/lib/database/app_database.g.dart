@@ -1546,6 +1546,39 @@ class $TransaksisTable extends Transaksis
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _judulAktaMeta = const VerificationMeta(
+    'judulAkta',
+  );
+  @override
+  late final GeneratedColumn<String> judulAkta = GeneratedColumn<String>(
+    'judul_akta',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nomorAktaMeta = const VerificationMeta(
+    'nomorAkta',
+  );
+  @override
+  late final GeneratedColumn<String> nomorAkta = GeneratedColumn<String>(
+    'nomor_akta',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tanggalAktaMeta = const VerificationMeta(
+    'tanggalAkta',
+  );
+  @override
+  late final GeneratedColumn<DateTime> tanggalAkta = GeneratedColumn<DateTime>(
+    'tanggal_akta',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _totalMeta = const VerificationMeta('total');
   @override
   late final GeneratedColumn<double> total = GeneratedColumn<double>(
@@ -1768,6 +1801,9 @@ class $TransaksisTable extends Transaksis
     id,
     uuid,
     noAkta,
+    judulAkta,
+    nomorAkta,
+    tanggalAkta,
     total,
     pemohonId,
     pemohonUuid,
@@ -1818,6 +1854,27 @@ class $TransaksisTable extends Transaksis
       );
     } else if (isInserting) {
       context.missing(_noAktaMeta);
+    }
+    if (data.containsKey('judul_akta')) {
+      context.handle(
+        _judulAktaMeta,
+        judulAkta.isAcceptableOrUnknown(data['judul_akta']!, _judulAktaMeta),
+      );
+    }
+    if (data.containsKey('nomor_akta')) {
+      context.handle(
+        _nomorAktaMeta,
+        nomorAkta.isAcceptableOrUnknown(data['nomor_akta']!, _nomorAktaMeta),
+      );
+    }
+    if (data.containsKey('tanggal_akta')) {
+      context.handle(
+        _tanggalAktaMeta,
+        tanggalAkta.isAcceptableOrUnknown(
+          data['tanggal_akta']!,
+          _tanggalAktaMeta,
+        ),
+      );
     }
     if (data.containsKey('total')) {
       context.handle(
@@ -1989,6 +2046,18 @@ class $TransaksisTable extends Transaksis
         DriftSqlType.string,
         data['${effectivePrefix}no_akta'],
       )!,
+      judulAkta: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}judul_akta'],
+      ),
+      nomorAkta: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nomor_akta'],
+      ),
+      tanggalAkta: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}tanggal_akta'],
+      ),
       total: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}total'],
@@ -2078,6 +2147,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
   final int id;
   final String uuid;
   final String noAkta;
+  final String? judulAkta;
+  final String? nomorAkta;
+  final DateTime? tanggalAkta;
   final double total;
   final int? pemohonId;
   final String? pemohonUuid;
@@ -2101,6 +2173,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
     required this.id,
     required this.uuid,
     required this.noAkta,
+    this.judulAkta,
+    this.nomorAkta,
+    this.tanggalAkta,
     required this.total,
     this.pemohonId,
     this.pemohonUuid,
@@ -2127,6 +2202,15 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
     map['id'] = Variable<int>(id);
     map['uuid'] = Variable<String>(uuid);
     map['no_akta'] = Variable<String>(noAkta);
+    if (!nullToAbsent || judulAkta != null) {
+      map['judul_akta'] = Variable<String>(judulAkta);
+    }
+    if (!nullToAbsent || nomorAkta != null) {
+      map['nomor_akta'] = Variable<String>(nomorAkta);
+    }
+    if (!nullToAbsent || tanggalAkta != null) {
+      map['tanggal_akta'] = Variable<DateTime>(tanggalAkta);
+    }
     map['total'] = Variable<double>(total);
     if (!nullToAbsent || pemohonId != null) {
       map['pemohon_id'] = Variable<int>(pemohonId);
@@ -2176,6 +2260,15 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
       id: Value(id),
       uuid: Value(uuid),
       noAkta: Value(noAkta),
+      judulAkta: judulAkta == null && nullToAbsent
+          ? const Value.absent()
+          : Value(judulAkta),
+      nomorAkta: nomorAkta == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nomorAkta),
+      tanggalAkta: tanggalAkta == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tanggalAkta),
       total: Value(total),
       pemohonId: pemohonId == null && nullToAbsent
           ? const Value.absent()
@@ -2229,6 +2322,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
       id: serializer.fromJson<int>(json['id']),
       uuid: serializer.fromJson<String>(json['uuid']),
       noAkta: serializer.fromJson<String>(json['noAkta']),
+      judulAkta: serializer.fromJson<String?>(json['judulAkta']),
+      nomorAkta: serializer.fromJson<String?>(json['nomorAkta']),
+      tanggalAkta: serializer.fromJson<DateTime?>(json['tanggalAkta']),
       total: serializer.fromJson<double>(json['total']),
       pemohonId: serializer.fromJson<int?>(json['pemohonId']),
       pemohonUuid: serializer.fromJson<String?>(json['pemohonUuid']),
@@ -2263,6 +2359,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
       'id': serializer.toJson<int>(id),
       'uuid': serializer.toJson<String>(uuid),
       'noAkta': serializer.toJson<String>(noAkta),
+      'judulAkta': serializer.toJson<String?>(judulAkta),
+      'nomorAkta': serializer.toJson<String?>(nomorAkta),
+      'tanggalAkta': serializer.toJson<DateTime?>(tanggalAkta),
       'total': serializer.toJson<double>(total),
       'pemohonId': serializer.toJson<int?>(pemohonId),
       'pemohonUuid': serializer.toJson<String?>(pemohonUuid),
@@ -2289,6 +2388,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
     int? id,
     String? uuid,
     String? noAkta,
+    Value<String?> judulAkta = const Value.absent(),
+    Value<String?> nomorAkta = const Value.absent(),
+    Value<DateTime?> tanggalAkta = const Value.absent(),
     double? total,
     Value<int?> pemohonId = const Value.absent(),
     Value<String?> pemohonUuid = const Value.absent(),
@@ -2312,6 +2414,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
     id: id ?? this.id,
     uuid: uuid ?? this.uuid,
     noAkta: noAkta ?? this.noAkta,
+    judulAkta: judulAkta.present ? judulAkta.value : this.judulAkta,
+    nomorAkta: nomorAkta.present ? nomorAkta.value : this.nomorAkta,
+    tanggalAkta: tanggalAkta.present ? tanggalAkta.value : this.tanggalAkta,
     total: total ?? this.total,
     pemohonId: pemohonId.present ? pemohonId.value : this.pemohonId,
     pemohonUuid: pemohonUuid.present ? pemohonUuid.value : this.pemohonUuid,
@@ -2341,6 +2446,11 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
       id: data.id.present ? data.id.value : this.id,
       uuid: data.uuid.present ? data.uuid.value : this.uuid,
       noAkta: data.noAkta.present ? data.noAkta.value : this.noAkta,
+      judulAkta: data.judulAkta.present ? data.judulAkta.value : this.judulAkta,
+      nomorAkta: data.nomorAkta.present ? data.nomorAkta.value : this.nomorAkta,
+      tanggalAkta: data.tanggalAkta.present
+          ? data.tanggalAkta.value
+          : this.tanggalAkta,
       total: data.total.present ? data.total.value : this.total,
       pemohonId: data.pemohonId.present ? data.pemohonId.value : this.pemohonId,
       pemohonUuid: data.pemohonUuid.present
@@ -2391,6 +2501,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
           ..write('id: $id, ')
           ..write('uuid: $uuid, ')
           ..write('noAkta: $noAkta, ')
+          ..write('judulAkta: $judulAkta, ')
+          ..write('nomorAkta: $nomorAkta, ')
+          ..write('tanggalAkta: $tanggalAkta, ')
           ..write('total: $total, ')
           ..write('pemohonId: $pemohonId, ')
           ..write('pemohonUuid: $pemohonUuid, ')
@@ -2419,6 +2532,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
     id,
     uuid,
     noAkta,
+    judulAkta,
+    nomorAkta,
+    tanggalAkta,
     total,
     pemohonId,
     pemohonUuid,
@@ -2446,6 +2562,9 @@ class Transaksi extends DataClass implements Insertable<Transaksi> {
           other.id == this.id &&
           other.uuid == this.uuid &&
           other.noAkta == this.noAkta &&
+          other.judulAkta == this.judulAkta &&
+          other.nomorAkta == this.nomorAkta &&
+          other.tanggalAkta == this.tanggalAkta &&
           other.total == this.total &&
           other.pemohonId == this.pemohonId &&
           other.pemohonUuid == this.pemohonUuid &&
@@ -2471,6 +2590,9 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
   final Value<int> id;
   final Value<String> uuid;
   final Value<String> noAkta;
+  final Value<String?> judulAkta;
+  final Value<String?> nomorAkta;
+  final Value<DateTime?> tanggalAkta;
   final Value<double> total;
   final Value<int?> pemohonId;
   final Value<String?> pemohonUuid;
@@ -2494,6 +2616,9 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
     this.id = const Value.absent(),
     this.uuid = const Value.absent(),
     this.noAkta = const Value.absent(),
+    this.judulAkta = const Value.absent(),
+    this.nomorAkta = const Value.absent(),
+    this.tanggalAkta = const Value.absent(),
     this.total = const Value.absent(),
     this.pemohonId = const Value.absent(),
     this.pemohonUuid = const Value.absent(),
@@ -2518,6 +2643,9 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
     this.id = const Value.absent(),
     required String uuid,
     required String noAkta,
+    this.judulAkta = const Value.absent(),
+    this.nomorAkta = const Value.absent(),
+    this.tanggalAkta = const Value.absent(),
     required double total,
     this.pemohonId = const Value.absent(),
     this.pemohonUuid = const Value.absent(),
@@ -2544,6 +2672,9 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
     Expression<int>? id,
     Expression<String>? uuid,
     Expression<String>? noAkta,
+    Expression<String>? judulAkta,
+    Expression<String>? nomorAkta,
+    Expression<DateTime>? tanggalAkta,
     Expression<double>? total,
     Expression<int>? pemohonId,
     Expression<String>? pemohonUuid,
@@ -2568,6 +2699,9 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
       if (id != null) 'id': id,
       if (uuid != null) 'uuid': uuid,
       if (noAkta != null) 'no_akta': noAkta,
+      if (judulAkta != null) 'judul_akta': judulAkta,
+      if (nomorAkta != null) 'nomor_akta': nomorAkta,
+      if (tanggalAkta != null) 'tanggal_akta': tanggalAkta,
       if (total != null) 'total': total,
       if (pemohonId != null) 'pemohon_id': pemohonId,
       if (pemohonUuid != null) 'pemohon_uuid': pemohonUuid,
@@ -2594,6 +2728,9 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
     Value<int>? id,
     Value<String>? uuid,
     Value<String>? noAkta,
+    Value<String?>? judulAkta,
+    Value<String?>? nomorAkta,
+    Value<DateTime?>? tanggalAkta,
     Value<double>? total,
     Value<int?>? pemohonId,
     Value<String?>? pemohonUuid,
@@ -2618,6 +2755,9 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
       id: id ?? this.id,
       uuid: uuid ?? this.uuid,
       noAkta: noAkta ?? this.noAkta,
+      judulAkta: judulAkta ?? this.judulAkta,
+      nomorAkta: nomorAkta ?? this.nomorAkta,
+      tanggalAkta: tanggalAkta ?? this.tanggalAkta,
       total: total ?? this.total,
       pemohonId: pemohonId ?? this.pemohonId,
       pemohonUuid: pemohonUuid ?? this.pemohonUuid,
@@ -2651,6 +2791,15 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
     }
     if (noAkta.present) {
       map['no_akta'] = Variable<String>(noAkta.value);
+    }
+    if (judulAkta.present) {
+      map['judul_akta'] = Variable<String>(judulAkta.value);
+    }
+    if (nomorAkta.present) {
+      map['nomor_akta'] = Variable<String>(nomorAkta.value);
+    }
+    if (tanggalAkta.present) {
+      map['tanggal_akta'] = Variable<DateTime>(tanggalAkta.value);
     }
     if (total.present) {
       map['total'] = Variable<double>(total.value);
@@ -2718,6 +2867,9 @@ class TransaksisCompanion extends UpdateCompanion<Transaksi> {
           ..write('id: $id, ')
           ..write('uuid: $uuid, ')
           ..write('noAkta: $noAkta, ')
+          ..write('judulAkta: $judulAkta, ')
+          ..write('nomorAkta: $nomorAkta, ')
+          ..write('tanggalAkta: $tanggalAkta, ')
           ..write('total: $total, ')
           ..write('pemohonId: $pemohonId, ')
           ..write('pemohonUuid: $pemohonUuid, ')
@@ -4162,6 +4314,28 @@ class $TransaksiDetailsTable extends TransaksiDetails
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _hargaUuidMeta = const VerificationMeta(
+    'hargaUuid',
+  );
+  @override
+  late final GeneratedColumn<String> hargaUuid = GeneratedColumn<String>(
+    'harga_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _kategoriUuidMeta = const VerificationMeta(
+    'kategoriUuid',
+  );
+  @override
+  late final GeneratedColumn<String> kategoriUuid = GeneratedColumn<String>(
+    'kategori_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _estimasiWaktuSnapshotMeta =
       const VerificationMeta('estimasiWaktuSnapshot');
   @override
@@ -4220,6 +4394,51 @@ class $TransaksiDetailsTable extends TransaksiDetails
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _statusPekerjaanPpatMeta =
+      const VerificationMeta('statusPekerjaanPpat');
+  @override
+  late final GeneratedColumn<String> statusPekerjaanPpat =
+      GeneratedColumn<String>(
+        'status_pekerjaan_ppat',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _judulAktaPpatMeta = const VerificationMeta(
+    'judulAktaPpat',
+  );
+  @override
+  late final GeneratedColumn<String> judulAktaPpat = GeneratedColumn<String>(
+    'judul_akta_ppat',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nomorAktaPpatMeta = const VerificationMeta(
+    'nomorAktaPpat',
+  );
+  @override
+  late final GeneratedColumn<String> nomorAktaPpat = GeneratedColumn<String>(
+    'nomor_akta_ppat',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tanggalAktaPpatMeta = const VerificationMeta(
+    'tanggalAktaPpat',
+  );
+  @override
+  late final GeneratedColumn<DateTime> tanggalAktaPpat =
+      GeneratedColumn<DateTime>(
+        'tanggal_akta_ppat',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -4299,11 +4518,17 @@ class $TransaksiDetailsTable extends TransaksiDetails
     pekerjaanPpatId,
     namaPekerjaanSnapshot,
     kategoriSnapshot,
+    hargaUuid,
+    kategoriUuid,
     estimasiWaktuSnapshot,
     prosesSnapshot,
     biayaLayanan,
     biayaLainnya,
     totalSnapshot,
+    statusPekerjaanPpat,
+    judulAktaPpat,
+    nomorAktaPpat,
+    tanggalAktaPpat,
     createdAt,
     updatedAt,
     status,
@@ -4394,6 +4619,21 @@ class $TransaksiDetailsTable extends TransaksiDetails
         ),
       );
     }
+    if (data.containsKey('harga_uuid')) {
+      context.handle(
+        _hargaUuidMeta,
+        hargaUuid.isAcceptableOrUnknown(data['harga_uuid']!, _hargaUuidMeta),
+      );
+    }
+    if (data.containsKey('kategori_uuid')) {
+      context.handle(
+        _kategoriUuidMeta,
+        kategoriUuid.isAcceptableOrUnknown(
+          data['kategori_uuid']!,
+          _kategoriUuidMeta,
+        ),
+      );
+    }
     if (data.containsKey('estimasi_waktu_snapshot')) {
       context.handle(
         _estimasiWaktuSnapshotMeta,
@@ -4436,6 +4676,42 @@ class $TransaksiDetailsTable extends TransaksiDetails
         totalSnapshot.isAcceptableOrUnknown(
           data['total_snapshot']!,
           _totalSnapshotMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status_pekerjaan_ppat')) {
+      context.handle(
+        _statusPekerjaanPpatMeta,
+        statusPekerjaanPpat.isAcceptableOrUnknown(
+          data['status_pekerjaan_ppat']!,
+          _statusPekerjaanPpatMeta,
+        ),
+      );
+    }
+    if (data.containsKey('judul_akta_ppat')) {
+      context.handle(
+        _judulAktaPpatMeta,
+        judulAktaPpat.isAcceptableOrUnknown(
+          data['judul_akta_ppat']!,
+          _judulAktaPpatMeta,
+        ),
+      );
+    }
+    if (data.containsKey('nomor_akta_ppat')) {
+      context.handle(
+        _nomorAktaPpatMeta,
+        nomorAktaPpat.isAcceptableOrUnknown(
+          data['nomor_akta_ppat']!,
+          _nomorAktaPpatMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tanggal_akta_ppat')) {
+      context.handle(
+        _tanggalAktaPpatMeta,
+        tanggalAktaPpat.isAcceptableOrUnknown(
+          data['tanggal_akta_ppat']!,
+          _tanggalAktaPpatMeta,
         ),
       );
     }
@@ -4522,6 +4798,14 @@ class $TransaksiDetailsTable extends TransaksiDetails
         DriftSqlType.string,
         data['${effectivePrefix}kategori_snapshot'],
       ),
+      hargaUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}harga_uuid'],
+      ),
+      kategoriUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}kategori_uuid'],
+      ),
       estimasiWaktuSnapshot: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}estimasi_waktu_snapshot'],
@@ -4542,6 +4826,22 @@ class $TransaksiDetailsTable extends TransaksiDetails
         DriftSqlType.double,
         data['${effectivePrefix}total_snapshot'],
       )!,
+      statusPekerjaanPpat: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status_pekerjaan_ppat'],
+      ),
+      judulAktaPpat: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}judul_akta_ppat'],
+      ),
+      nomorAktaPpat: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}nomor_akta_ppat'],
+      ),
+      tanggalAktaPpat: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}tanggal_akta_ppat'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -4584,11 +4884,17 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
   final int? pekerjaanPpatId;
   final String namaPekerjaanSnapshot;
   final String? kategoriSnapshot;
+  final String? hargaUuid;
+  final String? kategoriUuid;
   final String? estimasiWaktuSnapshot;
   final String? prosesSnapshot;
   final double biayaLayanan;
   final double biayaLainnya;
   final double totalSnapshot;
+  final String? statusPekerjaanPpat;
+  final String? judulAktaPpat;
+  final String? nomorAktaPpat;
+  final DateTime? tanggalAktaPpat;
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final int status;
@@ -4604,11 +4910,17 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     this.pekerjaanPpatId,
     required this.namaPekerjaanSnapshot,
     this.kategoriSnapshot,
+    this.hargaUuid,
+    this.kategoriUuid,
     this.estimasiWaktuSnapshot,
     this.prosesSnapshot,
     required this.biayaLayanan,
     required this.biayaLainnya,
     required this.totalSnapshot,
+    this.statusPekerjaanPpat,
+    this.judulAktaPpat,
+    this.nomorAktaPpat,
+    this.tanggalAktaPpat,
     this.createdAt,
     this.updatedAt,
     required this.status,
@@ -4633,6 +4945,12 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     if (!nullToAbsent || kategoriSnapshot != null) {
       map['kategori_snapshot'] = Variable<String>(kategoriSnapshot);
     }
+    if (!nullToAbsent || hargaUuid != null) {
+      map['harga_uuid'] = Variable<String>(hargaUuid);
+    }
+    if (!nullToAbsent || kategoriUuid != null) {
+      map['kategori_uuid'] = Variable<String>(kategoriUuid);
+    }
     if (!nullToAbsent || estimasiWaktuSnapshot != null) {
       map['estimasi_waktu_snapshot'] = Variable<String>(estimasiWaktuSnapshot);
     }
@@ -4642,6 +4960,18 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     map['biaya_layanan'] = Variable<double>(biayaLayanan);
     map['biaya_lainnya'] = Variable<double>(biayaLainnya);
     map['total_snapshot'] = Variable<double>(totalSnapshot);
+    if (!nullToAbsent || statusPekerjaanPpat != null) {
+      map['status_pekerjaan_ppat'] = Variable<String>(statusPekerjaanPpat);
+    }
+    if (!nullToAbsent || judulAktaPpat != null) {
+      map['judul_akta_ppat'] = Variable<String>(judulAktaPpat);
+    }
+    if (!nullToAbsent || nomorAktaPpat != null) {
+      map['nomor_akta_ppat'] = Variable<String>(nomorAktaPpat);
+    }
+    if (!nullToAbsent || tanggalAktaPpat != null) {
+      map['tanggal_akta_ppat'] = Variable<DateTime>(tanggalAktaPpat);
+    }
     if (!nullToAbsent || createdAt != null) {
       map['created_at'] = Variable<DateTime>(createdAt);
     }
@@ -4675,6 +5005,12 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       kategoriSnapshot: kategoriSnapshot == null && nullToAbsent
           ? const Value.absent()
           : Value(kategoriSnapshot),
+      hargaUuid: hargaUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(hargaUuid),
+      kategoriUuid: kategoriUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(kategoriUuid),
       estimasiWaktuSnapshot: estimasiWaktuSnapshot == null && nullToAbsent
           ? const Value.absent()
           : Value(estimasiWaktuSnapshot),
@@ -4684,6 +5020,18 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       biayaLayanan: Value(biayaLayanan),
       biayaLainnya: Value(biayaLainnya),
       totalSnapshot: Value(totalSnapshot),
+      statusPekerjaanPpat: statusPekerjaanPpat == null && nullToAbsent
+          ? const Value.absent()
+          : Value(statusPekerjaanPpat),
+      judulAktaPpat: judulAktaPpat == null && nullToAbsent
+          ? const Value.absent()
+          : Value(judulAktaPpat),
+      nomorAktaPpat: nomorAktaPpat == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nomorAktaPpat),
+      tanggalAktaPpat: tanggalAktaPpat == null && nullToAbsent
+          ? const Value.absent()
+          : Value(tanggalAktaPpat),
       createdAt: createdAt == null && nullToAbsent
           ? const Value.absent()
           : Value(createdAt),
@@ -4717,6 +5065,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
         json['namaPekerjaanSnapshot'],
       ),
       kategoriSnapshot: serializer.fromJson<String?>(json['kategoriSnapshot']),
+      hargaUuid: serializer.fromJson<String?>(json['hargaUuid']),
+      kategoriUuid: serializer.fromJson<String?>(json['kategoriUuid']),
       estimasiWaktuSnapshot: serializer.fromJson<String?>(
         json['estimasiWaktuSnapshot'],
       ),
@@ -4724,6 +5074,12 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       biayaLayanan: serializer.fromJson<double>(json['biayaLayanan']),
       biayaLainnya: serializer.fromJson<double>(json['biayaLainnya']),
       totalSnapshot: serializer.fromJson<double>(json['totalSnapshot']),
+      statusPekerjaanPpat: serializer.fromJson<String?>(
+        json['statusPekerjaanPpat'],
+      ),
+      judulAktaPpat: serializer.fromJson<String?>(json['judulAktaPpat']),
+      nomorAktaPpat: serializer.fromJson<String?>(json['nomorAktaPpat']),
+      tanggalAktaPpat: serializer.fromJson<DateTime?>(json['tanggalAktaPpat']),
       createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
       status: serializer.fromJson<int>(json['status']),
@@ -4744,6 +5100,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       'pekerjaanPpatId': serializer.toJson<int?>(pekerjaanPpatId),
       'namaPekerjaanSnapshot': serializer.toJson<String>(namaPekerjaanSnapshot),
       'kategoriSnapshot': serializer.toJson<String?>(kategoriSnapshot),
+      'hargaUuid': serializer.toJson<String?>(hargaUuid),
+      'kategoriUuid': serializer.toJson<String?>(kategoriUuid),
       'estimasiWaktuSnapshot': serializer.toJson<String?>(
         estimasiWaktuSnapshot,
       ),
@@ -4751,6 +5109,10 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       'biayaLayanan': serializer.toJson<double>(biayaLayanan),
       'biayaLainnya': serializer.toJson<double>(biayaLainnya),
       'totalSnapshot': serializer.toJson<double>(totalSnapshot),
+      'statusPekerjaanPpat': serializer.toJson<String?>(statusPekerjaanPpat),
+      'judulAktaPpat': serializer.toJson<String?>(judulAktaPpat),
+      'nomorAktaPpat': serializer.toJson<String?>(nomorAktaPpat),
+      'tanggalAktaPpat': serializer.toJson<DateTime?>(tanggalAktaPpat),
       'createdAt': serializer.toJson<DateTime?>(createdAt),
       'updatedAt': serializer.toJson<DateTime?>(updatedAt),
       'status': serializer.toJson<int>(status),
@@ -4769,11 +5131,17 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     Value<int?> pekerjaanPpatId = const Value.absent(),
     String? namaPekerjaanSnapshot,
     Value<String?> kategoriSnapshot = const Value.absent(),
+    Value<String?> hargaUuid = const Value.absent(),
+    Value<String?> kategoriUuid = const Value.absent(),
     Value<String?> estimasiWaktuSnapshot = const Value.absent(),
     Value<String?> prosesSnapshot = const Value.absent(),
     double? biayaLayanan,
     double? biayaLainnya,
     double? totalSnapshot,
+    Value<String?> statusPekerjaanPpat = const Value.absent(),
+    Value<String?> judulAktaPpat = const Value.absent(),
+    Value<String?> nomorAktaPpat = const Value.absent(),
+    Value<DateTime?> tanggalAktaPpat = const Value.absent(),
     Value<DateTime?> createdAt = const Value.absent(),
     Value<DateTime?> updatedAt = const Value.absent(),
     int? status,
@@ -4795,6 +5163,8 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     kategoriSnapshot: kategoriSnapshot.present
         ? kategoriSnapshot.value
         : this.kategoriSnapshot,
+    hargaUuid: hargaUuid.present ? hargaUuid.value : this.hargaUuid,
+    kategoriUuid: kategoriUuid.present ? kategoriUuid.value : this.kategoriUuid,
     estimasiWaktuSnapshot: estimasiWaktuSnapshot.present
         ? estimasiWaktuSnapshot.value
         : this.estimasiWaktuSnapshot,
@@ -4804,6 +5174,18 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     biayaLayanan: biayaLayanan ?? this.biayaLayanan,
     biayaLainnya: biayaLainnya ?? this.biayaLainnya,
     totalSnapshot: totalSnapshot ?? this.totalSnapshot,
+    statusPekerjaanPpat: statusPekerjaanPpat.present
+        ? statusPekerjaanPpat.value
+        : this.statusPekerjaanPpat,
+    judulAktaPpat: judulAktaPpat.present
+        ? judulAktaPpat.value
+        : this.judulAktaPpat,
+    nomorAktaPpat: nomorAktaPpat.present
+        ? nomorAktaPpat.value
+        : this.nomorAktaPpat,
+    tanggalAktaPpat: tanggalAktaPpat.present
+        ? tanggalAktaPpat.value
+        : this.tanggalAktaPpat,
     createdAt: createdAt.present ? createdAt.value : this.createdAt,
     updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
     status: status ?? this.status,
@@ -4833,6 +5215,10 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       kategoriSnapshot: data.kategoriSnapshot.present
           ? data.kategoriSnapshot.value
           : this.kategoriSnapshot,
+      hargaUuid: data.hargaUuid.present ? data.hargaUuid.value : this.hargaUuid,
+      kategoriUuid: data.kategoriUuid.present
+          ? data.kategoriUuid.value
+          : this.kategoriUuid,
       estimasiWaktuSnapshot: data.estimasiWaktuSnapshot.present
           ? data.estimasiWaktuSnapshot.value
           : this.estimasiWaktuSnapshot,
@@ -4848,6 +5234,18 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
       totalSnapshot: data.totalSnapshot.present
           ? data.totalSnapshot.value
           : this.totalSnapshot,
+      statusPekerjaanPpat: data.statusPekerjaanPpat.present
+          ? data.statusPekerjaanPpat.value
+          : this.statusPekerjaanPpat,
+      judulAktaPpat: data.judulAktaPpat.present
+          ? data.judulAktaPpat.value
+          : this.judulAktaPpat,
+      nomorAktaPpat: data.nomorAktaPpat.present
+          ? data.nomorAktaPpat.value
+          : this.nomorAktaPpat,
+      tanggalAktaPpat: data.tanggalAktaPpat.present
+          ? data.tanggalAktaPpat.value
+          : this.tanggalAktaPpat,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       status: data.status.present ? data.status.value : this.status,
@@ -4872,11 +5270,17 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
           ..write('pekerjaanPpatId: $pekerjaanPpatId, ')
           ..write('namaPekerjaanSnapshot: $namaPekerjaanSnapshot, ')
           ..write('kategoriSnapshot: $kategoriSnapshot, ')
+          ..write('hargaUuid: $hargaUuid, ')
+          ..write('kategoriUuid: $kategoriUuid, ')
           ..write('estimasiWaktuSnapshot: $estimasiWaktuSnapshot, ')
           ..write('prosesSnapshot: $prosesSnapshot, ')
           ..write('biayaLayanan: $biayaLayanan, ')
           ..write('biayaLainnya: $biayaLainnya, ')
           ..write('totalSnapshot: $totalSnapshot, ')
+          ..write('statusPekerjaanPpat: $statusPekerjaanPpat, ')
+          ..write('judulAktaPpat: $judulAktaPpat, ')
+          ..write('nomorAktaPpat: $nomorAktaPpat, ')
+          ..write('tanggalAktaPpat: $tanggalAktaPpat, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('status: $status, ')
@@ -4888,7 +5292,7 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
   }
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     id,
     uuid,
     transaksiId,
@@ -4897,18 +5301,24 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
     pekerjaanPpatId,
     namaPekerjaanSnapshot,
     kategoriSnapshot,
+    hargaUuid,
+    kategoriUuid,
     estimasiWaktuSnapshot,
     prosesSnapshot,
     biayaLayanan,
     biayaLainnya,
     totalSnapshot,
+    statusPekerjaanPpat,
+    judulAktaPpat,
+    nomorAktaPpat,
+    tanggalAktaPpat,
     createdAt,
     updatedAt,
     status,
     isSyncDirty,
     lastSyncedAt,
     deletedAt,
-  );
+  ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -4921,11 +5331,17 @@ class TransaksiDetail extends DataClass implements Insertable<TransaksiDetail> {
           other.pekerjaanPpatId == this.pekerjaanPpatId &&
           other.namaPekerjaanSnapshot == this.namaPekerjaanSnapshot &&
           other.kategoriSnapshot == this.kategoriSnapshot &&
+          other.hargaUuid == this.hargaUuid &&
+          other.kategoriUuid == this.kategoriUuid &&
           other.estimasiWaktuSnapshot == this.estimasiWaktuSnapshot &&
           other.prosesSnapshot == this.prosesSnapshot &&
           other.biayaLayanan == this.biayaLayanan &&
           other.biayaLainnya == this.biayaLainnya &&
           other.totalSnapshot == this.totalSnapshot &&
+          other.statusPekerjaanPpat == this.statusPekerjaanPpat &&
+          other.judulAktaPpat == this.judulAktaPpat &&
+          other.nomorAktaPpat == this.nomorAktaPpat &&
+          other.tanggalAktaPpat == this.tanggalAktaPpat &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.status == this.status &&
@@ -4943,11 +5359,17 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
   final Value<int?> pekerjaanPpatId;
   final Value<String> namaPekerjaanSnapshot;
   final Value<String?> kategoriSnapshot;
+  final Value<String?> hargaUuid;
+  final Value<String?> kategoriUuid;
   final Value<String?> estimasiWaktuSnapshot;
   final Value<String?> prosesSnapshot;
   final Value<double> biayaLayanan;
   final Value<double> biayaLainnya;
   final Value<double> totalSnapshot;
+  final Value<String?> statusPekerjaanPpat;
+  final Value<String?> judulAktaPpat;
+  final Value<String?> nomorAktaPpat;
+  final Value<DateTime?> tanggalAktaPpat;
   final Value<DateTime?> createdAt;
   final Value<DateTime?> updatedAt;
   final Value<int> status;
@@ -4963,11 +5385,17 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     this.pekerjaanPpatId = const Value.absent(),
     this.namaPekerjaanSnapshot = const Value.absent(),
     this.kategoriSnapshot = const Value.absent(),
+    this.hargaUuid = const Value.absent(),
+    this.kategoriUuid = const Value.absent(),
     this.estimasiWaktuSnapshot = const Value.absent(),
     this.prosesSnapshot = const Value.absent(),
     this.biayaLayanan = const Value.absent(),
     this.biayaLainnya = const Value.absent(),
     this.totalSnapshot = const Value.absent(),
+    this.statusPekerjaanPpat = const Value.absent(),
+    this.judulAktaPpat = const Value.absent(),
+    this.nomorAktaPpat = const Value.absent(),
+    this.tanggalAktaPpat = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.status = const Value.absent(),
@@ -4984,11 +5412,17 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     this.pekerjaanPpatId = const Value.absent(),
     required String namaPekerjaanSnapshot,
     this.kategoriSnapshot = const Value.absent(),
+    this.hargaUuid = const Value.absent(),
+    this.kategoriUuid = const Value.absent(),
     this.estimasiWaktuSnapshot = const Value.absent(),
     this.prosesSnapshot = const Value.absent(),
     this.biayaLayanan = const Value.absent(),
     this.biayaLainnya = const Value.absent(),
     this.totalSnapshot = const Value.absent(),
+    this.statusPekerjaanPpat = const Value.absent(),
+    this.judulAktaPpat = const Value.absent(),
+    this.nomorAktaPpat = const Value.absent(),
+    this.tanggalAktaPpat = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.status = const Value.absent(),
@@ -5008,11 +5442,17 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     Expression<int>? pekerjaanPpatId,
     Expression<String>? namaPekerjaanSnapshot,
     Expression<String>? kategoriSnapshot,
+    Expression<String>? hargaUuid,
+    Expression<String>? kategoriUuid,
     Expression<String>? estimasiWaktuSnapshot,
     Expression<String>? prosesSnapshot,
     Expression<double>? biayaLayanan,
     Expression<double>? biayaLainnya,
     Expression<double>? totalSnapshot,
+    Expression<String>? statusPekerjaanPpat,
+    Expression<String>? judulAktaPpat,
+    Expression<String>? nomorAktaPpat,
+    Expression<DateTime>? tanggalAktaPpat,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? status,
@@ -5031,12 +5471,19 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
       if (namaPekerjaanSnapshot != null)
         'nama_pekerjaan_snapshot': namaPekerjaanSnapshot,
       if (kategoriSnapshot != null) 'kategori_snapshot': kategoriSnapshot,
+      if (hargaUuid != null) 'harga_uuid': hargaUuid,
+      if (kategoriUuid != null) 'kategori_uuid': kategoriUuid,
       if (estimasiWaktuSnapshot != null)
         'estimasi_waktu_snapshot': estimasiWaktuSnapshot,
       if (prosesSnapshot != null) 'proses_snapshot': prosesSnapshot,
       if (biayaLayanan != null) 'biaya_layanan': biayaLayanan,
       if (biayaLainnya != null) 'biaya_lainnya': biayaLainnya,
       if (totalSnapshot != null) 'total_snapshot': totalSnapshot,
+      if (statusPekerjaanPpat != null)
+        'status_pekerjaan_ppat': statusPekerjaanPpat,
+      if (judulAktaPpat != null) 'judul_akta_ppat': judulAktaPpat,
+      if (nomorAktaPpat != null) 'nomor_akta_ppat': nomorAktaPpat,
+      if (tanggalAktaPpat != null) 'tanggal_akta_ppat': tanggalAktaPpat,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (status != null) 'status': status,
@@ -5055,11 +5502,17 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     Value<int?>? pekerjaanPpatId,
     Value<String>? namaPekerjaanSnapshot,
     Value<String?>? kategoriSnapshot,
+    Value<String?>? hargaUuid,
+    Value<String?>? kategoriUuid,
     Value<String?>? estimasiWaktuSnapshot,
     Value<String?>? prosesSnapshot,
     Value<double>? biayaLayanan,
     Value<double>? biayaLainnya,
     Value<double>? totalSnapshot,
+    Value<String?>? statusPekerjaanPpat,
+    Value<String?>? judulAktaPpat,
+    Value<String?>? nomorAktaPpat,
+    Value<DateTime?>? tanggalAktaPpat,
     Value<DateTime?>? createdAt,
     Value<DateTime?>? updatedAt,
     Value<int>? status,
@@ -5077,12 +5530,18 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
       namaPekerjaanSnapshot:
           namaPekerjaanSnapshot ?? this.namaPekerjaanSnapshot,
       kategoriSnapshot: kategoriSnapshot ?? this.kategoriSnapshot,
+      hargaUuid: hargaUuid ?? this.hargaUuid,
+      kategoriUuid: kategoriUuid ?? this.kategoriUuid,
       estimasiWaktuSnapshot:
           estimasiWaktuSnapshot ?? this.estimasiWaktuSnapshot,
       prosesSnapshot: prosesSnapshot ?? this.prosesSnapshot,
       biayaLayanan: biayaLayanan ?? this.biayaLayanan,
       biayaLainnya: biayaLainnya ?? this.biayaLainnya,
       totalSnapshot: totalSnapshot ?? this.totalSnapshot,
+      statusPekerjaanPpat: statusPekerjaanPpat ?? this.statusPekerjaanPpat,
+      judulAktaPpat: judulAktaPpat ?? this.judulAktaPpat,
+      nomorAktaPpat: nomorAktaPpat ?? this.nomorAktaPpat,
+      tanggalAktaPpat: tanggalAktaPpat ?? this.tanggalAktaPpat,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       status: status ?? this.status,
@@ -5121,6 +5580,12 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     if (kategoriSnapshot.present) {
       map['kategori_snapshot'] = Variable<String>(kategoriSnapshot.value);
     }
+    if (hargaUuid.present) {
+      map['harga_uuid'] = Variable<String>(hargaUuid.value);
+    }
+    if (kategoriUuid.present) {
+      map['kategori_uuid'] = Variable<String>(kategoriUuid.value);
+    }
     if (estimasiWaktuSnapshot.present) {
       map['estimasi_waktu_snapshot'] = Variable<String>(
         estimasiWaktuSnapshot.value,
@@ -5137,6 +5602,20 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
     }
     if (totalSnapshot.present) {
       map['total_snapshot'] = Variable<double>(totalSnapshot.value);
+    }
+    if (statusPekerjaanPpat.present) {
+      map['status_pekerjaan_ppat'] = Variable<String>(
+        statusPekerjaanPpat.value,
+      );
+    }
+    if (judulAktaPpat.present) {
+      map['judul_akta_ppat'] = Variable<String>(judulAktaPpat.value);
+    }
+    if (nomorAktaPpat.present) {
+      map['nomor_akta_ppat'] = Variable<String>(nomorAktaPpat.value);
+    }
+    if (tanggalAktaPpat.present) {
+      map['tanggal_akta_ppat'] = Variable<DateTime>(tanggalAktaPpat.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -5170,11 +5649,17 @@ class TransaksiDetailsCompanion extends UpdateCompanion<TransaksiDetail> {
           ..write('pekerjaanPpatId: $pekerjaanPpatId, ')
           ..write('namaPekerjaanSnapshot: $namaPekerjaanSnapshot, ')
           ..write('kategoriSnapshot: $kategoriSnapshot, ')
+          ..write('hargaUuid: $hargaUuid, ')
+          ..write('kategoriUuid: $kategoriUuid, ')
           ..write('estimasiWaktuSnapshot: $estimasiWaktuSnapshot, ')
           ..write('prosesSnapshot: $prosesSnapshot, ')
           ..write('biayaLayanan: $biayaLayanan, ')
           ..write('biayaLainnya: $biayaLainnya, ')
           ..write('totalSnapshot: $totalSnapshot, ')
+          ..write('statusPekerjaanPpat: $statusPekerjaanPpat, ')
+          ..write('judulAktaPpat: $judulAktaPpat, ')
+          ..write('nomorAktaPpat: $nomorAktaPpat, ')
+          ..write('tanggalAktaPpat: $tanggalAktaPpat, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('status: $status, ')
@@ -5255,6 +5740,17 @@ class $TransaksiRiwayatPembayaransTable extends TransaksiRiwayatPembayarans
     false,
     type: DriftSqlType.double,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nominalRupiahMeta = const VerificationMeta(
+    'nominalRupiah',
+  );
+  @override
+  late final GeneratedColumn<int> nominalRupiah = GeneratedColumn<int>(
+    'nominal_rupiah',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _metodePembayaranMeta = const VerificationMeta(
     'metodePembayaran',
@@ -5367,6 +5863,7 @@ class $TransaksiRiwayatPembayaransTable extends TransaksiRiwayatPembayarans
     transaksiId,
     tanggalPembayaran,
     nominal,
+    nominalRupiah,
     metodePembayaran,
     keterangan,
     urutanPembayaran,
@@ -5429,6 +5926,15 @@ class $TransaksiRiwayatPembayaransTable extends TransaksiRiwayatPembayarans
       );
     } else if (isInserting) {
       context.missing(_nominalMeta);
+    }
+    if (data.containsKey('nominal_rupiah')) {
+      context.handle(
+        _nominalRupiahMeta,
+        nominalRupiah.isAcceptableOrUnknown(
+          data['nominal_rupiah']!,
+          _nominalRupiahMeta,
+        ),
+      );
     }
     if (data.containsKey('metode_pembayaran')) {
       context.handle(
@@ -5528,6 +6034,10 @@ class $TransaksiRiwayatPembayaransTable extends TransaksiRiwayatPembayarans
         DriftSqlType.double,
         data['${effectivePrefix}nominal'],
       )!,
+      nominalRupiah: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}nominal_rupiah'],
+      ),
       metodePembayaran: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}metode_pembayaran'],
@@ -5580,6 +6090,7 @@ class TransaksiRiwayatPembayaran extends DataClass
   final int transaksiId;
   final DateTime tanggalPembayaran;
   final double nominal;
+  final int? nominalRupiah;
   final String metodePembayaran;
   final String? keterangan;
   final int urutanPembayaran;
@@ -5595,6 +6106,7 @@ class TransaksiRiwayatPembayaran extends DataClass
     required this.transaksiId,
     required this.tanggalPembayaran,
     required this.nominal,
+    this.nominalRupiah,
     required this.metodePembayaran,
     this.keterangan,
     required this.urutanPembayaran,
@@ -5613,6 +6125,9 @@ class TransaksiRiwayatPembayaran extends DataClass
     map['transaksi_id'] = Variable<int>(transaksiId);
     map['tanggal_pembayaran'] = Variable<DateTime>(tanggalPembayaran);
     map['nominal'] = Variable<double>(nominal);
+    if (!nullToAbsent || nominalRupiah != null) {
+      map['nominal_rupiah'] = Variable<int>(nominalRupiah);
+    }
     map['metode_pembayaran'] = Variable<String>(metodePembayaran);
     if (!nullToAbsent || keterangan != null) {
       map['keterangan'] = Variable<String>(keterangan);
@@ -5642,6 +6157,9 @@ class TransaksiRiwayatPembayaran extends DataClass
       transaksiId: Value(transaksiId),
       tanggalPembayaran: Value(tanggalPembayaran),
       nominal: Value(nominal),
+      nominalRupiah: nominalRupiah == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nominalRupiah),
       metodePembayaran: Value(metodePembayaran),
       keterangan: keterangan == null && nullToAbsent
           ? const Value.absent()
@@ -5677,6 +6195,7 @@ class TransaksiRiwayatPembayaran extends DataClass
         json['tanggalPembayaran'],
       ),
       nominal: serializer.fromJson<double>(json['nominal']),
+      nominalRupiah: serializer.fromJson<int?>(json['nominalRupiah']),
       metodePembayaran: serializer.fromJson<String>(json['metodePembayaran']),
       keterangan: serializer.fromJson<String?>(json['keterangan']),
       urutanPembayaran: serializer.fromJson<int>(json['urutanPembayaran']),
@@ -5697,6 +6216,7 @@ class TransaksiRiwayatPembayaran extends DataClass
       'transaksiId': serializer.toJson<int>(transaksiId),
       'tanggalPembayaran': serializer.toJson<DateTime>(tanggalPembayaran),
       'nominal': serializer.toJson<double>(nominal),
+      'nominalRupiah': serializer.toJson<int?>(nominalRupiah),
       'metodePembayaran': serializer.toJson<String>(metodePembayaran),
       'keterangan': serializer.toJson<String?>(keterangan),
       'urutanPembayaran': serializer.toJson<int>(urutanPembayaran),
@@ -5715,6 +6235,7 @@ class TransaksiRiwayatPembayaran extends DataClass
     int? transaksiId,
     DateTime? tanggalPembayaran,
     double? nominal,
+    Value<int?> nominalRupiah = const Value.absent(),
     String? metodePembayaran,
     Value<String?> keterangan = const Value.absent(),
     int? urutanPembayaran,
@@ -5730,6 +6251,9 @@ class TransaksiRiwayatPembayaran extends DataClass
     transaksiId: transaksiId ?? this.transaksiId,
     tanggalPembayaran: tanggalPembayaran ?? this.tanggalPembayaran,
     nominal: nominal ?? this.nominal,
+    nominalRupiah: nominalRupiah.present
+        ? nominalRupiah.value
+        : this.nominalRupiah,
     metodePembayaran: metodePembayaran ?? this.metodePembayaran,
     keterangan: keterangan.present ? keterangan.value : this.keterangan,
     urutanPembayaran: urutanPembayaran ?? this.urutanPembayaran,
@@ -5753,6 +6277,9 @@ class TransaksiRiwayatPembayaran extends DataClass
           ? data.tanggalPembayaran.value
           : this.tanggalPembayaran,
       nominal: data.nominal.present ? data.nominal.value : this.nominal,
+      nominalRupiah: data.nominalRupiah.present
+          ? data.nominalRupiah.value
+          : this.nominalRupiah,
       metodePembayaran: data.metodePembayaran.present
           ? data.metodePembayaran.value
           : this.metodePembayaran,
@@ -5783,6 +6310,7 @@ class TransaksiRiwayatPembayaran extends DataClass
           ..write('transaksiId: $transaksiId, ')
           ..write('tanggalPembayaran: $tanggalPembayaran, ')
           ..write('nominal: $nominal, ')
+          ..write('nominalRupiah: $nominalRupiah, ')
           ..write('metodePembayaran: $metodePembayaran, ')
           ..write('keterangan: $keterangan, ')
           ..write('urutanPembayaran: $urutanPembayaran, ')
@@ -5803,6 +6331,7 @@ class TransaksiRiwayatPembayaran extends DataClass
     transaksiId,
     tanggalPembayaran,
     nominal,
+    nominalRupiah,
     metodePembayaran,
     keterangan,
     urutanPembayaran,
@@ -5822,6 +6351,7 @@ class TransaksiRiwayatPembayaran extends DataClass
           other.transaksiId == this.transaksiId &&
           other.tanggalPembayaran == this.tanggalPembayaran &&
           other.nominal == this.nominal &&
+          other.nominalRupiah == this.nominalRupiah &&
           other.metodePembayaran == this.metodePembayaran &&
           other.keterangan == this.keterangan &&
           other.urutanPembayaran == this.urutanPembayaran &&
@@ -5840,6 +6370,7 @@ class TransaksiRiwayatPembayaransCompanion
   final Value<int> transaksiId;
   final Value<DateTime> tanggalPembayaran;
   final Value<double> nominal;
+  final Value<int?> nominalRupiah;
   final Value<String> metodePembayaran;
   final Value<String?> keterangan;
   final Value<int> urutanPembayaran;
@@ -5855,6 +6386,7 @@ class TransaksiRiwayatPembayaransCompanion
     this.transaksiId = const Value.absent(),
     this.tanggalPembayaran = const Value.absent(),
     this.nominal = const Value.absent(),
+    this.nominalRupiah = const Value.absent(),
     this.metodePembayaran = const Value.absent(),
     this.keterangan = const Value.absent(),
     this.urutanPembayaran = const Value.absent(),
@@ -5871,6 +6403,7 @@ class TransaksiRiwayatPembayaransCompanion
     required int transaksiId,
     required DateTime tanggalPembayaran,
     required double nominal,
+    this.nominalRupiah = const Value.absent(),
     this.metodePembayaran = const Value.absent(),
     this.keterangan = const Value.absent(),
     this.urutanPembayaran = const Value.absent(),
@@ -5890,6 +6423,7 @@ class TransaksiRiwayatPembayaransCompanion
     Expression<int>? transaksiId,
     Expression<DateTime>? tanggalPembayaran,
     Expression<double>? nominal,
+    Expression<int>? nominalRupiah,
     Expression<String>? metodePembayaran,
     Expression<String>? keterangan,
     Expression<int>? urutanPembayaran,
@@ -5906,6 +6440,7 @@ class TransaksiRiwayatPembayaransCompanion
       if (transaksiId != null) 'transaksi_id': transaksiId,
       if (tanggalPembayaran != null) 'tanggal_pembayaran': tanggalPembayaran,
       if (nominal != null) 'nominal': nominal,
+      if (nominalRupiah != null) 'nominal_rupiah': nominalRupiah,
       if (metodePembayaran != null) 'metode_pembayaran': metodePembayaran,
       if (keterangan != null) 'keterangan': keterangan,
       if (urutanPembayaran != null) 'urutan_pembayaran': urutanPembayaran,
@@ -5924,6 +6459,7 @@ class TransaksiRiwayatPembayaransCompanion
     Value<int>? transaksiId,
     Value<DateTime>? tanggalPembayaran,
     Value<double>? nominal,
+    Value<int?>? nominalRupiah,
     Value<String>? metodePembayaran,
     Value<String?>? keterangan,
     Value<int>? urutanPembayaran,
@@ -5940,6 +6476,7 @@ class TransaksiRiwayatPembayaransCompanion
       transaksiId: transaksiId ?? this.transaksiId,
       tanggalPembayaran: tanggalPembayaran ?? this.tanggalPembayaran,
       nominal: nominal ?? this.nominal,
+      nominalRupiah: nominalRupiah ?? this.nominalRupiah,
       metodePembayaran: metodePembayaran ?? this.metodePembayaran,
       keterangan: keterangan ?? this.keterangan,
       urutanPembayaran: urutanPembayaran ?? this.urutanPembayaran,
@@ -5969,6 +6506,9 @@ class TransaksiRiwayatPembayaransCompanion
     }
     if (nominal.present) {
       map['nominal'] = Variable<double>(nominal.value);
+    }
+    if (nominalRupiah.present) {
+      map['nominal_rupiah'] = Variable<int>(nominalRupiah.value);
     }
     if (metodePembayaran.present) {
       map['metode_pembayaran'] = Variable<String>(metodePembayaran.value);
@@ -6008,6 +6548,7 @@ class TransaksiRiwayatPembayaransCompanion
           ..write('transaksiId: $transaksiId, ')
           ..write('tanggalPembayaran: $tanggalPembayaran, ')
           ..write('nominal: $nominal, ')
+          ..write('nominalRupiah: $nominalRupiah, ')
           ..write('metodePembayaran: $metodePembayaran, ')
           ..write('keterangan: $keterangan, ')
           ..write('urutanPembayaran: $urutanPembayaran, ')
@@ -10154,6 +10695,481 @@ class PetugasLocalsCompanion extends UpdateCompanion<PetugasLocal> {
           ..write('isSyncDirty: $isSyncDirty, ')
           ..write('lastSyncedAt: $lastSyncedAt, ')
           ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $PetugasIdentityMapsTable extends PetugasIdentityMaps
+    with TableInfo<$PetugasIdentityMapsTable, PetugasIdentityMap> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PetugasIdentityMapsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _localUuidMeta = const VerificationMeta(
+    'localUuid',
+  );
+  @override
+  late final GeneratedColumn<String> localUuid = GeneratedColumn<String>(
+    'local_uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES petugas (uuid)',
+    ),
+  );
+  static const VerificationMeta _cloudUuidMeta = const VerificationMeta(
+    'cloudUuid',
+  );
+  @override
+  late final GeneratedColumn<String> cloudUuid = GeneratedColumn<String>(
+    'cloud_uuid',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<int> serverId = GeneratedColumn<int>(
+    'server_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    $customConstraints: 'NOT NULL CHECK (state IN (\'local_only\', \'verified\', \'ambiguous\', \'server_only\', \'development\'))',
+  );
+  static const VerificationMeta _evidenceMeta = const VerificationMeta(
+    'evidence',
+  );
+  @override
+  late final GeneratedColumn<String> evidence = GeneratedColumn<String>(
+    'evidence',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    localUuid,
+    cloudUuid,
+    serverId,
+    state,
+    evidence,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'petugas_identity_map';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PetugasIdentityMap> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('local_uuid')) {
+      context.handle(
+        _localUuidMeta,
+        localUuid.isAcceptableOrUnknown(data['local_uuid']!, _localUuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_localUuidMeta);
+    }
+    if (data.containsKey('cloud_uuid')) {
+      context.handle(
+        _cloudUuidMeta,
+        cloudUuid.isAcceptableOrUnknown(data['cloud_uuid']!, _cloudUuidMeta),
+      );
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stateMeta);
+    }
+    if (data.containsKey('evidence')) {
+      context.handle(
+        _evidenceMeta,
+        evidence.isAcceptableOrUnknown(data['evidence']!, _evidenceMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {localUuid};
+  @override
+  PetugasIdentityMap map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PetugasIdentityMap(
+      localUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_uuid'],
+      )!,
+      cloudUuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cloud_uuid'],
+      ),
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}server_id'],
+      ),
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      evidence: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}evidence'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $PetugasIdentityMapsTable createAlias(String alias) {
+    return $PetugasIdentityMapsTable(attachedDatabase, alias);
+  }
+}
+
+class PetugasIdentityMap extends DataClass
+    implements Insertable<PetugasIdentityMap> {
+  final String localUuid;
+  final String? cloudUuid;
+  final int? serverId;
+  final String state;
+  final String? evidence;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const PetugasIdentityMap({
+    required this.localUuid,
+    this.cloudUuid,
+    this.serverId,
+    required this.state,
+    this.evidence,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['local_uuid'] = Variable<String>(localUuid);
+    if (!nullToAbsent || cloudUuid != null) {
+      map['cloud_uuid'] = Variable<String>(cloudUuid);
+    }
+    if (!nullToAbsent || serverId != null) {
+      map['server_id'] = Variable<int>(serverId);
+    }
+    map['state'] = Variable<String>(state);
+    if (!nullToAbsent || evidence != null) {
+      map['evidence'] = Variable<String>(evidence);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  PetugasIdentityMapsCompanion toCompanion(bool nullToAbsent) {
+    return PetugasIdentityMapsCompanion(
+      localUuid: Value(localUuid),
+      cloudUuid: cloudUuid == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cloudUuid),
+      serverId: serverId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(serverId),
+      state: Value(state),
+      evidence: evidence == null && nullToAbsent
+          ? const Value.absent()
+          : Value(evidence),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory PetugasIdentityMap.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PetugasIdentityMap(
+      localUuid: serializer.fromJson<String>(json['localUuid']),
+      cloudUuid: serializer.fromJson<String?>(json['cloudUuid']),
+      serverId: serializer.fromJson<int?>(json['serverId']),
+      state: serializer.fromJson<String>(json['state']),
+      evidence: serializer.fromJson<String?>(json['evidence']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'localUuid': serializer.toJson<String>(localUuid),
+      'cloudUuid': serializer.toJson<String?>(cloudUuid),
+      'serverId': serializer.toJson<int?>(serverId),
+      'state': serializer.toJson<String>(state),
+      'evidence': serializer.toJson<String?>(evidence),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  PetugasIdentityMap copyWith({
+    String? localUuid,
+    Value<String?> cloudUuid = const Value.absent(),
+    Value<int?> serverId = const Value.absent(),
+    String? state,
+    Value<String?> evidence = const Value.absent(),
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => PetugasIdentityMap(
+    localUuid: localUuid ?? this.localUuid,
+    cloudUuid: cloudUuid.present ? cloudUuid.value : this.cloudUuid,
+    serverId: serverId.present ? serverId.value : this.serverId,
+    state: state ?? this.state,
+    evidence: evidence.present ? evidence.value : this.evidence,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  PetugasIdentityMap copyWithCompanion(PetugasIdentityMapsCompanion data) {
+    return PetugasIdentityMap(
+      localUuid: data.localUuid.present ? data.localUuid.value : this.localUuid,
+      cloudUuid: data.cloudUuid.present ? data.cloudUuid.value : this.cloudUuid,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      state: data.state.present ? data.state.value : this.state,
+      evidence: data.evidence.present ? data.evidence.value : this.evidence,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PetugasIdentityMap(')
+          ..write('localUuid: $localUuid, ')
+          ..write('cloudUuid: $cloudUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('state: $state, ')
+          ..write('evidence: $evidence, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    localUuid,
+    cloudUuid,
+    serverId,
+    state,
+    evidence,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PetugasIdentityMap &&
+          other.localUuid == this.localUuid &&
+          other.cloudUuid == this.cloudUuid &&
+          other.serverId == this.serverId &&
+          other.state == this.state &&
+          other.evidence == this.evidence &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class PetugasIdentityMapsCompanion extends UpdateCompanion<PetugasIdentityMap> {
+  final Value<String> localUuid;
+  final Value<String?> cloudUuid;
+  final Value<int?> serverId;
+  final Value<String> state;
+  final Value<String?> evidence;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const PetugasIdentityMapsCompanion({
+    this.localUuid = const Value.absent(),
+    this.cloudUuid = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.state = const Value.absent(),
+    this.evidence = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PetugasIdentityMapsCompanion.insert({
+    required String localUuid,
+    this.cloudUuid = const Value.absent(),
+    this.serverId = const Value.absent(),
+    required String state,
+    this.evidence = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : localUuid = Value(localUuid),
+       state = Value(state),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<PetugasIdentityMap> custom({
+    Expression<String>? localUuid,
+    Expression<String>? cloudUuid,
+    Expression<int>? serverId,
+    Expression<String>? state,
+    Expression<String>? evidence,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (localUuid != null) 'local_uuid': localUuid,
+      if (cloudUuid != null) 'cloud_uuid': cloudUuid,
+      if (serverId != null) 'server_id': serverId,
+      if (state != null) 'state': state,
+      if (evidence != null) 'evidence': evidence,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PetugasIdentityMapsCompanion copyWith({
+    Value<String>? localUuid,
+    Value<String?>? cloudUuid,
+    Value<int?>? serverId,
+    Value<String>? state,
+    Value<String?>? evidence,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return PetugasIdentityMapsCompanion(
+      localUuid: localUuid ?? this.localUuid,
+      cloudUuid: cloudUuid ?? this.cloudUuid,
+      serverId: serverId ?? this.serverId,
+      state: state ?? this.state,
+      evidence: evidence ?? this.evidence,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (localUuid.present) {
+      map['local_uuid'] = Variable<String>(localUuid.value);
+    }
+    if (cloudUuid.present) {
+      map['cloud_uuid'] = Variable<String>(cloudUuid.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<int>(serverId.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (evidence.present) {
+      map['evidence'] = Variable<String>(evidence.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PetugasIdentityMapsCompanion(')
+          ..write('localUuid: $localUuid, ')
+          ..write('cloudUuid: $cloudUuid, ')
+          ..write('serverId: $serverId, ')
+          ..write('state: $state, ')
+          ..write('evidence: $evidence, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -14934,6 +15950,662 @@ class PekerjaanPpatAtributLocalsCompanion
   }
 }
 
+class $PengeluaransTable extends Pengeluarans
+    with TableInfo<$PengeluaransTable, PengeluaranData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PengeluaransTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _uuidMeta = const VerificationMeta('uuid');
+  @override
+  late final GeneratedColumn<String> uuid = GeneratedColumn<String>(
+    'uuid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _noFakturMeta = const VerificationMeta(
+    'noFaktur',
+  );
+  @override
+  late final GeneratedColumn<String> noFaktur = GeneratedColumn<String>(
+    'no_faktur',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _tanggalMeta = const VerificationMeta(
+    'tanggal',
+  );
+  @override
+  late final GeneratedColumn<DateTime> tanggal = GeneratedColumn<DateTime>(
+    'tanggal',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nominalMeta = const VerificationMeta(
+    'nominal',
+  );
+  @override
+  late final GeneratedColumn<int> nominal = GeneratedColumn<int>(
+    'nominal',
+    aliasedName,
+    false,
+    check: () => const CustomExpression<bool>(
+      "typeof(nominal) = 'integer' AND nominal > 0",
+    ),
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _jenisIdMeta = const VerificationMeta(
+    'jenisId',
+  );
+  @override
+  late final GeneratedColumn<int> jenisId = GeneratedColumn<int>(
+    'jenis_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES pengeluaran_jenis (id)',
+    ),
+  );
+  static const VerificationMeta _jenisNamaMeta = const VerificationMeta(
+    'jenisNama',
+  );
+  @override
+  late final GeneratedColumn<String> jenisNama = GeneratedColumn<String>(
+    'jenis_nama',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _keteranganMeta = const VerificationMeta(
+    'keterangan',
+  );
+  @override
+  late final GeneratedColumn<String> keterangan = GeneratedColumn<String>(
+    'keterangan',
+    aliasedName,
+    false,
+    check: () => const CustomExpression<bool>('length(trim(keterangan)) > 0'),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _deletedAtMeta = const VerificationMeta(
+    'deletedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> deletedAt = GeneratedColumn<DateTime>(
+    'deleted_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    uuid,
+    noFaktur,
+    tanggal,
+    nominal,
+    jenisId,
+    jenisNama,
+    keterangan,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pengeluaran';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PengeluaranData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('uuid')) {
+      context.handle(
+        _uuidMeta,
+        uuid.isAcceptableOrUnknown(data['uuid']!, _uuidMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_uuidMeta);
+    }
+    if (data.containsKey('no_faktur')) {
+      context.handle(
+        _noFakturMeta,
+        noFaktur.isAcceptableOrUnknown(data['no_faktur']!, _noFakturMeta),
+      );
+    }
+    if (data.containsKey('tanggal')) {
+      context.handle(
+        _tanggalMeta,
+        tanggal.isAcceptableOrUnknown(data['tanggal']!, _tanggalMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_tanggalMeta);
+    }
+    if (data.containsKey('nominal')) {
+      context.handle(
+        _nominalMeta,
+        nominal.isAcceptableOrUnknown(data['nominal']!, _nominalMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nominalMeta);
+    }
+    if (data.containsKey('jenis_id')) {
+      context.handle(
+        _jenisIdMeta,
+        jenisId.isAcceptableOrUnknown(data['jenis_id']!, _jenisIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_jenisIdMeta);
+    }
+    if (data.containsKey('jenis_nama')) {
+      context.handle(
+        _jenisNamaMeta,
+        jenisNama.isAcceptableOrUnknown(data['jenis_nama']!, _jenisNamaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_jenisNamaMeta);
+    }
+    if (data.containsKey('keterangan')) {
+      context.handle(
+        _keteranganMeta,
+        keterangan.isAcceptableOrUnknown(data['keterangan']!, _keteranganMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_keteranganMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('deleted_at')) {
+      context.handle(
+        _deletedAtMeta,
+        deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PengeluaranData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PengeluaranData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      uuid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}uuid'],
+      )!,
+      noFaktur: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}no_faktur'],
+      ),
+      tanggal: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}tanggal'],
+      )!,
+      nominal: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}nominal'],
+      )!,
+      jenisId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}jenis_id'],
+      )!,
+      jenisNama: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}jenis_nama'],
+      )!,
+      keterangan: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}keterangan'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+      deletedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}deleted_at'],
+      ),
+    );
+  }
+
+  @override
+  $PengeluaransTable createAlias(String alias) {
+    return $PengeluaransTable(attachedDatabase, alias);
+  }
+}
+
+class PengeluaranData extends DataClass implements Insertable<PengeluaranData> {
+  final int id;
+  final String uuid;
+  final String? noFaktur;
+  final DateTime tanggal;
+  final int nominal;
+  final int jenisId;
+  final String jenisNama;
+  final String keterangan;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final DateTime? deletedAt;
+  const PengeluaranData({
+    required this.id,
+    required this.uuid,
+    this.noFaktur,
+    required this.tanggal,
+    required this.nominal,
+    required this.jenisId,
+    required this.jenisNama,
+    required this.keterangan,
+    required this.createdAt,
+    required this.updatedAt,
+    this.deletedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['uuid'] = Variable<String>(uuid);
+    if (!nullToAbsent || noFaktur != null) {
+      map['no_faktur'] = Variable<String>(noFaktur);
+    }
+    map['tanggal'] = Variable<DateTime>(tanggal);
+    map['nominal'] = Variable<int>(nominal);
+    map['jenis_id'] = Variable<int>(jenisId);
+    map['jenis_nama'] = Variable<String>(jenisNama);
+    map['keterangan'] = Variable<String>(keterangan);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || deletedAt != null) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt);
+    }
+    return map;
+  }
+
+  PengeluaransCompanion toCompanion(bool nullToAbsent) {
+    return PengeluaransCompanion(
+      id: Value(id),
+      uuid: Value(uuid),
+      noFaktur: noFaktur == null && nullToAbsent
+          ? const Value.absent()
+          : Value(noFaktur),
+      tanggal: Value(tanggal),
+      nominal: Value(nominal),
+      jenisId: Value(jenisId),
+      jenisNama: Value(jenisNama),
+      keterangan: Value(keterangan),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+      deletedAt: deletedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deletedAt),
+    );
+  }
+
+  factory PengeluaranData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PengeluaranData(
+      id: serializer.fromJson<int>(json['id']),
+      uuid: serializer.fromJson<String>(json['uuid']),
+      noFaktur: serializer.fromJson<String?>(json['noFaktur']),
+      tanggal: serializer.fromJson<DateTime>(json['tanggal']),
+      nominal: serializer.fromJson<int>(json['nominal']),
+      jenisId: serializer.fromJson<int>(json['jenisId']),
+      jenisNama: serializer.fromJson<String>(json['jenisNama']),
+      keterangan: serializer.fromJson<String>(json['keterangan']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'uuid': serializer.toJson<String>(uuid),
+      'noFaktur': serializer.toJson<String?>(noFaktur),
+      'tanggal': serializer.toJson<DateTime>(tanggal),
+      'nominal': serializer.toJson<int>(nominal),
+      'jenisId': serializer.toJson<int>(jenisId),
+      'jenisNama': serializer.toJson<String>(jenisNama),
+      'keterangan': serializer.toJson<String>(keterangan),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+    };
+  }
+
+  PengeluaranData copyWith({
+    int? id,
+    String? uuid,
+    Value<String?> noFaktur = const Value.absent(),
+    DateTime? tanggal,
+    int? nominal,
+    int? jenisId,
+    String? jenisNama,
+    String? keterangan,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    Value<DateTime?> deletedAt = const Value.absent(),
+  }) => PengeluaranData(
+    id: id ?? this.id,
+    uuid: uuid ?? this.uuid,
+    noFaktur: noFaktur.present ? noFaktur.value : this.noFaktur,
+    tanggal: tanggal ?? this.tanggal,
+    nominal: nominal ?? this.nominal,
+    jenisId: jenisId ?? this.jenisId,
+    jenisNama: jenisNama ?? this.jenisNama,
+    keterangan: keterangan ?? this.keterangan,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+  );
+  PengeluaranData copyWithCompanion(PengeluaransCompanion data) {
+    return PengeluaranData(
+      id: data.id.present ? data.id.value : this.id,
+      uuid: data.uuid.present ? data.uuid.value : this.uuid,
+      noFaktur: data.noFaktur.present ? data.noFaktur.value : this.noFaktur,
+      tanggal: data.tanggal.present ? data.tanggal.value : this.tanggal,
+      nominal: data.nominal.present ? data.nominal.value : this.nominal,
+      jenisId: data.jenisId.present ? data.jenisId.value : this.jenisId,
+      jenisNama: data.jenisNama.present ? data.jenisNama.value : this.jenisNama,
+      keterangan: data.keterangan.present
+          ? data.keterangan.value
+          : this.keterangan,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PengeluaranData(')
+          ..write('id: $id, ')
+          ..write('uuid: $uuid, ')
+          ..write('noFaktur: $noFaktur, ')
+          ..write('tanggal: $tanggal, ')
+          ..write('nominal: $nominal, ')
+          ..write('jenisId: $jenisId, ')
+          ..write('jenisNama: $jenisNama, ')
+          ..write('keterangan: $keterangan, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    uuid,
+    noFaktur,
+    tanggal,
+    nominal,
+    jenisId,
+    jenisNama,
+    keterangan,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PengeluaranData &&
+          other.id == this.id &&
+          other.uuid == this.uuid &&
+          other.noFaktur == this.noFaktur &&
+          other.tanggal == this.tanggal &&
+          other.nominal == this.nominal &&
+          other.jenisId == this.jenisId &&
+          other.jenisNama == this.jenisNama &&
+          other.keterangan == this.keterangan &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt &&
+          other.deletedAt == this.deletedAt);
+}
+
+class PengeluaransCompanion extends UpdateCompanion<PengeluaranData> {
+  final Value<int> id;
+  final Value<String> uuid;
+  final Value<String?> noFaktur;
+  final Value<DateTime> tanggal;
+  final Value<int> nominal;
+  final Value<int> jenisId;
+  final Value<String> jenisNama;
+  final Value<String> keterangan;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<DateTime?> deletedAt;
+  const PengeluaransCompanion({
+    this.id = const Value.absent(),
+    this.uuid = const Value.absent(),
+    this.noFaktur = const Value.absent(),
+    this.tanggal = const Value.absent(),
+    this.nominal = const Value.absent(),
+    this.jenisId = const Value.absent(),
+    this.jenisNama = const Value.absent(),
+    this.keterangan = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.deletedAt = const Value.absent(),
+  });
+  PengeluaransCompanion.insert({
+    this.id = const Value.absent(),
+    required String uuid,
+    this.noFaktur = const Value.absent(),
+    required DateTime tanggal,
+    required int nominal,
+    required int jenisId,
+    required String jenisNama,
+    required String keterangan,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.deletedAt = const Value.absent(),
+  }) : uuid = Value(uuid),
+       tanggal = Value(tanggal),
+       nominal = Value(nominal),
+       jenisId = Value(jenisId),
+       jenisNama = Value(jenisNama),
+       keterangan = Value(keterangan),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<PengeluaranData> custom({
+    Expression<int>? id,
+    Expression<String>? uuid,
+    Expression<String>? noFaktur,
+    Expression<DateTime>? tanggal,
+    Expression<int>? nominal,
+    Expression<int>? jenisId,
+    Expression<String>? jenisNama,
+    Expression<String>? keterangan,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<DateTime>? deletedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (uuid != null) 'uuid': uuid,
+      if (noFaktur != null) 'no_faktur': noFaktur,
+      if (tanggal != null) 'tanggal': tanggal,
+      if (nominal != null) 'nominal': nominal,
+      if (jenisId != null) 'jenis_id': jenisId,
+      if (jenisNama != null) 'jenis_nama': jenisNama,
+      if (keterangan != null) 'keterangan': keterangan,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (deletedAt != null) 'deleted_at': deletedAt,
+    });
+  }
+
+  PengeluaransCompanion copyWith({
+    Value<int>? id,
+    Value<String>? uuid,
+    Value<String?>? noFaktur,
+    Value<DateTime>? tanggal,
+    Value<int>? nominal,
+    Value<int>? jenisId,
+    Value<String>? jenisNama,
+    Value<String>? keterangan,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<DateTime?>? deletedAt,
+  }) {
+    return PengeluaransCompanion(
+      id: id ?? this.id,
+      uuid: uuid ?? this.uuid,
+      noFaktur: noFaktur ?? this.noFaktur,
+      tanggal: tanggal ?? this.tanggal,
+      nominal: nominal ?? this.nominal,
+      jenisId: jenisId ?? this.jenisId,
+      jenisNama: jenisNama ?? this.jenisNama,
+      keterangan: keterangan ?? this.keterangan,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      deletedAt: deletedAt ?? this.deletedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (uuid.present) {
+      map['uuid'] = Variable<String>(uuid.value);
+    }
+    if (noFaktur.present) {
+      map['no_faktur'] = Variable<String>(noFaktur.value);
+    }
+    if (tanggal.present) {
+      map['tanggal'] = Variable<DateTime>(tanggal.value);
+    }
+    if (nominal.present) {
+      map['nominal'] = Variable<int>(nominal.value);
+    }
+    if (jenisId.present) {
+      map['jenis_id'] = Variable<int>(jenisId.value);
+    }
+    if (jenisNama.present) {
+      map['jenis_nama'] = Variable<String>(jenisNama.value);
+    }
+    if (keterangan.present) {
+      map['keterangan'] = Variable<String>(keterangan.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (deletedAt.present) {
+      map['deleted_at'] = Variable<DateTime>(deletedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PengeluaransCompanion(')
+          ..write('id: $id, ')
+          ..write('uuid: $uuid, ')
+          ..write('noFaktur: $noFaktur, ')
+          ..write('tanggal: $tanggal, ')
+          ..write('nominal: $nominal, ')
+          ..write('jenisId: $jenisId, ')
+          ..write('jenisNama: $jenisNama, ')
+          ..write('keterangan: $keterangan, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('deletedAt: $deletedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -14960,6 +16632,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $PetugasLocalsTable petugasLocals = $PetugasLocalsTable(this);
+  late final $PetugasIdentityMapsTable petugasIdentityMaps =
+      $PetugasIdentityMapsTable(this);
   late final $PekerjaanNotarisHargaLocalsTable pekerjaanNotarisHargaLocals =
       $PekerjaanNotarisHargaLocalsTable(this);
   late final $PekerjaanNotarisProsesLocalsTable pekerjaanNotarisProsesLocals =
@@ -14972,6 +16646,15 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $PekerjaanPpatProsesLocalsTable(this);
   late final $PekerjaanPpatAtributLocalsTable pekerjaanPpatAtributLocals =
       $PekerjaanPpatAtributLocalsTable(this);
+  late final $PengeluaransTable pengeluarans = $PengeluaransTable(this);
+  late final Index pengeluaranByDate = Index(
+    'pengeluaran_by_date',
+    'CREATE INDEX pengeluaran_by_date ON pengeluaran (tanggal, id)',
+  );
+  late final Index pengeluaranByJenis = Index(
+    'pengeluaran_by_jenis',
+    'CREATE INDEX pengeluaran_by_jenis ON pengeluaran (jenis_id)',
+  );
   late final PekerjaanDao pekerjaanDao = PekerjaanDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -14990,12 +16673,16 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     pekerjaanKategoris,
     pengeluaranJenis,
     petugasLocals,
+    petugasIdentityMaps,
     pekerjaanNotarisHargaLocals,
     pekerjaanNotarisProsesLocals,
     pekerjaanNotarisAtributLocals,
     pekerjaanPpatHargaLocals,
     pekerjaanPpatProsesLocals,
     pekerjaanPpatAtributLocals,
+    pengeluarans,
+    pengeluaranByDate,
+    pengeluaranByJenis,
   ];
 }
 
@@ -16018,6 +17705,9 @@ typedef $$TransaksisTableCreateCompanionBuilder = TransaksisCompanion Function({
   Value<int> id,
   required String uuid,
   required String noAkta,
+  Value<String?> judulAkta,
+  Value<String?> nomorAkta,
+  Value<DateTime?> tanggalAkta,
   required double total,
   Value<int?> pemohonId,
   Value<String?> pemohonUuid,
@@ -16042,6 +17732,9 @@ typedef $$TransaksisTableUpdateCompanionBuilder = TransaksisCompanion Function({
   Value<int> id,
   Value<String> uuid,
   Value<String> noAkta,
+  Value<String?> judulAkta,
+  Value<String?> nomorAkta,
+  Value<DateTime?> tanggalAkta,
   Value<double> total,
   Value<int?> pemohonId,
   Value<String?> pemohonUuid,
@@ -16154,6 +17847,21 @@ class $$TransaksisTableFilterComposer
 
   ColumnFilters<String> get noAkta => $composableBuilder(
     column: $table.noAkta,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get judulAkta => $composableBuilder(
+    column: $table.judulAkta,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nomorAkta => $composableBuilder(
+    column: $table.nomorAkta,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get tanggalAkta => $composableBuilder(
+    column: $table.tanggalAkta,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -16356,6 +18064,21 @@ class $$TransaksisTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get judulAkta => $composableBuilder(
+    column: $table.judulAkta,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nomorAkta => $composableBuilder(
+    column: $table.nomorAkta,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get tanggalAkta => $composableBuilder(
+    column: $table.tanggalAkta,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get total => $composableBuilder(
     column: $table.total,
     builder: (column) => ColumnOrderings(column),
@@ -16469,6 +18192,17 @@ class $$TransaksisTableAnnotationComposer
 
   GeneratedColumn<String> get noAkta =>
       $composableBuilder(column: $table.noAkta, builder: (column) => column);
+
+  GeneratedColumn<String> get judulAkta =>
+      $composableBuilder(column: $table.judulAkta, builder: (column) => column);
+
+  GeneratedColumn<String> get nomorAkta =>
+      $composableBuilder(column: $table.nomorAkta, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get tanggalAkta => $composableBuilder(
+    column: $table.tanggalAkta,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<double> get total =>
       $composableBuilder(column: $table.total, builder: (column) => column);
@@ -16664,6 +18398,9 @@ class $$TransaksisTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String> uuid = const Value.absent(),
                 Value<String> noAkta = const Value.absent(),
+                Value<String?> judulAkta = const Value.absent(),
+                Value<String?> nomorAkta = const Value.absent(),
+                Value<DateTime?> tanggalAkta = const Value.absent(),
                 Value<double> total = const Value.absent(),
                 Value<int?> pemohonId = const Value.absent(),
                 Value<String?> pemohonUuid = const Value.absent(),
@@ -16687,6 +18424,9 @@ class $$TransaksisTableTableManager
                 id: id,
                 uuid: uuid,
                 noAkta: noAkta,
+                judulAkta: judulAkta,
+                nomorAkta: nomorAkta,
+                tanggalAkta: tanggalAkta,
                 total: total,
                 pemohonId: pemohonId,
                 pemohonUuid: pemohonUuid,
@@ -16712,6 +18452,9 @@ class $$TransaksisTableTableManager
                 Value<int> id = const Value.absent(),
                 required String uuid,
                 required String noAkta,
+                Value<String?> judulAkta = const Value.absent(),
+                Value<String?> nomorAkta = const Value.absent(),
+                Value<DateTime?> tanggalAkta = const Value.absent(),
                 required double total,
                 Value<int?> pemohonId = const Value.absent(),
                 Value<String?> pemohonUuid = const Value.absent(),
@@ -16735,6 +18478,9 @@ class $$TransaksisTableTableManager
                 id: id,
                 uuid: uuid,
                 noAkta: noAkta,
+                judulAkta: judulAkta,
+                nomorAkta: nomorAkta,
+                tanggalAkta: tanggalAkta,
                 total: total,
                 pemohonId: pemohonId,
                 pemohonUuid: pemohonUuid,
@@ -18437,11 +20183,17 @@ typedef $$TransaksiDetailsTableCreateCompanionBuilder =
       Value<int?> pekerjaanPpatId,
       required String namaPekerjaanSnapshot,
       Value<String?> kategoriSnapshot,
+      Value<String?> hargaUuid,
+      Value<String?> kategoriUuid,
       Value<String?> estimasiWaktuSnapshot,
       Value<String?> prosesSnapshot,
       Value<double> biayaLayanan,
       Value<double> biayaLainnya,
       Value<double> totalSnapshot,
+      Value<String?> statusPekerjaanPpat,
+      Value<String?> judulAktaPpat,
+      Value<String?> nomorAktaPpat,
+      Value<DateTime?> tanggalAktaPpat,
       Value<DateTime?> createdAt,
       Value<DateTime?> updatedAt,
       Value<int> status,
@@ -18459,11 +20211,17 @@ typedef $$TransaksiDetailsTableUpdateCompanionBuilder =
       Value<int?> pekerjaanPpatId,
       Value<String> namaPekerjaanSnapshot,
       Value<String?> kategoriSnapshot,
+      Value<String?> hargaUuid,
+      Value<String?> kategoriUuid,
       Value<String?> estimasiWaktuSnapshot,
       Value<String?> prosesSnapshot,
       Value<double> biayaLayanan,
       Value<double> biayaLainnya,
       Value<double> totalSnapshot,
+      Value<String?> statusPekerjaanPpat,
+      Value<String?> judulAktaPpat,
+      Value<String?> nomorAktaPpat,
+      Value<DateTime?> tanggalAktaPpat,
       Value<DateTime?> createdAt,
       Value<DateTime?> updatedAt,
       Value<int> status,
@@ -18594,6 +20352,16 @@ class $$TransaksiDetailsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get hargaUuid => $composableBuilder(
+    column: $table.hargaUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get kategoriUuid => $composableBuilder(
+    column: $table.kategoriUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get estimasiWaktuSnapshot => $composableBuilder(
     column: $table.estimasiWaktuSnapshot,
     builder: (column) => ColumnFilters(column),
@@ -18616,6 +20384,26 @@ class $$TransaksiDetailsTableFilterComposer
 
   ColumnFilters<double> get totalSnapshot => $composableBuilder(
     column: $table.totalSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get statusPekerjaanPpat => $composableBuilder(
+    column: $table.statusPekerjaanPpat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get judulAktaPpat => $composableBuilder(
+    column: $table.judulAktaPpat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nomorAktaPpat => $composableBuilder(
+    column: $table.nomorAktaPpat,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get tanggalAktaPpat => $composableBuilder(
+    column: $table.tanggalAktaPpat,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -18779,6 +20567,16 @@ class $$TransaksiDetailsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get hargaUuid => $composableBuilder(
+    column: $table.hargaUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get kategoriUuid => $composableBuilder(
+    column: $table.kategoriUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get estimasiWaktuSnapshot => $composableBuilder(
     column: $table.estimasiWaktuSnapshot,
     builder: (column) => ColumnOrderings(column),
@@ -18801,6 +20599,26 @@ class $$TransaksiDetailsTableOrderingComposer
 
   ColumnOrderings<double> get totalSnapshot => $composableBuilder(
     column: $table.totalSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get statusPekerjaanPpat => $composableBuilder(
+    column: $table.statusPekerjaanPpat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get judulAktaPpat => $composableBuilder(
+    column: $table.judulAktaPpat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nomorAktaPpat => $composableBuilder(
+    column: $table.nomorAktaPpat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get tanggalAktaPpat => $composableBuilder(
+    column: $table.tanggalAktaPpat,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -18936,6 +20754,14 @@ class $$TransaksiDetailsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get hargaUuid =>
+      $composableBuilder(column: $table.hargaUuid, builder: (column) => column);
+
+  GeneratedColumn<String> get kategoriUuid => $composableBuilder(
+    column: $table.kategoriUuid,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get estimasiWaktuSnapshot => $composableBuilder(
     column: $table.estimasiWaktuSnapshot,
     builder: (column) => column,
@@ -18958,6 +20784,26 @@ class $$TransaksiDetailsTableAnnotationComposer
 
   GeneratedColumn<double> get totalSnapshot => $composableBuilder(
     column: $table.totalSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get statusPekerjaanPpat => $composableBuilder(
+    column: $table.statusPekerjaanPpat,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get judulAktaPpat => $composableBuilder(
+    column: $table.judulAktaPpat,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get nomorAktaPpat => $composableBuilder(
+    column: $table.nomorAktaPpat,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get tanggalAktaPpat => $composableBuilder(
+    column: $table.tanggalAktaPpat,
     builder: (column) => column,
   );
 
@@ -19123,11 +20969,17 @@ class $$TransaksiDetailsTableTableManager
                 Value<int?> pekerjaanPpatId = const Value.absent(),
                 Value<String> namaPekerjaanSnapshot = const Value.absent(),
                 Value<String?> kategoriSnapshot = const Value.absent(),
+                Value<String?> hargaUuid = const Value.absent(),
+                Value<String?> kategoriUuid = const Value.absent(),
                 Value<String?> estimasiWaktuSnapshot = const Value.absent(),
                 Value<String?> prosesSnapshot = const Value.absent(),
                 Value<double> biayaLayanan = const Value.absent(),
                 Value<double> biayaLainnya = const Value.absent(),
                 Value<double> totalSnapshot = const Value.absent(),
+                Value<String?> statusPekerjaanPpat = const Value.absent(),
+                Value<String?> judulAktaPpat = const Value.absent(),
+                Value<String?> nomorAktaPpat = const Value.absent(),
+                Value<DateTime?> tanggalAktaPpat = const Value.absent(),
                 Value<DateTime?> createdAt = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
                 Value<int> status = const Value.absent(),
@@ -19143,11 +20995,17 @@ class $$TransaksiDetailsTableTableManager
                 pekerjaanPpatId: pekerjaanPpatId,
                 namaPekerjaanSnapshot: namaPekerjaanSnapshot,
                 kategoriSnapshot: kategoriSnapshot,
+                hargaUuid: hargaUuid,
+                kategoriUuid: kategoriUuid,
                 estimasiWaktuSnapshot: estimasiWaktuSnapshot,
                 prosesSnapshot: prosesSnapshot,
                 biayaLayanan: biayaLayanan,
                 biayaLainnya: biayaLainnya,
                 totalSnapshot: totalSnapshot,
+                statusPekerjaanPpat: statusPekerjaanPpat,
+                judulAktaPpat: judulAktaPpat,
+                nomorAktaPpat: nomorAktaPpat,
+                tanggalAktaPpat: tanggalAktaPpat,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 status: status,
@@ -19165,11 +21023,17 @@ class $$TransaksiDetailsTableTableManager
                 Value<int?> pekerjaanPpatId = const Value.absent(),
                 required String namaPekerjaanSnapshot,
                 Value<String?> kategoriSnapshot = const Value.absent(),
+                Value<String?> hargaUuid = const Value.absent(),
+                Value<String?> kategoriUuid = const Value.absent(),
                 Value<String?> estimasiWaktuSnapshot = const Value.absent(),
                 Value<String?> prosesSnapshot = const Value.absent(),
                 Value<double> biayaLayanan = const Value.absent(),
                 Value<double> biayaLainnya = const Value.absent(),
                 Value<double> totalSnapshot = const Value.absent(),
+                Value<String?> statusPekerjaanPpat = const Value.absent(),
+                Value<String?> judulAktaPpat = const Value.absent(),
+                Value<String?> nomorAktaPpat = const Value.absent(),
+                Value<DateTime?> tanggalAktaPpat = const Value.absent(),
                 Value<DateTime?> createdAt = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
                 Value<int> status = const Value.absent(),
@@ -19185,11 +21049,17 @@ class $$TransaksiDetailsTableTableManager
                 pekerjaanPpatId: pekerjaanPpatId,
                 namaPekerjaanSnapshot: namaPekerjaanSnapshot,
                 kategoriSnapshot: kategoriSnapshot,
+                hargaUuid: hargaUuid,
+                kategoriUuid: kategoriUuid,
                 estimasiWaktuSnapshot: estimasiWaktuSnapshot,
                 prosesSnapshot: prosesSnapshot,
                 biayaLayanan: biayaLayanan,
                 biayaLainnya: biayaLainnya,
                 totalSnapshot: totalSnapshot,
+                statusPekerjaanPpat: statusPekerjaanPpat,
+                judulAktaPpat: judulAktaPpat,
+                nomorAktaPpat: nomorAktaPpat,
+                tanggalAktaPpat: tanggalAktaPpat,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 status: status,
@@ -19326,6 +21196,7 @@ typedef $$TransaksiRiwayatPembayaransTableCreateCompanionBuilder =
       required int transaksiId,
       required DateTime tanggalPembayaran,
       required double nominal,
+      Value<int?> nominalRupiah,
       Value<String> metodePembayaran,
       Value<String?> keterangan,
       Value<int> urutanPembayaran,
@@ -19343,6 +21214,7 @@ typedef $$TransaksiRiwayatPembayaransTableUpdateCompanionBuilder =
       Value<int> transaksiId,
       Value<DateTime> tanggalPembayaran,
       Value<double> nominal,
+      Value<int?> nominalRupiah,
       Value<String> metodePembayaran,
       Value<String?> keterangan,
       Value<int> urutanPembayaran,
@@ -19413,6 +21285,11 @@ class $$TransaksiRiwayatPembayaransTableFilterComposer
 
   ColumnFilters<double> get nominal => $composableBuilder(
     column: $table.nominal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nominalRupiah => $composableBuilder(
+    column: $table.nominalRupiah,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -19514,6 +21391,11 @@ class $$TransaksiRiwayatPembayaransTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get nominalRupiah => $composableBuilder(
+    column: $table.nominalRupiah,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get metodePembayaran => $composableBuilder(
     column: $table.metodePembayaran,
     builder: (column) => ColumnOrderings(column),
@@ -19605,6 +21487,11 @@ class $$TransaksiRiwayatPembayaransTableAnnotationComposer
 
   GeneratedColumn<double> get nominal =>
       $composableBuilder(column: $table.nominal, builder: (column) => column);
+
+  GeneratedColumn<int> get nominalRupiah => $composableBuilder(
+    column: $table.nominalRupiah,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get metodePembayaran => $composableBuilder(
     column: $table.metodePembayaran,
@@ -19714,6 +21601,7 @@ class $$TransaksiRiwayatPembayaransTableTableManager
                 Value<int> transaksiId = const Value.absent(),
                 Value<DateTime> tanggalPembayaran = const Value.absent(),
                 Value<double> nominal = const Value.absent(),
+                Value<int?> nominalRupiah = const Value.absent(),
                 Value<String> metodePembayaran = const Value.absent(),
                 Value<String?> keterangan = const Value.absent(),
                 Value<int> urutanPembayaran = const Value.absent(),
@@ -19729,6 +21617,7 @@ class $$TransaksiRiwayatPembayaransTableTableManager
                 transaksiId: transaksiId,
                 tanggalPembayaran: tanggalPembayaran,
                 nominal: nominal,
+                nominalRupiah: nominalRupiah,
                 metodePembayaran: metodePembayaran,
                 keterangan: keterangan,
                 urutanPembayaran: urutanPembayaran,
@@ -19746,6 +21635,7 @@ class $$TransaksiRiwayatPembayaransTableTableManager
                 required int transaksiId,
                 required DateTime tanggalPembayaran,
                 required double nominal,
+                Value<int?> nominalRupiah = const Value.absent(),
                 Value<String> metodePembayaran = const Value.absent(),
                 Value<String?> keterangan = const Value.absent(),
                 Value<int> urutanPembayaran = const Value.absent(),
@@ -19761,6 +21651,7 @@ class $$TransaksiRiwayatPembayaransTableTableManager
                 transaksiId: transaksiId,
                 tanggalPembayaran: tanggalPembayaran,
                 nominal: nominal,
+                nominalRupiah: nominalRupiah,
                 metodePembayaran: metodePembayaran,
                 keterangan: keterangan,
                 urutanPembayaran: urutanPembayaran,
@@ -21688,6 +23579,38 @@ typedef $$PengeluaranJenisTableUpdateCompanionBuilder =
       Value<DateTime?> deletedAt,
     });
 
+final class $$PengeluaranJenisTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $PengeluaranJenisTable,
+          PengeluaranJenisData
+        > {
+  $$PengeluaranJenisTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<$PengeluaransTable, List<PengeluaranData>>
+  _pengeluaransRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.pengeluarans,
+    aliasName: 'pengeluaran_jenis__id__pengeluaran__jenis_id',
+  );
+
+  $$PengeluaransTableProcessedTableManager get pengeluaransRefs {
+    final manager = $$PengeluaransTableTableManager(
+      $_db,
+      $_db.pengeluarans,
+    ).filter((f) => f.jenisId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_pengeluaransRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
 class $$PengeluaranJenisTableFilterComposer
     extends Composer<_$AppDatabase, $PengeluaranJenisTable> {
   $$PengeluaranJenisTableFilterComposer({
@@ -21751,6 +23674,31 @@ class $$PengeluaranJenisTableFilterComposer
     column: $table.deletedAt,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> pengeluaransRefs(
+    Expression<bool> Function($$PengeluaransTableFilterComposer f) f,
+  ) {
+    final $$PengeluaransTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.pengeluarans,
+      getReferencedColumn: (t) => t.jenisId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PengeluaransTableFilterComposer(
+            $db: $db,
+            $table: $db.pengeluarans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$PengeluaranJenisTableOrderingComposer
@@ -21863,6 +23811,31 @@ class $$PengeluaranJenisTableAnnotationComposer
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  Expression<T> pengeluaransRefs<T extends Object>(
+    Expression<T> Function($$PengeluaransTableAnnotationComposer a) f,
+  ) {
+    final $$PengeluaransTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.pengeluarans,
+      getReferencedColumn: (t) => t.jenisId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PengeluaransTableAnnotationComposer(
+            $db: $db,
+            $table: $db.pengeluarans,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 }
 
 class $$PengeluaranJenisTableTableManager
@@ -21876,16 +23849,9 @@ class $$PengeluaranJenisTableTableManager
           $$PengeluaranJenisTableAnnotationComposer,
           $$PengeluaranJenisTableCreateCompanionBuilder,
           $$PengeluaranJenisTableUpdateCompanionBuilder,
-          (
-            PengeluaranJenisData,
-            BaseReferences<
-              _$AppDatabase,
-              $PengeluaranJenisTable,
-              PengeluaranJenisData
-            >,
-          ),
+          (PengeluaranJenisData, $$PengeluaranJenisTableReferences),
           PengeluaranJenisData,
-          PrefetchHooks Function()
+          PrefetchHooks Function({bool pengeluaransRefs})
         > {
   $$PengeluaranJenisTableTableManager(
     _$AppDatabase db,
@@ -21958,15 +23924,40 @@ class $$PengeluaranJenisTableTableManager
                   e.readTable<$PengeluaranJenisTable, PengeluaranJenisData>(
                     table,
                   ),
-                  BaseReferences<
-                    _$AppDatabase,
-                    $PengeluaranJenisTable,
-                    PengeluaranJenisData
-                  >(db, table, e),
+                  $$PengeluaranJenisTableReferences(db, table, e),
                 ),
               )
               .toList(),
-          prefetchHooksCallback: null,
+          prefetchHooksCallback: ({pengeluaransRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [if (pengeluaransRefs) db.pengeluarans],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (pengeluaransRefs)
+                    await $_getPrefetchedData<
+                      PengeluaranJenisData,
+                      $PengeluaranJenisTable,
+                      PengeluaranData
+                    >(
+                      currentTable: table,
+                      referencedTable: $$PengeluaranJenisTableReferences
+                          ._pengeluaransRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$PengeluaranJenisTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).pengeluaransRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.jenisId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
         ),
       );
 }
@@ -21981,16 +23972,9 @@ typedef $$PengeluaranJenisTableProcessedTableManager =
       $$PengeluaranJenisTableAnnotationComposer,
       $$PengeluaranJenisTableCreateCompanionBuilder,
       $$PengeluaranJenisTableUpdateCompanionBuilder,
-      (
-        PengeluaranJenisData,
-        BaseReferences<
-          _$AppDatabase,
-          $PengeluaranJenisTable,
-          PengeluaranJenisData
-        >,
-      ),
+      (PengeluaranJenisData, $$PengeluaranJenisTableReferences),
       PengeluaranJenisData,
-      PrefetchHooks Function()
+      PrefetchHooks Function({bool pengeluaransRefs})
     >;
 typedef $$PetugasLocalsTableCreateCompanionBuilder =
     PetugasLocalsCompanion Function({
@@ -22059,6 +24043,30 @@ final class $$PetugasLocalsTableReferences
     if (item == null) return manager;
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $PetugasIdentityMapsTable,
+    List<PetugasIdentityMap>
+  >
+  _petugasIdentityMapsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.petugasIdentityMaps,
+        aliasName: 'petugas__uuid__petugas_identity_map__local_uuid',
+      );
+
+  $$PetugasIdentityMapsTableProcessedTableManager get petugasIdentityMapsRefs {
+    final manager = $$PetugasIdentityMapsTableTableManager(
+      $_db,
+      $_db.petugasIdentityMaps,
+    ).filter((f) => f.localUuid.uuid.sqlEquals($_itemColumn<String>('uuid')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _petugasIdentityMapsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
     );
   }
 }
@@ -22183,6 +24191,31 @@ class $$PetugasLocalsTableFilterComposer
           ),
     );
     return composer;
+  }
+
+  Expression<bool> petugasIdentityMapsRefs(
+    Expression<bool> Function($$PetugasIdentityMapsTableFilterComposer f) f,
+  ) {
+    final $$PetugasIdentityMapsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.uuid,
+      referencedTable: $db.petugasIdentityMaps,
+      getReferencedColumn: (t) => t.localUuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PetugasIdentityMapsTableFilterComposer(
+            $db: $db,
+            $table: $db.petugasIdentityMaps,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
   }
 }
 
@@ -22402,6 +24435,32 @@ class $$PetugasLocalsTableAnnotationComposer
     );
     return composer;
   }
+
+  Expression<T> petugasIdentityMapsRefs<T extends Object>(
+    Expression<T> Function($$PetugasIdentityMapsTableAnnotationComposer a) f,
+  ) {
+    final $$PetugasIdentityMapsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.uuid,
+          referencedTable: $db.petugasIdentityMaps,
+          getReferencedColumn: (t) => t.localUuid,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PetugasIdentityMapsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.petugasIdentityMaps,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$PetugasLocalsTableTableManager
@@ -22417,7 +24476,10 @@ class $$PetugasLocalsTableTableManager
           $$PetugasLocalsTableUpdateCompanionBuilder,
           (PetugasLocal, $$PetugasLocalsTableReferences),
           PetugasLocal,
-          PrefetchHooks Function({bool jenisKelamin})
+          PrefetchHooks Function({
+            bool jenisKelamin,
+            bool petugasIdentityMapsRefs,
+          })
         > {
   $$PetugasLocalsTableTableManager(_$AppDatabase db, $PetugasLocalsTable table)
     : super(
@@ -22522,7 +24584,405 @@ class $$PetugasLocalsTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({jenisKelamin = false}) {
+          prefetchHooksCallback:
+              ({jenisKelamin = false, petugasIdentityMapsRefs = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (petugasIdentityMapsRefs) db.petugasIdentityMaps,
+                  ],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (jenisKelamin) {
+                          state = state.withJoin(
+                            currentTable: table,
+                            currentColumn: table.jenisKelamin,
+                            referencedTable: $$PetugasLocalsTableReferences
+                                ._jenisKelaminTable(db),
+                            referencedColumn: $$PetugasLocalsTableReferences
+                                ._jenisKelaminTable(db)
+                                .id,
+                          ) as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (petugasIdentityMapsRefs)
+                        await $_getPrefetchedData<
+                          PetugasLocal,
+                          $PetugasLocalsTable,
+                          PetugasIdentityMap
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PetugasLocalsTableReferences
+                              ._petugasIdentityMapsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PetugasLocalsTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).petugasIdentityMapsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.localUuid == item.uuid,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$PetugasLocalsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PetugasLocalsTable,
+      PetugasLocal,
+      $$PetugasLocalsTableFilterComposer,
+      $$PetugasLocalsTableOrderingComposer,
+      $$PetugasLocalsTableAnnotationComposer,
+      $$PetugasLocalsTableCreateCompanionBuilder,
+      $$PetugasLocalsTableUpdateCompanionBuilder,
+      (PetugasLocal, $$PetugasLocalsTableReferences),
+      PetugasLocal,
+      PrefetchHooks Function({bool jenisKelamin, bool petugasIdentityMapsRefs})
+    >;
+typedef $$PetugasIdentityMapsTableCreateCompanionBuilder =
+    PetugasIdentityMapsCompanion Function({
+      required String localUuid,
+      Value<String?> cloudUuid,
+      Value<int?> serverId,
+      required String state,
+      Value<String?> evidence,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$PetugasIdentityMapsTableUpdateCompanionBuilder =
+    PetugasIdentityMapsCompanion Function({
+      Value<String> localUuid,
+      Value<String?> cloudUuid,
+      Value<int?> serverId,
+      Value<String> state,
+      Value<String?> evidence,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+final class $$PetugasIdentityMapsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $PetugasIdentityMapsTable,
+          PetugasIdentityMap
+        > {
+  $$PetugasIdentityMapsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $PetugasLocalsTable _localUuidTable(_$AppDatabase db) => db
+      .petugasLocals
+      .createAlias('petugas_identity_map__local_uuid__petugas__uuid');
+
+  $$PetugasLocalsTableProcessedTableManager get localUuid {
+    final $_column = $_itemColumn<String>('local_uuid')!;
+
+    final manager = $$PetugasLocalsTableTableManager(
+      $_db,
+      $_db.petugasLocals,
+    ).filter((f) => f.uuid.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_localUuidTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PetugasIdentityMapsTableFilterComposer
+    extends Composer<_$AppDatabase, $PetugasIdentityMapsTable> {
+  $$PetugasIdentityMapsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get cloudUuid => $composableBuilder(
+    column: $table.cloudUuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get evidence => $composableBuilder(
+    column: $table.evidence,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$PetugasLocalsTableFilterComposer get localUuid {
+    final $$PetugasLocalsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localUuid,
+      referencedTable: $db.petugasLocals,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PetugasLocalsTableFilterComposer(
+            $db: $db,
+            $table: $db.petugasLocals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PetugasIdentityMapsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PetugasIdentityMapsTable> {
+  $$PetugasIdentityMapsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get cloudUuid => $composableBuilder(
+    column: $table.cloudUuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get evidence => $composableBuilder(
+    column: $table.evidence,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$PetugasLocalsTableOrderingComposer get localUuid {
+    final $$PetugasLocalsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localUuid,
+      referencedTable: $db.petugasLocals,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PetugasLocalsTableOrderingComposer(
+            $db: $db,
+            $table: $db.petugasLocals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PetugasIdentityMapsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PetugasIdentityMapsTable> {
+  $$PetugasIdentityMapsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get cloudUuid =>
+      $composableBuilder(column: $table.cloudUuid, builder: (column) => column);
+
+  GeneratedColumn<int> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<String> get evidence =>
+      $composableBuilder(column: $table.evidence, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  $$PetugasLocalsTableAnnotationComposer get localUuid {
+    final $$PetugasLocalsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.localUuid,
+      referencedTable: $db.petugasLocals,
+      getReferencedColumn: (t) => t.uuid,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PetugasLocalsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.petugasLocals,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PetugasIdentityMapsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PetugasIdentityMapsTable,
+          PetugasIdentityMap,
+          $$PetugasIdentityMapsTableFilterComposer,
+          $$PetugasIdentityMapsTableOrderingComposer,
+          $$PetugasIdentityMapsTableAnnotationComposer,
+          $$PetugasIdentityMapsTableCreateCompanionBuilder,
+          $$PetugasIdentityMapsTableUpdateCompanionBuilder,
+          (PetugasIdentityMap, $$PetugasIdentityMapsTableReferences),
+          PetugasIdentityMap,
+          PrefetchHooks Function({bool localUuid})
+        > {
+  $$PetugasIdentityMapsTableTableManager(
+    _$AppDatabase db,
+    $PetugasIdentityMapsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PetugasIdentityMapsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PetugasIdentityMapsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PetugasIdentityMapsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> localUuid = const Value.absent(),
+                Value<String?> cloudUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<String?> evidence = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PetugasIdentityMapsCompanion(
+                localUuid: localUuid,
+                cloudUuid: cloudUuid,
+                serverId: serverId,
+                state: state,
+                evidence: evidence,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String localUuid,
+                Value<String?> cloudUuid = const Value.absent(),
+                Value<int?> serverId = const Value.absent(),
+                required String state,
+                Value<String?> evidence = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => PetugasIdentityMapsCompanion.insert(
+                localUuid: localUuid,
+                cloudUuid: cloudUuid,
+                serverId: serverId,
+                state: state,
+                evidence: evidence,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PetugasIdentityMapsTable, PetugasIdentityMap>(
+                    table,
+                  ),
+                  $$PetugasIdentityMapsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({localUuid = false}) {
             return PrefetchHooks(
               db: db,
               explicitlyWatchedTables: [],
@@ -22542,15 +25002,15 @@ class $$PetugasLocalsTableTableManager
                       dynamic
                     >
                   >(state) {
-                    if (jenisKelamin) {
+                    if (localUuid) {
                       state = state.withJoin(
                         currentTable: table,
-                        currentColumn: table.jenisKelamin,
-                        referencedTable: $$PetugasLocalsTableReferences
-                            ._jenisKelaminTable(db),
-                        referencedColumn: $$PetugasLocalsTableReferences
-                            ._jenisKelaminTable(db)
-                            .id,
+                        currentColumn: table.localUuid,
+                        referencedTable: $$PetugasIdentityMapsTableReferences
+                            ._localUuidTable(db),
+                        referencedColumn: $$PetugasIdentityMapsTableReferences
+                            ._localUuidTable(db)
+                            .uuid,
                       ) as T;
                     }
 
@@ -22565,19 +25025,19 @@ class $$PetugasLocalsTableTableManager
       );
 }
 
-typedef $$PetugasLocalsTableProcessedTableManager =
+typedef $$PetugasIdentityMapsTableProcessedTableManager =
     ProcessedTableManager<
       _$AppDatabase,
-      $PetugasLocalsTable,
-      PetugasLocal,
-      $$PetugasLocalsTableFilterComposer,
-      $$PetugasLocalsTableOrderingComposer,
-      $$PetugasLocalsTableAnnotationComposer,
-      $$PetugasLocalsTableCreateCompanionBuilder,
-      $$PetugasLocalsTableUpdateCompanionBuilder,
-      (PetugasLocal, $$PetugasLocalsTableReferences),
-      PetugasLocal,
-      PrefetchHooks Function({bool jenisKelamin})
+      $PetugasIdentityMapsTable,
+      PetugasIdentityMap,
+      $$PetugasIdentityMapsTableFilterComposer,
+      $$PetugasIdentityMapsTableOrderingComposer,
+      $$PetugasIdentityMapsTableAnnotationComposer,
+      $$PetugasIdentityMapsTableCreateCompanionBuilder,
+      $$PetugasIdentityMapsTableUpdateCompanionBuilder,
+      (PetugasIdentityMap, $$PetugasIdentityMapsTableReferences),
+      PetugasIdentityMap,
+      PrefetchHooks Function({bool localUuid})
     >;
 typedef $$PekerjaanNotarisHargaLocalsTableCreateCompanionBuilder =
     PekerjaanNotarisHargaLocalsCompanion Function({
@@ -26252,6 +28712,432 @@ typedef $$PekerjaanPpatAtributLocalsTableProcessedTableManager =
       PekerjaanPpatAtributLocal,
       PrefetchHooks Function({bool pekerjaanPpatId, bool prosesPekerjaanPpatId})
     >;
+typedef $$PengeluaransTableCreateCompanionBuilder =
+    PengeluaransCompanion Function({
+      Value<int> id,
+      required String uuid,
+      Value<String?> noFaktur,
+      required DateTime tanggal,
+      required int nominal,
+      required int jenisId,
+      required String jenisNama,
+      required String keterangan,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<DateTime?> deletedAt,
+    });
+typedef $$PengeluaransTableUpdateCompanionBuilder =
+    PengeluaransCompanion Function({
+      Value<int> id,
+      Value<String> uuid,
+      Value<String?> noFaktur,
+      Value<DateTime> tanggal,
+      Value<int> nominal,
+      Value<int> jenisId,
+      Value<String> jenisNama,
+      Value<String> keterangan,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<DateTime?> deletedAt,
+    });
+
+final class $$PengeluaransTableReferences
+    extends BaseReferences<_$AppDatabase, $PengeluaransTable, PengeluaranData> {
+  $$PengeluaransTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $PengeluaranJenisTable _jenisIdTable(_$AppDatabase db) => db
+      .pengeluaranJenis
+      .createAlias('pengeluaran__jenis_id__pengeluaran_jenis__id');
+
+  $$PengeluaranJenisTableProcessedTableManager get jenisId {
+    final $_column = $_itemColumn<int>('jenis_id')!;
+
+    final manager = $$PengeluaranJenisTableTableManager(
+      $_db,
+      $_db.pengeluaranJenis,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_jenisIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PengeluaransTableFilterComposer
+    extends Composer<_$AppDatabase, $PengeluaransTable> {
+  $$PengeluaransTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get noFaktur => $composableBuilder(
+    column: $table.noFaktur,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get tanggal => $composableBuilder(
+    column: $table.tanggal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get nominal => $composableBuilder(
+    column: $table.nominal,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get jenisNama => $composableBuilder(
+    column: $table.jenisNama,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get keterangan => $composableBuilder(
+    column: $table.keterangan,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$PengeluaranJenisTableFilterComposer get jenisId {
+    final $$PengeluaranJenisTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jenisId,
+      referencedTable: $db.pengeluaranJenis,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PengeluaranJenisTableFilterComposer(
+            $db: $db,
+            $table: $db.pengeluaranJenis,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PengeluaransTableOrderingComposer
+    extends Composer<_$AppDatabase, $PengeluaransTable> {
+  $$PengeluaransTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get uuid => $composableBuilder(
+    column: $table.uuid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get noFaktur => $composableBuilder(
+    column: $table.noFaktur,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get tanggal => $composableBuilder(
+    column: $table.tanggal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get nominal => $composableBuilder(
+    column: $table.nominal,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get jenisNama => $composableBuilder(
+    column: $table.jenisNama,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get keterangan => $composableBuilder(
+    column: $table.keterangan,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get deletedAt => $composableBuilder(
+    column: $table.deletedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$PengeluaranJenisTableOrderingComposer get jenisId {
+    final $$PengeluaranJenisTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jenisId,
+      referencedTable: $db.pengeluaranJenis,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PengeluaranJenisTableOrderingComposer(
+            $db: $db,
+            $table: $db.pengeluaranJenis,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PengeluaransTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PengeluaransTable> {
+  $$PengeluaransTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get uuid =>
+      $composableBuilder(column: $table.uuid, builder: (column) => column);
+
+  GeneratedColumn<String> get noFaktur =>
+      $composableBuilder(column: $table.noFaktur, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get tanggal =>
+      $composableBuilder(column: $table.tanggal, builder: (column) => column);
+
+  GeneratedColumn<int> get nominal =>
+      $composableBuilder(column: $table.nominal, builder: (column) => column);
+
+  GeneratedColumn<String> get jenisNama =>
+      $composableBuilder(column: $table.jenisNama, builder: (column) => column);
+
+  GeneratedColumn<String> get keterangan => $composableBuilder(
+    column: $table.keterangan,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get deletedAt =>
+      $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  $$PengeluaranJenisTableAnnotationComposer get jenisId {
+    final $$PengeluaranJenisTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.jenisId,
+      referencedTable: $db.pengeluaranJenis,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PengeluaranJenisTableAnnotationComposer(
+            $db: $db,
+            $table: $db.pengeluaranJenis,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PengeluaransTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PengeluaransTable,
+          PengeluaranData,
+          $$PengeluaransTableFilterComposer,
+          $$PengeluaransTableOrderingComposer,
+          $$PengeluaransTableAnnotationComposer,
+          $$PengeluaransTableCreateCompanionBuilder,
+          $$PengeluaransTableUpdateCompanionBuilder,
+          (PengeluaranData, $$PengeluaransTableReferences),
+          PengeluaranData,
+          PrefetchHooks Function({bool jenisId})
+        > {
+  $$PengeluaransTableTableManager(_$AppDatabase db, $PengeluaransTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PengeluaransTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PengeluaransTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PengeluaransTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> uuid = const Value.absent(),
+                Value<String?> noFaktur = const Value.absent(),
+                Value<DateTime> tanggal = const Value.absent(),
+                Value<int> nominal = const Value.absent(),
+                Value<int> jenisId = const Value.absent(),
+                Value<String> jenisNama = const Value.absent(),
+                Value<String> keterangan = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<DateTime?> deletedAt = const Value.absent(),
+              }) => PengeluaransCompanion(
+                id: id,
+                uuid: uuid,
+                noFaktur: noFaktur,
+                tanggal: tanggal,
+                nominal: nominal,
+                jenisId: jenisId,
+                jenisNama: jenisNama,
+                keterangan: keterangan,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String uuid,
+                Value<String?> noFaktur = const Value.absent(),
+                required DateTime tanggal,
+                required int nominal,
+                required int jenisId,
+                required String jenisNama,
+                required String keterangan,
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<DateTime?> deletedAt = const Value.absent(),
+              }) => PengeluaransCompanion.insert(
+                id: id,
+                uuid: uuid,
+                noFaktur: noFaktur,
+                tanggal: tanggal,
+                nominal: nominal,
+                jenisId: jenisId,
+                jenisNama: jenisNama,
+                keterangan: keterangan,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                deletedAt: deletedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$PengeluaransTable, PengeluaranData>(table),
+                  $$PengeluaransTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({jenisId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (jenisId) {
+                      state = state.withJoin(
+                        currentTable: table,
+                        currentColumn: table.jenisId,
+                        referencedTable: $$PengeluaransTableReferences
+                            ._jenisIdTable(db),
+                        referencedColumn: $$PengeluaransTableReferences
+                            ._jenisIdTable(db)
+                            .id,
+                      ) as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$PengeluaransTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PengeluaransTable,
+      PengeluaranData,
+      $$PengeluaransTableFilterComposer,
+      $$PengeluaransTableOrderingComposer,
+      $$PengeluaransTableAnnotationComposer,
+      $$PengeluaransTableCreateCompanionBuilder,
+      $$PengeluaransTableUpdateCompanionBuilder,
+      (PengeluaranData, $$PengeluaransTableReferences),
+      PengeluaranData,
+      PrefetchHooks Function({bool jenisId})
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -26290,6 +29176,8 @@ class $AppDatabaseManager {
       $$PengeluaranJenisTableTableManager(_db, _db.pengeluaranJenis);
   $$PetugasLocalsTableTableManager get petugasLocals =>
       $$PetugasLocalsTableTableManager(_db, _db.petugasLocals);
+  $$PetugasIdentityMapsTableTableManager get petugasIdentityMaps =>
+      $$PetugasIdentityMapsTableTableManager(_db, _db.petugasIdentityMaps);
   $$PekerjaanNotarisHargaLocalsTableTableManager
   get pekerjaanNotarisHargaLocals =>
       $$PekerjaanNotarisHargaLocalsTableTableManager(
@@ -26324,4 +29212,6 @@ class $AppDatabaseManager {
         _db,
         _db.pekerjaanPpatAtributLocals,
       );
+  $$PengeluaransTableTableManager get pengeluarans =>
+      $$PengeluaransTableTableManager(_db, _db.pengeluarans);
 }

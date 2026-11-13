@@ -1,20 +1,56 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
 
 	"backend-notaris-go/config"
 	"backend-notaris-go/controllers"
 	"backend-notaris-go/database"
+	"backend-notaris-go/repositories"
 	"backend-notaris-go/routes"
 	"backend-notaris-go/services"
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func run() error {
 	cfg := config.LoadConfig()
+	acceptance := os.Getenv("NOTARIS_UI_ACCEPTANCE_PLAN") != ""
+	if acceptance && (cfg.DBHost != "127.0.0.1" || cfg.DBPort != "5432" || cfg.DBName != "notarisdev" || cfg.Port != "8081" || cfg.PetugasPublisherEnabled) {
+		return errors.New("acceptance requires the exact development target and publisher disabled")
+	}
 	if err := database.ConnectDB(cfg); err != nil {
-		log.Fatalf("Failed to initialize PostgreSQL: %v", err)
+		return errors.New("failed to initialize PostgreSQL")
+	}
+	pool, err := database.DB.DB()
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	var workers sync.WaitGroup
+	if cfg.PetugasPublisherEnabled {
+		worker, err := services.NewPetugasPublicationWorker(repositories.NewPetugasPublicationRepository(database.DB), services.PublicationWorkerOptions{BatchSize: cfg.PetugasPublisherBatch, Interval: cfg.PetugasPublisherInterval, AttemptTimeout: cfg.PetugasPublisherTimeout, MaxBackoff: cfg.PetugasPublisherMaxBackoff}, log.Default())
+		if err != nil {
+			return err
+		}
+		workers.Add(1)
+		go func() { defer workers.Done(); worker.Run(ctx) }()
+		log.Print("petugas publication worker enabled")
 	}
 	healthController := controllers.NewHealthController()
 	pemohonController := controllers.NewPemohonController()
@@ -33,8 +69,29 @@ func main() {
 	r := routes.SetupRouter(cfg, healthController, pemohonController, petugasController, kategoriPekerjaanController, jenisPengeluaranController,
 		groupController, userController, authController, meController, sidebarController, sidebarAccessController)
 	serverAddr := fmt.Sprintf(":%s", cfg.Port)
-	fmt.Printf("Server running on port %s\n", cfg.Port)
-	if err := r.Run(serverAddr); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	if acceptance {
+		serverAddr = "127.0.0.1:8081"
 	}
+	fmt.Printf("Server running on port %s\n", cfg.Port)
+	server := &http.Server{Addr: serverAddr, Handler: r}
+	finished := make(chan error, 1)
+	go func() { finished <- server.ListenAndServe() }()
+	var serveErr error
+	select {
+	case <-ctx.Done():
+	case serveErr = <-finished:
+		cancel()
+	}
+	cancel()
+	shutdownCtx, stop := context.WithTimeout(context.Background(), 15*time.Second)
+	defer stop()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		_ = server.Close()
+		log.Print("HTTP graceful shutdown deadline reached")
+	}
+	workers.Wait()
+	if serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+		return serveErr
+	}
+	return nil
 }

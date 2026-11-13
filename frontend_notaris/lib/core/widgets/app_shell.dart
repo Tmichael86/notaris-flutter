@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/auth_session.dart';
 import '../../screens/dashboard_desktop_screen.dart';
@@ -21,7 +22,12 @@ import '../../screens/piutang_desktop_screen.dart';
 import '../../screens/sidebar_desktop_screen.dart';
 import '../../screens/transaction_desktop_screen.dart';
 import '../../screens/users_desktop_screen.dart';
+import '../../screens/sync_log_desktop_screen.dart';
+import '../../screens/sync_monitor_desktop_screen.dart';
+import '../../screens/recycle_bin_desktop_screen.dart';
 import '../../core/theme/app_colors.dart';
+import '../../services/attribute_workflow.dart';
+import '../../widgets/attribute_workflow_dialog.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key, this.session, this.onLogout});
@@ -56,6 +62,9 @@ class _AppShellState extends State<AppShell> {
     'Groups',
     'Sidebars',
     'Konfigurasi Umum',
+    'Log Sinkronisasi',
+    'Monitoring Sinkronisasi',
+    'Recycle Bin',
   ];
 
   void _selectMenu(String title) {
@@ -74,6 +83,28 @@ class _AppShellState extends State<AppShell> {
     // Dashboard is the authenticated landing page, not a permission-managed
     // business menu. It must remain reachable for every signed-in user.
     if (title.trim().toLowerCase() == 'dashboard') return true;
+    // Local sanitized diagnostics of this profile; no server CRUD permission.
+    if (title == 'Log Sinkronisasi') return true;
+    if (title == 'Monitoring Sinkronisasi') return true;
+    if (title == 'Recycle Bin') {
+      final session = widget.session;
+      if (session == null) return false;
+      return session.sidebars.any((access) {
+        final sidebar = access['sidebar'];
+        final read = access['read'];
+        return sidebar is Map &&
+            const [
+              'pekerjaan_notaris',
+              'pekerjaan_ppat',
+              'transaksi',
+            ].contains(sidebar['sidebar_kode']) &&
+            (read == 1 || read == true || read == '1') &&
+            (sidebar['status'] == null ||
+                sidebar['status'] == 1 ||
+                sidebar['status'] == true ||
+                sidebar['status'] == '1');
+      });
+    }
 
     final session = widget.session;
     if (session == null) return true;
@@ -89,7 +120,6 @@ class _AppShellState extends State<AppShell> {
     }
     return false;
   }
-
 
   Widget _buildHeader({bool mobile = false}) {
     return Container(
@@ -129,13 +159,21 @@ class _AppShellState extends State<AppShell> {
             ),
             const Spacer(),
           ],
-          IconButton(
-            tooltip: 'Notifikasi',
-            icon: const Icon(
-              Icons.notifications_none_outlined,
-              color: AppColors.textSecondary,
+          Consumer(
+            builder: (context, ref, _) => IconButton(
+              tooltip: 'Notifikasi',
+              icon: const Icon(
+                Icons.notifications_none_outlined,
+                color: AppColors.textSecondary,
+              ),
+              onPressed: ref.watch(attributeWorkflowProvider) == null
+                  ? null
+                  : () => showAttributeInbox(
+                      context,
+                      ref,
+                      () => _selectMenu('Transaksi'),
+                    ),
             ),
-            onPressed: () {},
           ),
           const SizedBox(width: 4),
           if (!mobile)
@@ -185,10 +223,7 @@ class _AppShellState extends State<AppShell> {
               PopupMenuDivider(),
               PopupMenuItem(
                 value: 'logout',
-                child: Text(
-                  'Keluar',
-                  style: TextStyle(color: AppColors.error),
-                ),
+                child: Text('Keluar', style: TextStyle(color: AppColors.error)),
               ),
             ],
           ),
@@ -235,8 +270,7 @@ class _AppShellState extends State<AppShell> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: dense ? 13 : 14,
-                      fontWeight:
-                          selected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                       color: selected
                           ? AppColors.selectedMenuText
                           : AppColors.textPrimary,
@@ -280,9 +314,7 @@ class _AppShellState extends State<AppShell> {
           collapsedIconColor: AppColors.textSecondary,
           textColor: AppColors.textPrimary,
           collapsedTextColor: AppColors.textPrimary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           collapsedShape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -325,11 +357,7 @@ class _AppShellState extends State<AppShell> {
             ),
             child: Row(
               children: [
-                Image.asset(
-                  logoImage,
-                  width: 75,
-                  fit: BoxFit.contain,
-                ),
+                Image.asset(logoImage, width: 75, fit: BoxFit.contain),
                 const SizedBox(width: 10),
                 const Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -546,9 +574,21 @@ class _AppShellState extends State<AppShell> {
                   _mobileItem('Piutang', Icons.account_balance_wallet_outlined),
                   _mobileItem('Penghasilan', Icons.trending_up_outlined),
                   const Divider(height: 1, color: AppColors.divider),
-                  _mobileExpansion('Master', Icons.folder_outlined, masterMenus),
-                  _mobileExpansion('Laporan', Icons.assessment_outlined, laporanMenus),
-                  _mobileExpansion('System', Icons.settings_outlined, systemMenus),
+                  _mobileExpansion(
+                    'Master',
+                    Icons.folder_outlined,
+                    masterMenus,
+                  ),
+                  _mobileExpansion(
+                    'Laporan',
+                    Icons.assessment_outlined,
+                    laporanMenus,
+                  ),
+                  _mobileExpansion(
+                    'System',
+                    Icons.settings_outlined,
+                    systemMenus,
+                  ),
                 ],
               ),
             ),
@@ -586,12 +626,12 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-
-
   Widget _buildContent() {
     switch (selectedMenu) {
       case 'Dashboard':
-        return const DashboardDesktopScreen();
+        final canReadTransactions =
+            widget.session != null && _canReadMenu('Transaksi');
+        return DashboardDesktopScreen(canReadTransactions: canReadTransactions);
       case 'Transaksi':
         return const TransactionDesktopScreen();
       case 'Monitoring':
@@ -626,6 +666,12 @@ class _AppShellState extends State<AppShell> {
         return const SidebarDesktopScreen();
       case 'Konfigurasi Umum':
         return const KonfigurasiUmumDesktopScreen();
+      case 'Log Sinkronisasi':
+        return const SyncLogDesktopScreen();
+      case 'Monitoring Sinkronisasi':
+        return const SyncMonitorDesktopScreen();
+      case 'Recycle Bin':
+        return const RecycleBinDesktopScreen();
       default:
         return Padding(
           padding: const EdgeInsets.all(28),
@@ -643,17 +689,17 @@ class _AppShellState extends State<AppShell> {
     // These pages are naturally taller than the viewport because their
     // tables are content-sized. Keep the shell footer bounded while the
     // page content scrolls inside its available area.
-  const scrollableMenus = {
-    'Dashboard',
-    'Monitoring',
-    'Pengeluaran',
-    'Piutang',
-    'Petugas',
-    'Pemohon',
-    'Materai',
-    'Pendapatan',
-    'Penghasilan',
-  };
+    const scrollableMenus = {
+      'Dashboard',
+      'Monitoring',
+      'Pengeluaran',
+      'Piutang',
+      'Petugas',
+      'Pemohon',
+      'Materai',
+      'Pendapatan',
+      'Penghasilan',
+    };
 
     final contentArea = scrollableMenus.contains(selectedMenu)
         ? SingleChildScrollView(
@@ -729,10 +775,7 @@ class _AppShellState extends State<AppShell> {
           children: [
             Container(
               color: AppColors.card,
-              child: SafeArea(
-                bottom: false,
-                child: _buildHeader(mobile: true),
-              ),
+              child: SafeArea(bottom: false, child: _buildHeader(mobile: true)),
             ),
             Expanded(child: _buildScrollableContent()),
           ],

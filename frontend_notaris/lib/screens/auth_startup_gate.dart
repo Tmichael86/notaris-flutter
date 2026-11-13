@@ -1,3 +1,5 @@
+import '../providers/isolated_transaction_profile_provider.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,7 @@ import '../core/theme/app_colors.dart';
 import '../core/widgets/app_shell.dart';
 import '../models/auth_session.dart';
 import '../providers/auth_provider.dart';
+import '../providers/development_smoke_provider.dart';
 import '../providers/pekerjaan_provider.dart';
 import '../services/session_sync_controller.dart';
 import 'login_desktop_screen.dart';
@@ -72,13 +75,19 @@ class _AuthenticatedShellState extends ConsumerState<_AuthenticatedShell>
     );
     // Wait until the first frame is complete before sync updates Riverpod state.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _sessionSyncController.start();
+      if (mounted &&
+          !ref.read(developmentUiSmokeProvider) &&
+          ref.read(isolatedTransactionSyncConfigurationProvider) == null) {
+        _sessionSyncController.start();
+      }
     });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.resumed &&
+        !ref.read(developmentUiSmokeProvider) &&
+        ref.read(isolatedTransactionSyncConfigurationProvider) == null) {
       _sessionSyncController.onAppResumed();
     }
   }

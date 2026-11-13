@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/widgets/loading_overlay.dart';
+import '../core/widgets/master_data_viewport.dart';
 import '../core/widgets/searchable_dropdown.dart';
 import '../database/app_database.dart';
 import '../providers/people_provider.dart';
+import '../providers/pekerjaan_provider.dart';
 
 class PemohonDesktopScreen extends ConsumerStatefulWidget {
   const PemohonDesktopScreen({super.key});
@@ -16,8 +18,10 @@ class PemohonDesktopScreen extends ConsumerStatefulWidget {
 }
 
 class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
-  final _search = TextEditingController(), _hScroll = ScrollController();
-  static const _pageSize = 5;
+  final _search = TextEditingController();
+  final _hScroll = ScrollController();
+  final _vScroll = ScrollController();
+  static const _pageSize = 10;
   int _page = 1;
   bool _loading = false;
 
@@ -29,8 +33,7 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
     return LoadingOverlay(
       isLoading: _loading,
       message: 'Memproses data...',
-      child: Padding(
-        padding: const EdgeInsets.all(24),
+      child: MasterDataViewport(
         child: data.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(child: Text('Gagal memuat data: $e')),
@@ -42,8 +45,8 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _header(),
-                const SizedBox(height: 20),
-                _table(items, gs),
+                const SizedBox(height: 18),
+                Expanded(child: _table(items, gs)),
               ],
             ),
           ),
@@ -70,8 +73,23 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
           ],
         ),
       ),
+      OutlinedButton.icon(
+        onPressed: _loading
+            ? null
+            : () => _process(
+                'Sinkronisasi cloud...',
+                () => ref.read(syncCoordinatorProvider).synchronizeNow(),
+              ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
+        icon: const Icon(Icons.sync, size: 18),
+        label: const Text('Sinkronkan'),
+      ),
+      const SizedBox(width: 8),
       FilledButton.icon(
-        onPressed: _showForm,
+        onPressed: _loading ? null : _showForm,
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
@@ -104,6 +122,7 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
     final rows = filtered.skip(start).take(_pageSize).toList();
 
     return Card(
+      margin: EdgeInsets.zero,
       color: AppColors.card,
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -111,7 +130,7 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
         side: const BorderSide(color: AppColors.border),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             Row(
@@ -136,70 +155,66 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
 
             const SizedBox(height: 16),
 
-            Scrollbar(
-              controller: _hScroll,
-              thumbVisibility: true,
-              child: SingleChildScrollView(
-                controller: _hScroll,
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  columnSpacing: 28,
-                  columns: const [
-                    DataColumn(label: Text('No')),
-                    DataColumn(label: Text('NIK')),
-                    DataColumn(label: Text('Nama')),
-                    DataColumn(label: Text('Jenis Kelamin')),
-                    DataColumn(label: Text('No Telp')),
-                    DataColumn(label: Text('Alamat')),
-                    DataColumn(label: Text('Created At')),
-                    DataColumn(label: Text('Aksi')),
-                  ],
-                  rows: [
-                    for (var i = 0; i < rows.length; i++)
-                      DataRow(
-                        cells: [
-                          DataCell(Text('${start + i + 1}')),
-                          DataCell(Text(rows[i].nik ?? '-')),
-                          DataCell(Text(rows[i].nama)),
-                          DataCell(Text(_gender(rows[i].jenisKelamin, gs))),
-                          DataCell(Text(rows[i].noTelp ?? '-')),
-                          DataCell(Text(rows[i].alamat ?? '-')),
-                          DataCell(Text(_dateTime(rows[i].createdAt))),
-                          DataCell(
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  tooltip: 'Edit',
-                                  onPressed: () {
-                                    _showForm(item: rows[i]);
-                                  },
-                                  icon: const Icon(Icons.edit_outlined),
+            Expanded(
+              child: rows.isEmpty
+                  ? const Center(child: Text('Belum ada data pemohon.'))
+                  : MasterDataTableViewport(
+                      horizontalController: _hScroll,
+                      verticalController: _vScroll,
+                      child: DataTable(
+                        columnSpacing: 28,
+                        columns: const [
+                          DataColumn(label: Text('No')),
+                          DataColumn(label: Text('NIK')),
+                          DataColumn(label: Text('Nama')),
+                          DataColumn(label: Text('Jenis Kelamin')),
+                          DataColumn(label: Text('No Telp')),
+                          DataColumn(label: Text('Alamat')),
+                          DataColumn(label: Text('Created At')),
+                          DataColumn(label: Text('Aksi')),
+                        ],
+                        rows: [
+                          for (var i = 0; i < rows.length; i++)
+                            DataRow(
+                              cells: [
+                                DataCell(Text('${start + i + 1}')),
+                                DataCell(Text(rows[i].nik ?? '-')),
+                                DataCell(Text(rows[i].nama)),
+                                DataCell(
+                                  Text(_gender(rows[i].jenisKelamin, gs)),
                                 ),
-                                IconButton(
-                                  tooltip: 'Hapus',
-                                  onPressed: () {
-                                    _delete(rows[i]);
-                                  },
-                                  icon: const Icon(Icons.delete_outline),
+                                DataCell(Text(rows[i].noTelp ?? '-')),
+                                DataCell(Text(rows[i].alamat ?? '-')),
+                                DataCell(Text(_dateTime(rows[i].createdAt))),
+                                DataCell(
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        tooltip: 'Edit',
+                                        onPressed: () {
+                                          _showForm(item: rows[i]);
+                                        },
+                                        icon: const Icon(Icons.edit_outlined),
+                                      ),
+                                      IconButton(
+                                        tooltip: 'Hapus',
+                                        onPressed: () {
+                                          _delete(rows[i]);
+                                        },
+                                        icon: const Icon(Icons.delete_outline),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
                         ],
                       ),
-                  ],
-                ),
-              ),
+                    ),
             ),
 
-            if (rows.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('Belum ada data pemohon.'),
-              ),
-
-            const SizedBox(height: 8),
+            const SizedBox(height: 14),
 
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
@@ -452,6 +467,36 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
     }
   }
 
+  Future<void> _process(String message, Future<void> Function() action) async {
+    if (_loading || !mounted) return;
+
+    setState(() => _loading = true);
+
+    try {
+      await action();
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(content: Text(message.replaceFirst('...', ' berhasil.'))),
+          );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text('Gagal sinkronisasi: $error'),
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
   void _message(String text) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -482,6 +527,7 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
   void dispose() {
     _search.dispose();
     _hScroll.dispose();
+    _vScroll.dispose();
     super.dispose();
   }
 }

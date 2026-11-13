@@ -49,6 +49,20 @@ void main() {
     await database.close();
   });
 
+  test(
+    'rejects missing or inactive category without partial aggregate',
+    () async {
+      await expectLater(
+        repository.createAggregate(input: validInput(categoryId: 999999)),
+        throwsArgumentError,
+      );
+      await database.customStatement('UPDATE pekerjaan_kategori SET status=0');
+      await expectLater(
+        repository.createAggregate(input: validInput()),
+        throwsArgumentError,
+      );
+    },
+  );
   test('creates aggregate with price, process, and attributes', () async {
     final id = await repository.createAggregate(input: validInput());
     final aggregate = await repository.getAggregate(id);

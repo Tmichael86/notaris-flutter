@@ -10,9 +10,11 @@ import 'package:path/path.dart' as p;
 
 import 'master_tables.dart';
 import 'pekerjaan_tables.dart';
+import 'pengeluaran_tables.dart';
 import 'daos/pekerjaan_dao.dart';
 
 part 'app_database.g.dart';
+part 'transaction_document_schema.dart';
 
 // 1. Tabel Pemohon
 class Pemohons extends Table {
@@ -43,6 +45,9 @@ class Transaksis extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get uuid => text()();
   TextColumn get noAkta => text()();
+  TextColumn get judulAkta => text().nullable()();
+  TextColumn get nomorAkta => text().nullable()();
+  DateTimeColumn get tanggalAkta => dateTime().nullable()();
   RealColumn get total => real()();
   IntColumn get pemohonId => integer().nullable()();
   TextColumn get pemohonUuid => text().nullable()();
@@ -85,6 +90,8 @@ class TransaksiDetails extends Table {
       integer().nullable().references(PekerjaanPpatLocals, #id)();
   TextColumn get namaPekerjaanSnapshot => text()();
   TextColumn get kategoriSnapshot => text().nullable()();
+  TextColumn get hargaUuid => text().nullable()();
+  TextColumn get kategoriUuid => text().nullable()();
   TextColumn get estimasiWaktuSnapshot => text().nullable()();
   // Process checklist captured when this job is attached to a transaction.
   // Keep it as a snapshot so manually-added processes survive reloads.
@@ -92,6 +99,10 @@ class TransaksiDetails extends Table {
   RealColumn get biayaLayanan => real().withDefault(const Constant(0))();
   RealColumn get biayaLainnya => real().withDefault(const Constant(0))();
   RealColumn get totalSnapshot => real().withDefault(const Constant(0))();
+  TextColumn get statusPekerjaanPpat => text().nullable()();
+  TextColumn get judulAktaPpat => text().nullable()();
+  TextColumn get nomorAktaPpat => text().nullable()();
+  DateTimeColumn get tanggalAktaPpat => dateTime().nullable()();
 
   DateTimeColumn get createdAt => dateTime().nullable()();
   DateTimeColumn get updatedAt => dateTime().nullable()();
@@ -172,6 +183,8 @@ class TransaksiRiwayatPembayarans extends Table {
   IntColumn get transaksiId => integer().references(Transaksis, #id)();
   DateTimeColumn get tanggalPembayaran => dateTime()();
   RealColumn get nominal => real()();
+  // The REAL column remains a compatibility mirror for old rows and feed DTOs.
+  IntColumn get nominalRupiah => integer().nullable()();
   TextColumn get metodePembayaran =>
       text().withDefault(const Constant('Cash'))();
   TextColumn get keterangan => text().nullable()();
@@ -197,6 +210,7 @@ class TransaksiRiwayatPembayarans extends Table {
     PekerjaanKategoris,
     PengeluaranJenis,
     PetugasLocals,
+    PetugasIdentityMaps,
     PekerjaanNotarisLocals,
     PekerjaanNotarisHargaLocals,
     PekerjaanNotarisProsesLocals,
@@ -205,16 +219,63 @@ class TransaksiRiwayatPembayarans extends Table {
     PekerjaanPpatHargaLocals,
     PekerjaanPpatProsesLocals,
     PekerjaanPpatAtributLocals,
+    Pengeluarans,
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
+  AppDatabase([QueryExecutor? executor])
+    : petugasBaselinePath = null,
+      super(executor ?? _openConnection());
 
   /// Creates an isolated database for repository and migration tests.
-  AppDatabase.forTesting(super.executor);
+  AppDatabase.forTesting(super.executor) : petugasBaselinePath = null;
+
+  /// Explicit target for the disabled-by-default baseline pull service. Reject
+  /// the normal daily file before Drift can open or migrate it. Caller creates
+  /// the isolated profile directory; no default path/fallback is used here.
+  factory AppDatabase.forIsolatedPetugasPull(File file) {
+    final path = petugasBaselineFilePath(file);
+    return AppDatabase._isolatedPetugasFile(File(path), path);
+  }
+
+  static String petugasBaselineFilePath(File file) {
+    final path = p.normalize(p.absolute(file.path));
+    final parent = p.dirname(path);
+    if (!p.isAbsolute(file.path) ||
+        p.basename(path) != 'offline.sqlite' ||
+        !RegExp(r'^[a-f0-9]{32}$').hasMatch(p.basename(parent)) ||
+        p.basename(p.dirname(parent)) != 'notarisdev' ||
+        !Directory(parent).existsSync()) {
+      throw ArgumentError(
+        'Explicit non-linked isolated notarisdev file required',
+      );
+    }
+    // Resolve legitimate Windows 8.3 aliases, but reject actual links/junctions
+    // before opening SQLite. TEMP may use a short spelling of the user folder.
+    var component = path;
+    while (true) {
+      if (FileSystemEntity.typeSync(component, followLinks: false) ==
+          FileSystemEntityType.link) {
+        throw ArgumentError('Linked baseline profile is not permitted');
+      }
+      final above = p.dirname(component);
+      if (p.equals(component, above)) break;
+      component = above;
+    }
+    return p.join(
+      Directory(parent).resolveSymbolicLinksSync(),
+      p.basename(path),
+    );
+  }
+
+  AppDatabase._isolatedPetugasFile(File file, String path)
+    : petugasBaselinePath = path,
+      super(NativeDatabase(file));
+
+  final String? petugasBaselinePath;
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 24;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -222,6 +283,20 @@ class AppDatabase extends _$AppDatabase {
       await m.createAll();
       await _createUuidUniqueIndexes();
       await _createTransactionNumberUniqueIndex();
+      await _createPetugasIdentityMapIndexes();
+      await _createPetugasSyncStorage();
+      await _createPetugasReferenceStorage();
+      await _createPetugasConflictStorage();
+      await _createSyncLogStorage();
+      await _createNotarisCloudStorage();
+      await _createPpatCloudStorage();
+      await _createTransactionCloudStorage();
+      await _createRecycleBinStorage();
+      await _createPaymentAuditStorage();
+      if (schemaVersion >= 24) await _createHandoverStorage();
+      if (schemaVersion >= 25) await _createTransactionDocumentStorage();
+      if (schemaVersion >= 26) await _createDocumentLifecycle();
+      await _protectPengeluaranReferences();
     },
     onUpgrade: (Migrator m, int from, int to) async {
       // Keep all pending migration steps atomic. If V8 UUID validation fails,
@@ -283,9 +358,12 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(transaksiProses);
           await m.createTable(transaksiProsesRiwayat);
 
-          final legacyDetails = await (select(transaksiDetails)..where(
-            (detail) => detail.deletedAt.isNull() & detail.status.equals(1),
-          )).get();
+          final legacyDetails =
+              await (select(transaksiDetails)..where(
+                    (detail) =>
+                        detail.deletedAt.isNull() & detail.status.equals(1),
+                  ))
+                  .get();
           const uuidGenerator = Uuid();
 
           for (final detail in legacyDetails) {
@@ -344,9 +422,187 @@ class AppDatabase extends _$AppDatabase {
           await _validateTransactionNumbersForUniqueIndex();
           await _createTransactionNumberUniqueIndex();
         }
+
+        if (from < 10) {
+          // This table only adds reconciliation metadata. Existing Petugas
+          // rows, local UUIDs, local IDs, and transaction references stay
+          // untouched until an explicit reconciliation decision is recorded.
+          await m.createTable(petugasIdentityMaps);
+          await _createPetugasIdentityMapIndexes();
+        }
+        if (from < 11) {
+          await _createPetugasSyncStorage();
+        }
+        if (from < 12) {
+          await _createPetugasReferenceStorage();
+        }
+        if (from < 13) {
+          await _createPetugasConflictStorage();
+        }
+        if (from < 14) {
+          await _createSyncLogStorage();
+        }
+        if (from < 15) {
+          await _createNotarisCloudStorage();
+        }
+        if (from < 16) {
+          await _createPpatCloudStorage();
+        }
+        if (from < 17) {
+          await m.addColumn(transaksiDetails, transaksiDetails.hargaUuid);
+          await m.addColumn(transaksiDetails, transaksiDetails.kategoriUuid);
+          await _createTransactionCloudStorage();
+        }
+        if (from == 17) {
+          await customStatement(
+            'ALTER TABLE transaction_cloud_identity RENAME TO transaction_cloud_identity_v17',
+          );
+          await customStatement(
+            'CREATE TABLE transaction_cloud_identity (local_uuid TEXT PRIMARY KEY REFERENCES transaksis(uuid), cloud_uuid TEXT NOT NULL UNIQUE, scope TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision>0), final_number TEXT NOT NULL UNIQUE, snapshot TEXT NOT NULL)',
+          );
+          await customStatement(
+            'INSERT INTO transaction_cloud_identity SELECT * FROM transaction_cloud_identity_v17',
+          );
+          await customStatement('DROP TABLE transaction_cloud_identity_v17');
+          await customStatement(
+            "ALTER TABLE transaction_cloud_pending ADD COLUMN operation TEXT NOT NULL DEFAULT 'create' CHECK(operation IN ('create','update','delete'))",
+          );
+        }
+        if (from < 19) await _createRecycleBinStorage();
+        if (from < 20) {
+          await m.createTable(pengeluarans);
+          await m.createIndex(pengeluaranByDate);
+          await m.createIndex(pengeluaranByJenis);
+          await _protectPengeluaranReferences();
+        }
+        if (from < 21) {
+          await m.addColumn(transaksis, transaksis.judulAkta);
+          await m.addColumn(transaksis, transaksis.nomorAkta);
+          await m.addColumn(transaksis, transaksis.tanggalAkta);
+        }
+        if (from < 22) {
+          if (from >= 4) {
+            await m.addColumn(
+              transaksiDetails,
+              transaksiDetails.statusPekerjaanPpat,
+            );
+            await m.addColumn(transaksiDetails, transaksiDetails.judulAktaPpat);
+            await m.addColumn(transaksiDetails, transaksiDetails.nomorAktaPpat);
+            await m.addColumn(
+              transaksiDetails,
+              transaksiDetails.tanggalAktaPpat,
+            );
+          }
+        }
+        if (from < 23) {
+          if (from >= 5) {
+            await m.addColumn(
+              transaksiRiwayatPembayarans,
+              transaksiRiwayatPembayarans.nominalRupiah,
+            );
+          }
+          await _createPaymentAuditStorage();
+        }
+        if (from < 24 && to >= 24) await _createHandoverStorage();
+        if (from < 25 && to >= 25) await _createTransactionDocumentStorage();
+        if (from < 26 && to >= 26) await _createDocumentLifecycle();
       });
     },
   );
+
+  Future<void> _createHandoverStorage() async {
+    await customStatement('''
+      CREATE TABLE IF NOT EXISTS transaksi_serah_terima (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        uuid TEXT NOT NULL UNIQUE,
+        transaksi_id INTEGER NOT NULL REFERENCES transaksis(id) ON DELETE RESTRICT,
+        uraian TEXT,
+        keperluan TEXT,
+        created_by INTEGER NOT NULL CHECK (created_by > 0),
+        created_at INTEGER NOT NULL,
+        updated_by INTEGER CHECK (updated_by > 0),
+        updated_at INTEGER,
+        revision INTEGER NOT NULL DEFAULT 1 CHECK (revision > 0),
+        CHECK ((updated_by IS NULL) = (updated_at IS NULL))
+      )
+    ''');
+    await customStatement('''
+      CREATE INDEX IF NOT EXISTS transaksi_serah_terima_parent
+      ON transaksi_serah_terima(transaksi_id, id)
+    ''');
+  }
+
+  Future<void> _createPaymentAuditStorage() async {
+    await customStatement('''
+      CREATE TABLE transaksi_pembayaran_audit (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        payment_uuid TEXT NOT NULL REFERENCES transaksi_riwayat_pembayaran(uuid),
+        action TEXT NOT NULL CHECK(action IN ('add','edit','cancel')),
+        actor_user_id INTEGER NOT NULL CHECK(actor_user_id > 0),
+        occurred_at INTEGER NOT NULL,
+        reason TEXT,
+        before_state TEXT,
+        after_state TEXT NOT NULL,
+        CHECK(action = 'add' OR (reason IS NOT NULL AND length(trim(reason)) > 0 AND before_state IS NOT NULL))
+      )
+    ''');
+    await customStatement('''
+      CREATE INDEX transaksi_pembayaran_order
+      ON transaksi_riwayat_pembayaran(transaksi_id, urutan_pembayaran)
+    ''');
+    await customStatement('''
+      CREATE INDEX transaksi_pembayaran_audit_uuid
+      ON transaksi_pembayaran_audit(payment_uuid)
+    ''');
+    await customStatement('''
+      CREATE TRIGGER transaksi_pembayaran_order_insert
+      BEFORE INSERT ON transaksi_riwayat_pembayaran
+      WHEN NEW.nominal_rupiah IS NOT NULL AND
+        (NEW.urutan_pembayaran < 1 OR EXISTS (
+          SELECT 1 FROM transaksi_riwayat_pembayaran
+          WHERE transaksi_id = NEW.transaksi_id AND urutan_pembayaran = NEW.urutan_pembayaran
+        ))
+      BEGIN SELECT RAISE(ABORT, 'Duplicate or invalid installment order'); END
+    ''');
+    for (final (suffix, operation) in [
+      ('insert', 'INSERT'),
+      ('update', 'UPDATE OF nominal, nominal_rupiah'),
+    ]) {
+      await customStatement('''
+        CREATE TRIGGER transaksi_pembayaran_rupiah_$suffix
+        BEFORE $operation ON transaksi_riwayat_pembayaran
+        WHEN NEW.nominal_rupiah IS NOT NULL AND
+          (typeof(NEW.nominal_rupiah) <> 'integer' OR NEW.nominal_rupiah <= 0
+           OR NEW.nominal_rupiah > 9007199254740991 OR NEW.nominal <> NEW.nominal_rupiah)
+        BEGIN SELECT RAISE(ABORT, 'Invalid rupiah payment'); END
+      ''');
+    }
+  }
+
+  Future<void> _protectPengeluaranReferences() async {
+    // Older connections do not enable SQLite foreign_keys globally. Enforce
+    // this new relationship without changing legacy connection behavior.
+    for (final (suffix, operation) in [
+      ('insert', 'INSERT'),
+      ('update', 'UPDATE OF jenis_id'),
+    ]) {
+      await customStatement('''
+        CREATE TRIGGER pengeluaran_jenis_$suffix BEFORE $operation ON pengeluaran
+        WHEN NOT EXISTS (SELECT 1 FROM pengeluaran_jenis WHERE id = NEW.jenis_id)
+        BEGIN SELECT RAISE(ABORT, 'Missing jenis pengeluaran'); END
+      ''');
+    }
+    for (final (suffix, operation, idChanged) in [
+      ('delete', 'DELETE', ''),
+      ('rekey', 'UPDATE OF id', 'NEW.id <> OLD.id AND '),
+    ]) {
+      await customStatement('''
+        CREATE TRIGGER pengeluaran_history_$suffix BEFORE $operation ON pengeluaran_jenis
+        WHEN ${idChanged}EXISTS (SELECT 1 FROM pengeluaran WHERE jenis_id = OLD.id)
+        BEGIN SELECT RAISE(ABORT, 'Jenis pengeluaran has history'); END
+      ''');
+    }
+  }
 
   Future<void> _createUuidUniqueIndexes() async {
     await customStatement(
@@ -356,6 +612,119 @@ class AppDatabase extends _$AppDatabase {
     await customStatement(
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_transaksis_uuid_unique '
       'ON transaksis (uuid)',
+    );
+  }
+
+  Future<void> _createRecycleBinStorage() => customStatement(
+    "CREATE TABLE IF NOT EXISTS recycle_bin_events (id INTEGER PRIMARY KEY AUTOINCREMENT, attempt_id TEXT NOT NULL UNIQUE, module TEXT NOT NULL, local_uuid TEXT NOT NULL, action TEXT NOT NULL CHECK(action IN ('delete','restore')), outcome TEXT NOT NULL CHECK(outcome IN ('success','failed')), actor_id INTEGER, occurred_at TEXT NOT NULL, error_code TEXT, before_state TEXT)",
+  );
+
+  Future<void> _createSyncLogStorage() async {
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS sync_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, operation_id TEXT NOT NULL, attempt_id TEXT NOT NULL, module TEXT NOT NULL, direction TEXT NOT NULL CHECK(direction IN (\'push\',\'pull\')), started_at TEXT NOT NULL, finished_at TEXT, status TEXT NOT NULL CHECK(status IN (\'pending\',\'success\',\'failed\')), record_count INTEGER, error_code TEXT, error_message TEXT, UNIQUE(attempt_id,module,direction))',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS sync_logs_recent ON sync_logs(id DESC)',
+    );
+  }
+
+  Future<void> _createNotarisCloudStorage() async {
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS pekerjaan_notaris_sync_identity ('
+      'local_uuid TEXT PRIMARY KEY REFERENCES pekerjaan_notaris(uuid), '
+      'cloud_uuid TEXT NOT NULL UNIQUE, scope TEXT NOT NULL, '
+      'revision INTEGER NOT NULL CHECK(revision>0))',
+    );
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS pekerjaan_notaris_sync_feed ('
+      'scope TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0 CHECK(cursor>=0))',
+    );
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS pekerjaan_notaris_sync_pending ('
+      'local_uuid TEXT PRIMARY KEY REFERENCES pekerjaan_notaris(uuid), '
+      'mutation_id TEXT NOT NULL UNIQUE, payload TEXT NOT NULL, '
+      'state TEXT NOT NULL CHECK(state IN (\'pending\',\'acked\')))',
+    );
+  }
+
+  Future<void> _createPpatCloudStorage() async {
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS pekerjaan_ppat_sync_identity ('
+      'local_uuid TEXT PRIMARY KEY REFERENCES pekerjaan_ppat(uuid), '
+      'cloud_uuid TEXT NOT NULL UNIQUE, scope TEXT NOT NULL, '
+      'revision INTEGER NOT NULL CHECK(revision>0))',
+    );
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS pekerjaan_ppat_sync_feed ('
+      'scope TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0 CHECK(cursor>=0))',
+    );
+    await customStatement(
+      'CREATE TABLE IF NOT EXISTS pekerjaan_ppat_sync_pending ('
+      'local_uuid TEXT PRIMARY KEY REFERENCES pekerjaan_ppat(uuid), '
+      'mutation_id TEXT NOT NULL UNIQUE, payload TEXT NOT NULL, '
+      'state TEXT NOT NULL CHECK(state IN (\'pending\',\'acked\')))',
+    );
+  }
+
+  Future<void> _createTransactionCloudStorage() async {
+    await customStatement(
+      'CREATE TABLE transaction_cloud_identity (local_uuid TEXT PRIMARY KEY REFERENCES transaksis(uuid), cloud_uuid TEXT NOT NULL UNIQUE, scope TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision>0), final_number TEXT NOT NULL UNIQUE, snapshot TEXT NOT NULL)',
+    );
+    await customStatement(
+      'CREATE TABLE transaction_cloud_pending (local_uuid TEXT PRIMARY KEY REFERENCES transaksis(uuid), mutation_id TEXT NOT NULL UNIQUE, payload TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN (\'pending\',\'acked\')), operation TEXT NOT NULL DEFAULT \'create\' CHECK(operation IN (\'create\',\'update\',\'delete\')))',
+    );
+    await customStatement(
+      'CREATE TABLE transaction_cloud_feed (scope TEXT PRIMARY KEY, cursor INTEGER NOT NULL DEFAULT 0 CHECK(cursor>=0))',
+    );
+  }
+
+  // Private sync journal tables: accessed with parameterized SQL only. They
+  // are deliberately independent of Petugas IDs and existing transaction FKs.
+  Future<void> _createPetugasSyncStorage() async {
+    await customStatement(
+      'CREATE TABLE petugas_sync_feed (id INTEGER PRIMARY KEY CHECK(id=1), scope TEXT NOT NULL, cursor INTEGER NOT NULL DEFAULT 0, blocked TEXT)',
+    );
+    await customStatement(
+      'CREATE TABLE petugas_sync_journal (local_uuid TEXT PRIMARY KEY REFERENCES petugas(uuid), row_version INTEGER, pending TEXT, snapshot TEXT)',
+    );
+  }
+
+  Future<void> _createPetugasReferenceStorage() async {
+    await customStatement(
+      "CREATE TABLE petugas_gender_reference (scope TEXT NOT NULL,local_uuid TEXT NOT NULL REFERENCES jenis_kelamin(uuid),server_id INTEGER CHECK(server_id>0),state TEXT NOT NULL CHECK(state IN ('verified','ambiguous')),evidence TEXT NOT NULL,PRIMARY KEY(scope,local_uuid),CHECK((state='verified' AND server_id IS NOT NULL) OR (state='ambiguous' AND server_id IS NULL)))",
+    );
+    await customStatement(
+      "CREATE UNIQUE INDEX petugas_gender_server_unique ON petugas_gender_reference(scope,server_id) WHERE state='verified'",
+    );
+    await customStatement(
+      'CREATE TABLE petugas_user_reference (scope TEXT NOT NULL,server_id INTEGER NOT NULL CHECK(server_id>0),evidence TEXT NOT NULL,PRIMARY KEY(scope,server_id))',
+    );
+  }
+
+  Future<void> _createPetugasConflictStorage() async {
+    await customStatement(
+      "CREATE TABLE petugas_sync_conflict (scope TEXT NOT NULL,mutation_id TEXT NOT NULL,local_uuid TEXT NOT NULL REFERENCES petugas(uuid),mutation TEXT NOT NULL,local_snapshot TEXT NOT NULL,observed_local TEXT NOT NULL,response TEXT NOT NULL,base_version INTEGER,state TEXT NOT NULL CHECK(state IN ('open','held','resolved_local','resolved_server')),note TEXT,updated_at TEXT NOT NULL,PRIMARY KEY(scope,mutation_id))",
+    );
+    await customStatement(
+      "CREATE UNIQUE INDEX petugas_conflict_unresolved ON petugas_sync_conflict(scope,local_uuid) WHERE state IN ('open','held')",
+    );
+  }
+
+  Future<void> _createPetugasIdentityMapIndexes() async {
+    // A cloud identity can be actively mapped to only one local identity.
+    // SQLite allows multiple NULLs here, so local-only/ambiguous/development
+    // rows remain representable without inventing a cloud UUID.
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS '
+      'idx_petugas_identity_map_active_cloud_uuid '
+      'ON petugas_identity_map (cloud_uuid) '
+      "WHERE cloud_uuid IS NOT NULL AND state IN ('verified', 'server_only')",
+    );
+    await customStatement(
+      'CREATE UNIQUE INDEX IF NOT EXISTS '
+      'idx_petugas_identity_map_active_server_id '
+      'ON petugas_identity_map (server_id) '
+      "WHERE server_id IS NOT NULL AND state IN ('verified', 'server_only')",
     );
   }
 
@@ -453,6 +822,17 @@ class AppDatabase extends _$AppDatabase {
       ),
     );
   }
+}
+
+/// Schema v25 for the explicitly bound document profile runtime.
+class DocumentProfileDatabase extends AppDatabase {
+  DocumentProfileDatabase(super.executor, {this.lifecycle = false})
+    : super.forTesting();
+
+  final bool lifecycle;
+
+  @override
+  int get schemaVersion => lifecycle ? 26 : 25;
 }
 
 LazyDatabase _openConnection() {

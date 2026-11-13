@@ -21,8 +21,11 @@ final transaksiProsesByTransactionProvider = StreamProvider.autoDispose
               innerJoin(
                 database.transaksiDetails,
                 database.transaksiDetails.uuid.equalsExp(
-                  database.transaksiProses.transaksiDetailUuid,
-                ),
+                      database.transaksiProses.transaksiDetailUuid,
+                    ) &
+                    database.transaksiDetails.transaksiId.equalsExp(
+                      database.transaksiProses.transaksiId,
+                    ),
               ),
               innerJoin(
                 database.transaksis,

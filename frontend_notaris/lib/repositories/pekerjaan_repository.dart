@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -67,12 +69,14 @@ class PekerjaanAggregateData {
 
 class PekerjaanHargaData {
   final int id;
+  final String uuid;
   final int kategoriPekerjaanId;
   final String harga;
   final String estimasiWaktu;
 
   const PekerjaanHargaData({
     required this.id,
+    required this.uuid,
     required this.kategoriPekerjaanId,
     required this.harga,
     required this.estimasiWaktu,
@@ -131,6 +135,7 @@ class PekerjaanNotarisRepository {
         for (final item in harga)
           PekerjaanHargaData(
             id: item.id,
+            uuid: item.uuid,
             kategoriPekerjaanId: item.kategoriPekerjaanId,
             harga: item.harga,
             estimasiWaktu: item.estimasiWaktu,
@@ -191,8 +196,7 @@ class PekerjaanNotarisRepository {
     );
   }
 
-  Future<bool> delete(int id) =>
-      dao.softDeletePekerjaanNotaris(id, DateTime.now());
+  Future<bool> delete(int id) => deleteAggregate(id);
 
   PekerjaanAggregateInput _validateAndNormalizeInput(
     PekerjaanAggregateInput input,
@@ -330,6 +334,7 @@ class PekerjaanNotarisRepository {
     final now = DateTime.now();
 
     return dao.attachedDatabase.transaction(() async {
+      await _validateCategories(dao, input);
       final pekerjaanId = await dao.insertPekerjaanNotaris(
         PekerjaanNotarisLocalsCompanion.insert(
           uuid: _uuid.v4(),
@@ -564,6 +569,14 @@ class PekerjaanNotarisRepository {
       final parent = await dao.getPekerjaanNotarisById(id);
       if (parent == null) return false;
 
+      await _captureMasterDelete(
+        dao.attachedDatabase,
+        'notaris',
+        id,
+        parent.uuid,
+        now,
+      );
+
       for (final harga in await dao.getHargaNotaris(id)) {
         await dao.softDeleteHargaNotaris(harga.id, now);
       }
@@ -607,6 +620,7 @@ class PekerjaanPpatRepository {
         for (final item in harga)
           PekerjaanHargaData(
             id: item.id,
+            uuid: item.uuid,
             kategoriPekerjaanId: item.kategoriPekerjaanId,
             harga: item.harga,
             estimasiWaktu: item.estimasiWaktu,
@@ -667,8 +681,7 @@ class PekerjaanPpatRepository {
     );
   }
 
-  Future<bool> delete(int id) =>
-      dao.softDeletePekerjaanPpat(id, DateTime.now());
+  Future<bool> delete(int id) => deleteAggregate(id);
 
   PekerjaanAggregateInput _validateAndNormalizeInput(
     PekerjaanAggregateInput input,
@@ -804,6 +817,7 @@ class PekerjaanPpatRepository {
     final now = DateTime.now();
 
     return dao.attachedDatabase.transaction(() async {
+      await _validateCategories(dao, input);
       final pekerjaanId = await dao.insertPekerjaanPpat(
         PekerjaanPpatLocalsCompanion.insert(
           uuid: _uuid.v4(),
@@ -1034,6 +1048,14 @@ class PekerjaanPpatRepository {
       final parent = await dao.getPekerjaanPpatById(id);
       if (parent == null) return false;
 
+      await _captureMasterDelete(
+        dao.attachedDatabase,
+        'ppat',
+        id,
+        parent.uuid,
+        now,
+      );
+
       for (final harga in await dao.getHargaPpat(id)) {
         await dao.softDeleteHargaPpat(harga.id, now);
       }
@@ -1045,4 +1067,52 @@ class PekerjaanPpatRepository {
       return dao.softDeletePekerjaanPpat(id, now);
     });
   }
+}
+
+Future<void> _validateCategories(
+  PekerjaanDao dao,
+  PekerjaanAggregateInput input,
+) async {
+  final db = dao.attachedDatabase;
+  for (final harga in input.harga) {
+    final row = await (db.select(
+      db.pekerjaanKategoris,
+    )..where((t) => t.id.equals(harga.kategoriPekerjaanId))).getSingleOrNull();
+    if (row == null || row.status != 1 || row.deletedAt != null) {
+      throw ArgumentError('Kategori pekerjaan harus ada dan aktif.');
+    }
+  }
+}
+
+Future<void> _captureMasterDelete(
+  AppDatabase db,
+  String domain,
+  int id,
+  String uuid,
+  DateTime now,
+) async {
+  final children = <Map<String, dynamic>>[];
+  for (final suffix in ['harga', 'proses', 'atributs']) {
+    final table = 'pekerjaan_${domain}_$suffix';
+    final rows = await db
+        .customSelect(
+          'SELECT id,uuid,status FROM $table WHERE pekerjaan_${domain}_id=? AND status=1 AND deleted_at IS NULL${suffix == 'atributs' ? ' AND proses_pekerjaan_${domain}_id IN (SELECT id FROM pekerjaan_${domain}_proses WHERE pekerjaan_${domain}_id=? AND status=1 AND deleted_at IS NULL)' : ''}',
+          variables: [Variable(id), if (suffix == 'atributs') Variable(id)],
+        )
+        .get();
+    children.addAll(rows.map((r) => {'table': table, ...r.data}));
+  }
+  await db.customStatement(
+    "INSERT INTO recycle_bin_events(attempt_id,module,local_uuid,action,outcome,occurred_at,before_state) VALUES(?,?,?,'delete','success',?,?)",
+    [
+      const Uuid().v4(),
+      'pekerjaan_$domain',
+      uuid,
+      now.toUtc().toIso8601String(),
+      jsonEncode({
+        'deletedAt': now.millisecondsSinceEpoch ~/ 1000,
+        'children': children,
+      }),
+    ],
+  );
 }
