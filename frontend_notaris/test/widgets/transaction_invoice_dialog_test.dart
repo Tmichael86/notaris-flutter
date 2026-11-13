@@ -111,6 +111,10 @@ void main() {
         find.byType(TransactionInvoiceDialog),
       );
       expect(widget.transactionId, id);
+      expect(
+        tester.widget<AlertDialog>(find.byType(AlertDialog)).backgroundColor,
+        Colors.white,
+      );
       final pdf = tester.widget<PdfPreview>(find.byType(PdfPreview));
       expect(pdf.allowSharing, isFalse);
       expect(preview, isNotNull);

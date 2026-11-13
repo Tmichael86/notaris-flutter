@@ -7,13 +7,18 @@ Future<T?> showEditDialog<T>({
   required WidgetBuilder builder,
   required bool Function() dirty,
   bool Function()? saving,
+  Color barrierColor = Colors.black54,
+  Color? discardBackgroundColor,
 }) async {
   final route = DialogRoute<T>(
     context: context,
     barrierDismissible: false,
+    barrierColor: barrierColor,
     builder: (context) => _EditGuard(
       dirty: dirty,
       saving: saving ?? () => false,
+      barrierColor: barrierColor,
+      discardBackgroundColor: discardBackgroundColor,
       child: Builder(builder: builder),
     ),
   );
@@ -27,9 +32,13 @@ class _EditGuard extends StatefulWidget {
     required this.child,
     required this.dirty,
     required this.saving,
+    required this.barrierColor,
+    required this.discardBackgroundColor,
   });
   final Widget child;
   final bool Function() dirty, saving;
+  final Color barrierColor;
+  final Color? discardBackgroundColor;
   @override
   State<_EditGuard> createState() => _EditGuardState();
 }
@@ -47,7 +56,12 @@ class _EditGuardState extends State<_EditGuard> {
       if (widget.dirty()) {
         final discard = await showDialog<bool>(
           context: context,
+          barrierColor: widget.barrierColor,
           builder: (c) => AlertDialog(
+            backgroundColor: widget.discardBackgroundColor,
+            surfaceTintColor: widget.discardBackgroundColor == null
+                ? null
+                : Colors.transparent,
             title: const Text('Buang perubahan?'),
             content: const Text(
               'Perubahan yang belum disimpan akan dibatalkan.',

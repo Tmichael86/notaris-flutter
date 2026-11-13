@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/database/app_database.dart';
+import 'package:frontend_notaris/models/auth_session.dart';
 import 'package:frontend_notaris/providers/auth_provider.dart';
 import 'package:frontend_notaris/providers/database_provider.dart';
 import 'package:frontend_notaris/providers/transaction_document_provider.dart';
@@ -15,15 +16,24 @@ import '../support/transaction_ui_test_support.dart'
     show TransactionUiAuth, uiSession;
 
 void main() {
-  for (final domain in ['notaris', 'ppat']) {
+  for (final (domain, admin) in [
+    ('notaris', false),
+    ('ppat', false),
+    ('notaris', true),
+  ]) {
     testWidgets(
-      'document dialog opens on bound $domain profile with reader permissions',
+      'document dialog opens on bound $domain profile (admin=$admin)',
       (tester) async {
-        final db = DocumentProfileDatabase(NativeDatabase.memory());
+        final db = DocumentProfileDatabase(
+          NativeDatabase.memory(),
+          lifecycle: true,
+        );
         addTearDown(db.close);
         await seedTransaction(db, domain);
-        final session = recoverySession(update: false, only: 'transaksi');
-        final repo = _ReaderRepository(db);
+        final session = admin
+            ? uiSession(groupType: 'superadmin')
+            : recoverySession(update: false, only: 'transaksi');
+        final repo = _DocumentListRepository(db, session);
         tester.view.physicalSize = const Size(1500, 950);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.resetPhysicalSize);
@@ -71,10 +81,21 @@ void main() {
         await tester.pumpAndSettle();
         expect(repo.owner?.domain, domain);
         expect(find.text('Belum ada dokumen.'), findsOneWidget);
-        expect(find.text('Impor dokumen'), findsNothing);
-        await tester.tap(find.text('Tutup'));
-        await tester.pumpAndSettle();
+        expect(
+          find.text('Impor dokumen'),
+          admin ? findsOneWidget : findsNothing,
+        );
+        expect(
+          find.text('Tampilkan arsip'),
+          admin ? findsOneWidget : findsNothing,
+        );
         tester.view.physicalSize = const Size(1024, 640);
+        await tester.pumpAndSettle();
+        expect(
+          tester.widget<AlertDialog>(find.byType(AlertDialog)).backgroundColor,
+          Colors.white,
+        );
+        await tester.tap(find.text('Tutup'));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
@@ -148,11 +169,11 @@ void main() {
   }
 }
 
-class _ReaderRepository extends TransactionDocumentRepository {
-  _ReaderRepository(AppDatabase db)
+class _DocumentListRepository extends TransactionDocumentRepository {
+  _DocumentListRepository(AppDatabase db, AuthSession session)
     : super(
         db: db,
-        session: () => null,
+        session: () => session,
         verifiedDatabasePath: 'fixture',
         verifiedAppDirectory: 'fixture',
       );

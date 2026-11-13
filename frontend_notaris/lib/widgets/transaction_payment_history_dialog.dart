@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../core/theme/app_colors.dart';
 import '../core/widgets/edit_dialog.dart';
 import '../database/app_database.dart';
 import '../models/transaction_payments.dart';
 import '../providers/auth_provider.dart';
 import '../providers/transaction_provider.dart';
+import 'transaction_alert_dialog.dart';
 import 'transaction_dialog_section.dart';
 
 String _amountLabel(TransaksiRiwayatPembayaran row) {
@@ -38,17 +40,19 @@ class TransactionPaymentHistoryDialog extends ConsumerWidget {
         : ref.watch(transactionPaymentStatementProvider(id));
     final canAdd = session?.hasTransactionAccess(update: true) == true;
     final canCorrect = session?.canCorrectTransactionPayment == true;
-    return AlertDialog(
+    return TransactionAlertDialog(
+      scrollable: true,
       title: const Text('Riwayat Pembayaran'),
       content: SizedBox(
         width: 620,
-        height: MediaQuery.sizeOf(context).height * .56,
         child:
             statement?.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (_, _) =>
                   const Center(child: Text('Gagal memuat riwayat pembayaran.')),
-              data: (data) => ListView(
+              data: (data) => Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
                     '${data.transaction.jenisTransaksi.toUpperCase()} · ${data.transaction.noAkta}',
@@ -56,26 +60,25 @@ class TransactionPaymentHistoryDialog extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                   TransactionDialogSection(
-                    highlight: true,
                     child: Wrap(
-                      spacing: 20,
-                      runSpacing: 8,
+                      spacing: 28,
+                      runSpacing: 12,
                       children: [
                         if (data.issue case final issue?)
                           Text(issue)
                         else ...[
                           if (data.billed case final billed?)
-                            Text(
-                              'Total Tagihan  ${formatPaymentRupiah(billed)}',
+                            _PaymentTotal(
+                              label: 'Total Tagihan',
+                              amount: billed,
                             ),
                           if (data.paid case final paid?)
-                            Text('Total Dibayar  ${formatPaymentRupiah(paid)}'),
+                            _PaymentTotal(label: 'Total Dibayar', amount: paid),
                           if (data.remaining case final remaining?) ...[
-                            Text(
-                              'Sisa Tagihan  ${formatPaymentRupiah(remaining)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
+                            _PaymentTotal(
+                              label: 'Sisa Tagihan',
+                              amount: remaining,
+                              emphasized: true,
                             ),
                             if (remaining < 0)
                               const Text(
@@ -97,58 +100,55 @@ class TransactionPaymentHistoryDialog extends ConsumerWidget {
                       child: Text('Belum ada riwayat pembayaran.'),
                     )
                   else
-                    ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: data.payments.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final row = data.payments[index];
-                        final active = isActivePayment(row);
-                        return ListTile(
-                          leading: Icon(
-                            active
-                                ? Icons.receipt_long_outlined
-                                : Icons.history_outlined,
-                          ),
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(
-                            'Cicilan ${row.urutanPembayaran} · ${_amountLabel(row)}',
-                          ),
-                          subtitle: Text(
-                            '${formatPaymentDate(row.tanggalPembayaran)} · ${row.metodePembayaran}'
-                            '${row.keterangan == null ? '' : ' · ${row.keterangan}'}\n'
-                            '${active ? 'Aktif' : 'Dibatalkan'}',
-                          ),
-                          trailing: active && canCorrect && data.issue == null
-                              ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      tooltip:
-                                          'Edit cicilan ${row.urutanPembayaran}',
-                                      onPressed: () =>
-                                          _edit(context, ref, id!, row: row),
-                                      icon: const Icon(Icons.edit_outlined),
+                    for (final (index, row) in data.payments.indexed) ...[
+                      if (index > 0) const Divider(height: 1),
+                      ListTile(
+                        dense: true,
+                        leading: Icon(
+                          isActivePayment(row)
+                              ? Icons.receipt_long_outlined
+                              : Icons.history_outlined,
+                        ),
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          'Cicilan ${row.urutanPembayaran} · ${_amountLabel(row)}',
+                        ),
+                        subtitle: Text(
+                          '${formatPaymentDate(row.tanggalPembayaran)} · ${row.metodePembayaran}'
+                          '${row.keterangan == null ? '' : ' · ${row.keterangan}'}\n'
+                          '${isActivePayment(row) ? 'Aktif' : 'Dibatalkan'}',
+                        ),
+                        trailing:
+                            isActivePayment(row) &&
+                                canCorrect &&
+                                data.issue == null
+                            ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    tooltip:
+                                        'Edit cicilan ${row.urutanPembayaran}',
+                                    onPressed: () =>
+                                        _edit(context, ref, id!, row: row),
+                                    icon: const Icon(Icons.edit_outlined),
+                                  ),
+                                  IconButton(
+                                    tooltip:
+                                        'Batalkan cicilan ${row.urutanPembayaran}',
+                                    onPressed: () => _edit(
+                                      context,
+                                      ref,
+                                      id!,
+                                      row: row,
+                                      cancel: true,
                                     ),
-                                    IconButton(
-                                      tooltip:
-                                          'Batalkan cicilan ${row.urutanPembayaran}',
-                                      onPressed: () => _edit(
-                                        context,
-                                        ref,
-                                        id!,
-                                        row: row,
-                                        cancel: true,
-                                      ),
-                                      icon: const Icon(Icons.cancel_outlined),
-                                    ),
-                                  ],
-                                )
-                              : null,
-                        );
-                      },
-                    ),
+                                    icon: const Icon(Icons.cancel_outlined),
+                                  ),
+                                ],
+                              )
+                            : null,
+                      ),
+                    ],
                 ],
               ),
             ) ??
@@ -170,6 +170,38 @@ class TransactionPaymentHistoryDialog extends ConsumerWidget {
                 : () => _edit(context, ref, id),
             child: const Text('Tambah Pembayaran'),
           ),
+      ],
+    );
+  }
+}
+
+class _PaymentTotal extends StatelessWidget {
+  const _PaymentTotal({
+    required this.label,
+    required this.amount,
+    this.emphasized = false,
+  });
+
+  final String label;
+  final int amount;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: theme.textTheme.labelMedium),
+        const SizedBox(height: 4),
+        Text(
+          formatPaymentRupiah(amount),
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: emphasized ? FontWeight.w700 : FontWeight.w500,
+            color: emphasized ? theme.colorScheme.primary : null,
+          ),
+        ),
       ],
     );
   }
@@ -198,6 +230,8 @@ Future<void> _edit(
   try {
     final result = await showEditDialog<bool>(
       context: context,
+      barrierColor: Colors.black26,
+      discardBackgroundColor: AppColors.card,
       saving: () => saving,
       dirty: () =>
           reason.text.isNotEmpty ||
@@ -269,7 +303,7 @@ Future<void> _edit(
             }
           }
 
-          return AlertDialog(
+          return TransactionAlertDialog(
             scrollable: true,
             title: Text(
               cancel
@@ -334,6 +368,21 @@ Future<void> _edit(
                                 helpText: 'Tanggal Pembayaran',
                                 cancelText: 'Batal',
                                 confirmText: 'Pilih',
+                                barrierColor: Colors.black26,
+                                builder: (context, child) {
+                                  final theme = Theme.of(context);
+                                  return Theme(
+                                    data: theme.copyWith(
+                                      datePickerTheme: theme.datePickerTheme
+                                          .copyWith(
+                                            backgroundColor: AppColors.card,
+                                            surfaceTintColor:
+                                                Colors.transparent,
+                                          ),
+                                    ),
+                                    child: child!,
+                                  );
+                                },
                               );
                               if (picked != null && context.mounted) {
                                 setState(() => date = picked);
@@ -342,6 +391,7 @@ Future<void> _edit(
                       icon: const Icon(Icons.calendar_month_outlined),
                       label: Text(formatPaymentDate(date)),
                     ),
+                    const SizedBox(height: 12),
                     TextField(
                       controller: note,
                       enabled: !saving,
@@ -360,10 +410,13 @@ Future<void> _edit(
                       ),
                     ),
                   if (error case final message?)
-                    Text(
-                      message,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        message,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       ),
                     ),
                 ],

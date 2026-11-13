@@ -11,6 +11,7 @@ import '../models/transaction_invoice.dart';
 import '../providers/auth_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../services/transaction_invoice_pdf.dart';
+import 'transaction_alert_dialog.dart';
 import 'transaction_dialog_section.dart';
 
 class TransactionInvoiceDialog extends ConsumerStatefulWidget {
@@ -100,7 +101,7 @@ class _TransactionInvoiceDialogState
         final error = snapshot.error;
         return PopScope(
           canPop: !_printing,
-          child: AlertDialog(
+          child: TransactionAlertDialog(
             title: const Text('Invoice Transaksi'),
             content: document == null
                 ? Text(

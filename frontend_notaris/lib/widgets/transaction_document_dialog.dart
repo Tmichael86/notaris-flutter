@@ -9,6 +9,7 @@ import '../providers/transaction_document_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../repositories/transaction_document_repository.dart';
 import '../services/windows_transaction_document_store.dart';
+import 'transaction_alert_dialog.dart';
 import 'transaction_dialog_section.dart';
 
 class TransactionDocumentDialog extends ConsumerStatefulWidget {
@@ -281,7 +282,7 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
     final canCorrect = _repository.canCorrect;
     return PopScope(
       canPop: !_busy,
-      child: AlertDialog(
+      child: TransactionAlertDialog(
         title: const Text('Kelola Dokumen'),
         content: SizedBox(
           width: 640,
@@ -434,7 +435,6 @@ class _DocumentDialogState extends ConsumerState<TransactionDocumentDialog> {
                     ),
                     for (final version in _history!)
                       TransactionDialogSection(
-                        highlight: version.current,
                         child: ListTile(
                           contentPadding: EdgeInsets.zero,
                           leading: const Icon(Icons.history_outlined),

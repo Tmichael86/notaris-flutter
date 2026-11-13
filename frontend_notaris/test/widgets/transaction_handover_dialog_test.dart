@@ -23,6 +23,10 @@ void main() {
       final session = readOnly
           ? recoverySession(update: false, only: 'transaksi')
           : uiSession(userId: 37);
+      tester.view.physicalSize = const Size(760, 540);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -37,6 +41,10 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      expect(
+        tester.widget<AlertDialog>(find.byType(AlertDialog)).backgroundColor,
+        Colors.white,
+      );
       expect(find.text('Pemohon: Applicant'), findsOneWidget);
       expect(find.text('Petugas penanggung jawab: Officer'), findsOneWidget);
       expect(find.text('Cetak'), findsNothing);

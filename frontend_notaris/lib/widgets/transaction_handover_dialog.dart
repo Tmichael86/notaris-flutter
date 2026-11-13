@@ -7,6 +7,7 @@ import '../models/transaction_payments.dart';
 import '../providers/auth_provider.dart';
 import '../providers/database_provider.dart';
 import '../repositories/transaction_handover_repository.dart';
+import 'transaction_alert_dialog.dart';
 import 'transaction_dialog_section.dart';
 
 class TransactionHandoverDialog extends ConsumerStatefulWidget {
@@ -100,7 +101,7 @@ class _HandoverDialogState extends ConsumerState<TransactionHandoverDialog> {
         future: _records,
         builder: (context, snapshot) {
           final data = allowed ? snapshot.data : null;
-          return AlertDialog(
+          return TransactionAlertDialog(
             title: const Text('Serah Terima Dokumen'),
             content: SizedBox(
               width: 580,

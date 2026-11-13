@@ -49,13 +49,39 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(find.textContaining('06/11/2026 · Cash'), findsOneWidget);
-        expect(find.text('Sisa Tagihan  Rp 199.980'), findsOneWidget);
+        expect(find.text('Sisa Tagihan'), findsOneWidget);
+        expect(find.text('Rp 199.980'), findsOneWidget);
+        final history = find.byType(AlertDialog);
+        expect(
+          tester.widget<AlertDialog>(history).backgroundColor,
+          Colors.white,
+        );
+        final surface = find
+            .ancestor(
+              of: find.text('Sisa Tagihan'),
+              matching: find.byType(Material),
+            )
+            .first;
+        expect(tester.getSize(surface).height, lessThan(450));
         if (readOnly) {
           expect(find.text('Tambah Pembayaran'), findsNothing);
           expect(find.byTooltip('Edit cicilan 1'), findsNothing);
           expect(find.byTooltip('Batalkan cicilan 1'), findsNothing);
         } else {
           await tester.tap(find.text('Tambah Pembayaran'));
+          await tester.pumpAndSettle();
+          expect(
+            tester.widget<AlertDialog>(history.last).backgroundColor,
+            Colors.white,
+          );
+          final dateButton = find.widgetWithIcon(
+            OutlinedButton,
+            Icons.calendar_month_outlined,
+          );
+          await tester.tap(dateButton);
+          await tester.pumpAndSettle();
+          expect(find.byType(DatePickerDialog), findsOneWidget);
+          await tester.tap(find.text('Batal'));
           await tester.pumpAndSettle();
           final amount = find.widgetWithText(TextField, 'Nominal (Rp)');
           await tester.enterText(amount, '200000');
@@ -69,11 +95,15 @@ void main() {
           await tester.enterText(amount, '125000');
           await tester.tap(find.text('Simpan'));
           await tester.pumpAndSettle();
-          expect(find.text('Total Dibayar  Rp 125.020'), findsOneWidget);
-          expect(find.text('Sisa Tagihan  Rp 74.980'), findsOneWidget);
+          expect(find.text('Rp 125.020'), findsOneWidget);
+          expect(find.text('Rp 74.980'), findsOneWidget);
 
           await tester.tap(find.byTooltip('Edit cicilan 2'));
           await tester.pumpAndSettle();
+          expect(
+            tester.widget<AlertDialog>(history.last).backgroundColor,
+            Colors.white,
+          );
           await tester.enterText(amount, '130000');
           await tester.enterText(
             find.widgetWithText(TextField, 'Alasan'),
@@ -81,10 +111,14 @@ void main() {
           );
           await tester.tap(find.text('Simpan'));
           await tester.pumpAndSettle();
-          expect(find.text('Total Dibayar  Rp 130.020'), findsOneWidget);
+          expect(find.text('Rp 130.020'), findsOneWidget);
 
           await tester.tap(find.byTooltip('Batalkan cicilan 2'));
           await tester.pumpAndSettle();
+          expect(
+            tester.widget<AlertDialog>(history.last).backgroundColor,
+            Colors.white,
+          );
           expect(
             find.textContaining('Riwayat tetap tersimpan'),
             findsOneWidget,
@@ -96,12 +130,21 @@ void main() {
           await tester.tap(find.text('Konfirmasi Pembatalan'));
           await tester.pumpAndSettle();
           expect(find.textContaining('Dibatalkan'), findsOneWidget);
-          expect(find.text('Total Dibayar  Rp 20'), findsOneWidget);
-          expect(find.text('Sisa Tagihan  Rp 199.980'), findsOneWidget);
+          expect(find.text('Rp 20'), findsOneWidget);
+          expect(find.text('Rp 199.980'), findsOneWidget);
         }
-        tester.view.physicalSize = const Size(760, 540);
+        tester.view.physicalSize = const Size(760, 340);
         await tester.pumpAndSettle();
-        expect(find.text('Sisa Tagihan  Rp 199.980'), findsOneWidget);
+        expect(find.text('Rp 199.980'), findsOneWidget);
+        expect(find.text('Tutup').hitTestable(), findsOneWidget);
+        if (!readOnly) {
+          await tester.ensureVisible(find.textContaining('Dibatalkan'));
+          await tester.pumpAndSettle();
+          expect(
+            find.textContaining('Dibatalkan').hitTestable(),
+            findsOneWidget,
+          );
+        }
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump(const Duration(seconds: 1));
