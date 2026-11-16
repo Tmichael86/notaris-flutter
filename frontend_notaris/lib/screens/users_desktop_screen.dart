@@ -12,6 +12,7 @@ class UsersDesktopScreen extends StatefulWidget {
 }
 
 class _UsersDesktopScreenState extends State<UsersDesktopScreen> {
+  final _tableScroll = ScrollController();
   final _searchController = TextEditingController();
 
   String _searchQuery = '';
@@ -267,8 +268,10 @@ class _UsersDesktopScreenState extends State<UsersDesktopScreen> {
             ),
             const SizedBox(height: 14),
             Scrollbar(
+              controller: _tableScroll,
               thumbVisibility: true,
               child: SingleChildScrollView(
+                controller: _tableScroll,
                 scrollDirection: Axis.horizontal,
                 child: DataTable(
                   headingRowColor:
@@ -638,6 +641,7 @@ class _UsersDesktopScreenState extends State<UsersDesktopScreen> {
 
   @override
   void dispose() {
+    _tableScroll.dispose();
     _searchController.dispose();
     super.dispose();
   }

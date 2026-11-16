@@ -11,6 +11,14 @@ class GroupsDesktopScreen extends StatefulWidget {
 }
 
 class _GroupsDesktopScreenState extends State<GroupsDesktopScreen> {
+  final _tableScroll = ScrollController();
+
+  @override
+  void dispose() {
+    _tableScroll.dispose();
+    super.dispose();
+  }
+
   bool _isLoading = false;
   String _searchQuery = '';
 
@@ -226,8 +234,10 @@ class _GroupsDesktopScreenState extends State<GroupsDesktopScreen> {
             ),
             const SizedBox(height: 14),
             Scrollbar(
+              controller: _tableScroll,
               thumbVisibility: true,
               child: SingleChildScrollView(
+                controller: _tableScroll,
                 scrollDirection: Axis.horizontal,
                 child: DataTable(
                   columnSpacing: 42,

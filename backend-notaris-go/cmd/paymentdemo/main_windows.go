@@ -55,6 +55,9 @@ var accounts = []account{
 }
 
 func lookup(name string) (account, error) {
+	if name == presentationAccount.Username {
+		return presentationAccount, nil
+	}
 	for _, a := range accounts {
 		if a.Username == name {
 			return a, nil
@@ -114,6 +117,12 @@ func (s verifiedSession) validFor(id string, a account, now time.Time, scope str
 		s.UserName != "" && s.GroupName != "" && !s.VerifiedAt.IsZero() &&
 		!now.Before(s.VerifiedAt) && now.Before(s.ExpiresAt) &&
 		s.ExpiresAt.Sub(s.VerifiedAt) <= 24*time.Hour) {
+		return false
+	}
+	if scope == "presentation" {
+		return presentationAccessValid(a, s.Sidebars)
+	}
+	if a == presentationAccount {
 		return false
 	}
 	allowed := a.Username == "pembaca.demo"
@@ -282,20 +291,25 @@ func writeNew(path string, value []byte) error {
 	return err
 }
 
-func activeSession(root, id string, a account, now time.Time) (storedSession, error) {
+func demoScope(root, id string) (string, error) {
 	scope := ""
-	for _, candidate := range []string{"monitoring", "pengeluaran"} {
+	for _, candidate := range []string{"monitoring", "pengeluaran", "presentation"} {
 		name := candidate + "-owner"
 		if _, err := os.Lstat(filepath.Join(root, name)); !os.IsNotExist(err) {
 			marker, readErr := readOwnedFile(root, name)
 			if scope != "" || readErr != nil || string(marker) != id {
-				return storedSession{}, rejected
+				return "", rejected
 			}
 			scope = candidate
 		}
 	}
+	return scope, nil
+}
+
+func activeSession(root, id string, a account, now time.Time) (storedSession, error) {
+	scope, err := demoScope(root, id)
 	var stored storedSession
-	if unseal(root, id, a.Username, &stored) != nil || !stored.Session.validFor(id, a, now, scope) {
+	if err != nil || unseal(root, id, a.Username, &stored) != nil || !stored.Session.validFor(id, a, now, scope) {
 		return storedSession{}, rejected
 	}
 	return stored, nil
@@ -397,21 +411,27 @@ func provision(dbName, dataDir, scope string) (string, error) {
 		return "", err
 	}
 	passwords, hashes := map[string]string{}, map[string][]byte{}
+	selected := accounts
+	if scope == "presentation" {
+		selected = []account{presentationAccount}
+	}
 	err = db.Transaction(func(tx *gorm.DB) error {
-		if e := tx.Exec("INSERT INTO sidebar(id,sidebar_nama,sidebar_kode,sidebar_route,status) VALUES(1,'Transaksi','transaksi','/transaksi',1)").Error; e != nil {
-			return e
-		}
-		if scope == "monitoring" {
-			if e := tx.Exec("INSERT INTO sidebar(id,sidebar_nama,sidebar_kode,sidebar_route,status) VALUES(2,'Monitoring','monitoring','/monitoring',1)").Error; e != nil {
+		if scope != "presentation" {
+			if e := tx.Exec("INSERT INTO sidebar(id,sidebar_nama,sidebar_kode,sidebar_route,status) VALUES(1,'Transaksi','transaksi','/transaksi',1)").Error; e != nil {
 				return e
 			}
-		}
-		if scope == "pengeluaran" {
-			if e := tx.Exec("INSERT INTO sidebar(id,sidebar_nama,sidebar_kode,sidebar_route,status) VALUES(2,'Pengeluaran','pengeluaran','/pengeluaran',1)").Error; e != nil {
-				return e
+			if scope == "monitoring" {
+				if e := tx.Exec("INSERT INTO sidebar(id,sidebar_nama,sidebar_kode,sidebar_route,status) VALUES(2,'Monitoring','monitoring','/monitoring',1)").Error; e != nil {
+					return e
+				}
+			}
+			if scope == "pengeluaran" {
+				if e := tx.Exec("INSERT INTO sidebar(id,sidebar_nama,sidebar_kode,sidebar_route,status) VALUES(2,'Pengeluaran','pengeluaran','/pengeluaran',1)").Error; e != nil {
+					return e
+				}
 			}
 		}
-		for _, a := range accounts {
+		for _, a := range selected {
 			password := base64.RawURLEncoding.EncodeToString(randomBytes(24))
 			hash, e := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 			if e != nil {
@@ -423,6 +443,9 @@ func provision(dbName, dataDir, scope string) (string, error) {
 			}
 			if e = tx.Exec("INSERT INTO users(id,group_id,username,nama,password,status) VALUES(?,?,?,?,?,1)", a.ID, a.ID, a.Username, a.Name, string(hash)).Error; e != nil {
 				return e
+			}
+			if scope == "presentation" {
+				continue
 			}
 			create, update := a.Create, a.Update
 			if scope != "" {
@@ -442,6 +465,9 @@ func provision(dbName, dataDir, scope string) (string, error) {
 					return e
 				}
 			}
+		}
+		if scope == "presentation" {
+			return seedPresentationMenus(tx)
 		}
 		return nil
 	})
@@ -463,14 +489,18 @@ func provision(dbName, dataDir, scope string) (string, error) {
 	defer clear(private)
 	id := profileID(public)
 	sessions := make(map[string]verifiedSession)
-	for _, a := range accounts {
+	for _, a := range selected {
 		s, e := verifyAccount(server, cfg, id, a, passwords[a.Username], scope)
 		if e != nil {
 			return "", e
 		}
 		sessions[a.Username] = s
 	}
-	if _, err = verifyAccount(server, cfg, id, accounts[1], passwords[accounts[0].Username], scope); err == nil {
+	wrongAccount, wrongPassword := selected[0], "invalid-demo-credential"
+	if len(selected) > 1 {
+		wrongAccount, wrongPassword = selected[1], passwords[selected[0].Username]
+	}
+	if _, err = verifyAccount(server, cfg, id, wrongAccount, wrongPassword, scope); err == nil {
 		return "", rejected
 	}
 	root, err := profileRoot(id)
@@ -491,7 +521,7 @@ func provision(dbName, dataDir, scope string) (string, error) {
 	if err = writeNew(filepath.Join(root, "public.key"), public); err != nil {
 		return "", err
 	}
-	for _, a := range accounts {
+	for _, a := range selected {
 		if err = seal(root, id, a.Username, storedSession{sessions[a.Username], hashes[a.Username]}, private); err != nil {
 			return "", err
 		}
@@ -514,7 +544,7 @@ func randomBytes(n int) []byte {
 }
 
 func run(args []string) error {
-	if len(args) == 3 && (args[0] == "provision" || args[0] == "provision-monitoring" || args[0] == "provision-pengeluaran") {
+	if len(args) == 3 && (args[0] == "provision" || args[0] == "provision-monitoring" || args[0] == "provision-pengeluaran" || args[0] == "provision-presentation") {
 		scope := strings.TrimPrefix(args[0], "provision")
 		id, err := provision(args[1], args[2], strings.TrimPrefix(scope, "-"))
 		if err == nil {
@@ -538,8 +568,16 @@ func run(args []string) error {
 			}
 			file.Close()
 		}
+		scope, err := demoScope(root, id)
+		if err != nil {
+			return err
+		}
+		selected := accounts
+		if scope == "presentation" {
+			selected = []account{presentationAccount}
+		}
 		var output []map[string]any
-		for _, a := range accounts {
+		for _, a := range selected {
 			stored, e := activeSession(root, id, a, time.Now())
 			if e != nil {
 				return e
@@ -547,6 +585,10 @@ func run(args []string) error {
 			s := stored.Session
 			info := map[string]any{"username": s.Username, "id": s.UserID, "role": s.GroupType,
 				"expiresAt": s.ExpiresAt}
+			if scope == "presentation" {
+				info["groupId"], info["sidebars"] = s.GroupID, s.Sidebars
+				info["verifiedAt"], info["userName"], info["groupName"] = s.VerifiedAt, s.UserName, s.GroupName
+			}
 			for _, p := range s.Sidebars {
 				switch p.Sidebar.Code {
 				case "monitoring":

@@ -13,6 +13,14 @@ class LaporanPendapatanDesktopScreen extends StatefulWidget {
 
 class _LaporanPendapatanDesktopScreenState
     extends State<LaporanPendapatanDesktopScreen> {
+  final _tableScroll = ScrollController();
+
+  @override
+  void dispose() {
+    _tableScroll.dispose();
+    super.dispose();
+  }
+
   DateTime _tanggalAwal = DateTime(2026, 9, 1);
   DateTime _tanggalAkhir = DateTime(2026, 9, 20);
   String? _selectedJenisPembayaran = 'Semua Jenis Pembayaran';
@@ -281,8 +289,10 @@ class _LaporanPendapatanDesktopScreenState
             ),
             const SizedBox(height: 14),
             Scrollbar(
+              controller: _tableScroll,
               thumbVisibility: true,
               child: SingleChildScrollView(
+                controller: _tableScroll,
                 scrollDirection: Axis.horizontal,
                 child: DataTable(
                   headingRowColor:

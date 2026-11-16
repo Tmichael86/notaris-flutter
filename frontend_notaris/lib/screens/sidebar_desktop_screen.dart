@@ -10,6 +10,7 @@ class SidebarDesktopScreen extends StatefulWidget {
 }
 
 class _SidebarDesktopScreenState extends State<SidebarDesktopScreen> {
+  final _tableScroll = ScrollController();
   final TextEditingController _searchController = TextEditingController();
 
   int _currentPage = 1;
@@ -269,6 +270,7 @@ class _SidebarDesktopScreenState extends State<SidebarDesktopScreen> {
 
   @override
   void dispose() {
+    _tableScroll.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -415,8 +417,10 @@ class _SidebarDesktopScreenState extends State<SidebarDesktopScreen> {
 
   Widget _buildTable() {
     return Scrollbar(
+      controller: _tableScroll,
       thumbVisibility: true,
       child: SingleChildScrollView(
+        controller: _tableScroll,
         scrollDirection: Axis.horizontal,
         child: DataTable(
           headingRowHeight: 46,

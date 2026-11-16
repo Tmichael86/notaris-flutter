@@ -14,6 +14,14 @@ class LaporanMateraiDesktopScreen extends StatefulWidget {
 
 class _LaporanMateraiDesktopScreenState
     extends State<LaporanMateraiDesktopScreen> {
+  final _tableScroll = ScrollController();
+
+  @override
+  void dispose() {
+    _tableScroll.dispose();
+    super.dispose();
+  }
+
   DateTime _tanggalAwal = DateTime(2026, 9, 1);
   DateTime _tanggalAkhir = DateTime(2026, 9, 20);
   String? _selectedPetugas = 'Semua Petugas';
@@ -325,8 +333,10 @@ class _LaporanMateraiDesktopScreenState
             ),
             const SizedBox(height: 14),
             Scrollbar(
+              controller: _tableScroll,
               thumbVisibility: true,
               child: SingleChildScrollView(
+                controller: _tableScroll,
                 scrollDirection: Axis.horizontal,
                 child: DataTable(
                   headingRowColor:

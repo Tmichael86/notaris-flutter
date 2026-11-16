@@ -20,7 +20,7 @@ const paymentDemoPpat = '2001111260001';
 // Flutter may remove newlines from this text before the form submits it.
 final _credentialDialogCopy = RegExp(
   r'^-{27}\s*Kredensial pembayaran demo\s*-{27}\s*'
-  r'(petugas\.demo|admin\.demo|pembaca\.demo)\s*([A-Za-z0-9_-]{32})'
+  r'(petugas\.demo|admin\.demo|pembaca\.demo|superadmin\.demo)\s*([A-Za-z0-9_-]{32})'
   r'\s*-{27}\s*OK\s*-{27}\s*$',
 );
 
@@ -93,11 +93,13 @@ class PaymentDemoAuth extends AuthService {
     this.id,
     this.helperSha, {
     this.expireSidebarAccess = false,
+    this.presentation = false,
   }) : super(dio: dio);
 
   final String id;
   final String helperSha;
   final bool expireSidebarAccess;
+  final bool presentation;
   static const usernames = {'petugas.demo', 'admin.demo', 'pembaca.demo'};
 
   @override
@@ -118,7 +120,10 @@ class PaymentDemoAuth extends AuthService {
 
   Future<void> verifyProfile() async {
     final file = await _verifiedHelper();
-    final checked = await Process.run(file.path, ['verify-db', id]);
+    final checked = await Process.run(file.path, [
+      presentation ? 'verify' : 'verify-db',
+      id,
+    ]);
     if (checked.exitCode != 0) throw StateError('Profil pembayaran tidak sah.');
   }
 
@@ -129,7 +134,9 @@ class PaymentDemoAuth extends AuthService {
     required bool rememberMe,
   }) async {
     final account = username.trim();
-    if (!usernames.contains(account)) {
+    if (!(presentation
+        ? account == 'superadmin.demo'
+        : usernames.contains(account))) {
       if (kDebugMode) debugPrint('Payment demo login: ACCOUNT_NOT_FOUND');
       throw const AuthException('Kredensial atau sesi demo tidak valid.');
     }

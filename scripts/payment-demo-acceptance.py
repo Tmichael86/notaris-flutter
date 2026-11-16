@@ -50,19 +50,37 @@ def command(args, *, capture=False, timeout=120, **kwargs):
                           **kwargs).stdout
 
 
-def build_helper(path):
-    command(['go.exe', 'build', '-trimpath', '-buildvcs=false', '-o', path, './cmd/paymentdemo'],
+def build_helper(path, *, overlay=None):
+    args = [f'-overlay={overlay}'] if overlay else []
+    command(['go.exe', 'build', '-trimpath', '-buildvcs=false', *args, '-o', path, './cmd/paymentdemo'],
             cwd=REPO / 'backend-notaris-go', timeout=240)
 
 
-def trusted_helper_sha(root):
+def trusted_helper_sha(root, *, presentation=False):
     # The manifest is evidence. Only a fresh build of the workspace helper
     # establishes which executable the launcher may run and pin in Flutter.
+    actual = digest(root / 'session.exe')
     with tempfile.TemporaryDirectory(prefix='notaris-payment-helper-') as folder:
-        helper = Path(folder).resolve(strict=True) / 'session.exe'
+        directory = Path(folder).resolve(strict=True)
+        helper = directory / 'session.exe'
         build_helper(helper)
         expected = digest(helper)
-    require(digest(root / 'session.exe') == expected, 'Helper profil berbeda dari build tepercaya.')
+        if actual != expected and not presentation:
+            # Preserve already-issued profiles by rebuilding the last helper
+            # before presentation was added. Never trust a profile's own pin.
+            source_dir = REPO / 'backend-notaris-go/cmd/paymentdemo'
+            source = directory / 'main_windows.go'
+            source.write_bytes(subprocess.check_output([
+                'git', 'show', '2ef0bd4:backend-notaris-go/cmd/paymentdemo/main_windows.go',
+            ], cwd=REPO))
+            overlay = directory / 'legacy.json'
+            overlay.write_text(json.dumps({'Replace': {
+                str(source_dir / 'main_windows.go'): str(source),
+                str(source_dir / 'presentation_windows.go'): '',
+            }}), encoding='utf-8')
+            build_helper(helper, overlay=overlay)
+            expected = digest(helper)
+    require(actual == expected, 'Helper profil berbeda dari build tepercaya.')
     return expected
 
 
@@ -72,7 +90,8 @@ def port_open():
         return sock.connect_ex(('127.0.0.1', PORT)) == 0
 
 
-def provision(scratch, helper, *, monitoring=False, pengeluaran=False):
+def provision(scratch, helper, *, monitoring=False, pengeluaran=False, presentation=False):
+    require(sum((monitoring, pengeluaran, presentation)) <= 1, 'Pilih satu scope demo.')
     require(not port_open(), f'Port disposable {PORT} sudah dipakai.')
     data = scratch / 'pgdata'
     pg_ctl = PG_BIN / 'pg_ctl.exe'
@@ -100,8 +119,8 @@ def provision(scratch, helper, *, monitoring=False, pengeluaran=False):
         command([PG_BIN / 'createdb.exe', '-w', *connection, database], env=client_env)
         command([*psql, f"COMMENT ON DATABASE {database} IS 'NOTARIS PAYMENT DISPOSABLE {database}'",
                  '-d', database], capture=True, env=client_env)
-        require(not (monitoring and pengeluaran), 'Pilih satu scope demo.')
-        action = ('provision-pengeluaran' if pengeluaran else
+        action = ('provision-presentation' if presentation else
+                  'provision-pengeluaran' if pengeluaran else
                   'provision-monitoring' if monitoring else 'provision')
         return command([helper, action, database, data], capture=True, env=client_env).strip()
     finally:
