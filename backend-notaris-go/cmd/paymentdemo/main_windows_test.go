@@ -129,17 +129,38 @@ func TestMonitoringProfileUsesExplicitReadOnlySidebarPolicy(t *testing.T) {
 			monitoring.Read = 1
 		}
 		s.Sidebars = append([]access{monitoring}, s.Sidebars...)
-		if !s.validFor("profile", a, now, true) || s.valid("profile", a, now) {
+		if !s.validFor("profile", a, now, "monitoring") || s.valid("profile", a, now) {
 			t.Fatal("Monitoring policy accepted outside its profile or rejected valid access")
 		}
 		s.Sidebars[0].Read = 1 - monitoring.Read
-		if s.validFor("profile", a, now, true) {
+		if s.validFor("profile", a, now, "monitoring") {
 			t.Fatal("unexpected Monitoring read grant accepted")
 		}
 		s.Sidebars[0] = monitoring
 		s.Sidebars[1].Delete = 1
-		if s.validFor("profile", a, now, true) {
+		if s.validFor("profile", a, now, "monitoring") {
 			t.Fatal("transaction delete grant accepted on read-only profile")
+		}
+	}
+}
+
+func TestExpenseProfileGrantsOnlyTheAssignedActions(t *testing.T) {
+	now := time.Now()
+	expected := [][2]int{{1, 1}, {0, 0}, {1, 0}}
+	for i, a := range accounts {
+		s := testSession("profile", a, now)
+		s.Sidebars[0].Create, s.Sidebars[0].Update = 0, 0
+		read, write := expected[i][0], expected[i][1]
+		expense := access{Read: read, Create: write, Update: write, Delete: write}
+		expense.Sidebar.Code, expense.Sidebar.Name, expense.Sidebar.Status = "pengeluaran", "Pengeluaran", 1
+		s.Sidebars = append(s.Sidebars, expense)
+		if !s.validFor("profile", a, now, "pengeluaran") ||
+			s.valid("profile", a, now) || s.validFor("profile", a, now, "monitoring") {
+			t.Fatalf("wrong scope or permission policy for %s", a.Username)
+		}
+		s.Sidebars[1].Delete = 1 - write
+		if s.validFor("profile", a, now, "pengeluaran") {
+			t.Fatal("unexpected expense delete grant accepted")
 		}
 	}
 }

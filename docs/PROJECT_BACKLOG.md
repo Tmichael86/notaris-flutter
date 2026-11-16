@@ -57,10 +57,12 @@ completed push, publisher, bidirectional/global sync or production release.
   filterable Notaris/PPAT list and per-job process details. Final Windows
   acceptance passed. The local XLSX export and its remaining parity gap
   are tracked in MONITORING_EXCEL_EXPORT.md.
-- **Pengeluaran/Piutang/Penghasilan — prototype screens.** These screen files seed
-  in-memory _PengeluaranItem/_PiutangItem/_Row lists. Complete persistence, payment/
-  transaction linkage, business calculations, API authorization and acceptance.
-  The real Jenis Pengeluaran master is a different module.
+- **Pengeluaran — local-first CRUD implemented.** Windows acceptance is tracked
+  in PENGELUARAN_LOCAL_ACCEPTANCE.md. Open Laravel parity items are generated
+  invoice numbering, verified actor provenance, XLSX export, and integration
+  with Laporan Pendapatan. Master Jenis Pengeluaran is a separate module.
+- **Piutang/Penghasilan — prototype screens.** These screens still need
+  authoritative data sources, business calculations, and acceptance.
 - **Laporan Materai/Pendapatan — prototype screens.** laporan_materai and
   laporan_pendapatan use seeded MateraiDummy/PendapatanDummy lists; connect actual
   stock/financial ledger sources and verify calculation/filter/export contracts.

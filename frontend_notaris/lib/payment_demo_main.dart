@@ -55,21 +55,31 @@ Directory paymentDemoRoot(String id) {
 }
 
 class ExpiringPaymentDemoSession extends AuthSession {
-  ExpiringPaymentDemoSession(AuthSession session, this.expiresAt)
-    : super(
-        token: session.token,
-        userId: session.userId,
-        groupId: session.groupId,
-        userName: session.userName,
-        groupName: session.groupName,
-        user: session.user,
-        sidebars: session.sidebars,
-        verifiedAt: session.verifiedAt,
-        groupType: session.groupType,
-        isOffline: true,
-      );
+  ExpiringPaymentDemoSession(
+    AuthSession session,
+    this.expiresAt, {
+    this.expireSidebarAccess = false,
+  }) : super(
+         token: session.token,
+         userId: session.userId,
+         groupId: session.groupId,
+         userName: session.userName,
+         groupName: session.groupName,
+         user: session.user,
+         sidebars: session.sidebars,
+         verifiedAt: session.verifiedAt,
+         groupType: session.groupType,
+         isOffline: true,
+       );
 
   final DateTime expiresAt;
+  final bool expireSidebarAccess;
+
+  @override
+  List<Map<String, dynamic>> get sidebars =>
+      expireSidebarAccess && !DateTime.now().isBefore(expiresAt)
+      ? const []
+      : super.sidebars;
 
   @override
   bool hasTransactionAccess({bool create = false, bool update = false}) =>
@@ -78,10 +88,16 @@ class ExpiringPaymentDemoSession extends AuthSession {
 }
 
 class PaymentDemoAuth extends AuthService {
-  PaymentDemoAuth(Dio dio, this.id, this.helperSha) : super(dio: dio);
+  PaymentDemoAuth(
+    Dio dio,
+    this.id,
+    this.helperSha, {
+    this.expireSidebarAccess = false,
+  }) : super(dio: dio);
 
   final String id;
   final String helperSha;
+  final bool expireSidebarAccess;
   static const usernames = {'petugas.demo', 'admin.demo', 'pembaca.demo'};
 
   @override
@@ -167,6 +183,7 @@ class PaymentDemoAuth extends AuthService {
       final session = ExpiringPaymentDemoSession(
         AuthSession.fromJson({...data, 'token': 'offline-payment-demo'}),
         expiry,
+        expireSidebarAccess: expireSidebarAccess,
       );
       if (now.isBefore(session.verifiedAt)) {
         failure = 'SESSION_NOT_YET_VALID';

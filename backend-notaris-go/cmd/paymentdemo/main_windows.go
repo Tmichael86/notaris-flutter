@@ -94,10 +94,21 @@ type storedSession struct {
 }
 
 func (s verifiedSession) valid(id string, a account, now time.Time) bool {
-	return s.validFor(id, a, now, false)
+	return s.validFor(id, a, now, "")
 }
 
-func (s verifiedSession) validFor(id string, a account, now time.Time, monitoring bool) bool {
+func expenseAccess(a account) (read, write int) {
+	switch a.Username {
+	case "petugas.demo":
+		return 1, 1
+	case "pembaca.demo":
+		return 1, 0
+	default:
+		return 0, 0
+	}
+}
+
+func (s verifiedSession) validFor(id string, a account, now time.Time, scope string) bool {
 	if !(s.Profile == id && s.Username == a.Username &&
 		s.UserID == a.ID && s.GroupID == a.ID && s.GroupType == a.Role &&
 		s.UserName != "" && s.GroupName != "" && !s.VerifiedAt.IsZero() &&
@@ -105,13 +116,14 @@ func (s verifiedSession) validFor(id string, a account, now time.Time, monitorin
 		s.ExpiresAt.Sub(s.VerifiedAt) <= 24*time.Hour) {
 		return false
 	}
-	allowed := monitoring && a.Username == "pembaca.demo"
+	allowed := a.Username == "pembaca.demo"
+	expenseRead, expenseWrite := expenseAccess(a)
 	create, update := a.Create, a.Update
-	if monitoring {
+	if scope != "" {
 		create, update = 0, 0
 	}
 	want := 1
-	if monitoring {
+	if scope != "" {
 		want++
 	}
 	if len(s.Sidebars) != want {
@@ -119,25 +131,30 @@ func (s verifiedSession) validFor(id string, a account, now time.Time, monitorin
 	}
 	found := map[string]bool{}
 	for _, p := range s.Sidebars {
-		if found[p.Sidebar.Code] || p.Sidebar.Status != 1 || (monitoring && p.Delete != 0) {
+		if found[p.Sidebar.Code] || p.Sidebar.Status != 1 {
 			return false
 		}
 		found[p.Sidebar.Code] = true
 		switch p.Sidebar.Code {
 		case "transaksi":
-			if p.Read != 1 || p.Create != create || p.Update != update {
+			if p.Read != 1 || p.Create != create || p.Update != update || (scope != "" && p.Delete != 0) {
 				return false
 			}
 		case "monitoring":
-			if !monitoring || (p.Read == 1) != allowed || p.Read < 0 || p.Read > 1 ||
-				p.Sidebar.Name != "Monitoring" || p.Create != 0 || p.Update != 0 {
+			if scope != "monitoring" || (p.Read == 1) != allowed || p.Read < 0 || p.Read > 1 ||
+				p.Sidebar.Name != "Monitoring" || p.Create != 0 || p.Update != 0 || p.Delete != 0 {
+				return false
+			}
+		case "pengeluaran":
+			if scope != "pengeluaran" || p.Sidebar.Name != "Pengeluaran" ||
+				p.Read != expenseRead || p.Create != expenseWrite || p.Update != expenseWrite || p.Delete != expenseWrite {
 				return false
 			}
 		default:
 			return false
 		}
 	}
-	return found["transaksi"] && found["monitoring"] == monitoring
+	return found["transaksi"] && (scope == "" || found[scope])
 }
 
 func profileID(public ed25519.PublicKey) string {
@@ -266,16 +283,19 @@ func writeNew(path string, value []byte) error {
 }
 
 func activeSession(root, id string, a account, now time.Time) (storedSession, error) {
-	monitoring := false
-	if _, err := os.Lstat(filepath.Join(root, "monitoring-owner")); !os.IsNotExist(err) {
-		marker, readErr := readOwnedFile(root, "monitoring-owner")
-		if readErr != nil || string(marker) != id {
-			return storedSession{}, rejected
+	scope := ""
+	for _, candidate := range []string{"monitoring", "pengeluaran"} {
+		name := candidate + "-owner"
+		if _, err := os.Lstat(filepath.Join(root, name)); !os.IsNotExist(err) {
+			marker, readErr := readOwnedFile(root, name)
+			if scope != "" || readErr != nil || string(marker) != id {
+				return storedSession{}, rejected
+			}
+			scope = candidate
 		}
-		monitoring = true
 	}
 	var stored storedSession
-	if unseal(root, id, a.Username, &stored) != nil || !stored.Session.validFor(id, a, now, monitoring) {
+	if unseal(root, id, a.Username, &stored) != nil || !stored.Session.validFor(id, a, now, scope) {
 		return storedSession{}, rejected
 	}
 	return stored, nil
@@ -289,7 +309,7 @@ func unlock(root, id string, a account, password string, now time.Time) (verifie
 	return stored.Session, nil
 }
 
-func verifyAccount(server *httptest.Server, cfg config.Config, id string, a account, password string, monitoring bool) (verifiedSession, error) {
+func verifyAccount(server *httptest.Server, cfg config.Config, id string, a account, password, scope string) (verifiedSession, error) {
 	payload, _ := json.Marshal(map[string]string{"username": a.Username, "password": password})
 	defer clear(payload)
 	resp, err := server.Client().Post(server.URL+"/api/v1/auth/login", "application/json", bytes.NewReader(payload))
@@ -340,13 +360,13 @@ func verifyAccount(server *httptest.Server, cfg config.Config, id string, a acco
 	d := info.Data
 	s := verifiedSession{id, d.User.Username, d.User.ID, d.User.GroupID, d.User.Name, d.User.Group,
 		d.Role, d.Verified, claims.ExpiresAt.Time, d.Sidebars}
-	if !s.validFor(id, a, time.Now(), monitoring) {
+	if !s.validFor(id, a, time.Now(), scope) {
 		return verifiedSession{}, rejected
 	}
 	return s, nil
 }
 
-func provision(dbName, dataDir string, monitoring bool) (string, error) {
+func provision(dbName, dataDir, scope string) (string, error) {
 	password := os.Getenv("PGPASSWORD")
 	if !regexp.MustCompile(`^payment_demo_[0-9a-f]{16}$`).MatchString(dbName) ||
 		!regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(password) {
@@ -381,8 +401,13 @@ func provision(dbName, dataDir string, monitoring bool) (string, error) {
 		if e := tx.Exec("INSERT INTO sidebar(id,sidebar_nama,sidebar_kode,sidebar_route,status) VALUES(1,'Transaksi','transaksi','/transaksi',1)").Error; e != nil {
 			return e
 		}
-		if monitoring {
+		if scope == "monitoring" {
 			if e := tx.Exec("INSERT INTO sidebar(id,sidebar_nama,sidebar_kode,sidebar_route,status) VALUES(2,'Monitoring','monitoring','/monitoring',1)").Error; e != nil {
+				return e
+			}
+		}
+		if scope == "pengeluaran" {
+			if e := tx.Exec("INSERT INTO sidebar(id,sidebar_nama,sidebar_kode,sidebar_route,status) VALUES(2,'Pengeluaran','pengeluaran','/pengeluaran',1)").Error; e != nil {
 				return e
 			}
 		}
@@ -400,14 +425,20 @@ func provision(dbName, dataDir string, monitoring bool) (string, error) {
 				return e
 			}
 			create, update := a.Create, a.Update
-			if monitoring {
+			if scope != "" {
 				create, update = 0, 0
 			}
 			if e = tx.Exec(`INSERT INTO sidebar_akses(group_id,sidebar_id,"read","create","update","delete") VALUES(?,1,1,?,?,0)`, a.ID, create, update).Error; e != nil {
 				return e
 			}
-			if monitoring && a.Username == "pembaca.demo" {
+			if scope == "monitoring" && a.Username == "pembaca.demo" {
 				if e = tx.Exec(`INSERT INTO sidebar_akses(group_id,sidebar_id,"read","create","update","delete") VALUES(?,2,1,0,0,0)`, a.ID).Error; e != nil {
+					return e
+				}
+			}
+			if scope == "pengeluaran" {
+				read, write := expenseAccess(a)
+				if e = tx.Exec(`INSERT INTO sidebar_akses(group_id,sidebar_id,"read","create","update","delete") VALUES(?,2,?,?,?,?)`, a.ID, read, write, write, write).Error; e != nil {
 					return e
 				}
 			}
@@ -433,13 +464,13 @@ func provision(dbName, dataDir string, monitoring bool) (string, error) {
 	id := profileID(public)
 	sessions := make(map[string]verifiedSession)
 	for _, a := range accounts {
-		s, e := verifyAccount(server, cfg, id, a, passwords[a.Username], monitoring)
+		s, e := verifyAccount(server, cfg, id, a, passwords[a.Username], scope)
 		if e != nil {
 			return "", e
 		}
 		sessions[a.Username] = s
 	}
-	if _, err = verifyAccount(server, cfg, id, accounts[1], passwords[accounts[0].Username], monitoring); err == nil {
+	if _, err = verifyAccount(server, cfg, id, accounts[1], passwords[accounts[0].Username], scope); err == nil {
 		return "", rejected
 	}
 	root, err := profileRoot(id)
@@ -452,8 +483,8 @@ func provision(dbName, dataDir string, monitoring bool) (string, error) {
 	if err = writeNew(filepath.Join(root, "owner"), []byte(id)); err != nil {
 		return "", err
 	}
-	if monitoring {
-		if err = writeNew(filepath.Join(root, "monitoring-owner"), []byte(id)); err != nil {
+	if scope != "" {
+		if err = writeNew(filepath.Join(root, scope+"-owner"), []byte(id)); err != nil {
 			return "", err
 		}
 	}
@@ -483,8 +514,9 @@ func randomBytes(n int) []byte {
 }
 
 func run(args []string) error {
-	if len(args) == 3 && (args[0] == "provision" || args[0] == "provision-monitoring") {
-		id, err := provision(args[1], args[2], args[0] == "provision-monitoring")
+	if len(args) == 3 && (args[0] == "provision" || args[0] == "provision-monitoring" || args[0] == "provision-pengeluaran") {
+		scope := strings.TrimPrefix(args[0], "provision")
+		id, err := provision(args[1], args[2], strings.TrimPrefix(scope, "-"))
 		if err == nil {
 			fmt.Println(id)
 		}
@@ -516,9 +548,12 @@ func run(args []string) error {
 			info := map[string]any{"username": s.Username, "id": s.UserID, "role": s.GroupType,
 				"expiresAt": s.ExpiresAt}
 			for _, p := range s.Sidebars {
-				if p.Sidebar.Code == "monitoring" {
+				switch p.Sidebar.Code {
+				case "monitoring":
 					info["monitoring"] = p.Read
-				} else {
+				case "pengeluaran":
+					info["pengeluaran"] = []int{p.Read, p.Create, p.Update, p.Delete}
+				case "transaksi":
 					info["read"], info["create"], info["update"] = p.Read, p.Create, p.Update
 				}
 			}

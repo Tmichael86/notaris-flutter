@@ -72,7 +72,7 @@ def port_open():
         return sock.connect_ex(('127.0.0.1', PORT)) == 0
 
 
-def provision(scratch, helper, *, monitoring=False):
+def provision(scratch, helper, *, monitoring=False, pengeluaran=False):
     require(not port_open(), f'Port disposable {PORT} sudah dipakai.')
     data = scratch / 'pgdata'
     pg_ctl = PG_BIN / 'pg_ctl.exe'
@@ -100,7 +100,9 @@ def provision(scratch, helper, *, monitoring=False):
         command([PG_BIN / 'createdb.exe', '-w', *connection, database], env=client_env)
         command([*psql, f"COMMENT ON DATABASE {database} IS 'NOTARIS PAYMENT DISPOSABLE {database}'",
                  '-d', database], capture=True, env=client_env)
-        action = 'provision-monitoring' if monitoring else 'provision'
+        require(not (monitoring and pengeluaran), 'Pilih satu scope demo.')
+        action = ('provision-pengeluaran' if pengeluaran else
+                  'provision-monitoring' if monitoring else 'provision')
         return command([helper, action, database, data], capture=True, env=client_env).strip()
     finally:
         if (data / 'postmaster.pid').exists():
