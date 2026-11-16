@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
@@ -18,6 +19,7 @@ import 'package:frontend_notaris/providers/pengeluaran_provider.dart';
 import 'package:frontend_notaris/repositories/pengeluaran_repository.dart';
 import 'package:frontend_notaris/screens/pengeluaran_desktop_screen.dart';
 import 'package:frontend_notaris/services/auth_service.dart';
+import 'package:frontend_notaris/services/pengeluaran_excel_export.dart';
 
 import '../repositories/pengeluaran_repository_test.dart' show expenseSession;
 
@@ -45,19 +47,39 @@ class _SlowRepository extends PengeluaranRepository {
   }
 }
 
+class _RecordingExport extends PengeluaranExcelExport {
+  final completion = Completer<int?>();
+  final filters = <PengeluaranFilter>[];
+
+  @override
+  Future<int?> run({
+    required PengeluaranRepository repository,
+    required AuthSession? Function() currentSession,
+    required PengeluaranFilter filter,
+    String? jenisLabel,
+  }) {
+    expect(allowsPengeluaran(currentSession(), PengeluaranAction.read), isTrue);
+    filters.add(filter);
+    return completion.future;
+  }
+}
+
 Future<void> _open(
   WidgetTester tester,
   List<Override> overrides, {
   Size size = const Size(1366, 768),
+  PengeluaranExcelExport exporter = const PengeluaranExcelExport(),
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     ProviderScope(
       overrides: overrides,
-      child: const MaterialApp(
+      child: MaterialApp(
         home: Scaffold(
-          body: SingleChildScrollView(child: PengeluaranDesktopScreen()),
+          body: SingleChildScrollView(
+            child: PengeluaranDesktopScreen(exporter: exporter),
+          ),
         ),
       ),
     ),
@@ -84,6 +106,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Tambah Pengeluaran'), findsNothing);
+    expect(find.text('Excel'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -279,6 +302,7 @@ void main() {
   testWidgets(
     'read-only desktop shows real totals, search and page navigation',
     (tester) async {
+      final exporter = _RecordingExport();
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
       await tester.runAsync(() async {
@@ -301,7 +325,7 @@ void main() {
           (_) => _Auth(expenseSession(write: false)),
         ),
         appDatabaseProvider.overrideWithValue(db),
-      ]);
+      ], exporter: exporter);
       await tester.pumpAndSettle();
       expect(find.text('11 data'), findsOneWidget);
       expect(find.text('Rp 1.100'), findsOneWidget);
@@ -342,6 +366,19 @@ void main() {
       expect(find.text('Rp 1.100'), findsOneWidget);
       expect(find.text('FA-1'), findsOneWidget);
       expect(find.text('FA-2'), findsNothing);
+      if (Platform.isWindows) {
+        final excel = find.widgetWithText(OutlinedButton, 'Excel');
+        await tester.ensureVisible(excel);
+        await tester.tap(excel);
+        await tester.pump();
+        final exporting = find.widgetWithText(OutlinedButton, 'Mengekspor…');
+        expect(tester.widget<OutlinedButton>(exporting).onPressed, isNull);
+        await tester.tap(exporting);
+        expect(exporter.filters.single.page, 1);
+        exporter.completion.complete(null);
+        await tester.pumpAndSettle();
+        expect(find.textContaining('Excel tersimpan'), findsNothing);
+      }
       expect(
         tester
             .widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Next'))

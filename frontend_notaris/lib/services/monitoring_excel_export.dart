@@ -1,14 +1,9 @@
-import 'dart:ffi';
-import 'dart:io';
-
 import 'package:excel_plus/excel_plus.dart';
-import 'package:ffi/ffi.dart';
-import 'package:file_selector/file_selector.dart';
-import 'package:path/path.dart' as p;
 
 import '../models/auth_session.dart';
 import '../models/transaction_monitoring.dart';
 import '../repositories/transaction_repository.dart';
+import 'xlsx_export_file.dart';
 
 class MonitoringExcelExport {
   const MonitoringExcelExport({this.chooseDestination = chooseXlsxDestination});
@@ -50,53 +45,10 @@ class MonitoringExcelExport {
     }
     checkSession();
 
-    final file = File(
-      destination.toLowerCase().endsWith('.xlsx')
-          ? destination
-          : '$destination.xlsx',
-    );
-    final parent = await file.parent.resolveSymbolicLinks();
-    final target = p.join(parent, p.basename(file.path));
-    final staging = await Directory(parent).createTemp('.monitoring-export-');
-    final staged = File(p.join(staging.path, 'export.xlsx'));
-    try {
-      await staged.writeAsBytes(bytes, flush: true);
-      checkSession();
-      // Windows MoveFileW publishes the completed file without replacement.
-      // It also refuses a destination created while the export was running.
-      using((arena) {
-        final move = DynamicLibrary.open('kernel32.dll')
-            .lookupFunction<
-              Int32 Function(Pointer<Utf16>, Pointer<Utf16>),
-              int Function(Pointer<Utf16>, Pointer<Utf16>)
-            >('MoveFileW');
-        if (move(
-              staged.path.toNativeUtf16(allocator: arena),
-              target.toNativeUtf16(allocator: arena),
-            ) ==
-            0) {
-          throw FileSystemException('Excel gagal disimpan.', target);
-        }
-      });
-    } finally {
-      try {
-        if (await staged.exists()) await staged.delete();
-        await staging.delete();
-      } on FileSystemException {
-        // Cleanup is limited to the staging directory created for this export.
-      }
-    }
+    await writeNewXlsx(destination, bytes, beforePublish: checkSession);
     return rows.length;
   }
 }
-
-Future<String?> chooseXlsxDestination(String suggestedName) async =>
-    (await getSaveLocation(
-      suggestedName: suggestedName,
-      acceptedTypeGroups: const [
-        XTypeGroup(label: 'Excel', extensions: ['xlsx']),
-      ],
-    ))?.path;
 
 Excel _workbook(
   List<MonitoringExportRow> rows,
@@ -199,23 +151,23 @@ Excel _workbook(
       CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row),
       CellIndex.indexByColumnRow(columnIndex: 10, rowIndex: row),
     );
-    cell(row, 0, _text(label));
-    cell(row, 2, _text(value));
+    cell(row, 0, xlsxText(label));
+    cell(row, 2, xlsxText(value));
   }
   // Only business dates available in SQLite are written as date cells.
   sheet.merge(CellIndex.indexByString('A10'), CellIndex.indexByString('K10'));
   cell(
     9,
     0,
-    _text(
+    xlsxText(
       'Tanggal selesai belum tercatat sebagai tanggal penyelesaian transaksi.',
     ),
   );
-  cell(10, 0, _text('Jumlah'));
+  cell(10, 0, xlsxText('Jumlah'));
   cell(10, 1, IntCellValue(rows.length));
   for (final (index, (label, width)) in columns.indexed) {
     sheet.setColumnWidth(index, width);
-    cell(12, index, _text(label), header);
+    cell(12, index, xlsxText(label), header);
   }
   for (final (index, item) in rows.indexed) {
     final row = index + 13;
@@ -225,14 +177,14 @@ Excel _workbook(
     if (date != null) {
       cell(row, 1, DateCellValue.fromDateTime(date), dateStyle);
     }
-    cell(row, 3, _text(tx.noAkta), identifier);
-    cell(row, 4, _text(item.row.nik), identifier);
-    cell(row, 5, _text(item.row.applicant));
-    cell(row, 6, _text(_domain(tx.jenisTransaksi)));
-    cell(row, 7, _text(item.row.jobs));
-    cell(row, 8, _text(item.row.categories));
-    cell(row, 9, _text(item.estimates));
-    cell(row, 10, _text(item.processes));
+    cell(row, 3, xlsxText(tx.noAkta), identifier);
+    cell(row, 4, xlsxText(item.row.nik), identifier);
+    cell(row, 5, xlsxText(item.row.applicant));
+    cell(row, 6, xlsxText(_domain(tx.jenisTransaksi)));
+    cell(row, 7, xlsxText(item.row.jobs));
+    cell(row, 8, xlsxText(item.row.categories));
+    cell(row, 9, xlsxText(item.estimates));
+    cell(row, 10, xlsxText(item.processes));
     if (tx.total.isFinite) {
       cell(
         row,
@@ -245,21 +197,11 @@ Excel _workbook(
     if (remaining != null) {
       cell(row, 12, IntCellValue(remaining), money);
     }
-    cell(row, 13, _text(item.row.officer));
-    cell(row, 14, _text(tx.statusTransaksi));
+    cell(row, 13, xlsxText(item.row.officer));
+    cell(row, 14, xlsxText(tx.statusTransaksi));
   }
   return excel;
 }
-
-// Typed text cells preserve identifiers and never emit spreadsheet formulas.
-TextCellValue _text(String? value) => TextCellValue(
-  value == null || value.trim().isEmpty
-      ? '—'
-      : value.replaceAll(
-          RegExp(r'[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]'),
-          '\uFFFD',
-        ),
-);
 
 String _domain(String value) => switch (value) {
   'notaris' => 'Notaris',

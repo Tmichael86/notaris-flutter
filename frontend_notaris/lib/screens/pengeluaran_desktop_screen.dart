@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,9 +12,15 @@ import '../providers/auth_provider.dart';
 import '../providers/pekerjaan_provider.dart';
 import '../providers/pengeluaran_provider.dart';
 import '../repositories/pengeluaran_repository.dart';
+import '../services/pengeluaran_excel_export.dart';
 
 class PengeluaranDesktopScreen extends ConsumerStatefulWidget {
-  const PengeluaranDesktopScreen({super.key});
+  const PengeluaranDesktopScreen({
+    super.key,
+    this.exporter = const PengeluaranExcelExport(),
+  });
+
+  final PengeluaranExcelExport exporter;
 
   @override
   ConsumerState<PengeluaranDesktopScreen> createState() =>
@@ -29,9 +37,18 @@ class _PengeluaranDesktopScreenState
   bool _deleting = false;
   bool _deleteOpen = false;
   bool _formOpen = false;
+  bool _exporting = false;
 
   bool _allows(PengeluaranAction action) =>
       allowsPengeluaran(ref.read(authControllerProvider).session, action);
+
+  PengeluaranFilter get _filter => (
+    from: _from,
+    through: _through,
+    jenisId: _jenisId,
+    search: _search.text,
+    page: _page,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -42,15 +59,7 @@ class _PengeluaranDesktopScreenState
         child: Text('Anda tidak memiliki izin membaca Pengeluaran.'),
       );
     }
-    final result = ref.watch(
-      pengeluaranPageProvider((
-        from: _from,
-        through: _through,
-        jenisId: _jenisId,
-        search: _search.text,
-        page: _page,
-      )),
-    );
+    final result = ref.watch(pengeluaranPageProvider(_filter));
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 700;
@@ -67,7 +76,7 @@ class _PengeluaranDesktopScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _header(stack: constraints.maxWidth < 480),
+                _header(stack: constraints.maxWidth < 555),
                 const SizedBox(height: 18),
                 _filters(),
                 const SizedBox(height: 18),
@@ -132,18 +141,82 @@ class _PengeluaranDesktopScreenState
       label: const Text('Tambah Pengeluaran'),
       style: _primaryButton,
     );
+    final actions = Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        if (Platform.isWindows)
+          Tooltip(
+            message: 'Ekspor seluruh hasil filter ke Excel',
+            child: OutlinedButton.icon(
+              onPressed: _exporting ? null : _export,
+              icon: const Icon(Icons.table_view_outlined, size: 18),
+              label: Text(_exporting ? 'Mengekspor…' : 'Excel'),
+              style: _secondaryButton.copyWith(
+                foregroundColor: WidgetStateProperty.resolveWith(
+                  (states) => states.contains(WidgetState.disabled)
+                      ? null
+                      : Colors.green.shade800,
+                ),
+              ),
+            ),
+          ),
+        add,
+      ],
+    );
     return stack
         ? Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [title, const SizedBox(height: 12), add],
+            children: [title, const SizedBox(height: 12), actions],
           )
         : Row(
             children: [
               Expanded(child: title),
               const SizedBox(width: 16),
-              add,
+              actions,
             ],
           );
+  }
+
+  Future<void> _export() async {
+    if (_exporting || !_allows(PengeluaranAction.read)) return;
+    final filter = _filter;
+    String? jenisLabel;
+    if (filter.jenisId != null) {
+      for (final kind
+          in ref.read(pengeluaranFilterJenisProvider).asData?.value ??
+              <PengeluaranJenisData>[]) {
+        if (kind.id == filter.jenisId) {
+          jenisLabel = kind.nama;
+          break;
+        }
+      }
+    }
+    setState(() => _exporting = true);
+    try {
+      final count = await widget.exporter.run(
+        repository: ref.read(pengeluaranRepositoryProvider),
+        currentSession: () =>
+            mounted ? ref.read(authControllerProvider).session : null,
+        filter: filter,
+        jenisLabel: jenisLabel,
+      );
+      if (count != null && mounted) {
+        _message('Excel tersimpan. $count pengeluaran diekspor.');
+      }
+    } on FileSystemException {
+      if (mounted) {
+        _message(
+          'Excel gagal disimpan. Pilih nama baru dan folder yang dapat ditulis di luar penyimpanan dokumen transaksi.',
+        );
+      }
+    } on PengeluaranFailure catch (error) {
+      if (mounted) _message(error.message);
+    } catch (_) {
+      if (mounted) _message('Ekspor Excel gagal.');
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
   }
 
   Widget _filters() {

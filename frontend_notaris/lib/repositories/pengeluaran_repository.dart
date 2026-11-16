@@ -51,6 +51,7 @@ class PengeluaranRepository {
   PengeluaranRepository(this._db, this._session);
 
   static const pageSize = 10;
+  static const _order = 'tanggal DESC, id DESC';
   final AppDatabase _db;
   final AuthSession? Function() _session;
 
@@ -64,8 +65,7 @@ class PengeluaranRepository {
   DateTime _calendar(DateTime date, {int offset = 0}) =>
       DateTime.utc(date.year, date.month, date.day + offset);
 
-  Stream<PengeluaranPage> watchPage(PengeluaranFilter filter) {
-    _require(PengeluaranAction.read);
+  ({String sql, List<Variable> variables}) _where(PengeluaranFilter filter) {
     final predicates = ['deleted_at IS NULL'];
     final variables = <Variable>[];
     if (filter.from case final date?) {
@@ -88,27 +88,48 @@ class PengeluaranRepository {
       ''');
       variables.addAll([Variable(search), Variable(search)]);
     }
+    return (sql: predicates.join(' AND '), variables: variables);
+  }
+
+  /// Reads a single consistent snapshot of the filtered rows under query_only.
+  Future<List<PengeluaranData>> readExport(PengeluaranFilter filter) async {
+    _require(PengeluaranAction.read);
+    final where = _where(filter);
+    final rows = await _db
+        .customSelect(
+          'SELECT * FROM pengeluaran WHERE ${where.sql} ORDER BY $_order',
+          variables: where.variables,
+          readsFrom: {_db.pengeluarans},
+        )
+        .get();
+    _require(PengeluaranAction.read);
+    return [for (final row in rows) _db.pengeluarans.map(row.data)];
+  }
+
+  Stream<PengeluaranPage> watchPage(PengeluaranFilter filter) {
+    _require(PengeluaranAction.read);
+    final where = _where(filter);
     // Split totals to preserve exact Rupiah even above SQLite's signed int64.
     const base = 4294967296;
     return _db
         .customSelect(
           '''
       WITH filtered AS NOT MATERIALIZED (
-        SELECT * FROM pengeluaran WHERE ${predicates.join(' AND ')}
+        SELECT * FROM pengeluaran WHERE ${where.sql}
       ), summary AS (
         SELECT count(*) AS matched, coalesce(sum(nominal / $base), 0) AS high,
           coalesce(sum(nominal % $base), 0) AS low FROM filtered
       ), position AS (
         SELECT *, min(?, max(matched - 1, 0) / $pageSize) AS page_number FROM summary
       ), page AS (
-        SELECT * FROM filtered ORDER BY tanggal DESC, id DESC LIMIT $pageSize
+        SELECT * FROM filtered ORDER BY $_order LIMIT $pageSize
         OFFSET (SELECT page_number * $pageSize FROM position)
       )
       SELECT page.*, matched, high, low, page_number FROM position LEFT JOIN page ON 1
       ORDER BY page.tanggal DESC, page.id DESC
       ''',
           variables: [
-            ...variables,
+            ...where.variables,
             Variable(filter.page < 0 ? 0 : filter.page),
           ],
           readsFrom: {_db.pengeluarans},
