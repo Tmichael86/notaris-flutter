@@ -15,6 +15,7 @@ class SearchableDropdown<T> extends StatefulWidget {
   final ValueChanged<T?> onChanged;
   final String Function(T item)? itemLabel;
   final bool enabled;
+  final InputDecoration? decoration;
 
   const SearchableDropdown({
     super.key,
@@ -25,6 +26,7 @@ class SearchableDropdown<T> extends StatefulWidget {
     this.hint = '',
     this.itemLabel,
     this.enabled = true,
+    this.decoration,
   });
 
   @override
@@ -38,6 +40,8 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
   final TextEditingController _searchController = TextEditingController();
   final _portal = OverlayPortalController();
   double _menuWidth = 0;
+  double _menuHeight = 320;
+  bool _openAbove = false;
 
   bool get _isSearchable => widget.items.length > 5;
 
@@ -68,6 +72,20 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
 
     final renderBox = context.findRenderObject() as RenderBox;
     _menuWidth = renderBox.size.width;
+    if (widget.decoration != null) {
+      final view = MediaQuery.of(context);
+      final top = renderBox.localToGlobal(Offset.zero).dy;
+      final above = top - view.padding.top - 8;
+      final below =
+          view.size.height -
+          view.viewInsets.bottom -
+          view.padding.bottom -
+          top -
+          renderBox.size.height -
+          8;
+      _openAbove = below < 220 && above > below;
+      _menuHeight = (_openAbove ? above : below).clamp(0.0, 320.0);
+    }
 
     _portal.show();
     _menuFocus.requestFocus();
@@ -89,6 +107,30 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
     final selectedText = widget.value == null
         ? null
         : _label(widget.value as T);
+    final decoration = widget.decoration;
+    final field = InputDecorator(
+      decoration:
+          (decoration ??
+                  InputDecoration(
+                    labelText: widget.label.isEmpty ? null : widget.label,
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                  ))
+              .copyWith(enabled: widget.enabled),
+      isEmpty: selectedText == null,
+      isFocused:
+          decoration != null && (_triggerFocus.hasFocus || _portal.isShowing),
+      child: Text(
+        selectedText ?? widget.hint,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: selectedText == null ? Colors.grey.shade600 : Colors.black87,
+        ),
+      ),
+    );
 
     return OverlayPortal(
       controller: _portal,
@@ -119,8 +161,12 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
                 CompositedTransformFollower(
                   link: _layerLink,
                   showWhenUnlinked: false,
-                  targetAnchor: Alignment.bottomLeft,
-                  followerAnchor: Alignment.topLeft,
+                  targetAnchor: _openAbove
+                      ? Alignment.topLeft
+                      : Alignment.bottomLeft,
+                  followerAnchor: _openAbove
+                      ? Alignment.bottomLeft
+                      : Alignment.topLeft,
                   child: Material(
                     color: Colors.white,
                     elevation: 4,
@@ -132,6 +178,7 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
                         items: widget.items,
                         value: widget.value,
                         searchable: _isSearchable,
+                        maxHeight: _menuHeight,
                         searchController: _searchController,
                         itemLabel: _label,
                         onSelected: (value) {
@@ -147,41 +194,19 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
           ),
         ),
       ),
-      child: Focus(
-        focusNode: _triggerFocus,
-        child: CompositedTransformTarget(
-          link: _layerLink,
-          child: GestureDetector(
-            onTap: _toggleDropdown,
-            child: InputDecorator(
-              decoration: InputDecoration(
-                labelText: widget.label.isEmpty ? null : widget.label,
-                border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                enabled: widget.enabled,
+      child: CompositedTransformTarget(
+        link: _layerLink,
+        child: decoration == null
+            ? Focus(
+                focusNode: _triggerFocus,
+                child: GestureDetector(onTap: _toggleDropdown, child: field),
+              )
+            : InkWell(
+                focusNode: _triggerFocus,
+                onFocusChange: (_) => setState(() {}),
+                onTap: widget.enabled ? _toggleDropdown : null,
+                child: field,
               ),
-              isEmpty: selectedText == null,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      selectedText ?? widget.hint,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: selectedText == null
-                            ? Colors.grey.shade600
-                            : Colors.black87,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -191,6 +216,7 @@ class _DropdownMenu<T> extends StatefulWidget {
   final List<T> items;
   final T? value;
   final bool searchable;
+  final double maxHeight;
   final TextEditingController searchController;
   final String Function(T item) itemLabel;
   final ValueChanged<T?> onSelected;
@@ -199,6 +225,7 @@ class _DropdownMenu<T> extends StatefulWidget {
     required this.items,
     required this.value,
     required this.searchable,
+    required this.maxHeight,
     required this.searchController,
     required this.itemLabel,
     required this.onSelected,
@@ -236,7 +263,7 @@ class _DropdownMenuState<T> extends State<_DropdownMenu<T>> {
   @override
   Widget build(BuildContext context) {
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxHeight: 320),
+      constraints: BoxConstraints(maxHeight: widget.maxHeight),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
