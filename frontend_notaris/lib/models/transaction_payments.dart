@@ -29,13 +29,15 @@ int exactRupiah(num value, String label) {
 bool isActivePayment(TransaksiRiwayatPembayaran row) =>
     row.status == 1 && row.deletedAt == null;
 
-int paymentRupiah(TransaksiRiwayatPembayaran row) {
-  final mirror = exactRupiah(row.nominal, 'Nominal pembayaran');
-  if (mirror == 0 ||
-      (row.nominalRupiah != null && row.nominalRupiah != mirror)) {
+int paymentRupiah(TransaksiRiwayatPembayaran row) =>
+    paymentRupiahFromStored(row.nominal, row.nominalRupiah);
+
+int paymentRupiahFromStored(num nominal, int? nominalRupiah) {
+  final mirror = exactRupiah(nominal, 'Nominal pembayaran');
+  if (mirror == 0 || (nominalRupiah != null && nominalRupiah != mirror)) {
     throw StateError('Nominal pembayaran historis perlu ditinjau.');
   }
-  return row.nominalRupiah ?? mirror;
+  return nominalRupiah ?? mirror;
 }
 
 int totalActiveRupiah(Iterable<TransaksiRiwayatPembayaran> payments) {
