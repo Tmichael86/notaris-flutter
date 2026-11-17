@@ -10,7 +10,11 @@ import 'notaris_completion_demo_main.dart';
 import 'payment_demo_main.dart';
 import 'repositories/materai_stock_repository.dart';
 
-Directory materaiStockDemoRoot(String id, {bool usage = false}) {
+Directory materaiStockDemoRoot(
+  String id, {
+  bool usage = false,
+  bool correction = false,
+}) {
   final root = paymentDemoRoot(id);
   final marker = File(
     p.join(root.path, usage ? 'materai-usage-owner' : 'materai-owner'),
@@ -21,6 +25,20 @@ Directory materaiStockDemoRoot(String id, {bool usage = false}) {
       File(p.join(root.path, 'presentation-owner')).existsSync()) {
     throw StateError('Profil stock-in Materai disposable diperlukan.');
   }
+  if (correction) {
+    final correctionMarker = File(
+      p.join(root.path, 'materai-correction-owner'),
+    );
+    if (!usage ||
+        !correctionMarker.existsSync() ||
+        !p.equals(
+          correctionMarker.path,
+          correctionMarker.resolveSymbolicLinksSync(),
+        ) ||
+        correctionMarker.readAsStringSync() != id) {
+      throw StateError('Profil koreksi Materai disposable diperlukan.');
+    }
+  }
   return root;
 }
 
@@ -28,8 +46,9 @@ MateraiProfileDatabase openMateraiStockDemo(
   String id, {
   required bool writable,
   bool usage = false,
+  bool correction = false,
 }) {
-  final root = materaiStockDemoRoot(id, usage: usage);
+  final root = materaiStockDemoRoot(id, usage: usage, correction: correction);
   final file = File(p.join(root.path, 'offline.sqlite'));
   if (!file.existsSync() ||
       !p.equals(file.path, file.resolveSymbolicLinksSync()) ||
@@ -69,18 +88,27 @@ Future<void> main() async {
   const account = String.fromEnvironment('NOTARIS_MATERAI_STOCK_ACCOUNT');
   const writable = bool.fromEnvironment('NOTARIS_MATERAI_STOCK_WRITE');
   const usage = bool.fromEnvironment('NOTARIS_MATERAI_TRANSACTION_USAGE');
+  const correction = bool.fromEnvironment(
+    'NOTARIS_MATERAI_TRANSACTION_CORRECTION',
+  );
   if (!PaymentDemoAuth.usernames.contains(account) ||
       (writable && account != 'admin.demo')) {
     throw StateError('Scope akun uji Materai berbeda.');
   }
-  final root = materaiStockDemoRoot(id, usage: usage);
-  final db = openMateraiStockDemo(id, writable: writable, usage: usage);
+  final root = materaiStockDemoRoot(id, usage: usage, correction: correction);
+  final db = openMateraiStockDemo(
+    id,
+    writable: writable,
+    usage: usage,
+    correction: correction,
+  );
   final binding = writable || usage
       ? MateraiStockBinding(
           db,
           id,
           openingSha,
           transactionUsageEnabled: usage,
+          transactionCorrectionsEnabled: correction,
           acceptsWrites: writable,
           pendingReceipt: writable
               ? File(p.join(root.path, 'materai-pending-receipt.json'))
@@ -98,7 +126,9 @@ Future<void> main() async {
       expireSidebarAccess: true,
     ),
     banner: writable
-        ? (usage
+        ? (correction
+              ? 'DATA SINTETIS · UJI KOREKSI MATERAI'
+              : usage
               ? 'DATA SINTETIS · UJI STOK KELUAR MATERAI'
               : 'DATA SINTETIS · UJI STOK MASUK MATERAI')
         : 'DATA SINTETIS · MATERAI BACA SAJA',

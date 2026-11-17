@@ -763,6 +763,7 @@ class TransactionRepository {
     NotarisDeedInput? deed,
     String? createUuid,
     bool requireMateraiStockOut = false,
+    MateraiCorrectionIntent? materaiCorrection,
   }) async {
     if (jobs.isEmpty) {
       throw ArgumentError('Transaksi harus memiliki minimal satu pekerjaan.');
@@ -834,7 +835,7 @@ class TransactionRepository {
         ? null
         : DateTime.utc(date.year, date.month, date.day);
 
-    Future<int> persist() async {
+    Future<int> persist({bool correcting = false}) async {
       final original = id == null
           ? null
           : await (db.select(db.transaksis)
@@ -844,7 +845,7 @@ class TransactionRepository {
         throw StateError('Transaksi tidak ditemukan atau jenisnya berbeda.');
       }
       if (original != null &&
-          (original.jumlahMaterai != jumlahMaterai ||
+          ((!correcting && original.jumlahMaterai != jumlahMaterai) ||
               isMateraiCancellation(status)) &&
           await hasInitialMateraiUsage(db, original.uuid)) {
         throw const MateraiStockException(materaiUsageProtected);
@@ -1180,7 +1181,54 @@ class TransactionRepository {
       return transactionId;
     }
 
+    String requestHash() => materaiProvenanceHash(
+      jsonEncode([
+        normalizedNoAkta,
+        jenisTransaksi,
+        pemohonId,
+        pemohonUuid,
+        petugasId,
+        petugasUuid,
+        status,
+        tanggalTransaksi.toIso8601String(),
+        tanggalJatuhTempo?.toIso8601String(),
+        diskonRupiah,
+        pembayaranAwal,
+        metodePembayaran,
+        jumlahMaterai,
+        _nullableText(catatan),
+        [deed?.title.trim(), deed?.number.trim(), dateOnly?.toIso8601String()],
+        for (final job in jobs)
+          [
+            job.detailUuid,
+            job.jenisPekerjaan,
+            job.namaPekerjaan,
+            job.pekerjaanNotarisId,
+            job.pekerjaanPpatId,
+            job.kategoriSnapshot,
+            job.estimasiWaktuSnapshot,
+            job.prosesSnapshot,
+            job.hargaUuid,
+            job.kategoriUuid,
+            job.biayaLayanan,
+            job.biayaLainnya,
+          ],
+      ]),
+    );
     final stock = materaiStock;
+    if (materaiCorrection != null) {
+      if (id == null || stock == null || isMateraiCancellation(status)) {
+        throw const MateraiStockException(materaiUsageProtected);
+      }
+      return stock.correctTransactionUsage(
+        db,
+        id: id,
+        newQuantity: jumlahMaterai,
+        intent: materaiCorrection,
+        requestHash: requestHash(),
+        persist: () => persist(correcting: true),
+      );
+    }
     if (id == null &&
         jumlahMaterai > 0 &&
         (stock != null || requireMateraiStockOut)) {
@@ -1189,51 +1237,13 @@ class TransactionRepository {
           'Profil atau identitas pemakaian meterai belum terverifikasi.',
         );
       }
-      final fingerprint = materaiProvenanceHash(
-        jsonEncode([
-          normalizedNoAkta,
-          jenisTransaksi,
-          pemohonId,
-          pemohonUuid,
-          petugasId,
-          petugasUuid,
-          status,
-          tanggalTransaksi.toIso8601String(),
-          tanggalJatuhTempo?.toIso8601String(),
-          diskonRupiah,
-          pembayaranAwal,
-          metodePembayaran,
-          jumlahMaterai,
-          _nullableText(catatan),
-          [
-            deed?.title.trim(),
-            deed?.number.trim(),
-            dateOnly?.toIso8601String(),
-          ],
-          for (final job in jobs)
-            [
-              job.detailUuid,
-              job.jenisPekerjaan,
-              job.namaPekerjaan,
-              job.pekerjaanNotarisId,
-              job.pekerjaanPpatId,
-              job.kategoriSnapshot,
-              job.estimasiWaktuSnapshot,
-              job.prosesSnapshot,
-              job.hargaUuid,
-              job.kategoriUuid,
-              job.biayaLayanan,
-              job.biayaLainnya,
-            ],
-        ]),
-      );
       return stock.saveTransactionWithUsage(db, (
         uuid: createUuid,
         domain: jenisTransaksi,
         number: normalizedNoAkta,
         date: materaiCalendarDate(tanggalTransaksi),
         sheets: jumlahMaterai,
-        fingerprint: fingerprint,
+        fingerprint: requestHash(),
       ), persist);
     }
     return db.transaction(() async {

@@ -5,6 +5,7 @@ import '../models/dashboard_transactions.dart';
 import '../models/transaction_monitoring.dart';
 import '../models/transaction_payments.dart';
 import '../repositories/transaction_repository.dart';
+import '../repositories/materai_stock_repository.dart';
 import 'database_provider.dart';
 import 'auth_provider.dart';
 import 'materai_provider.dart';
@@ -116,6 +117,7 @@ class TransactionController extends AsyncNotifier<void> {
     String? catatan,
     NotarisDeedInput? deed,
     String? createUuid,
+    MateraiCorrectionIntent? materaiCorrection,
   }) async {
     final stockEnabled =
         ref.read(materaiStockBindingProvider)?.transactionUsageEnabled == true;
@@ -160,6 +162,7 @@ class TransactionController extends AsyncNotifier<void> {
         catatan: catatan,
         deed: deed,
         createUuid: createUuid,
+        materaiCorrection: materaiCorrection,
         requireMateraiStockOut: stockEnabled,
       );
       state = const AsyncData(null);

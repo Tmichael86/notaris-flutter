@@ -26,6 +26,7 @@ Future<int> saveUsage(
   bool duplicateDetail = false,
   bool requireUsage = true,
   String description = '',
+  DateTime? deadline,
 }) => repo.save(
   id: editing,
   createUuid: editing == null ? uuid : null,
@@ -38,6 +39,7 @@ Future<int> saveUsage(
   petugasUuid: 'e0c928a2-c304-437e-8bf5-7a81bd5e0eae',
   status: status,
   tanggalTransaksi: DateTime(2026, 11, 17),
+  tanggalJatuhTempo: deadline,
   jumlahMaterai: sheets,
   pembayaranSekarang: editing == null ? 25000 : 0,
   catatan: description,

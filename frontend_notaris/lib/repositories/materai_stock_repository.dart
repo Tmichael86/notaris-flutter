@@ -10,6 +10,8 @@ import '../models/auth_session.dart';
 import '../models/verified_demo_session.dart';
 import 'materai_repository.dart';
 
+part 'materai_stock_correction.dart';
+
 const materaiReceiptLimit = 10000;
 const materaiStockLimit = 9007199254740991;
 
@@ -37,6 +39,7 @@ class MateraiStockBinding {
     this.openingSha256, {
     this.pendingReceipt,
     this.transactionUsageEnabled = false,
+    this.transactionCorrectionsEnabled = false,
     this.acceptsWrites = true,
   }) {
     if (!RegExp(r'^[0-9a-f]{32}$').hasMatch(profileId) ||
@@ -49,6 +52,7 @@ class MateraiStockBinding {
   final String profileId, openingSha256;
   final File? pendingReceipt;
   final bool transactionUsageEnabled;
+  final bool transactionCorrectionsEnabled;
   final bool acceptsWrites;
   String get namespace => 'local:materai:$profileId';
 }
@@ -73,7 +77,7 @@ typedef MateraiTransactionUsage = ({
 });
 
 const materaiUsageProtected =
-    'Transaksi memiliki pemakaian meterai. Perubahan jumlah, pembatalan, atau penghapusan memerlukan koreksi stok.';
+    'Transaksi tertaut ke ledger meterai. Gunakan profil koreksi untuk mengubah jumlah. Pembatalan dan penghapusan masih diblokir.';
 
 Future<bool> hasMateraiUsageProfile(AppDatabase db) async {
   if (db.schemaVersion < 27) return false;
@@ -119,13 +123,20 @@ class MateraiStockRepository {
   final DateTime Function() _now;
   MateraiProfileDatabase get _db => binding.database;
 
-  ExpiringPaymentDemoSession _actor({bool transactionUsage = false}) {
+  ExpiringPaymentDemoSession _actor({
+    bool transactionUsage = false,
+    bool correction = false,
+  }) {
     final session = _currentSession();
     final now = _now();
     if (session is! ExpiringPaymentDemoSession ||
         session.profileId != binding.profileId ||
         (transactionUsage && !binding.transactionUsageEnabled) ||
-        !(transactionUsage
+        !(correction
+            ? binding.transactionCorrectionsEnabled &&
+                  binding.transactionUsageEnabled &&
+                  session.hasTransactionAccess(update: true)
+            : transactionUsage
             ? session.hasTransactionAccess(create: true)
             : canCreateMaterai(session)) ||
         session.groupId <= 0 ||
@@ -133,7 +144,9 @@ class MateraiStockRepository {
         now.isBefore(session.verifiedAt) ||
         !now.isBefore(session.expiresAt)) {
       throw MateraiStockException(
-        transactionUsage
+        correction
+            ? 'Sesi terverifikasi dengan izin ubah Transaksi diperlukan untuk koreksi meterai.'
+            : transactionUsage
             ? 'Sesi terverifikasi dengan izin buat Transaksi diperlukan untuk pemakaian meterai.'
             : 'Sesi terverifikasi dengan izin buat Materai diperlukan.',
       );
@@ -144,8 +157,12 @@ class MateraiStockRepository {
   void _verifySession(
     ExpiringPaymentDemoSession original, {
     bool transactionUsage = false,
+    bool correction = false,
   }) {
-    if (!identical(_actor(transactionUsage: transactionUsage), original)) {
+    if (!identical(
+      _actor(transactionUsage: transactionUsage, correction: correction),
+      original,
+    )) {
       throw const MateraiStockException('Sesi berubah. Buka ulang formulir.');
     }
   }
@@ -208,6 +225,7 @@ class MateraiStockRepository {
   Future<MateraiStockContext> _head(
     PetugasLocal officer, {
     bool transactionUsage = false,
+    bool correction = false,
   }) async {
     final rows = await _db
         .customSelect(
@@ -218,15 +236,23 @@ class MateraiStockRepository {
     String? date;
     var predecessor = 0;
     int? recorded;
+    final usages =
+        <String, ({int id, String domain, int sheets, int original})>{};
+    final corrections = <String>{};
     const invalid = MateraiStockException(
-      'Saldo pembuka atau rantai stok belum terverifikasi. Penerimaan diblokir.',
+      'Perlu Ditinjau: saldo pembuka atau rantai stok meterai belum terverifikasi.',
     );
     if (rows.isEmpty) throw invalid;
     for (final row in rows) {
       final namespace = row.read<String>('source_namespace');
       final hash = row.read<String>('payload_sha256');
       final payload = row.read<String>('provenance_json');
-      final provenance = jsonDecode(payload);
+      final Object? provenance;
+      try {
+        provenance = jsonDecode(payload);
+      } on FormatException {
+        throw invalid;
+      }
       final currentDate = row.readNullable<String>('business_date');
       final timestamp = row.readNullable<int>('source_created_ms');
       final incoming = row.readNullable<int>('stock_in');
@@ -242,6 +268,7 @@ class MateraiStockRepository {
           timestamp == null ||
           incoming == null ||
           currentStock == null ||
+          currentStock < 0 ||
           currentStock > materaiStockLimit ||
           outgoing == null) {
         throw invalid;
@@ -251,6 +278,7 @@ class MateraiStockRepository {
             hash != binding.openingSha256 ||
             provenance['kind'] != 'synthetic_verified_opening' ||
             (transactionUsage && provenance['transaction_usage'] != true) ||
+            (correction && provenance['transaction_correction'] != true) ||
             incoming != 0 ||
             outgoing != 0 ||
             provenance['opening'] != currentStock ||
@@ -264,27 +292,19 @@ class MateraiStockRepository {
           throw invalid;
         }
       } else {
-        final usage = provenance['kind'] == 'transaction_stock_out';
-        final operation = usage
-            ? provenance['transaction_uuid']
-            : provenance['operation'];
-        final quantity = usage ? outgoing : incoming;
-        final expectedNamespace = usage ? 'transaction' : 'receipt';
-        if (operation is! String ||
-            !_operationPattern.hasMatch(operation) ||
-            namespace != '${binding.namespace}:$expectedNamespace:$operation' ||
-            (usage
-                ? incoming != 0
-                : outgoing != 0 || provenance['kind'] != 'manual_stock_in') ||
+        if ((incoming == 0) == (outgoing == 0) ||
+            row.read<int>('id') <= predecessor ||
             currentDate!.compareTo(date) < 0 ||
             timestamp <= recorded! ||
             provenance['previous'] != predecessor ||
-            quantity < 1 ||
-            quantity > materaiReceiptLimit ||
-            (usage ? stock < outgoing : stock > materaiStockLimit - incoming) ||
+            incoming < 0 ||
+            outgoing < 0 ||
+            incoming + outgoing > materaiReceiptLimit ||
+            stock < outgoing ||
+            stock > materaiStockLimit - incoming ||
             currentStock != stock + incoming - outgoing ||
             provenance['stock'] != currentStock ||
-            provenance['quantity'] != quantity ||
+            provenance['quantity'] != incoming + outgoing ||
             provenance['date'] != currentDate ||
             provenance['recorded_ms'] != timestamp ||
             provenance['description'] != row.read<String>('description') ||
@@ -298,24 +318,37 @@ class MateraiStockRepository {
             (provenance['group_id'] as int) <= 0) {
           throw invalid;
         }
-        if (usage) {
-          final parent = await (_db.select(
-            _db.transaksis,
-          )..where((table) => table.uuid.equals(operation))).getSingleOrNull();
-          if (parent == null ||
-              parent.deletedAt != null ||
-              isMateraiCancellation(parent.statusTransaksi) ||
-              parent.jenisTransaksi != provenance['domain'] ||
-              parent.id != provenance['transaction_id'] ||
-              parent.jumlahMaterai != outgoing) {
-            throw invalid;
-          }
+        if (!_adoptMovement(
+          row.read<int>('id'),
+          namespace,
+          provenance,
+          incoming,
+          outgoing,
+          usages,
+          corrections,
+        )) {
+          throw invalid;
         }
       }
       predecessor = row.read<int>('id');
       stock = currentStock;
       date = currentDate;
       recorded = timestamp;
+    }
+    for (final MapEntry(key: uuid, value: usage) in usages.entries) {
+      final parent = await (_db.select(
+        _db.transaksis,
+      )..where((table) => table.uuid.equals(uuid))).getSingleOrNull();
+      if (parent == null ||
+          parent.deletedAt != null ||
+          isMateraiCancellation(parent.statusTransaksi) ||
+          parent.jenisTransaksi != usage.domain ||
+          parent.id != usage.id ||
+          parent.jumlahMaterai != usage.sheets) {
+        throw MateraiStockException(
+          'Perlu Ditinjau: pemakaian tercatat berbeda untuk transaksi $uuid.',
+        );
+      }
     }
     return (
       predecessor: predecessor,
@@ -325,6 +358,85 @@ class MateraiStockRepository {
       officer: officer.nama,
       actorId: officer.userId!,
     );
+  }
+
+  bool _adoptMovement(
+    int id,
+    String namespace,
+    Map proof,
+    int incoming,
+    int outgoing,
+    Map<String, ({int id, String domain, int sheets, int original})> usages,
+    Set<String> corrections,
+  ) {
+    if (proof['kind'] == 'manual_stock_in') {
+      final op = proof['operation'];
+      return op is String &&
+          _operationPattern.hasMatch(op) &&
+          outgoing == 0 &&
+          namespace == '${binding.namespace}:receipt:$op';
+    }
+    final uuid = proof['transaction_uuid'];
+    final domain = proof['domain'];
+    final parent = proof['transaction_id'];
+    if (uuid is! String ||
+        !_operationPattern.hasMatch(uuid) ||
+        domain is! String ||
+        !{'notaris', 'ppat'}.contains(domain) ||
+        parent is! int ||
+        parent <= 0) {
+      return false;
+    }
+    final initial = '${binding.namespace}:transaction:$uuid';
+    final previousUsage = usages[uuid];
+    if (proof['kind'] == 'transaction_stock_out') {
+      if (incoming != 0 || previousUsage != null || namespace != initial) {
+        return false;
+      }
+      usages[uuid] = (
+        id: parent,
+        domain: domain,
+        sheets: outgoing,
+        original: id,
+      );
+      return true;
+    }
+    final operation = proof['operation'];
+    final newSheets = proof['new_quantity'];
+    final revision = proof['expected_revision'];
+    final requestHash = proof['request_sha256'];
+    final digest = RegExp(r'^[0-9a-f]{64}$');
+    if (operation is! String ||
+        !_operationPattern.hasMatch(operation) ||
+        revision is! String ||
+        !digest.hasMatch(revision) ||
+        requestHash is! String ||
+        !digest.hasMatch(requestHash) ||
+        namespace != '$initial:adjustment:$operation' ||
+        previousUsage == null ||
+        previousUsage.id != parent ||
+        previousUsage.domain != domain ||
+        previousUsage.original != proof['original_movement'] ||
+        previousUsage.sheets != proof['old_quantity'] ||
+        newSheets is! int ||
+        newSheets < 0 ||
+        newSheets > materaiReceiptLimit ||
+        newSheets - previousUsage.sheets != outgoing - incoming ||
+        proof['delta'] != outgoing - incoming ||
+        proof['kind'] !=
+            (incoming > 0
+                ? 'transaction_usage_return'
+                : 'transaction_usage_increase')) {
+      return false;
+    }
+    if (!corrections.add(operation)) return false;
+    usages[uuid] = (
+      id: parent,
+      domain: domain,
+      sheets: newSheets,
+      original: previousUsage.original,
+    );
+    return true;
   }
 
   /// Owns the single transaction. The callback must persist the new header and

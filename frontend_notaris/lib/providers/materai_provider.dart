@@ -38,6 +38,18 @@ final materaiTransactionStockContextProvider =
           ?.context(transactionUsage: true);
     });
 
+final materaiCorrectionPreviewProvider = FutureProvider.autoDispose
+    .family<MateraiCorrectionPreview?, int>((ref, id) {
+      ref.watch(authControllerProvider);
+      if (ref
+              .watch(materaiStockBindingProvider)
+              ?.transactionCorrectionsEnabled !=
+          true) {
+        return null;
+      }
+      return ref.watch(materaiStockRepositoryProvider)?.correctionPreview(id);
+    });
+
 final materaiReportProvider = FutureProvider.autoDispose<MateraiReport>((ref) {
   if (!canReadMaterai(ref.watch(authControllerProvider).session)) {
     throw StateError('Izin baca Laporan Materai diperlukan.');

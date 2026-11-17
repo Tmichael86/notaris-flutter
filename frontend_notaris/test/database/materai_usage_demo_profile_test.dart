@@ -14,16 +14,27 @@ import '../support/penghasilan_fixture.dart';
 
 void main() {
   final id = Platform.environment['NOTARIS_MATERAI_USAGE_PREPARE'];
+  final correction =
+      Platform.environment['NOTARIS_MATERAI_CORRECTION_PREPARE'] == '1';
   test(
     'provisions one fresh stock-out profile and verifies read-only reopen',
     () async {
-      final root = materaiStockDemoRoot(id!, usage: true);
+      final root = materaiStockDemoRoot(
+        id!,
+        usage: true,
+        correction: correction,
+      );
       final file = await File(p.join(root.path, 'offline.sqlite'))
           .create(exclusive: true);
       final writer = MateraiProfileDatabase(NativeDatabase(file));
       try {
         await seedPenghasilan(writer);
-        await seedMateraiOpening(writer, id: id, transactionUsage: true);
+        await seedMateraiOpening(
+          writer,
+          id: id,
+          transactionUsage: true,
+          transactionCorrection: correction,
+        );
         PekerjaanAggregateInput job(String name) => PekerjaanAggregateInput(
           nama: name,
           harga: const [
@@ -50,7 +61,12 @@ void main() {
         await writer.close();
       }
       final before = sha256.convert(await file.readAsBytes());
-      final db = openMateraiStockDemo(id, writable: false, usage: true);
+      final db = openMateraiStockDemo(
+        id,
+        writable: false,
+        usage: true,
+        correction: correction,
+      );
       try {
         expect(
           await db.customSelect('PRAGMA foreign_key_check').get(),

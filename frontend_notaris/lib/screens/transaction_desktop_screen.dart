@@ -187,10 +187,12 @@ class DummyTransaction {
   final double currentPayment;
   final String note;
   final NotarisDeedInput? deed;
+  final String? materaiRevision;
 
   const DummyTransaction({
     this.uuid,
     this.deed,
+    this.materaiRevision,
     required this.id,
     required this.number,
     required this.type,
@@ -247,6 +249,10 @@ class _TransactionDesktopScreenState
   final noteController = TextEditingController();
   final materaiController = TextEditingController();
   String? _newTransactionUuid;
+  String? _materaiRevision;
+  int _loadedMaterai = 0;
+  MateraiCorrectionIntent? _correctionIntent;
+  int? _correctionSheets;
   final _deedTitle = TextEditingController();
   final _deedNumber = TextEditingController();
   DateTime? _deedDate;
@@ -670,6 +676,9 @@ class _TransactionDesktopScreenState
       deadline = transaction.deadline;
       transactionStatus = transaction.status;
       materai = transaction.materai;
+      _loadedMaterai = transaction.materai;
+      _materaiRevision = transaction.materaiRevision;
+      _correctionIntent = null;
       paymentType = transaction.paymentType;
       discount = transaction.discount;
       currentPayment = transaction.currentPayment;
@@ -737,6 +746,14 @@ class _TransactionDesktopScreenState
         );
 
         final details = await repository.watchDetailsOnce(row.id);
+        final correctionProfile =
+            ref
+                .read(materaiStockBindingProvider)
+                ?.transactionCorrectionsEnabled ==
+            true;
+        final linked =
+            correctionProfile &&
+            await hasInitialMateraiUsage(database, row.uuid);
         final jobs = <DummyTransactionJob>[];
         for (final detail in details) {
           final categories = (detail.kategoriSnapshot ?? '')
@@ -821,7 +838,7 @@ class _TransactionDesktopScreenState
               masterPpatId: detail.pekerjaanPpatId,
               priceUuid: detail.hargaUuid,
               categoryUuid: detail.kategoriUuid,
-              loadedDetail: jenis == 'notaris' ? detail : null,
+              loadedDetail: jenis == 'notaris' || linked ? detail : null,
             ),
           );
         }
@@ -830,6 +847,7 @@ class _TransactionDesktopScreenState
           DummyTransaction(
             id: row.id.toString(),
             uuid: row.uuid,
+            materaiRevision: linked ? materaiEditRevision(row, details) : null,
             number: row.noAkta,
             type: row.jenisTransaksi == 'ppat'
                 ? TransactionType.ppat
@@ -1629,6 +1647,94 @@ class _TransactionDesktopScreenState
     return SizedBox(width: 360, child: summary);
   }
 
+  String _correctionSummary(MateraiCorrectionPreview value, int? sheets) {
+    final usage =
+        'Stok terverifikasi: ${value.stock} lembar. Pemakaian saat ini: ${value.sheets}.';
+    if (sheets == null || sheets == value.sheets) return usage;
+    final delta = sheets - value.sheets;
+    if (delta > value.stock) {
+      return '$usage Tambahan $delta lembar melebihi stok.';
+    }
+    final action = delta > 0
+        ? 'Tambahan $delta lembar'
+        : 'Pengembalian ${-delta} lembar';
+    return '$usage Pemakaian baru: $sheets. $action. Proyeksi stok: ${value.stock - delta} lembar.';
+  }
+
+  Future<bool> _confirmMateraiCorrection(int id, int sheets) async {
+    final repository = ref.read(materaiStockRepositoryProvider);
+    if (repository == null) return true;
+    final preview = await repository.correctionPreview(id);
+    if (preview == null) {
+      _correctionIntent = null;
+      return true;
+    }
+    if (!mounted) return false;
+    if (preview.revision != _materaiRevision ||
+        preview.sheets != _loadedMaterai) {
+      throw const MateraiStockException(
+        'Transaksi berubah. Muat ulang sebelum mengoreksi pemakaian.',
+      );
+    }
+    if (sheets > materaiReceiptLimit) {
+      throw const MateraiStockException(
+        'Jumlah meterai melebihi batas pemakaian.',
+      );
+    }
+    if (sheets - preview.sheets > preview.stock) {
+      throw MateraiStockException(_correctionSummary(preview, sheets));
+    }
+    var dialogClosing = false;
+    void close(BuildContext dialogContext, bool result) {
+      if (dialogClosing || ModalRoute.of(dialogContext)?.isCurrent != true) {
+        return;
+      }
+      dialogClosing = true;
+      Navigator.pop(dialogContext, result);
+    }
+
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.card,
+        title: const Text('Konfirmasi koreksi meterai'),
+        content: Text(_correctionSummary(preview, sheets)),
+        actions: [
+          TextButton(
+            onPressed: () => close(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primaryDark,
+            ),
+            onPressed: () => close(dialogContext, true),
+            child: const Text('Lanjutkan Simpan'),
+          ),
+        ],
+      ),
+    );
+    if (accepted != true ||
+        !mounted ||
+        int.tryParse(_editingTransactionId ?? '') != id ||
+        parseMateraiSheets(materaiController.text) != sheets) {
+      return false;
+    }
+    final prior = _correctionIntent;
+    if (prior == null ||
+        prior.predecessor != preview.predecessor ||
+        prior.revision != preview.revision ||
+        _correctionSheets != sheets) {
+      _correctionIntent = (
+        operation: const Uuid().v4(),
+        revision: preview.revision,
+        predecessor: preview.predecessor,
+      );
+      _correctionSheets = sheets;
+    }
+    return true;
+  }
+
   Future<void> _saveTransaction() async {
     if (_isSaving || !_canSaveForm) return;
     final sheets = parseMateraiSheets(materaiController.text);
@@ -1730,6 +1836,28 @@ class _TransactionDesktopScreenState
 
     setState(() => _isSaving = true);
     final isEditing = _editingTransactionId != null;
+    final editId = int.tryParse(_editingTransactionId ?? '');
+    final correctionProfile =
+        ref.read(materaiStockBindingProvider)?.transactionCorrectionsEnabled ==
+        true;
+    MateraiCorrectionIntent? correction;
+    if (editId != null && correctionProfile && sheets != _loadedMaterai) {
+      try {
+        if (!await _confirmMateraiCorrection(editId, sheets)) {
+          if (mounted) setState(() => _isSaving = false);
+          return;
+        }
+        correction = _correctionIntent;
+      } catch (error) {
+        if (mounted) {
+          setState(() => _isSaving = false);
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('$error')));
+        }
+        return;
+      }
+    }
+    if (!mounted) return;
 
     // Use the root navigator so the modal blocks the entire app shell,
     // including the sidebar and header, while SQLite is being updated.
@@ -1835,6 +1963,7 @@ class _TransactionDesktopScreenState
             createUuid: _editingTransactionId == null
                 ? (_newTransactionUuid ??= const Uuid().v4())
                 : null,
+            materaiCorrection: correction,
             catatan: note,
             deed: deed,
           );
@@ -1845,7 +1974,8 @@ class _TransactionDesktopScreenState
       if (!mounted) return;
       setState(() {
         _editingTransactionId = savedId.toString();
-        _isSaving = false;
+        _loadedMaterai = sheets;
+        _correctionIntent = null;
         _loadedCompleted = _notarisCompleted;
         if (deed != null) _loadedDeed = deed;
       });
@@ -1853,6 +1983,24 @@ class _TransactionDesktopScreenState
       ref.invalidate(materaiReportProvider);
       ref.invalidate(materaiTransactionStockContextProvider);
       ref.invalidate(materaiStockContextProvider);
+      if (correctionProfile) {
+        ref.invalidate(materaiCorrectionPreviewProvider(savedId));
+        final repository = ref.read(transactionRepositoryProvider);
+        try {
+          final updated = await repository.findById(savedId);
+          final details = await repository.watchDetailsOnce(savedId);
+          if (mounted) {
+            _materaiRevision = updated == null
+                ? null
+                : materaiEditRevision(updated, details);
+          }
+        } catch (_) {
+          // The edit already committed. Require a reload if readback failed.
+          _materaiRevision = null;
+        }
+      }
+      if (!mounted) return;
+      setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -2333,8 +2481,22 @@ class _TransactionDesktopScreenState
     final stockBound =
         ref.watch(materaiStockBindingProvider)?.transactionUsageEnabled == true;
     final String? stockHint;
-    if (_editingTransactionId != null) {
-      stockHint = null;
+    final editId = int.tryParse(_editingTransactionId ?? '');
+    if (editId != null) {
+      stockHint = ref
+          .watch(materaiCorrectionPreviewProvider(editId))
+          .when(
+            loading: () => 'Memeriksa pemakaian meterai…',
+            data: (value) => value == null
+                ? null
+                : _correctionSummary(
+                    value,
+                    parseMateraiSheets(materaiController.text),
+                  ),
+            error: (error, _) => error is MateraiStockException
+                ? error.message
+                : 'Saldo terverifikasi belum tersedia.',
+          );
     } else if (!stockBound) {
       stockHint = 'Profil ini tidak mencatat pengurangan stok.';
     } else {
@@ -2357,7 +2519,7 @@ class _TransactionDesktopScreenState
         setState(() => materai = parseMateraiSheets(value) ?? 0);
       },
       decoration: inputDecoration(labelText: 'Jumlah Materai (lembar)')
-          .copyWith(helperText: stockHint, helperMaxLines: 3),
+          .copyWith(helperText: stockHint, helperMaxLines: 5),
     );
   }
 
