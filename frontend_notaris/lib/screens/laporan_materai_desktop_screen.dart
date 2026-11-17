@@ -1,404 +1,398 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme/app_colors.dart';
-import '../../core/widgets/loading_overlay.dart';
-import '../../core/widgets/searchable_dropdown.dart';
+import '../core/theme/app_colors.dart';
+import '../providers/auth_provider.dart';
+import '../providers/materai_provider.dart';
+import '../repositories/materai_repository.dart';
 
-class LaporanMateraiDesktopScreen extends StatefulWidget {
+class LaporanMateraiDesktopScreen extends ConsumerStatefulWidget {
   const LaporanMateraiDesktopScreen({super.key});
 
   @override
-  State<LaporanMateraiDesktopScreen> createState() =>
+  ConsumerState<LaporanMateraiDesktopScreen> createState() =>
       _LaporanMateraiDesktopScreenState();
 }
 
 class _LaporanMateraiDesktopScreenState
-    extends State<LaporanMateraiDesktopScreen> {
-  final _tableScroll = ScrollController();
+    extends ConsumerState<LaporanMateraiDesktopScreen> {
+  final _search = TextEditingController();
+  final _horizontal = ScrollController();
+  DateTime? _from, _through;
+  String? _officer;
+  bool _review = false;
+  int _page = 0;
 
   @override
   void dispose() {
-    _tableScroll.dispose();
+    _search.dispose();
+    _horizontal.dispose();
     super.dispose();
   }
 
-  DateTime _tanggalAwal = DateTime(2026, 9, 1);
-  DateTime _tanggalAkhir = DateTime(2026, 9, 20);
-  String? _selectedPetugas = 'Semua Petugas';
-  bool _isLoading = false;
-
-  final List<String> _petugas = const [
-    'Semua Petugas',
-    'Tegar',
-    'Budi Santoso',
-    'Siti Aminah',
-    'Rina Wulandari',
-    'Andi Pratama',
-  ];
-
-  final List<MateraiDummy> _data = [
-    MateraiDummy(DateTime(2026, 9, 20), 'Penambahan stok materai', 100, 0, 100, 'Tegar'),
-    MateraiDummy(DateTime(2026, 9, 19), 'Materai transaksi', 0, 3, 100, 'Budi Santoso'),
-    MateraiDummy(DateTime(2026, 9, 18), 'Penambahan stok materai', 50, 0, 103, 'Siti Aminah'),
-    MateraiDummy(DateTime(2026, 9, 17), 'Materai transaksi', 0, 5, 53, 'Tegar'),
-    MateraiDummy(DateTime(2026, 9, 16), 'Penambahan stok materai', 100, 0, 58, 'Rina Wulandari'),
-    MateraiDummy(DateTime(2026, 9, 15), 'Materai transaksi', 0, 2, 58, 'Andi Pratama'),
-    MateraiDummy(DateTime(2026, 9, 14), 'Penambahan stok materai', 25, 0, 60, 'Budi Santoso'),
-  ];
-
-  List<MateraiDummy> get _filteredData => _data.where((item) {
-        final d = DateTime(item.date.year, item.date.month, item.date.day);
-        final start = DateTime(_tanggalAwal.year, _tanggalAwal.month, _tanggalAwal.day);
-        final end = DateTime(_tanggalAkhir.year, _tanggalAkhir.month, _tanggalAkhir.day);
-        final dateOk = !d.isBefore(start) && !d.isAfter(end);
-        final petugasOk = _selectedPetugas == 'Semua Petugas' ||
-            item.petugas == _selectedPetugas;
-        return dateOk && petugasOk;
-      }).toList();
-
-  Future<void> _pickDate(bool start) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: start ? _tanggalAwal : _tanggalAkhir,
-      firstDate: DateTime(2025),
-      lastDate: DateTime(2035),
-    );
-    if (picked == null) return;
-    setState(() {
-      if (start) {
-        _tanggalAwal = picked;
-        if (_tanggalAkhir.isBefore(picked)) _tanggalAkhir = picked;
-      } else {
-        _tanggalAkhir = picked;
-        if (_tanggalAwal.isAfter(picked)) _tanggalAwal = picked;
-      }
-    });
-  }
-
-  Future<void> _addMaterai() async {
-    final jumlah = TextEditingController();
-    final keterangan = TextEditingController();
-
-    await showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Materai'),
-        content: SizedBox(
-          width: 480,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextFormField(
-                initialValue: _formatDate(_tanggalAkhir),
-                readOnly: true,
-                decoration: const InputDecoration(
-                  labelText: 'Tanggal',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: jumlah,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Jumlah Materai',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                readOnly: true,
-                initialValue: 'Tegar',
-                decoration: InputDecoration(
-                  labelText: 'Petugas',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: keterangan,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Keterangan',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Tutup'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-            onPressed: () async {
-              final value = int.tryParse(jumlah.text);
-              if (value == null || value <= 0) return;
-
-              Navigator.pop(dialogContext);
-              setState(() => _isLoading = true);
-              await Future.delayed(const Duration(milliseconds: 700));
-
-              final stock = _data.isEmpty ? 0 : _data.first.stok;
-              setState(() {
-                _data.insert(
-                  0,
-                  MateraiDummy(
-                    _tanggalAkhir,
-                    keterangan.text.trim().isEmpty
-                        ? 'Penambahan stok materai'
-                        : keterangan.text.trim(),
-                    value,
-                    0,
-                    stock + value,
-                    'Tegar',
-                  ),
-                );
-                _isLoading = false;
-              });
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
-      ),
-    );
-
-    jumlah.dispose();
-    keterangan.dispose();
-  }
-
-  void _reset() {
-    setState(() {
-      _tanggalAwal = DateTime(2026, 9, 1);
-      _tanggalAkhir = DateTime(2026, 9, 20);
-      _selectedPetugas = 'Semua Petugas';
-    });
-  }
+  void _change(VoidCallback update) => setState(() {
+    update();
+    _page = 0;
+  });
 
   @override
   Widget build(BuildContext context) {
-    return LoadingOverlay(
-      isLoading: _isLoading,
-      message: 'Menyimpan data materai...',
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final mobile = constraints.maxWidth < 700;
-          return Padding(
-            padding: EdgeInsets.all(mobile ? 16 : 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _header(mobile),
-                const SizedBox(height: 18),
-                _filters(mobile),
-                const SizedBox(height: 16),
-                _table(),
-              ],
-            ),
-          );
-        },
+    if (!canReadMaterai(ref.watch(authControllerProvider).session)) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Text('Anda tidak memiliki izin membaca Laporan Materai.'),
+      );
+    }
+    final state = ref.watch(materaiReportProvider);
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Laporan Mutasi Materai',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Riwayat mutasi dan stok tercatat dalam lembar.',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 16),
+          state.when(
+            loading: () =>
+                _card(const Center(child: CircularProgressIndicator())),
+            error: (_, _) => _card(const Text('Laporan Materai gagal dimuat.')),
+            data: (source) {
+              if (!source.imported) {
+                return _card(
+                  const Text(
+                    'Belum ada snapshot ledger Materai terverifikasi yang diimpor pada profil ini.',
+                  ),
+                );
+              }
+              final report = source.filtered((
+                from: _from == null ? null : materaiCalendarDate(_from!),
+                through: _through == null
+                    ? null
+                    : materaiCalendarDate(_through!),
+                officer: _officer,
+                search: _search.text,
+              ));
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _card(_filters(source.officers)),
+                  const SizedBox(height: 16),
+                  _card(_results(report)),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
 
-  Widget _header(bool mobile) => Row(
+  Widget _filters(Map<String, String> officers) => LayoutBuilder(
+    builder: (context, bounds) {
+      final columns = bounds.maxWidth >= 900
+          ? 4
+          : bounds.maxWidth >= 390
+          ? 2
+          : 1;
+      final width = (bounds.maxWidth - 12 * (columns - 1)) / columns;
+      return Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Materai',
-                    style: TextStyle(
-                      fontSize: mobile ? 22 : 25,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                    )),
-                const SizedBox(height: 5),
-                const Text('Laporan > Materai',
-                    style: TextStyle(color: AppColors.textSecondary)),
+          SizedBox(
+            width: width,
+            child: _dateField('Tanggal Awal', _from, true),
+          ),
+          SizedBox(
+            width: width,
+            child: _dateField('Tanggal Akhir', _through, false),
+          ),
+          SizedBox(
+            width: width,
+            child: DropdownButtonFormField<String>(
+              key: ValueKey(_officer),
+              initialValue: _officer ?? '',
+              isExpanded: true,
+              decoration: _decoration('Petugas'),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('Semua Petugas')),
+                for (final entry in officers.entries)
+                  DropdownMenuItem(
+                    value: entry.key,
+                    child: Text(entry.value, overflow: TextOverflow.ellipsis),
+                  ),
               ],
+              onChanged: (value) =>
+                  _change(() => _officer = value == '' ? null : value),
             ),
           ),
-          FilledButton.icon(
-            onPressed: _addMaterai,
-            icon: const Icon(Icons.add, size: 18),
-            label: const Text('Tambah'),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+          SizedBox(
+            width: width,
+            child: TextField(
+              controller: _search,
+              onChanged: (_) => _change(() {}),
+              decoration: _decoration('Cari keterangan')
+                  .copyWith(prefixIcon: const Icon(Icons.search)),
+            ),
+          ),
+          OutlinedButton(
+            onPressed: () => _change(() {
+              _from = _through = null;
+              _officer = null;
+              _review = false;
+              _search.clear();
+            }),
+            child: const Text('Reset'),
           ),
         ],
       );
+    },
+  );
 
-  Widget _filters(bool mobile) {
-    final children = [
-      _dateField('Tanggal Awal', _tanggalAwal, () => _pickDate(true)),
-      _dateField('Tanggal Akhir', _tanggalAkhir, () => _pickDate(false)),
-      SearchableDropdown<String>(
-        value: _selectedPetugas,
-        items: _petugas,
-        label: 'Petugas',
-        itemLabel: (item) => item,
-        onChanged: (value) => setState(() => _selectedPetugas = value),
-      ),
-      OutlinedButton.icon(
-        onPressed: _reset,
-        icon: const Icon(Icons.refresh, size: 17),
-        label: const Text('Reset'),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primary,
-          side: const BorderSide(color: AppColors.primary),
-        ),
-      ),
-    ];
-
-    return Card(
-      color: AppColors.card,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        side: const BorderSide(color: AppColors.border),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: mobile
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  children[0],
-                  const SizedBox(height: 12),
-                  children[1],
-                  const SizedBox(height: 12),
-                  children[2],
-                  const SizedBox(height: 12),
-                  Align(alignment: Alignment.centerRight, child: children[3]),
-                ],
-              )
-            : Row(
-                children: [
-                  Expanded(child: children[0]),
-                  const SizedBox(width: 12),
-                  Expanded(child: children[1]),
-                  const SizedBox(width: 12),
-                  SizedBox(width: 230, child: children[2]),
-                  const SizedBox(width: 12),
-                  children[3],
-                ],
-              ),
-      ),
-    );
-  }
-
-  Widget _dateField(String label, DateTime date, VoidCallback onTap) =>
-      InkWell(
-        onTap: onTap,
-        child: InputDecorator(
-          decoration: InputDecoration(
-            labelText: label,
-            border: const OutlineInputBorder(),
-            filled: true,
-            fillColor: AppColors.card,
-            suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
+  Widget _dateField(
+    String label,
+    DateTime? value,
+    bool start,
+  ) => OutlinedButton.icon(
+    icon: const Icon(Icons.calendar_today_outlined, size: 18),
+    label: Text(
+      '$label · ${value == null ? 'Semua' : _displayDate(materaiCalendarDate(value))}',
+    ),
+    onPressed: () async {
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: value ?? DateTime.now(),
+        firstDate: DateTime(1900),
+        lastDate: DateTime(9999, 12, 31),
+        builder: (context, child) => DatePickerTheme(
+          data: DatePickerTheme.of(context).copyWith(
+            backgroundColor: AppColors.card,
+            surfaceTintColor: Colors.transparent,
           ),
-          child: Text(_formatDate(date)),
+          child: child!,
         ),
       );
+      if (!mounted || picked == null) return;
+      if ((start && _through != null && picked.isAfter(_through!)) ||
+          (!start && _from != null && picked.isBefore(_from!))) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Rentang tanggal tidak valid.')),
+        );
+        return;
+      }
+      _change(() {
+        if (start) {
+          _from = picked;
+        } else {
+          _through = picked;
+        }
+      });
+    },
+  );
 
-  Widget _table() {
-    final rows = _filteredData;
-    return Card(
-      color: AppColors.card,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        side: const BorderSide(color: AppColors.border),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _results(MateraiReport report) {
+    final verified = report.verified.toList();
+    final review = report.review.toList();
+    final rows = _review ? review : verified;
+    const size = MateraiReport.pageSize;
+    final pages = (rows.length + size - 1) ~/ size;
+    final page = _page.clamp(0, pages == 0 ? 0 : pages - 1);
+    final stockIn = verified.fold(
+      BigInt.zero,
+      (sum, movement) => sum + BigInt.from(movement.stockIn!),
+    );
+    final stockOut = verified.fold(
+      BigInt.zero,
+      (sum, movement) => sum + BigInt.from(movement.stockOut!),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
           children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Text('Data Materai',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      )),
-                ),
-                Text('${rows.length} data',
-                    style: const TextStyle(color: AppColors.textSecondary)),
-              ],
+            ChoiceChip(
+              label: Text('Terverifikasi (${verified.length})'),
+              selected: !_review,
+              onSelected: (_) => _change(() => _review = false),
             ),
-            const SizedBox(height: 14),
-            Scrollbar(
-              controller: _tableScroll,
-              thumbVisibility: true,
-              child: SingleChildScrollView(
-                controller: _tableScroll,
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  headingRowColor:
-                      const WidgetStatePropertyAll(AppColors.card),
-                  columnSpacing: 42,
-                  dividerThickness: 1,
-                  headingTextStyle: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textPrimary,
+            ChoiceChip(
+              label: Text('Perlu Ditinjau (${review.length})'),
+              selected: _review,
+              onSelected: (_) => _change(() => _review = true),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        if (_review)
+          const Text(
+            'Data belum terverifikasi. Mutasi tanpa tanggal ditampilkan di luar filter periode.',
+          )
+        else if (verified.isNotEmpty)
+          Text(
+            'Masuk $stockIn lembar   ·   Keluar $stockOut lembar',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        const SizedBox(height: 10),
+        if (rows.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Text(
+              _review
+                  ? 'Tidak ada mutasi yang perlu ditinjau.'
+                  : 'Tidak ada mutasi terverifikasi yang cocok.',
+              textAlign: TextAlign.center,
+            ),
+          )
+        else
+          LayoutBuilder(
+            builder: (context, bounds) => ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context)
+                  .copyWith(scrollbars: false),
+              child: Scrollbar(
+                controller: _horizontal,
+                thumbVisibility: true,
+                child: SingleChildScrollView(
+                  controller: _horizontal,
+                  primary: false,
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: SizedBox(
+                    width: bounds.maxWidth.clamp(
+                      _review ? 1060.0 : 860.0,
+                      double.infinity,
+                    ),
+                    child: _table(
+                      rows.skip(page * size).take(size),
+                      page * size,
+                    ),
                   ),
-                  dataTextStyle: const TextStyle(
-                    color: AppColors.textPrimary,
-                  ),
-                  columns: const [
-                    DataColumn(label: Text('#')),
-                    DataColumn(label: Text('Tanggal')),
-                    DataColumn(label: Text('Keterangan')),
-                    DataColumn(label: Text('Materai Masuk')),
-                    DataColumn(label: Text('Materai Keluar')),
-                    DataColumn(label: Text('Stok Materai')),
-                    DataColumn(label: Text('Petugas')),
-                  ],
-                  rows: List.generate(rows.length, (index) {
-                    final item = rows[index];
-                    return DataRow(cells: [
-                      DataCell(Text('${index + 1}')),
-                      DataCell(Text(_formatDate(item.date))),
-                      DataCell(Text(item.keterangan)),
-                      DataCell(Text('${item.masuk}')),
-                      DataCell(Text('${item.keluar}')),
-                      DataCell(Text('${item.stok}',
-                          style: const TextStyle(fontWeight: FontWeight.w600))),
-                      DataCell(Text(item.petugas)),
-                    ]);
-                  }),
                 ),
               ),
             ),
-            if (rows.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: Text('Tidak ada data materai.')),
+          ),
+        const SizedBox(height: 12),
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          spacing: 12,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text('${rows.length} mutasi'),
+            if (pages > 0)
+              Wrap(
+                spacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  OutlinedButton(
+                    onPressed: page > 0
+                        ? () => setState(() => _page = page - 1)
+                        : null,
+                    child: const Text('Sebelumnya'),
+                  ),
+                  Text('${page + 1} / $pages'),
+                  OutlinedButton(
+                    onPressed: page + 1 < pages
+                        ? () => setState(() => _page = page + 1)
+                        : null,
+                    child: const Text('Berikutnya'),
+                  ),
+                ],
               ),
           ],
         ),
-      ),
+      ],
     );
   }
 
-  static String _formatDate(DateTime date) =>
-      '${date.day.toString().padLeft(2, '0')}/'
-      '${date.month.toString().padLeft(2, '0')}/${date.year}';
+  DataTable _table(Iterable<MateraiMovement> rows, int offset) => DataTable(
+    headingRowColor: const WidgetStatePropertyAll(AppColors.bgLight),
+    headingTextStyle: const TextStyle(
+      fontWeight: FontWeight.w600,
+      color: AppColors.textPrimary,
+    ),
+    horizontalMargin: 10,
+    columnSpacing: 10,
+    dataRowMinHeight: 48,
+    dataRowMaxHeight: 58,
+    border: const TableBorder(
+      horizontalInside: BorderSide(color: AppColors.divider),
+    ),
+    columns: [
+      for (final (label, width) in <(String, TableColumnWidth)>[
+        ('No.', const FixedColumnWidth(44)),
+        ('Tanggal', const FixedColumnWidth(100)),
+        ('Keterangan', const FlexColumnWidth(2)),
+        ('Masuk', const FixedColumnWidth(70)),
+        ('Keluar', const FixedColumnWidth(70)),
+        ('Stok tercatat', const FixedColumnWidth(100)),
+        ('Petugas', const FlexColumnWidth(1.5)),
+        if (_review) ('Alasan peninjauan', const FlexColumnWidth(2)),
+      ])
+        DataColumn(
+          headingRowAlignment: MainAxisAlignment.center,
+          columnWidth: width,
+          label: Flexible(child: Text(label, textAlign: TextAlign.center)),
+        ),
+    ],
+    rows: [
+      for (final (index, row) in rows.indexed)
+        DataRow(
+          key: ValueKey(row.id),
+          cells: [
+            _cell('${offset + index + 1}'),
+            _cell(_displayDate(row.businessDate)),
+            _cell(row.description),
+            _cell(row.stockIn?.toString()),
+            _cell(row.stockOut?.toString()),
+            _cell(row.recordedStock?.toString()),
+            _cell(row.officer),
+            if (_review) _cell(row.review),
+          ],
+        ),
+    ],
+  );
 }
 
-class MateraiDummy {
-  final DateTime date;
-  final String keterangan;
-  final int masuk;
-  final int keluar;
-  final int stok;
-  final String petugas;
+String _displayDate(String? date) => date?.split('-').reversed.join('/') ?? '—';
 
-  const MateraiDummy(
-      this.date, this.keterangan, this.masuk, this.keluar, this.stok, this.petugas);
+DataCell _cell(String? value) {
+  final text = value == null || value.isEmpty ? '—' : value;
+  return DataCell(
+    Center(
+      child: Tooltip(
+        message: text,
+        child: Text(
+          text,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+        ),
+      ),
+    ),
+  );
 }
+
+InputDecoration _decoration(String label) => InputDecoration(
+  labelText: label,
+  isDense: true,
+  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+);
+
+Widget _card(Widget child) => Material(
+  color: AppColors.card,
+  shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(10),
+    side: const BorderSide(color: AppColors.divider),
+  ),
+  child: Padding(padding: const EdgeInsets.all(16), child: child),
+);

@@ -15,6 +15,7 @@ import 'daos/pekerjaan_dao.dart';
 
 part 'app_database.g.dart';
 part 'transaction_document_schema.dart';
+part 'materai_schema.dart';
 
 // 1. Tabel Pemohon
 class Pemohons extends Table {
@@ -296,6 +297,7 @@ class AppDatabase extends _$AppDatabase {
       if (schemaVersion >= 24) await _createHandoverStorage();
       if (schemaVersion >= 25) await _createTransactionDocumentStorage();
       if (schemaVersion >= 26) await _createDocumentLifecycle();
+      if (schemaVersion >= 27) await _createMateraiStorage();
       await _protectPengeluaranReferences();
     },
     onUpgrade: (Migrator m, int from, int to) async {
@@ -506,6 +508,7 @@ class AppDatabase extends _$AppDatabase {
         if (from < 24 && to >= 24) await _createHandoverStorage();
         if (from < 25 && to >= 25) await _createTransactionDocumentStorage();
         if (from < 26 && to >= 26) await _createDocumentLifecycle();
+        if (from < 27 && to >= 27) await _createMateraiStorage();
       });
     },
   );
@@ -833,6 +836,15 @@ class DocumentProfileDatabase extends AppDatabase {
 
   @override
   int get schemaVersion => lifecycle ? 26 : 25;
+}
+
+/// Explicit profile upgrade. The normal application and existing acceptance
+/// entrypoints retain their own schema versions.
+class MateraiProfileDatabase extends AppDatabase {
+  MateraiProfileDatabase(super.executor) : super.forTesting();
+
+  @override
+  int get schemaVersion => 27;
 }
 
 LazyDatabase _openConnection() {
