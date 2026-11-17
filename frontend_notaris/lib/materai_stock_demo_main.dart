@@ -10,9 +10,11 @@ import 'notaris_completion_demo_main.dart';
 import 'payment_demo_main.dart';
 import 'repositories/materai_stock_repository.dart';
 
-Directory materaiStockDemoRoot(String id) {
+Directory materaiStockDemoRoot(String id, {bool usage = false}) {
   final root = paymentDemoRoot(id);
-  final marker = File(p.join(root.path, 'materai-owner'));
+  final marker = File(
+    p.join(root.path, usage ? 'materai-usage-owner' : 'materai-owner'),
+  );
   if (!marker.existsSync() ||
       !p.equals(marker.path, marker.resolveSymbolicLinksSync()) ||
       marker.readAsStringSync() != id ||
@@ -25,8 +27,9 @@ Directory materaiStockDemoRoot(String id) {
 MateraiProfileDatabase openMateraiStockDemo(
   String id, {
   required bool writable,
+  bool usage = false,
 }) {
-  final root = materaiStockDemoRoot(id);
+  final root = materaiStockDemoRoot(id, usage: usage);
   final file = File(p.join(root.path, 'offline.sqlite'));
   if (!file.existsSync() ||
       !p.equals(file.path, file.resolveSymbolicLinksSync()) ||
@@ -65,20 +68,23 @@ Future<void> main() async {
   );
   const account = String.fromEnvironment('NOTARIS_MATERAI_STOCK_ACCOUNT');
   const writable = bool.fromEnvironment('NOTARIS_MATERAI_STOCK_WRITE');
+  const usage = bool.fromEnvironment('NOTARIS_MATERAI_TRANSACTION_USAGE');
   if (!PaymentDemoAuth.usernames.contains(account) ||
       (writable && account != 'admin.demo')) {
     throw StateError('Scope akun uji Materai berbeda.');
   }
-  final root = materaiStockDemoRoot(id);
-  final db = openMateraiStockDemo(id, writable: writable);
-  final binding = writable
+  final root = materaiStockDemoRoot(id, usage: usage);
+  final db = openMateraiStockDemo(id, writable: writable, usage: usage);
+  final binding = writable || usage
       ? MateraiStockBinding(
           db,
           id,
           openingSha,
-          pendingReceipt: File(
-            p.join(root.path, 'materai-pending-receipt.json'),
-          ),
+          transactionUsageEnabled: usage,
+          acceptsWrites: writable,
+          pendingReceipt: writable
+              ? File(p.join(root.path, 'materai-pending-receipt.json'))
+              : null,
         )
       : null;
   runCompletionDemo(
@@ -92,7 +98,9 @@ Future<void> main() async {
       expireSidebarAccess: true,
     ),
     banner: writable
-        ? 'DATA SINTETIS · UJI STOK MASUK MATERAI'
+        ? (usage
+              ? 'DATA SINTETIS · UJI STOK KELUAR MATERAI'
+              : 'DATA SINTETIS · UJI STOK MASUK MATERAI')
         : 'DATA SINTETIS · MATERAI BACA SAJA',
   );
 }

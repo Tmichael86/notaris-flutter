@@ -131,6 +131,9 @@ func (s verifiedSession) validFor(id string, a account, now time.Time, scope str
 	if scope != "" {
 		create, update = 0, 0
 	}
+	if scope == "materai-usage" && a.Username == "admin.demo" {
+		create, update = 1, 1
+	}
 	want := 1
 	if scope != "" {
 		want++
@@ -161,7 +164,10 @@ func (s verifiedSession) validFor(id string, a account, now time.Time, scope str
 			}
 		case "laporan_materai":
 			read, create := materaiAccess(a)
-			if scope != "materai" || p.Sidebar.Name != "Materai" || p.Read != read ||
+			if scope == "materai-usage" {
+				create = 0
+			}
+			if (scope != "materai" && scope != "materai-usage") || p.Sidebar.Name != "Materai" || p.Read != read ||
 				p.Create != create || p.Update != 0 || p.Delete != 0 {
 				return false
 			}
@@ -169,7 +175,7 @@ func (s verifiedSession) validFor(id string, a account, now time.Time, scope str
 			return false
 		}
 	}
-	if scope == "materai" {
+	if scope == "materai" || scope == "materai-usage" {
 		return found["transaksi"] && found["laporan_materai"]
 	}
 	return found["transaksi"] && (scope == "" || found[scope])
@@ -313,7 +319,7 @@ func writeNew(path string, value []byte) error {
 
 func demoScope(root, id string) (string, error) {
 	scope := ""
-	for _, candidate := range []string{"monitoring", "pengeluaran", "presentation", "materai"} {
+	for _, candidate := range []string{"monitoring", "pengeluaran", "presentation", "materai", "materai-usage"} {
 		name := candidate + "-owner"
 		if _, err := os.Lstat(filepath.Join(root, name)); !os.IsNotExist(err) {
 			marker, readErr := readOwnedFile(root, name)
@@ -450,7 +456,7 @@ func provision(dbName, dataDir, scope string) (string, error) {
 					return e
 				}
 			}
-			if scope == "materai" {
+			if scope == "materai" || scope == "materai-usage" {
 				if e := tx.Exec("INSERT INTO sidebar(id,sidebar_nama,sidebar_kode,sidebar_route,status) VALUES(2,'Materai','laporan_materai','/laporan/materai',1)").Error; e != nil {
 					return e
 				}
@@ -476,6 +482,9 @@ func provision(dbName, dataDir, scope string) (string, error) {
 			if scope != "" {
 				create, update = 0, 0
 			}
+			if scope == "materai-usage" && a.Username == "admin.demo" {
+				create, update = 1, 1
+			}
 			if e = tx.Exec(`INSERT INTO sidebar_akses(group_id,sidebar_id,"read","create","update","delete") VALUES(?,1,1,?,?,0)`, a.ID, create, update).Error; e != nil {
 				return e
 			}
@@ -490,8 +499,11 @@ func provision(dbName, dataDir, scope string) (string, error) {
 					return e
 				}
 			}
-			if scope == "materai" {
+			if scope == "materai" || scope == "materai-usage" {
 				read, create := materaiAccess(a)
+				if scope == "materai-usage" {
+					create = 0
+				}
 				if e = tx.Exec(`INSERT INTO sidebar_akses(group_id,sidebar_id,"read","create","update","delete") VALUES(?,2,?,?,0,0)`, a.ID, read, create).Error; e != nil {
 					return e
 				}
@@ -575,7 +587,7 @@ func randomBytes(n int) []byte {
 }
 
 func run(args []string) error {
-	if len(args) == 3 && (args[0] == "provision" || args[0] == "provision-monitoring" || args[0] == "provision-pengeluaran" || args[0] == "provision-presentation" || args[0] == "provision-materai") {
+	if len(args) == 3 && (args[0] == "provision" || args[0] == "provision-monitoring" || args[0] == "provision-pengeluaran" || args[0] == "provision-presentation" || args[0] == "provision-materai" || args[0] == "provision-materai-usage") {
 		scope := strings.TrimPrefix(args[0], "provision")
 		id, err := provision(args[1], args[2], strings.TrimPrefix(scope, "-"))
 		if err == nil {

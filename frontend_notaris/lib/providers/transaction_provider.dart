@@ -7,6 +7,7 @@ import '../models/transaction_payments.dart';
 import '../repositories/transaction_repository.dart';
 import 'database_provider.dart';
 import 'auth_provider.dart';
+import 'materai_provider.dart';
 import '../models/auth_session.dart';
 
 bool canSaveNotarisTransaction(
@@ -22,7 +23,13 @@ bool canSaveNotarisTransaction(
 }
 
 final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
-  return TransactionRepository(ref.watch(appDatabaseProvider));
+  return TransactionRepository(
+    ref.watch(appDatabaseProvider),
+    materaiStock:
+        ref.watch(materaiStockBindingProvider)?.transactionUsageEnabled == true
+        ? ref.watch(materaiStockRepositoryProvider)
+        : null,
+  );
 });
 
 final transactionsProvider = StreamProvider.autoDispose<List<Transaksi>>((ref) {
@@ -108,7 +115,10 @@ class TransactionController extends AsyncNotifier<void> {
     int jumlahMaterai = 0,
     String? catatan,
     NotarisDeedInput? deed,
+    String? createUuid,
   }) async {
+    final stockEnabled =
+        ref.read(materaiStockBindingProvider)?.transactionUsageEnabled == true;
     if (jenisTransaksi == 'notaris' &&
         !canSaveNotarisTransaction(
           ref.read(authControllerProvider).session,
@@ -118,13 +128,16 @@ class TransactionController extends AsyncNotifier<void> {
       throw StateError('Izin simpan Transaksi Notaris tidak tersedia.');
     }
     if (jenisTransaksi == 'ppat' &&
-        id != null &&
+        (id != null || stockEnabled) &&
         ref
                 .read(authControllerProvider)
                 .session
-                ?.hasTransactionAccess(update: true) !=
+                ?.hasTransactionAccess(
+                  create: id == null,
+                  update: id != null,
+                ) !=
             true) {
-      throw StateError('Izin ubah Transaksi PPAT tidak tersedia.');
+      throw StateError('Izin simpan Transaksi PPAT tidak tersedia.');
     }
     state = const AsyncLoading();
     try {
@@ -146,6 +159,8 @@ class TransactionController extends AsyncNotifier<void> {
         jumlahMaterai: jumlahMaterai,
         catatan: catatan,
         deed: deed,
+        createUuid: createUuid,
+        requireMateraiStockOut: stockEnabled,
       );
       state = const AsyncData(null);
       return result;

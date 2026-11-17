@@ -16,6 +16,7 @@ ExpiringPaymentDemoSession stockActor(
   int create = 1,
   int userId = 102,
   bool expired = false,
+  bool? transactionCreate,
 }) => ExpiringPaymentDemoSession(
   AuthSession(
     token: 'fixture',
@@ -35,6 +36,13 @@ ExpiringPaymentDemoSession stockActor(
         'read': read,
         'create': create,
       },
+      if (transactionCreate != null)
+        {
+          'sidebar': {'sidebar_kode': 'transaksi', 'status': 1},
+          'read': 1,
+          'create': transactionCreate ? 1 : 0,
+          'update': 1,
+        },
     ],
     verifiedAt: openingTime.subtract(const Duration(days: 1)),
   ),
@@ -43,10 +51,24 @@ ExpiringPaymentDemoSession stockActor(
   profileId: id,
 );
 
+ExpiringPaymentDemoSession usageActor(
+  String profile, {
+  bool grant = true,
+  bool expired = false,
+  int user = 102,
+}) => stockActor(
+  profile,
+  create: 0,
+  expired: expired,
+  userId: user,
+  transactionCreate: grant,
+);
+
 Future<MateraiStockBinding> seedMateraiOpening(
   MateraiProfileDatabase db, {
   String id = demoStockProfile,
   int stock = 20,
+  bool transactionUsage = false,
 }) async {
   await db.customStatement(
     "INSERT INTO petugas(id,uuid,nama,email,user_id,status) VALUES(100,'e0c928a2-c304-437e-8bf5-7a81bd5e0eae',?,'materai@example.invalid',102,1)",
@@ -54,6 +76,7 @@ Future<MateraiStockBinding> seedMateraiOpening(
   );
   final payload = jsonEncode({
     'kind': 'synthetic_verified_opening',
+    if (transactionUsage) 'transaction_usage': true,
     'profile': id,
     'opening': stock,
     'date': '2026-11-10',

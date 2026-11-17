@@ -65,11 +65,13 @@ def trusted_helper_sha(root, *, presentation=False):
         helper = directory / 'session.exe'
         build_helper(helper)
         expected = digest(helper)
-        if actual != expected:
+        for revision in ('4d7c01d', '4030c30'):
+            if actual == expected:
+                break
             source_dir = REPO / 'backend-notaris-go/cmd/paymentdemo'
             source = directory / 'main_windows.go'
             source.write_bytes(subprocess.check_output([
-                'git', 'show', '4030c30:backend-notaris-go/cmd/paymentdemo/main_windows.go',
+                'git', 'show', f'{revision}:backend-notaris-go/cmd/paymentdemo/main_windows.go',
             ], cwd=REPO))
             overlay = directory / 'pre-materai.json'
             overlay.write_text(json.dumps({'Replace': {
@@ -102,8 +104,8 @@ def port_open():
         return sock.connect_ex(('127.0.0.1', PORT)) == 0
 
 
-def provision(scratch, helper, *, monitoring=False, pengeluaran=False, presentation=False, materai=False):
-    require(sum((monitoring, pengeluaran, presentation, materai)) <= 1, 'Pilih satu scope demo.')
+def provision(scratch, helper, *, monitoring=False, pengeluaran=False, presentation=False, materai=False, materai_usage=False):
+    require(sum((monitoring, pengeluaran, presentation, materai, materai_usage)) <= 1, 'Pilih satu scope demo.')
     require(not port_open(), f'Port disposable {PORT} sudah dipakai.')
     data = scratch / 'pgdata'
     pg_ctl = PG_BIN / 'pg_ctl.exe'
@@ -134,6 +136,7 @@ def provision(scratch, helper, *, monitoring=False, pengeluaran=False, presentat
         action = ('provision-presentation' if presentation else
                   'provision-pengeluaran' if pengeluaran else
                   'provision-materai' if materai else
+                  'provision-materai-usage' if materai_usage else
                   'provision-monitoring' if monitoring else 'provision')
         return command([helper, action, database, data], capture=True, env=client_env).strip()
     finally:

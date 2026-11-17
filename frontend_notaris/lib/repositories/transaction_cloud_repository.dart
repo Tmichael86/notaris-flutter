@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
+import 'materai_stock_repository.dart';
 import 'transaction_cloud_references.dart';
 import 'transaction_document_cloud_guard.dart';
 import 'transaction_handover_repository.dart';
@@ -314,6 +315,9 @@ class TransactionCloudRepository {
     AppDatabase db,
     Transaksi row,
   ) async {
+    if (await hasInitialMateraiUsage(db, row.uuid)) {
+      return 'Ledger pemakaian meterai lokal belum didukung oleh sinkronisasi Transaksi.';
+    }
     if (row.jenisTransaksi == 'notaris' &&
         (row.judulAkta != null ||
             row.nomorAkta != null ||

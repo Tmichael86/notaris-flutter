@@ -14,10 +14,12 @@ import '../core/widgets/searchable_dropdown.dart';
 import '../database/app_database.dart';
 import '../models/transaction_payments.dart';
 import '../providers/people_provider.dart';
+import '../providers/materai_provider.dart';
 import '../providers/pekerjaan_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../providers/transaction_document_provider.dart';
 import '../repositories/transaction_repository.dart';
+import '../repositories/materai_stock_repository.dart';
 import '../widgets/transaksi_proses_list.dart';
 import '../widgets/ppat_completion_dialog.dart';
 import '../widgets/transaction_invoice_dialog.dart';
@@ -244,6 +246,7 @@ class _TransactionDesktopScreenState
   final currentPaymentController = TextEditingController();
   final noteController = TextEditingController();
   final materaiController = TextEditingController();
+  String? _newTransactionUuid;
   final _deedTitle = TextEditingController();
   final _deedNumber = TextEditingController();
   DateTime? _deedDate;
@@ -255,18 +258,33 @@ class _TransactionDesktopScreenState
       selectedType == TransactionType.notaris &&
       transactionStatus.trim().toLowerCase() == 'selesai';
 
-  bool get _canSaveForm => selectedType == TransactionType.notaris
-      ? canSaveNotarisTransaction(
-          ref.read(authControllerProvider).session,
-          editing: _editingTransactionId != null,
-          completing: _notarisCompleted,
-        )
-      : _editingTransactionId == null ||
-            ref
-                    .read(authControllerProvider)
-                    .session
-                    ?.hasTransactionAccess(update: true) ==
-                true;
+  bool get _canSaveForm {
+    final binding = ref.read(materaiStockBindingProvider);
+    if (binding != null &&
+        binding.transactionUsageEnabled &&
+        !binding.acceptsWrites) {
+      return false;
+    }
+    return selectedType == TransactionType.notaris
+        ? canSaveNotarisTransaction(
+            ref.read(authControllerProvider).session,
+            editing: _editingTransactionId != null,
+            completing: _notarisCompleted,
+          )
+        : (_editingTransactionId == null &&
+                  ref
+                          .read(materaiStockBindingProvider)
+                          ?.transactionUsageEnabled !=
+                      true) ||
+              ref
+                      .read(authControllerProvider)
+                      .session
+                      ?.hasTransactionAccess(
+                        create: _editingTransactionId == null,
+                        update: _editingTransactionId != null,
+                      ) ==
+                  true;
+  }
 
   List<DummyApplicant> applicants = [];
   List<DummyOfficer> officers = [];
@@ -594,6 +612,7 @@ class _TransactionDesktopScreenState
 
     setState(() {
       _editingTransactionId = null;
+      _newTransactionUuid = null;
       _currentStep = 0;
       selectedType = type;
       selectedApplicant = null;
@@ -617,6 +636,7 @@ class _TransactionDesktopScreenState
   void resetForm() {
     setState(() {
       _editingTransactionId = null;
+      _newTransactionUuid = null;
       _currentStep = 0;
       selectedApplicant = null;
       selectedOfficer = null;
@@ -1429,21 +1449,12 @@ class _TransactionDesktopScreenState
       },
     );
 
-    final materaiField = TextFormField(
-      controller: materaiController,
-      keyboardType: TextInputType.number,
-      onChanged: (value) {
-        setState(() => materai = int.tryParse(value) ?? 0);
-      },
-      decoration: inputDecoration(labelText: 'Jumlah Materai'),
-    );
-
     final fields = [
       numberField,
       registrationField,
       deadlineField,
       statusField,
-      materaiField,
+      _materaiUsageField(),
     ];
 
     return card(
@@ -1620,6 +1631,15 @@ class _TransactionDesktopScreenState
 
   Future<void> _saveTransaction() async {
     if (_isSaving || !_canSaveForm) return;
+    final sheets = parseMateraiSheets(materaiController.text);
+    if (sheets == null || sheets < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Jumlah materai wajib bilangan bulat nol atau lebih.'),
+        ),
+      );
+      return;
+    }
 
     NotarisDeedInput? deed;
     if (_notarisCompleted) {
@@ -1811,7 +1831,10 @@ class _TransactionDesktopScreenState
             diskon: discount,
             pembayaranSekarang: isEditing ? 0 : currentPayment,
             metodePembayaran: paymentType,
-            jumlahMaterai: materai,
+            jumlahMaterai: sheets,
+            createUuid: _editingTransactionId == null
+                ? (_newTransactionUuid ??= const Uuid().v4())
+                : null,
             catatan: note,
             deed: deed,
           );
@@ -1827,6 +1850,9 @@ class _TransactionDesktopScreenState
         if (deed != null) _loadedDeed = deed;
       });
       ref.invalidate(transactionsProvider);
+      ref.invalidate(materaiReportProvider);
+      ref.invalidate(materaiTransactionStockContextProvider);
+      ref.invalidate(materaiStockContextProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -2303,6 +2329,38 @@ class _TransactionDesktopScreenState
     );
   }
 
+  Widget _materaiUsageField() {
+    final stockBound =
+        ref.watch(materaiStockBindingProvider)?.transactionUsageEnabled == true;
+    final String? stockHint;
+    if (_editingTransactionId != null) {
+      stockHint = null;
+    } else if (!stockBound) {
+      stockHint = 'Profil ini tidak mencatat pengurangan stok.';
+    } else {
+      stockHint = ref
+          .watch(materaiTransactionStockContextProvider)
+          .when(
+            loading: () => 'Memeriksa stok…',
+            data: (value) => value == null
+                ? 'Stok terverifikasi belum tersedia.'
+                : 'Stok terverifikasi: ${value.stock} lembar.',
+            error: (error, _) => error is MateraiStockException
+                ? error.message
+                : 'Stok terverifikasi belum tersedia.',
+          );
+    }
+    return TextFormField(
+      controller: materaiController,
+      keyboardType: TextInputType.number,
+      onChanged: (value) {
+        setState(() => materai = parseMateraiSheets(value) ?? 0);
+      },
+      decoration: inputDecoration(labelText: 'Jumlah Materai (lembar)')
+          .copyWith(helperText: stockHint, helperMaxLines: 3),
+    );
+  }
+
   Widget transactionBasicInformation() {
     return card(
       child: LayoutBuilder(
@@ -2338,6 +2396,7 @@ class _TransactionDesktopScreenState
                 Icons.calendar_today_outlined,
               ),
               field('Tanggal Deadline', deadline, Icons.event_outlined),
+              SizedBox(width: width, child: _materaiUsageField()),
             ],
           );
         },

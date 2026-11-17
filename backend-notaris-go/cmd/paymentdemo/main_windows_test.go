@@ -186,6 +186,28 @@ func TestMateraiProfileGrantsOnlyTheAssignedActions(t *testing.T) {
 	}
 }
 
+func TestMateraiUsageDoesNotGrantManualStockIn(t *testing.T) {
+	now := time.Now()
+	for _, a := range accounts {
+		s := testSession("usage", a, now)
+		s.Sidebars[0].Create, s.Sidebars[0].Update = 0, 0
+		if a.Username == "admin.demo" {
+			s.Sidebars[0].Create, s.Sidebars[0].Update = 1, 1
+		}
+		read, _ := materaiAccess(a)
+		grant := access{Read: read}
+		grant.Sidebar.Code, grant.Sidebar.Name, grant.Sidebar.Status = "laporan_materai", "Materai", 1
+		s.Sidebars = append(s.Sidebars, grant)
+		if !s.validFor("usage", a, now, "materai-usage") || s.validFor("other", a, now, "materai-usage") {
+			t.Fatalf("invalid usage scope for %s", a.Username)
+		}
+		s.Sidebars[1].Create = 1
+		if s.validFor("usage", a, now, "materai-usage") {
+			t.Fatal("unexpected manual stock-in grant")
+		}
+	}
+}
+
 func TestOwnedFilesRejectHardlinks(t *testing.T) {
 	root, _, _ := testProfile(t)
 	outside := filepath.Join(t.TempDir(), "unrelated.sqlite")

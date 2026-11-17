@@ -30,6 +30,14 @@ final materaiStockContextProvider =
       return ref.watch(materaiStockRepositoryProvider)?.context();
     });
 
+final materaiTransactionStockContextProvider =
+    FutureProvider.autoDispose<MateraiStockContext?>((ref) {
+      ref.watch(authControllerProvider);
+      return ref
+          .watch(materaiStockRepositoryProvider)
+          ?.context(transactionUsage: true);
+    });
+
 final materaiReportProvider = FutureProvider.autoDispose<MateraiReport>((ref) {
   if (!canReadMaterai(ref.watch(authControllerProvider).session)) {
     throw StateError('Izin baca Laporan Materai diperlukan.');

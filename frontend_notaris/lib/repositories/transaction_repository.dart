@@ -9,6 +9,8 @@ import '../models/dashboard_transactions.dart';
 import '../models/transaction_invoice.dart';
 import '../models/transaction_monitoring.dart';
 import '../models/transaction_payments.dart';
+import 'materai_repository.dart';
+import 'materai_stock_repository.dart';
 
 class NotarisDeedInput {
   const NotarisDeedInput(this.title, this.number, this.date);
@@ -79,9 +81,10 @@ class TransactionJobInput {
 
 /// Local-first persistence for transaction headers and their job details.
 class TransactionRepository {
-  TransactionRepository(this.db);
+  TransactionRepository(this.db, {this.materaiStock});
 
   final AppDatabase db;
+  final MateraiStockRepository? materaiStock;
   static const _uuid = Uuid();
 
   Stream<List<Transaksi>> watchAll() {
@@ -758,6 +761,8 @@ class TransactionRepository {
     int jumlahMaterai = 0,
     String? catatan,
     NotarisDeedInput? deed,
+    String? createUuid,
+    bool requireMateraiStockOut = false,
   }) async {
     if (jobs.isEmpty) {
       throw ArgumentError('Transaksi harus memiliki minimal satu pekerjaan.');
@@ -829,7 +834,7 @@ class TransactionRepository {
         ? null
         : DateTime.utc(date.year, date.month, date.day);
 
-    return db.transaction(() async {
+    Future<int> persist() async {
       final original = id == null
           ? null
           : await (db.select(db.transaksis)
@@ -837,6 +842,12 @@ class TransactionRepository {
                 .getSingleOrNull();
       if (id != null && original?.jenisTransaksi != jenisTransaksi) {
         throw StateError('Transaksi tidak ditemukan atau jenisnya berbeda.');
+      }
+      if (original != null &&
+          (original.jumlahMaterai != jumlahMaterai ||
+              isMateraiCancellation(status)) &&
+          await hasInitialMateraiUsage(db, original.uuid)) {
+        throw const MateraiStockException(materaiUsageProtected);
       }
       final wasComplete =
           original?.statusTransaksi.trim().toLowerCase() == 'selesai';
@@ -932,7 +943,7 @@ class TransactionRepository {
               .into(db.transaksis)
               .insert(
                 TransaksisCompanion.insert(
-                  uuid: _uuid.v4(),
+                  uuid: createUuid ?? _uuid.v4(),
                   noAkta: nomorTransaksi.trim(),
                   total: totalBersih.toDouble(),
                   pemohonId: Value(pemohonId),
@@ -1167,6 +1178,78 @@ class TransactionRepository {
         );
       }
       return transactionId;
+    }
+
+    final stock = materaiStock;
+    if (id == null &&
+        jumlahMaterai > 0 &&
+        (stock != null || requireMateraiStockOut)) {
+      if (stock == null || createUuid == null) {
+        throw const MateraiStockException(
+          'Profil atau identitas pemakaian meterai belum terverifikasi.',
+        );
+      }
+      final fingerprint = materaiProvenanceHash(
+        jsonEncode([
+          normalizedNoAkta,
+          jenisTransaksi,
+          pemohonId,
+          pemohonUuid,
+          petugasId,
+          petugasUuid,
+          status,
+          tanggalTransaksi.toIso8601String(),
+          tanggalJatuhTempo?.toIso8601String(),
+          diskonRupiah,
+          pembayaranAwal,
+          metodePembayaran,
+          jumlahMaterai,
+          _nullableText(catatan),
+          [
+            deed?.title.trim(),
+            deed?.number.trim(),
+            dateOnly?.toIso8601String(),
+          ],
+          for (final job in jobs)
+            [
+              job.detailUuid,
+              job.jenisPekerjaan,
+              job.namaPekerjaan,
+              job.pekerjaanNotarisId,
+              job.pekerjaanPpatId,
+              job.kategoriSnapshot,
+              job.estimasiWaktuSnapshot,
+              job.prosesSnapshot,
+              job.hargaUuid,
+              job.kategoriUuid,
+              job.biayaLayanan,
+              job.biayaLainnya,
+            ],
+        ]),
+      );
+      return stock.saveTransactionWithUsage(db, (
+        uuid: createUuid,
+        domain: jenisTransaksi,
+        number: normalizedNoAkta,
+        date: materaiCalendarDate(tanggalTransaksi),
+        sheets: jumlahMaterai,
+        fingerprint: fingerprint,
+      ), persist);
+    }
+    return db.transaction(() async {
+      if (id == null && jumlahMaterai > 0 && await hasMateraiUsageProfile(db)) {
+        throw const MateraiStockException(
+          'Binding ledger pemakaian meterai wajib pada profil ini.',
+        );
+      }
+      if (id == null &&
+          createUuid != null &&
+          await hasInitialMateraiUsage(db, createUuid)) {
+        throw const MateraiStockException(
+          'Identitas transaksi sudah dipakai dengan isi berbeda.',
+        );
+      }
+      return persist();
     });
   }
 
@@ -1626,6 +1709,9 @@ class TransactionRepository {
     return db.transaction(() async {
       final original = await findById(id);
       if (original == null) return false;
+      if (await hasInitialMateraiUsage(db, original.uuid)) {
+        throw const MateraiStockException(materaiUsageProtected);
+      }
       final details = await (db.select(
         db.transaksiDetails,
       )..where((t) => t.transaksiId.equals(id) & t.deletedAt.isNull())).get();
