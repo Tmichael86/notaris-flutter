@@ -10,8 +10,11 @@ import 'package:path/path.dart' as p;
 
 import 'database/app_database.dart';
 import 'models/auth_session.dart';
+import 'models/verified_demo_session.dart';
 import 'notaris_completion_demo_main.dart';
 import 'services/auth_service.dart';
+
+export 'models/verified_demo_session.dart';
 
 const paymentDemoNotaris = '1001111260001';
 const paymentDemoPpat = '2001111260001';
@@ -54,39 +57,6 @@ Directory paymentDemoRoot(String id) {
   return folder;
 }
 
-class ExpiringPaymentDemoSession extends AuthSession {
-  ExpiringPaymentDemoSession(
-    AuthSession session,
-    this.expiresAt, {
-    this.expireSidebarAccess = false,
-  }) : super(
-         token: session.token,
-         userId: session.userId,
-         groupId: session.groupId,
-         userName: session.userName,
-         groupName: session.groupName,
-         user: session.user,
-         sidebars: session.sidebars,
-         verifiedAt: session.verifiedAt,
-         groupType: session.groupType,
-         isOffline: true,
-       );
-
-  final DateTime expiresAt;
-  final bool expireSidebarAccess;
-
-  @override
-  List<Map<String, dynamic>> get sidebars =>
-      expireSidebarAccess && !DateTime.now().isBefore(expiresAt)
-      ? const []
-      : super.sidebars;
-
-  @override
-  bool hasTransactionAccess({bool create = false, bool update = false}) =>
-      DateTime.now().isBefore(expiresAt) &&
-      super.hasTransactionAccess(create: create, update: update);
-}
-
 class PaymentDemoAuth extends AuthService {
   PaymentDemoAuth(
     Dio dio,
@@ -94,12 +64,14 @@ class PaymentDemoAuth extends AuthService {
     this.helperSha, {
     this.expireSidebarAccess = false,
     this.presentation = false,
+    this.expectedAccount,
   }) : super(dio: dio);
 
   final String id;
   final String helperSha;
   final bool expireSidebarAccess;
   final bool presentation;
+  final String? expectedAccount;
   static const usernames = {'petugas.demo', 'admin.demo', 'pembaca.demo'};
 
   @override
@@ -134,9 +106,10 @@ class PaymentDemoAuth extends AuthService {
     required bool rememberMe,
   }) async {
     final account = username.trim();
-    if (!(presentation
-        ? account == 'superadmin.demo'
-        : usernames.contains(account))) {
+    if ((expectedAccount != null && account != expectedAccount) ||
+        !(presentation
+            ? account == 'superadmin.demo'
+            : usernames.contains(account))) {
       if (kDebugMode) debugPrint('Payment demo login: ACCOUNT_NOT_FOUND');
       throw const AuthException('Kredensial atau sesi demo tidak valid.');
     }
@@ -191,6 +164,7 @@ class PaymentDemoAuth extends AuthService {
         AuthSession.fromJson({...data, 'token': 'offline-payment-demo'}),
         expiry,
         expireSidebarAccess: expireSidebarAccess,
+        profileId: id,
       );
       if (now.isBefore(session.verifiedAt)) {
         failure = 'SESSION_NOT_YET_VALID';

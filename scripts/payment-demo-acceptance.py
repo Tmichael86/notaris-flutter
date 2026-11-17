@@ -65,6 +65,18 @@ def trusted_helper_sha(root, *, presentation=False):
         helper = directory / 'session.exe'
         build_helper(helper)
         expected = digest(helper)
+        if actual != expected:
+            source_dir = REPO / 'backend-notaris-go/cmd/paymentdemo'
+            source = directory / 'main_windows.go'
+            source.write_bytes(subprocess.check_output([
+                'git', 'show', '4030c30:backend-notaris-go/cmd/paymentdemo/main_windows.go',
+            ], cwd=REPO))
+            overlay = directory / 'pre-materai.json'
+            overlay.write_text(json.dumps({'Replace': {
+                str(source_dir / 'main_windows.go'): str(source),
+            }}), encoding='utf-8')
+            build_helper(helper, overlay=overlay)
+            expected = digest(helper)
         if actual != expected and not presentation:
             # Preserve already-issued profiles by rebuilding the last helper
             # before presentation was added. Never trust a profile's own pin.
@@ -90,8 +102,8 @@ def port_open():
         return sock.connect_ex(('127.0.0.1', PORT)) == 0
 
 
-def provision(scratch, helper, *, monitoring=False, pengeluaran=False, presentation=False):
-    require(sum((monitoring, pengeluaran, presentation)) <= 1, 'Pilih satu scope demo.')
+def provision(scratch, helper, *, monitoring=False, pengeluaran=False, presentation=False, materai=False):
+    require(sum((monitoring, pengeluaran, presentation, materai)) <= 1, 'Pilih satu scope demo.')
     require(not port_open(), f'Port disposable {PORT} sudah dipakai.')
     data = scratch / 'pgdata'
     pg_ctl = PG_BIN / 'pg_ctl.exe'
@@ -121,6 +133,7 @@ def provision(scratch, helper, *, monitoring=False, pengeluaran=False, presentat
                  '-d', database], capture=True, env=client_env)
         action = ('provision-presentation' if presentation else
                   'provision-pengeluaran' if pengeluaran else
+                  'provision-materai' if materai else
                   'provision-monitoring' if monitoring else 'provision')
         return command([helper, action, database, data], capture=True, env=client_env).strip()
     finally:

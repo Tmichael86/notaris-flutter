@@ -165,6 +165,27 @@ func TestExpenseProfileGrantsOnlyTheAssignedActions(t *testing.T) {
 	}
 }
 
+func TestMateraiProfileGrantsOnlyTheAssignedActions(t *testing.T) {
+	now := time.Now()
+	expected := [][2]int{{0, 0}, {1, 1}, {1, 0}}
+	for i, a := range accounts {
+		s := testSession("materai-test", a, now)
+		s.Sidebars[0].Create, s.Sidebars[0].Update = 0, 0
+		grant := access{Read: expected[i][0], Create: expected[i][1]}
+		grant.Sidebar.Code, grant.Sidebar.Name, grant.Sidebar.Status = "laporan_materai", "Materai", 1
+		s.Sidebars = append(s.Sidebars, grant)
+		if !s.validFor("materai-test", a, now, "materai") ||
+			s.validFor("other-profile", a, now, "materai") ||
+			s.validFor("materai-test", a, now, "presentation") {
+			t.Fatalf("Materai scope or grant differs for %s", a.Username)
+		}
+		s.Sidebars[1].Create = 1 - expected[i][1]
+		if s.validFor("materai-test", a, now, "materai") {
+			t.Fatal("unexpected Materai CREATE accepted")
+		}
+	}
+}
+
 func TestOwnedFilesRejectHardlinks(t *testing.T) {
 	root, _, _ := testProfile(t)
 	outside := filepath.Join(t.TempDir(), "unrelated.sqlite")

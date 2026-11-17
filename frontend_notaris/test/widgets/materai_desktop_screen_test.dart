@@ -12,10 +12,80 @@ import 'package:frontend_notaris/repositories/materai_repository.dart';
 import 'package:frontend_notaris/screens/laporan_materai_desktop_screen.dart';
 
 import '../support/materai_fixture.dart';
+import '../support/materai_stock_fixture.dart';
 import '../support/transaction_ui_test_support.dart'
     show TransactionUiAuth, cycleUi;
 
 void main() {
+  testWidgets(
+    'verified stock dialog cancels without changes and saves one receipt at desktop sizes',
+    (tester) async {
+      final db = MateraiProfileDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final binding = await tester.runAsync(() => seedMateraiOpening(db));
+      final auth = stockActor(demoStockProfile);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.binding.setSurfaceSize(const Size(1728, 900));
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authControllerProvider.overrideWith((_) => TransactionUiAuth(auth)),
+            appDatabaseProvider.overrideWithValue(db),
+            materaiStockBindingProvider.overrideWithValue(binding),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(child: LaporanMateraiDesktopScreen()),
+            ),
+          ),
+        ),
+      );
+      final add = find.text('Tambah Stok Materai');
+      await cycleUi(tester);
+      await tester.tap(add);
+      await tester.pumpAndSettle();
+      expect(find.text('Petugas: Rani Wulandari'), findsOneWidget);
+      final dialog = find.byType(Dialog);
+      expect(tester.widget<Dialog>(dialog).backgroundColor, Colors.white);
+      for (final size in [
+        const Size(1728, 900),
+        const Size(1366, 768),
+        const Size(1080, 640),
+      ]) {
+        await tester.binding.setSurfaceSize(size);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      }
+      await tester.tap(find.text('Simpan'));
+      await tester.pumpAndSettle();
+      expect(find.text('Masukkan bilangan bulat 1–10.000.'), findsOneWidget);
+      await tester.tap(find.text('Batal'));
+      await cycleUi(tester);
+      expect(find.text('Terverifikasi (1)'), findsOneWidget);
+      await tester.tap(add);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Jumlah meterai masuk (lembar)'),
+        '7',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Proyeksi stok: 27 lembar'), findsOneWidget);
+      await tester.tap(find.text('Simpan'));
+      await tester.tap(find.text('Simpan'));
+      await cycleUi(tester);
+      expect(
+        find.text('Penerimaan tersimpan. Stok tercatat: 27 lembar.'),
+        findsOneWidget,
+      );
+      await tester.tap(find.text('Selesai'));
+      await cycleUi(tester);
+      expect(find.text('Terverifikasi (2)'), findsOneWidget);
+      expect(find.text('Masuk 7 lembar   ·   Keluar 0 lembar'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    },
+  );
+
   test('denied provider does not resolve a database', () async {
     var opened = false;
     final container = ProviderContainer(

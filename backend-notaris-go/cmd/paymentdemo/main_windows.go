@@ -159,11 +159,31 @@ func (s verifiedSession) validFor(id string, a account, now time.Time, scope str
 				p.Read != expenseRead || p.Create != expenseWrite || p.Update != expenseWrite || p.Delete != expenseWrite {
 				return false
 			}
+		case "laporan_materai":
+			read, create := materaiAccess(a)
+			if scope != "materai" || p.Sidebar.Name != "Materai" || p.Read != read ||
+				p.Create != create || p.Update != 0 || p.Delete != 0 {
+				return false
+			}
 		default:
 			return false
 		}
 	}
+	if scope == "materai" {
+		return found["transaksi"] && found["laporan_materai"]
+	}
 	return found["transaksi"] && (scope == "" || found[scope])
+}
+
+func materaiAccess(a account) (int, int) {
+	switch a.Username {
+	case "admin.demo":
+		return 1, 1
+	case "pembaca.demo":
+		return 1, 0
+	default:
+		return 0, 0
+	}
 }
 
 func profileID(public ed25519.PublicKey) string {
@@ -293,7 +313,7 @@ func writeNew(path string, value []byte) error {
 
 func demoScope(root, id string) (string, error) {
 	scope := ""
-	for _, candidate := range []string{"monitoring", "pengeluaran", "presentation"} {
+	for _, candidate := range []string{"monitoring", "pengeluaran", "presentation", "materai"} {
 		name := candidate + "-owner"
 		if _, err := os.Lstat(filepath.Join(root, name)); !os.IsNotExist(err) {
 			marker, readErr := readOwnedFile(root, name)
@@ -430,6 +450,11 @@ func provision(dbName, dataDir, scope string) (string, error) {
 					return e
 				}
 			}
+			if scope == "materai" {
+				if e := tx.Exec("INSERT INTO sidebar(id,sidebar_nama,sidebar_kode,sidebar_route,status) VALUES(2,'Materai','laporan_materai','/laporan/materai',1)").Error; e != nil {
+					return e
+				}
+			}
 		}
 		for _, a := range selected {
 			password := base64.RawURLEncoding.EncodeToString(randomBytes(24))
@@ -462,6 +487,12 @@ func provision(dbName, dataDir, scope string) (string, error) {
 			if scope == "pengeluaran" {
 				read, write := expenseAccess(a)
 				if e = tx.Exec(`INSERT INTO sidebar_akses(group_id,sidebar_id,"read","create","update","delete") VALUES(?,2,?,?,?,?)`, a.ID, read, write, write, write).Error; e != nil {
+					return e
+				}
+			}
+			if scope == "materai" {
+				read, create := materaiAccess(a)
+				if e = tx.Exec(`INSERT INTO sidebar_akses(group_id,sidebar_id,"read","create","update","delete") VALUES(?,2,?,?,0,0)`, a.ID, read, create).Error; e != nil {
 					return e
 				}
 			}
@@ -544,7 +575,7 @@ func randomBytes(n int) []byte {
 }
 
 func run(args []string) error {
-	if len(args) == 3 && (args[0] == "provision" || args[0] == "provision-monitoring" || args[0] == "provision-pengeluaran" || args[0] == "provision-presentation") {
+	if len(args) == 3 && (args[0] == "provision" || args[0] == "provision-monitoring" || args[0] == "provision-pengeluaran" || args[0] == "provision-presentation" || args[0] == "provision-materai") {
 		scope := strings.TrimPrefix(args[0], "provision")
 		id, err := provision(args[1], args[2], strings.TrimPrefix(scope, "-"))
 		if err == nil {
@@ -595,6 +626,8 @@ func run(args []string) error {
 					info["monitoring"] = p.Read
 				case "pengeluaran":
 					info["pengeluaran"] = []int{p.Read, p.Create, p.Update, p.Delete}
+				case "laporan_materai":
+					info["materai"] = []int{p.Read, p.Create, p.Update, p.Delete}
 				case "transaksi":
 					info["read"], info["create"], info["update"] = p.Read, p.Create, p.Update
 				}

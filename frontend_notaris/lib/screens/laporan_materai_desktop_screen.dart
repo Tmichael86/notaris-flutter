@@ -5,6 +5,8 @@ import '../core/theme/app_colors.dart';
 import '../providers/auth_provider.dart';
 import '../providers/materai_provider.dart';
 import '../repositories/materai_repository.dart';
+import '../repositories/materai_stock_repository.dart';
+import '../widgets/materai_stock_dialog.dart';
 
 class LaporanMateraiDesktopScreen extends ConsumerStatefulWidget {
   const LaporanMateraiDesktopScreen({super.key});
@@ -21,6 +23,7 @@ class _LaporanMateraiDesktopScreenState
   DateTime? _from, _through;
   String? _officer;
   bool _review = false;
+  bool _openingDialog = false;
   int _page = 0;
 
   @override
@@ -37,7 +40,8 @@ class _LaporanMateraiDesktopScreenState
 
   @override
   Widget build(BuildContext context) {
-    if (!canReadMaterai(ref.watch(authControllerProvider).session)) {
+    final session = ref.watch(authControllerProvider).session;
+    if (!canReadMaterai(session)) {
       return const Padding(
         padding: EdgeInsets.all(24),
         child: Text('Anda tidak memiliki izin membaca Laporan Materai.'),
@@ -59,6 +63,7 @@ class _LaporanMateraiDesktopScreenState
             style: TextStyle(color: AppColors.textSecondary),
           ),
           const SizedBox(height: 16),
+          if (canCreateMaterai(session)) _stockAction(),
           state.when(
             loading: () =>
                 _card(const Center(child: CircularProgressIndicator())),
@@ -92,6 +97,61 @@ class _LaporanMateraiDesktopScreenState
         ],
       ),
     );
+  }
+
+  Widget _stockAction() => Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: ref
+        .watch(materaiStockContextProvider)
+        .when(
+          loading: () => const Text('Memeriksa kesiapan penerimaan stok…'),
+          error: (error, _) => Text(
+            error is MateraiStockException
+                ? error.message
+                : 'Kesiapan penerimaan stok tidak dapat diperiksa.',
+          ),
+          data: (baseline) => baseline == null
+              ? const Text('Profil ini hanya membuka laporan baca saja.')
+              : Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primaryDark,
+                    ),
+                    onPressed: _openingDialog
+                        ? null
+                        : () => _openStock(baseline),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Tambah Stok Materai'),
+                  ),
+                ),
+        ),
+  );
+
+  Future<void> _openStock(MateraiStockContext baseline) async {
+    final repository = ref.read(materaiStockRepositoryProvider);
+    if (_openingDialog || repository == null) return;
+    setState(() => _openingDialog = true);
+    try {
+      if (await showMateraiStockDialog(context, repository, baseline) == true &&
+          mounted) {
+        _change(() => _review = false);
+        ref.invalidate(materaiReportProvider);
+      }
+    } catch (error) {
+      if (mounted) {
+        final message = error is MateraiStockException
+            ? error.message
+            : 'Draf penerimaan tidak dapat dibuka.';
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(message)));
+      }
+    } finally {
+      if (mounted) {
+        ref.invalidate(materaiStockContextProvider);
+        setState(() => _openingDialog = false);
+      }
+    }
   }
 
   Widget _filters(Map<String, String> officers) => LayoutBuilder(

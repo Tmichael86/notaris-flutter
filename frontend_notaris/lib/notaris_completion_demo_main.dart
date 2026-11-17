@@ -8,6 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
 import 'database/app_database.dart';
+import 'providers/materai_provider.dart';
+import 'repositories/materai_stock_repository.dart';
 import 'main.dart' show MyApp;
 import 'models/auth_session.dart';
 import 'providers/app_providers.dart';
@@ -182,6 +184,7 @@ void runCompletionDemo(
   bool allowReadOnly = false,
   AuthService Function(Dio)? auth,
   TransactionDocumentProfile? documents,
+  MateraiStockBinding? materaiStock,
   String banner = 'PROFIL DEMONSTRASI',
 }) {
   final dio = Dio(BaseOptions(baseUrl: 'http://127.0.0.1:0'));
@@ -203,6 +206,8 @@ void runCompletionDemo(
         ),
         developmentUiSmokeProvider.overrideWithValue(true),
         petugasManualEnabledProvider.overrideWithValue(false),
+        if (materaiStock != null)
+          materaiStockBindingProvider.overrideWithValue(materaiStock),
         if (documents != null)
           transactionDocumentProfileProvider.overrideWithValue(documents),
       ],

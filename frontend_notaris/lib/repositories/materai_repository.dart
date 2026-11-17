@@ -5,7 +5,11 @@ import '../models/auth_session.dart';
 
 const materaiPermissionCode = 'laporan_materai';
 
-bool canReadMaterai(AuthSession? session) {
+bool canReadMaterai(AuthSession? session) => _hasAccess(session, create: false);
+bool canCreateMaterai(AuthSession? session) =>
+    _hasAccess(session, create: true);
+
+bool _hasAccess(AuthSession? session, {required bool create}) {
   bool enabled(Object? value) => value == 1 || value == '1' || value == true;
   return session != null &&
       session.userId > 0 &&
@@ -14,7 +18,8 @@ bool canReadMaterai(AuthSession? session) {
         return sidebar is Map &&
             sidebar['sidebar_kode'] == materaiPermissionCode &&
             enabled(sidebar['status']) &&
-            enabled(access['read']);
+            enabled(access['read']) &&
+            (!create || enabled(access['create']));
       });
 }
 
@@ -48,8 +53,13 @@ class MateraiMovement {
   final String namespace, description;
   final String? businessDate, officer, review;
   final int? stockIn, stockOut, recordedStock, officerId;
-  String? get officerKey =>
-      officerId == null || officer == null ? null : '$namespace:$officerId';
+  String? get officerKey {
+    if (officerId == null || officer == null) return null;
+    final scope = namespace.startsWith('local:materai:')
+        ? namespace.split(':').take(3).join(':')
+        : namespace;
+    return '$scope:$officerId';
+  }
 }
 
 class MateraiReport {
