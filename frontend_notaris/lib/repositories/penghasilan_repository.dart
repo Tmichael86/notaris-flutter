@@ -149,16 +149,28 @@ class PenghasilanRepository {
 
   Stream<PenghasilanReport> watch() {
     _require();
-    return _query().watch().map(_project);
+    return _query().watch().map(_checkedProjection);
   }
 
   Future<PenghasilanReport> read() async {
     _require();
-    return _project(await _query().get());
+    return _checkedProjection(await _query().get());
   }
 
   Selectable<QueryRow> _query() => _db.customSelect(
-    '''
+    receiptSnapshotSql,
+    readsFrom: {
+      _db.transaksis,
+      _db.transaksiRiwayatPembayarans,
+      _db.transaksiDetails,
+      _db.pemohons,
+      _db.petugasLocals,
+    },
+  );
+
+  // Shared query text only. Consumers enforce their own permission before
+  // executing it and can combine it with other sources in one SELECT.
+  static const receiptSnapshotSql = '''
     WITH active_payments AS MATERIALIZED (
       SELECT p.*, COUNT(*) OVER (PARTITION BY lower(trim(p.uuid))) AS uuid_count
       FROM transaksi_riwayat_pembayaran p WHERE p.status=1 AND p.deleted_at IS NULL
@@ -189,18 +201,17 @@ class PenghasilanRepository {
       AND (t.petugas_uuid IS NULL OR o.uuid=t.petugas_uuid)
     WHERE t.id IS NULL OR (t.deleted_at IS NULL AND lower(trim(t.status_transaksi))<>'dihapus')
     ORDER BY p.tanggal_pembayaran DESC,p.id DESC,k.parent_id DESC
-    ''',
-    readsFrom: {
-      _db.transaksis,
-      _db.transaksiRiwayatPembayarans,
-      _db.transaksiDetails,
-      _db.pemohons,
-      _db.petugasLocals,
-    },
-  );
+    ''';
 
-  PenghasilanReport _project(List<QueryRow> source) {
+  PenghasilanReport _checkedProjection(List<QueryRow> source) {
     _require();
+    return projectReceiptSnapshot(source);
+  }
+
+  static PenghasilanReport projectReceiptSnapshot(
+    Iterable<QueryRow> source, {
+    DateTime? Function(Object?)? decodeDate,
+  }) {
     final candidates = <_Candidate>[];
     final byParent = <int, List<_Candidate>>{};
     final headers = <int, QueryRow>{};
@@ -211,7 +222,7 @@ class PenghasilanRepository {
       final context = group.isEmpty
           ? _context(header, parent)
           : group.first.context;
-      final candidate = _candidate(raw, context);
+      final candidate = _candidate(raw, context, decodeDate ?? _localDate);
       candidates.add(candidate);
       group.add(candidate);
     }
@@ -243,7 +254,7 @@ class PenghasilanRepository {
     return PenghasilanReport(rows, reviews);
   }
 
-  ReceiptContext _context(QueryRow raw, int parent) {
+  static ReceiptContext _context(QueryRow raw, int parent) {
     final snapshots =
         jsonDecode(raw.readNullable<String>('jobs') ?? '[]') as List;
     return (
@@ -265,17 +276,24 @@ class PenghasilanRepository {
     );
   }
 
-  _Candidate _candidate(QueryRow raw, ReceiptContext context) {
-    final id = raw.readNullable<int>('payment_id');
-    final uuid = raw.readNullable<String>('payment_uuid') ?? '';
-    final seconds = raw.data['tanggal_pembayaran'];
+  static DateTime? _localDate(Object? seconds) {
     final decoded =
         seconds is int && seconds >= -62135596800 && seconds <= 253402300799
         ? DateTime.fromMillisecondsSinceEpoch(seconds * 1000)
         : null;
-    final date = decoded != null && decoded.year >= 1 && decoded.year <= 9999
+    return decoded != null && decoded.year >= 1 && decoded.year <= 9999
         ? decoded
         : null;
+  }
+
+  static _Candidate _candidate(
+    QueryRow raw,
+    ReceiptContext context,
+    DateTime? Function(Object?) decodeDate,
+  ) {
+    final id = raw.readNullable<int>('payment_id');
+    final uuid = raw.readNullable<String>('payment_uuid') ?? '';
+    final date = decodeDate(raw.data['tanggal_pembayaran']);
     final nominal = raw.data['nominal'];
     final integer = raw.data['nominal_rupiah'];
     int? amount;
@@ -309,7 +327,7 @@ class PenghasilanRepository {
     );
   }
 
-  String? _reconcile(QueryRow raw, List<_Candidate> candidates) {
+  static String? _reconcile(QueryRow raw, List<_Candidate> candidates) {
     final context = candidates.first.context;
     if (raw.readNullable<int>('tx_id') == null ||
         raw.readNullable<String>('tx_uuid')?.trim().isNotEmpty != true ||
