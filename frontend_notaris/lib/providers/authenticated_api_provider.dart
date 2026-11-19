@@ -19,7 +19,37 @@ final authenticatedDioProvider = Provider<Dio>((ref) {
   dio.interceptors.add(
     InterceptorsWrapper(
       onRequest: (options, handler) {
-        final token = ref.read(authControllerProvider).session?.token;
+        final target = Uri.tryParse(baseDio.options.baseUrl);
+        if (target == null ||
+            !target.hasAuthority ||
+            options.uri.origin != target.origin) {
+          handler.reject(
+            DioException(
+              requestOptions: options,
+              type: DioExceptionType.cancel,
+              error: 'Target autentikasi tidak cocok dengan profil aktif.',
+            ),
+          );
+          return;
+        }
+        final session = ref.read(authControllerProvider).session;
+        final token = session?.token;
+        final path = options.uri.path.replaceFirst(RegExp(r'^/api/v1'), '');
+        final administrative =
+            path == '/users' ||
+            path.startsWith('/users/') ||
+            ((path == '/groups' || path.startsWith('/groups/')) &&
+                options.method != 'GET');
+        if (administrative && session?.canUseOnlineAdministration != true) {
+          handler.reject(
+            DioException(
+              requestOptions: options,
+              type: DioExceptionType.cancel,
+              error: 'Administrasi memerlukan sesi Superadmin online yang masih valid.',
+            ),
+          );
+          return;
+        }
 
         if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
@@ -28,6 +58,22 @@ final authenticatedDioProvider = Provider<Dio>((ref) {
         }
 
         handler.next(options);
+      },
+      onError: (error, handler) async {
+        final status = error.response?.statusCode;
+        final authorization = error.requestOptions.headers['Authorization'];
+        if ((status == 401 || status == 403) &&
+            authorization is String &&
+            authorization.startsWith('Bearer ')) {
+          try {
+            await ref
+                .read(authControllerProvider.notifier)
+                .handleApiRejection(status!, authorization.substring(7));
+          } on Object {
+            /* Preserve the original HTTP failure. */
+          }
+        }
+        handler.next(error);
       },
     ),
   );

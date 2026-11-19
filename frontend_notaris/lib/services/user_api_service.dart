@@ -5,6 +5,24 @@ class UserApiService {
 
   final Dio _dio;
 
+  /// Minimal Petugas reference; never downloads the administrative catalog.
+  Future<int> verifiedPetugasReference(int serverId) async {
+    if (serverId < 1) {
+      throw const FormatException('Referensi user tidak valid.');
+    }
+    final response = await _dio.get<Map<String, dynamic>>(
+      '/petugas/references/users/$serverId',
+    );
+    final envelope = _asMap(response.data);
+    final data = _asMap(envelope['data']);
+    if (envelope['success'] != true ||
+        data['id'] != serverId ||
+        data['status'] != 1) {
+      throw const FormatException('Referensi user tidak tersedia.');
+    }
+    return serverId;
+  }
+
   Future<List<UserApiModel>> getAll() async {
     final response = await _dio.get<Map<String, dynamic>>('/users');
     final envelope = _asMap(response.data);

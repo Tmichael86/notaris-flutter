@@ -4,7 +4,6 @@ import (
 	"errors"
 	"sort"
 
-	"backend-notaris-go/database"
 	"backend-notaris-go/dto/request"
 	"backend-notaris-go/dto/response"
 	"backend-notaris-go/models"
@@ -89,6 +88,9 @@ func (s *SidebarService) GetGroupAccess(groupID uint) ([]response.SidebarAccessR
 	}
 	bySidebar := make(map[uint]models.SidebarAccess, len(access))
 	for _, item := range access {
+		if _, exists := bySidebar[item.SidebarID]; exists {
+			return nil, ErrInvalidSidebarAccess
+		}
 		bySidebar[item.SidebarID] = item
 	}
 	result := make([]response.SidebarAccessResponse, 0, len(sidebars))
@@ -106,32 +108,5 @@ func (s *SidebarService) GetGroupAccess(groupID uint) ([]response.SidebarAccessR
 }
 
 func (s *SidebarService) ReplaceGroupAccess(groupID, userID uint, items []request.SidebarAccessItem) error {
-	group, err := s.groupRepository.FindByID(groupID)
-	if errors.Is(err, gorm.ErrRecordNotFound) || (err == nil && group.Status != 1) {
-		return ErrInvalidSidebarAccess
-	}
-	if err != nil {
-		return err
-	}
-	sidebars, err := s.GetAll()
-	if err != nil {
-		return err
-	}
-	activeIDs := make(map[uint]struct{}, len(sidebars))
-	for _, sidebar := range sidebars {
-		activeIDs[sidebar.ID] = struct{}{}
-	}
-	seen := make(map[uint]struct{}, len(items))
-	for _, item := range items {
-		if _, ok := activeIDs[item.SidebarID]; !ok {
-			return ErrInvalidSidebarAccess
-		}
-		if _, duplicate := seen[item.SidebarID]; duplicate {
-			return ErrInvalidSidebarAccess
-		}
-		seen[item.SidebarID] = struct{}{}
-	}
-	return database.DB.Transaction(func(tx *gorm.DB) error {
-		return s.accessRepository.ReplaceForGroup(tx, groupID, userID, items)
-	})
+	return adminError(503, "use_secured_administration")
 }

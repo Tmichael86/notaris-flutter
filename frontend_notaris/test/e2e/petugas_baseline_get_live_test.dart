@@ -93,7 +93,7 @@ void main() {
               !{
                 '/petugas/sync/pull',
                 '/petugas/references/jenis-kelamin',
-                '/users',
+                '/petugas/references/users/2001',
               }.contains(options.path)) {
             return handler.reject(
               DioException(
@@ -281,7 +281,7 @@ void main() {
             .map(
               (id) => {
                 'server_id': id,
-                'evidence': 'authenticated GET /users active user selection',
+                'evidence': 'authenticated GET /petugas/references/users/2001',
               },
             )
             .toList(),

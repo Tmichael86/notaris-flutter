@@ -1,8 +1,6 @@
 package services
 
 import (
-	"time"
-
 	"backend-notaris-go/models"
 	"backend-notaris-go/repositories"
 )
@@ -25,35 +23,14 @@ func (s *UserService) GetByID(id uint) (*models.User, error) {
 	return s.repository.FindByID(id)
 }
 
-func (s *UserService) Create(user *models.User, userID uint) error {
-	now := time.Now()
-	createdBy := userID
-
-	user.CreatedBy = &createdBy
-	user.CreatedAt = &now
-	user.Status = 1
-
-	return s.repository.Create(user)
+// Unversioned writers are intentionally unavailable. All registered API writes
+// use Administration with actor/version, revision, shared lock and atomic audit.
+func (s *UserService) Create(value *models.User, actor uint) error {
+	return adminError(503, "use_secured_administration")
 }
-
-func (s *UserService) Update(user *models.User, userID uint) error {
-	now := time.Now()
-	updatedBy := userID
-
-	user.UpdatedBy = &updatedBy
-	user.UpdatedAt = &now
-	user.Status = 1
-
-	return s.repository.Update(user)
+func (s *UserService) Update(value *models.User, actor uint) error {
+	return adminError(503, "use_secured_administration")
 }
-
-func (s *UserService) Deactivate(user *models.User, userID uint) error {
-	now := time.Now()
-	updatedBy := userID
-
-	user.UpdatedBy = &updatedBy
-	user.UpdatedAt = &now
-	user.Status = 0
-
-	return s.repository.Update(user)
+func (s *UserService) Deactivate(value *models.User, actor uint) error {
+	return adminError(503, "use_secured_administration")
 }

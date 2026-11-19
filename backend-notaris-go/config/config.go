@@ -19,6 +19,7 @@ type Config struct {
 	DBSSLMode                  string `mapstructure:"DB_SSLMODE"`
 	JWTSecret                  string `mapstructure:"JWT_SECRET"`
 	JWTExpireMinutes           int    `mapstructure:"JWT_EXPIRE_MINUTES"`
+	UsersSecurityEnabled       bool   `mapstructure:"USERS_SECURITY_ENABLED"`
 	PetugasPublisherEnabled    bool
 	PetugasPublisherBatch      int
 	PetugasPublisherInterval   time.Duration
@@ -39,6 +40,7 @@ func LoadConfig() (config Config) {
 	viper.SetDefault("DB_PORT", "5432")
 	viper.SetDefault("DB_SSLMODE", "disable")
 	viper.SetDefault("JWT_EXPIRE_MINUTES", 120)
+	viper.SetDefault("USERS_SECURITY_ENABLED", false)
 	viper.SetDefault("PETUGAS_PUBLISHER_ENABLED", false)
 	viper.SetDefault("PETUGAS_PUBLISHER_BATCH", 100)
 	viper.SetDefault("PETUGAS_PUBLISHER_INTERVAL", "1s")
@@ -63,6 +65,7 @@ func LoadConfig() (config Config) {
 		DBSSLMode:                  viper.GetString("DB_SSLMODE"),
 		JWTSecret:                  viper.GetString("JWT_SECRET"),
 		JWTExpireMinutes:           viper.GetInt("JWT_EXPIRE_MINUTES"),
+		UsersSecurityEnabled:       viper.GetBool("USERS_SECURITY_ENABLED"),
 		PetugasPublisherEnabled:    viper.GetBool("PETUGAS_PUBLISHER_ENABLED"),
 		PetugasPublisherBatch:      viper.GetInt("PETUGAS_PUBLISHER_BATCH"),
 		PetugasPublisherInterval:   viper.GetDuration("PETUGAS_PUBLISHER_INTERVAL"),

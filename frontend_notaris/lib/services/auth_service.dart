@@ -147,6 +147,12 @@ class AuthService {
 
   Future<void> clearPersistedSession() => _storage.delete(key: cacheKey);
 
+  Future<AuthSession> refreshPermissions(String token) => _fetchSession(token);
+
+  bool isUnauthorized(Object error) =>
+      error is DioException &&
+      (error.response?.statusCode == 401 || error.response?.statusCode == 403);
+
   bool _isConnectivityFailure(DioException error) {
     return error.response == null &&
         (error.type == DioExceptionType.connectionError ||

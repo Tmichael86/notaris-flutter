@@ -30,7 +30,7 @@ func (c *SidebarAccessController) GetByGroup(ctx *gin.Context) {
 		return
 	}
 	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "Gagal mengambil hak akses sidebar", err.Error())
+		response.Error(ctx, http.StatusInternalServerError, "Gagal mengambil hak akses sidebar", nil)
 		return
 	}
 	response.Success(ctx, "Hak akses sidebar berhasil diambil", access)
@@ -44,7 +44,7 @@ func (c *SidebarAccessController) Replace(ctx *gin.Context) {
 	}
 	var req request.UpdateSidebarAccessRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		response.Error(ctx, http.StatusBadRequest, "Data hak akses sidebar tidak valid", err.Error())
+		response.Error(ctx, http.StatusBadRequest, "Data hak akses sidebar tidak valid", nil)
 		return
 	}
 	value, exists := ctx.Get("user_id")
@@ -63,7 +63,7 @@ func (c *SidebarAccessController) Replace(ctx *gin.Context) {
 		return
 	}
 	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "Gagal menyimpan hak akses sidebar", err.Error())
+		response.Error(ctx, http.StatusInternalServerError, "Gagal menyimpan hak akses sidebar", nil)
 		return
 	}
 	response.Success(ctx, "Hak akses sidebar berhasil disimpan", nil)

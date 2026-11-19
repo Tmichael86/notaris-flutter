@@ -49,6 +49,34 @@ class AuthController extends StateNotifier<AuthState> {
 
   final AuthService _service;
 
+  Future<void> handleApiRejection(int status, String requestToken) async {
+    if (state.session?.token != requestToken) return;
+    if (status == 401) {
+      try {
+        await _service.clearPersistedSession();
+      } finally {
+        if (mounted && state.session?.token == requestToken) {
+          state = AuthState.unauthenticated();
+        }
+      }
+    } else if (status == 403) {
+      try {
+        final session = await _service.refreshPermissions(requestToken);
+        if (mounted && state.session?.token == requestToken) {
+          state = AuthState.authenticated(session);
+        }
+      } on Object catch (error) {
+        if (_service.isUnauthorized(error) &&
+            mounted &&
+            state.session?.token == requestToken) {
+          await logout();
+        } else if (mounted && state.session?.token == requestToken) {
+          state = AuthState.authenticated(state.session!.asOffline());
+        }
+      }
+    }
+  }
+
   Future<void> initialize() async {
     try {
       final session = await _service.restoreSession();

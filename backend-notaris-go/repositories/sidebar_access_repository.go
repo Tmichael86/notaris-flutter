@@ -25,7 +25,7 @@ func (r *SidebarAccessRepository) FindByGroupID(groupID uint) ([]models.SidebarA
 }
 
 func (r *SidebarAccessRepository) FindByGroupAndSidebarCode(groupID uint, sidebarCode string) (*models.SidebarAccess, error) {
-	var access models.SidebarAccess
+	var matches []models.SidebarAccess
 
 	err := r.db.
 		Joins("JOIN sidebar ON sidebar.id = sidebar_akses.sidebar_id").
@@ -33,13 +33,16 @@ func (r *SidebarAccessRepository) FindByGroupAndSidebarCode(groupID uint, sideba
 		Where("sidebar.sidebar_kode = ?", sidebarCode).
 		Where("sidebar.status = ?", 1).
 		Where("sidebar.sidebar_route != ?", "#").
-		First(&access).Error
+		Limit(2).Find(&matches).Error
 
 	if err != nil {
 		return nil, err
 	}
 
-	return &access, nil
+	if len(matches) != 1 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &matches[0], nil
 }
 
 func (r *SidebarAccessRepository) ReplaceForGroup(tx *gorm.DB, groupID, userID uint, items []request.SidebarAccessItem) error {

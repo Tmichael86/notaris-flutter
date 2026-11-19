@@ -163,19 +163,10 @@ void main() {
     dio.httpClientAdapter = Fake((request) async {
       expect(request.method, 'GET', reason: 'fixtures must never push');
       expect(request.headers['Authorization'], 'Bearer fixture-token-2001');
-      if (request.path == '/users') {
+      if (request.path == '/petugas/references/users/2001') {
         return reply({
           'success': true,
-          'data': [
-            {
-              'id': 2001,
-              'status': 1,
-              'group_id': 11,
-              'nama': 'Fixture',
-              'username': 'fixture.operator',
-              'email': 'fixture@example.invalid',
-            },
-          ],
+          'data': {'id': 2001, 'status': 1},
         });
       }
       expect(request.path, '/petugas/sync/pull');

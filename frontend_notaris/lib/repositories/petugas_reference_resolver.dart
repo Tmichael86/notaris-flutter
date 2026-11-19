@@ -115,7 +115,7 @@ class VerifiedPetugasReferences implements ScopedPetugasSyncReferences {
     return local.id;
   }
 
-  /// Only authenticated /users response is used. No local/user-name matching.
+  /// Only the narrow authenticated Petugas reference endpoint is used.
   /// Failure or revocation invalidates previously cached provenance first.
   Future<void> verifyUserFromServer(UserApiService users, int serverId) async {
     if (serverId < 1 || scope.isEmpty) {
@@ -126,13 +126,17 @@ class VerifiedPetugasReferences implements ScopedPetugasSyncReferences {
       [scope, serverId],
     );
     try {
-      final rows = await users.getAll();
-      if (rows.where((u) => u.id == serverId && u.status == 1).length != 1) {
+      final verified = await users.verifiedPetugasReference(serverId);
+      if (verified != serverId) {
         _blocked('server user unavailable or ambiguous');
       }
       await db.customStatement(
         'INSERT INTO petugas_user_reference(scope,server_id,evidence) VALUES(?,?,?)',
-        [scope, serverId, 'authenticated GET /users selection'],
+        [
+          scope,
+          serverId,
+          'authenticated GET /petugas/references/users/$serverId',
+        ],
       );
     } on PetugasSyncFailure {
       rethrow;

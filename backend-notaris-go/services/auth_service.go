@@ -20,8 +20,9 @@ type AuthService struct {
 }
 
 type Claims struct {
-	UID uint `json:"uid"`
-	GID uint `json:"gid"`
+	UID     uint   `json:"uid"`
+	GID     uint   `json:"gid"`
+	Version *int64 `json:"sv,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -52,6 +53,13 @@ func (s *AuthService) Login(username, password string) (*models.User, string, er
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			Issuer:    "backend-notaris-go",
 		},
+	}
+	if s.config.UsersSecurityEnabled {
+		if user.SecurityVersion < 1 {
+			return nil, "", ErrInvalidCredentials
+		}
+		version := user.SecurityVersion
+		claims.Version = &version
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

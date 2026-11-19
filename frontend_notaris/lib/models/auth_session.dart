@@ -25,6 +25,31 @@ class AuthSession {
   final String? groupType;
   final bool isOffline;
 
+  /// Client gate only. Backend remains authoritative; offline operational
+  /// access cannot authorize administration.
+  bool get canUseOnlineAdministration {
+    if (isOffline || groupType != 'superadmin') return false;
+    try {
+      final segments = token.split('.');
+      if (segments.length != 3) return false;
+      final payload = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(segments[1]))),
+      );
+      if (payload is! Map) return false;
+      final version = payload['sv'];
+      final expiry = payload['exp'];
+      return version is int &&
+          version > 0 &&
+          expiry is int &&
+          expiry > DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000 &&
+          payload['uid'] == userId &&
+          payload['gid'] == groupId &&
+          payload['iss'] == 'backend-notaris-go';
+    } catch (_) {
+      return false;
+    }
+  }
+
   bool get canCorrectTransactionPayment =>
       groupType == 'superadmin' && hasTransactionAccess(update: true);
 

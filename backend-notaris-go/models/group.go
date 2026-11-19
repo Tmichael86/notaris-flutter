@@ -11,6 +11,7 @@ type Group struct {
 	CreatedAt  *time.Time `gorm:"column:created_at" json:"created_at"`
 	UpdatedAt  *time.Time `gorm:"column:updated_at" json:"updated_at"`
 	Status     int16      `gorm:"column:status" json:"status"`
+	Revision   int64      `gorm:"column:revision" json:"revision"`
 }
 
 func (Group) TableName() string {

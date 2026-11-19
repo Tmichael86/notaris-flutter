@@ -20,9 +20,10 @@ func NewAuthController(service *services.AuthService) *AuthController {
 }
 
 func (c *AuthController) Login(ctx *gin.Context) {
+	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, 32768)
 	var req request.LoginRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		response.Error(ctx, http.StatusBadRequest, "Data login tidak valid", err.Error())
+		response.Error(ctx, http.StatusBadRequest, "Data login tidak valid", nil)
 		return
 	}
 
@@ -32,7 +33,7 @@ func (c *AuthController) Login(ctx *gin.Context) {
 		return
 	}
 	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "Gagal melakukan login", err.Error())
+		response.Error(ctx, http.StatusInternalServerError, "Gagal melakukan login", nil)
 		return
 	}
 

@@ -21,7 +21,7 @@ func NewSidebarController() *SidebarController {
 func (c *SidebarController) GetAll(ctx *gin.Context) {
 	sidebars, err := c.service.GetAll()
 	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "Gagal mengambil data sidebar", err.Error())
+		response.Error(ctx, http.StatusInternalServerError, "Gagal mengambil data sidebar", nil)
 		return
 	}
 	response.Success(ctx, "Data sidebar berhasil diambil", sidebars)
@@ -30,7 +30,7 @@ func (c *SidebarController) GetAll(ctx *gin.Context) {
 func (c *SidebarController) GetTree(ctx *gin.Context) {
 	sidebars, err := c.service.GetTree()
 	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "Gagal mengambil struktur sidebar", err.Error())
+		response.Error(ctx, http.StatusInternalServerError, "Gagal mengambil struktur sidebar", nil)
 		return
 	}
 	response.Success(ctx, "Struktur sidebar berhasil diambil", sidebars)
@@ -48,7 +48,7 @@ func (c *SidebarController) GetByID(ctx *gin.Context) {
 		return
 	}
 	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "Gagal mengambil data sidebar", err.Error())
+		response.Error(ctx, http.StatusInternalServerError, "Gagal mengambil data sidebar", nil)
 		return
 	}
 	response.Success(ctx, "Data sidebar berhasil diambil", sidebar)

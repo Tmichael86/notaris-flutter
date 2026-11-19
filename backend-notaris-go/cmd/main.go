@@ -35,6 +35,9 @@ func run() error {
 	if err := database.ConnectDB(cfg); err != nil {
 		return errors.New("failed to initialize PostgreSQL")
 	}
+	if err := (services.Administration{DB: database.DB, Enabled: cfg.UsersSecurityEnabled}).Ready(context.Background()); err != nil {
+		return errors.New("Users security cutover prerequisites not satisfied")
+	}
 	pool, err := database.DB.DB()
 	if err != nil {
 		return err

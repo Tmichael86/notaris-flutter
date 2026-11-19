@@ -112,19 +112,10 @@ void main() {
     await expectLater(refs.verifiedServerUser(20), throwsA(blockedReference));
     final users = UserApiService(
       dio((r) async {
-        expect(r.path, '/users');
+        expect(r.path, '/petugas/references/users/20');
         return reply({
           'success': true,
-          'data': [
-            {
-              'id': 20,
-              'group_id': 1,
-              'nama': 'User',
-              'username': 'user',
-              'email': 'u@example.com',
-              'status': 1,
-            },
-          ],
+          'data': {'id': 20, 'status': 1},
         });
       }),
     );
