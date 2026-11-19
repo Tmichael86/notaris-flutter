@@ -146,6 +146,7 @@ func SetupRouter(
 			users.GET("/assignable-groups", middleware.JWTAuth(cfg), admin.Guard("users", "read"), admin.Assignable)
 			users.POST("/:id/password-reset", middleware.JWTAuth(cfg), admin.Guard("users", "update"), admin.UserSecurity)
 			users.GET("", middleware.JWTAuth(cfg), admin.Guard("users", "read"), admin.Users)
+			users.GET("/:id", middleware.JWTAuth(cfg), admin.Guard("users", "read"), admin.User)
 			users.POST("", middleware.JWTAuth(cfg), admin.Guard("users", "create"), admin.CreateUser)
 			users.PUT("/:id", middleware.JWTAuth(cfg), admin.Guard("users", "update"), admin.UpdateUser)
 			users.DELETE("/:id", middleware.JWTAuth(cfg), admin.Guard("users", "delete"), admin.UserSecurity)

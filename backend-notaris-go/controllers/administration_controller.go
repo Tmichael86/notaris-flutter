@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"backend-notaris-go/config"
 	"backend-notaris-go/database"
@@ -13,6 +14,7 @@ import (
 	"backend-notaris-go/models"
 	"backend-notaris-go/services"
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // AdministrationController is the only registered administrative write path.
@@ -80,12 +82,111 @@ func adminOK(c *gin.Context, status int, value any) {
 	c.JSON(status, gin.H{"success": true, "data": value, "request_id": adminActor(c).RequestID})
 }
 func (a *AdministrationController) Users(c *gin.Context) {
-	var users []models.User
-	if err := a.service.DB.Order("id").Find(&users).Error; err != nil {
+	page, size := 1, 10
+	for key, target := range map[string]*int{"page": &page, "page_size": &size} {
+		if raw, ok := c.GetQuery(key); ok {
+			n, e := strconv.Atoi(raw)
+			if e != nil || n < 1 || n > 1000000 {
+				a.reject(c, "invalid_pagination")
+				return
+			}
+			*target = n
+		}
+	}
+	if size > 50 {
+		a.reject(c, "invalid_pagination")
+		return
+	}
+	search := strings.TrimSpace(c.Query("search"))
+	if len(search) > 100 {
+		a.reject(c, "invalid_search")
+		return
+	}
+	query := a.service.DB.Table("users u").Joins("JOIN groups g ON g.id=u.group_id")
+	if search != "" {
+		query = query.Where("strpos(lower(u.nama),lower(?))>0 OR strpos(lower(u.username),lower(?))>0 OR strpos(lower(u.email),lower(?))>0", search, search, search)
+	}
+	if raw, ok := c.GetQuery("group_id"); ok {
+		id, e := strconv.ParseUint(raw, 10, 32)
+		if e != nil || id == 0 {
+			a.reject(c, "invalid_group_filter")
+			return
+		}
+		query = query.Where("u.group_id=?", id)
+	}
+	if raw, ok := c.GetQuery("status"); ok {
+		if raw != "0" && raw != "1" {
+			a.reject(c, "invalid_status_filter")
+			return
+		}
+		query = query.Where("u.status=?", raw)
+	}
+	// One SQL statement binds total and the current page to the same snapshot.
+	// An empty page still retains its accurate total; no unbounded account read.
+	var rows []adminUserProjection
+	var result struct {
+		Total int64
+		Items json.RawMessage
+	}
+	filtered := query.Select(userProjectionColumns)
+	if err := a.service.DB.Raw("WITH filtered AS (?), page AS (SELECT * FROM filtered ORDER BY id LIMIT ? OFFSET ?) SELECT (SELECT count(*) FROM filtered) AS total,coalesce((SELECT json_agg(page ORDER BY id) FROM page),'[]'::json) AS items", filtered, size, (page-1)*size).Scan(&result).Error; err != nil {
 		adminResponse(c, err)
 		return
 	}
-	adminOK(c, 200, users)
+	if err := json.Unmarshal(result.Items, &rows); err != nil {
+		adminResponse(c, err)
+		return
+	}
+	var groups []adminGroupProjection
+	if err := a.service.DB.Table("groups").Select("id,group_nama,group_jenis,status").Order("id").Limit(500).Find(&groups).Error; err != nil {
+		adminResponse(c, err)
+		return
+	}
+	adminOK(c, 200, gin.H{"items": rows, "total": result.Total, "page": page, "page_size": size, "groups": groups})
+}
+
+type adminUserProjection struct {
+	ID          uint    `json:"id"`
+	GroupID     uint    `json:"group_id"`
+	GroupNama   string  `json:"group_nama"`
+	GroupJenis  string  `json:"group_jenis"`
+	GroupStatus int16   `json:"group_status"`
+	Nama        string  `json:"nama"`
+	Username    string  `json:"username"`
+	Email       string  `json:"email"`
+	NoTelp      *string `json:"no_telp"`
+	Alamat      *string `json:"alamat"`
+	Status      int16   `json:"status"`
+	Revision    int64   `json:"revision"`
+}
+type adminGroupProjection struct {
+	ID         uint   `json:"id"`
+	GroupNama  string `json:"group_nama"`
+	GroupJenis string `json:"group_jenis"`
+	Status     int16  `json:"status"`
+}
+
+const userProjectionColumns = "u.id,u.group_id,u.nama,u.username,u.email,u.no_telp,u.alamat,u.status,u.revision,g.group_nama,g.group_jenis,g.status AS group_status"
+
+func (a *AdministrationController) User(c *gin.Context) {
+	id, ok := a.id(c)
+	if !ok {
+		return
+	}
+	a.userRecord(c, id, 200)
+}
+func (a *AdministrationController) userRecord(c *gin.Context, id uint, status int) {
+	var user adminUserProjection
+	err := a.service.DB.Table("users u").Select(userProjectionColumns).Joins("JOIN groups g ON g.id=u.group_id").Where("u.id=?", id).Take(&user).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		adminResponse(c, &services.AdminError{Status: 404, Code: "user_unavailable"})
+		return
+	}
+	if err != nil {
+		adminResponse(c, err)
+		return
+	}
+	adminOK(c, status, user)
 }
 func (a *AdministrationController) Assignable(c *gin.Context) {
 	var groups []models.Group
@@ -128,7 +229,7 @@ func (a *AdministrationController) CreateUser(c *gin.Context) {
 		adminResponse(c, err)
 		return
 	}
-	adminOK(c, 201, user)
+	a.userRecord(c, user.ID, 201)
 }
 func (a *AdministrationController) UpdateUser(c *gin.Context) {
 	id, ok := a.id(c)
@@ -144,7 +245,7 @@ func (a *AdministrationController) UpdateUser(c *gin.Context) {
 		adminResponse(c, err)
 		return
 	}
-	adminOK(c, 200, user)
+	a.userRecord(c, user.ID, 200)
 }
 func (a *AdministrationController) UserSecurity(c *gin.Context) {
 	id, ok := a.id(c)

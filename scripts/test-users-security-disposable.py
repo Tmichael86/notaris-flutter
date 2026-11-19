@@ -5,6 +5,7 @@ import secrets
 import socket
 import subprocess
 import tempfile
+import sys
 
 REPO = Path(__file__).resolve().parents[1]
 PG = Path('D:/Program Files/PostgreSQL/bin')
@@ -20,7 +21,7 @@ def run(args, env, capture=False):
                        stderr=subprocess.DEVNULL, timeout=45, check=True)
         return ''
     result = subprocess.run([str(x) for x in args], cwd=REPO / 'backend-notaris-go',
-                            env=env, capture_output=capture, text=True, timeout=180, check=False)
+                            env=env, capture_output=capture, text=True, timeout=600, check=False)
     if result.returncode:
         # Initdb/psql messages are not emitted with inherited connection secrets.
         raise RuntimeError(f'{Path(str(args[0])).name} failed ({result.returncode})')
@@ -59,6 +60,8 @@ def main():
                  'ON_ERROR_STOP=1', '-c', "COMMENT ON DATABASE users_security_disposable IS 'NOTARIS USERS SECURITY DISPOSABLE'"], client, True)
             testenv = {**env, 'NOTARIS_USERS_SECURITY_TEST_DSN':
                        f'host=127.0.0.1 port={PORT} user=postgres password={password} dbname=users_security_disposable sslmode=disable'}
+            if '--flutter' in sys.argv:
+                testenv['NOTARIS_USERS_V1_FLUTTER_E2E'] = '1'
             run(['go', 'test', './routes', '-run', '^TestUsersSecurity', '-count=1', '-v'], testenv)
         finally:
             if (data / 'postmaster.pid').exists():

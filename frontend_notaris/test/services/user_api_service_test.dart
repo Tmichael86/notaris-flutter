@@ -1,283 +1,227 @@
-import 'dart:convert';
-import 'dart:typed_data';
-
 import 'package:dio/dio.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_test/flutter_test.dart' hide Fake;
 import 'package:frontend_notaris/services/user_api_service.dart';
 
+import '../repositories/petugas_local_sync_test.dart' show Fake, reply;
+
+Map<String, Object?> userRow({
+  int id = 301,
+  int revision = 1,
+  int status = 1,
+  int group = 201,
+  String name = 'Operator 01',
+}) => {
+  'id': id,
+  'group_id': group,
+  'group_nama': 'Administrasi Biasa',
+  'group_jenis': 'user',
+  'group_status': 1,
+  'nama': name,
+  'username': 'operator.$id',
+  'email': 'operator$id@example.invalid',
+  'status': status,
+  'revision': revision,
+  'no_telp': null,
+  'alamat': null,
+};
+Map<String, Object?> pageReply({
+  List<Map<String, Object?>>? rows,
+  int total = 1,
+  int page = 1,
+}) => {
+  'success': true,
+  'data': {
+    'items': rows ?? [userRow()],
+    'total': total,
+    'page': page,
+    'page_size': 10,
+    'groups': [
+      {
+        'id': 201,
+        'group_nama': 'Administrasi Biasa',
+        'group_jenis': 'user',
+        'status': 1,
+      },
+    ],
+  },
+};
+UserApiService api(Future<ResponseBody> Function(RequestOptions) handler) =>
+    UserApiService(
+      Dio(BaseOptions(baseUrl: 'http://test.invalid/api/v1'))
+        ..httpClientAdapter = Fake(handler),
+    );
+
 void main() {
-  group('UserApiService', () {
-    test('getAll parses a list returned directly in data', () async {
-      final service = _service(
-        _FakeAdapter((request) {
-          expect(request.method, 'GET');
-          expect(request.path, '/users');
-          expect(request.queryParameters, isEmpty);
-          return _jsonResponse({
-            'success': true,
-            'data': [
-              {
-                'id': 2,
-                'group_id': 1,
-                'group_nama': 'Admin',
-                'username': 'admin2',
-                'email': 'admin@example.com',
-                'nama': 'Admin Dua',
-                'status': 1,
-              },
-              {
-                'id': '3',
-                'group_id': '2',
-                'username': 'staff3',
-                'email': 'staff@example.com',
-                'nama': 'Staff Tiga',
-                'status': 0,
-              },
-            ],
-          });
-        }),
-      );
-
-      final result = await service.getAll();
-
-      expect(result, hasLength(2));
-      expect(result.first.id, 2);
-      expect(result.first.groupNama, 'Admin');
-      expect(result.last.id, 3);
-      expect(result.last.groupId, 2);
-      expect(result.last.status, 0);
-    });
-
-    test('getAll rejects an invalid response envelope', () async {
-      final service = _service(
-        _FakeAdapter((_) => _jsonResponse({'success': false, 'data': []})),
-      );
-
-      await expectLater(service.getAll(), throwsA(isA<FormatException>()));
-    });
-
-    test('create trims required text and normalizes optional blanks', () async {
-      final service = _service(
-        _FakeAdapter((request) {
-          expect(request.method, 'POST');
-          expect(request.path, '/users');
-          expect(_requestJson(request), {
-            'group_id': 2,
-            'nama': 'User Baru',
-            'no_telp': null,
-            'email': 'user@example.com',
-            'username': 'userbaru',
-            'password': 'secret123',
-            'password_confirm': 'secret123',
-            'alamat': 'Blitar',
-            'image': null,
-          });
-          return _jsonResponse({
-            'success': true,
-            'data': {
-              'id': 10,
-              'group_id': 2,
-              'username': 'userbaru',
-              'email': 'user@example.com',
-              'nama': 'User Baru',
-            },
-          });
-        }),
-      );
-
-      final result = await service.create(
-        groupId: 2,
-        nama: ' User Baru ',
-        email: ' user@example.com ',
-        username: ' userbaru ',
-        password: 'secret123',
-        passwordConfirm: 'secret123',
-        alamat: ' Blitar ',
-        noTelp: ' ',
-        image: '',
-      );
-
-      expect(result.id, 10);
-      expect(result.nama, 'User Baru');
-    });
-
-    test('update sends a payload to the user ID endpoint', () async {
-      final service = _service(
-        _FakeAdapter((request) {
-          expect(request.method, 'PUT');
-          expect(request.path, '/users/11');
-          expect(_requestJson(request), {
-            'group_id': 3,
-            'nama': 'User Update',
-            'no_telp': '081234567890',
-            'email': 'updated@example.com',
-            'username': 'updateduser',
-            'password': '',
-            'password_confirm': '',
-            'alamat': null,
-            'image': 'avatar.png',
-          });
-          return _jsonResponse({
-            'success': true,
-            'data': {
-              'id': 11,
-              'group_id': 3,
-              'username': 'updateduser',
-              'email': 'updated@example.com',
-              'nama': 'User Update',
-            },
-          });
-        }),
-      );
-
-      final result = await service.update(
-        id: 11,
-        groupId: 3,
-        nama: ' User Update ',
-        email: ' updated@example.com ',
-        username: ' updateduser ',
-        noTelp: '081234567890',
-        image: ' avatar.png ',
-      );
-
-      expect(result.id, 11);
-      expect(result.username, 'updateduser');
-    });
-
-    test('deactivate accepts a successful response', () async {
-      final service = _service(
-        _FakeAdapter((request) {
-          expect(request.method, 'DELETE');
-          expect(request.path, '/users/5');
-          return _jsonResponse({
-            'success': true,
-            'message': 'User berhasil dinonaktifkan',
-          });
-        }),
-      );
-
-      await expectLater(service.deactivate(5), completes);
-    });
-
-    test('deactivate rejects a failed response', () async {
-      final service = _service(
-        _FakeAdapter(
-          (_) => _jsonResponse({'success': false, 'message': 'Failed'}),
-        ),
-      );
-
-      await expectLater(service.deactivate(5), throwsA(isA<FormatException>()));
-    });
-  });
-
-  group('UserApiModel.fromJson', () {
-    test('parses numeric IDs and nullable fields', () {
-      final model = UserApiModel.fromJson({
-        'id': 3.0,
-        'group_id': 2.0,
-        'username': ' usertest ',
-        'email': ' user@example.com ',
-        'nama': ' User Test ',
-        'group_nama': ' Admin ',
-        'created_by': 9.0,
-        'updated_by': '10',
-        'status': 1.0,
-        'created_at': '2026-10-10T12:00:00Z',
+  test('bounded listing sends actual search/group/status/page and parses revisions', () async {
+    final service = api((r) async {
+      expect(r.path, '/users');
+      expect(r.queryParameters, {
+        'page': 2,
+        'page_size': 10,
+        'search': 'operator',
+        'group_id': 201,
+        'status': 0,
       });
-
-      expect(model.id, 3);
-      expect(model.groupId, 2);
-      expect(model.username, 'usertest');
-      expect(model.email, 'user@example.com');
-      expect(model.nama, 'User Test');
-      expect(model.groupNama, 'Admin');
-      expect(model.createdBy, 9);
-      expect(model.updatedBy, 10);
-      expect(model.status, 1);
-      expect(model.createdAt, DateTime.utc(2026, 10, 10, 12));
-      expect(model.updatedAt, isNull);
-      expect(model.noTelp, isNull);
-      expect(model.alamat, isNull);
-      expect(model.image, isNull);
+      return reply(pageReply(rows: [userRow(status: 0)], total: 11, page: 2));
     });
-
-    test('defaults status to active when absent or invalid', () {
-      final model = UserApiModel.fromJson({
-        'id': 4,
-        'group_id': 1,
-        'username': 'validuser',
-        'email': 'valid@example.com',
-        'nama': 'Valid User',
-        'status': 'invalid',
-      });
-
-      expect(model.status, 1);
-    });
-
-    test('rejects invalid IDs and empty required text', () {
-      expect(
-        () => UserApiModel.fromJson({
-          'id': 0,
-          'group_id': 1,
-          'username': 'validuser',
-          'email': 'valid@example.com',
-          'nama': 'Valid User',
-        }),
-        throwsA(isA<FormatException>()),
-      );
-      expect(
-        () => UserApiModel.fromJson({
-          'id': 1,
-          'group_id': 1,
-          'username': ' ',
-          'email': 'valid@example.com',
-          'nama': 'Valid User',
-        }),
-        throwsA(isA<FormatException>()),
-      );
-    });
+    final result = await service.list((
+      page: 2,
+      search: ' operator ',
+      groupId: 201,
+      status: 0,
+    ));
+    expect(result.total, 11);
+    expect(result.items.single.status, 0);
+    expect(result.items.single.revision, 1);
+    expect(result.groups.single.id, 201);
   });
-}
-
-UserApiService _service(_FakeAdapter adapter) {
-  final dio = Dio(BaseOptions(baseUrl: 'https://example.test/api/v1'));
-  dio.httpClientAdapter = adapter;
-  return UserApiService(dio);
-}
-
-dynamic _requestJson(RequestOptions request) {
-  final data = request.data;
-  if (data is String) return jsonDecode(data);
-  return data;
-}
-
-ResponseBody _jsonResponse(
-  Map<String, dynamic> payload, {
-  int statusCode = 200,
-}) {
-  return ResponseBody.fromString(
-    jsonEncode(payload),
-    statusCode,
-    headers: {
-      Headers.contentTypeHeader: [Headers.jsonContentType],
+  test(
+    'create sends confirmation without photo/status/security/audit fields',
+    () async {
+      final service = api((r) async {
+        expect(r.method, 'POST');
+        expect(r.data, {
+          'group_id': 201,
+          'nama': 'Operator',
+          'username': 'operator.new',
+          'email': 'new@example.invalid',
+          'no_telp': null,
+          'alamat': null,
+          'password': 'unit-test-password',
+          'password_confirm': 'unit-test-password',
+        });
+        return reply({'success': true, 'data': userRow()});
+      });
+      expect(
+        (await service.create(
+          groupId: 201,
+          nama: ' Operator ',
+          username: 'operator.new',
+          email: 'new@example.invalid',
+          password: 'unit-test-password',
+          passwordConfirm: 'unit-test-password',
+        )).id,
+        301,
+      );
     },
   );
-}
-
-class _FakeAdapter implements HttpClientAdapter {
-  _FakeAdapter(this.respond);
-
-  final ResponseBody Function(RequestOptions request) respond;
-
-  @override
-  Future<ResponseBody> fetch(
-    RequestOptions options,
-    Stream<Uint8List>? requestStream,
-    Future<void>? cancelFuture,
-  ) async {
-    return respond(options);
-  }
-
-  @override
-  void close({bool force = false}) {}
+  test(
+    'edit never sends password, status, image, or security version',
+    () async {
+      final service = api((r) async {
+        expect(r.path, '/users/301');
+        expect(r.method, 'PUT');
+        final body = r.data as Map;
+        expect(body['expected_revision'], 4);
+        expect(
+          body.keys,
+          unorderedEquals([
+            'group_id',
+            'nama',
+            'username',
+            'email',
+            'no_telp',
+            'alamat',
+            'expected_revision',
+          ]),
+        );
+        return reply({
+          'success': true,
+          'data': userRow(revision: 5, status: 0),
+        });
+      });
+      expect(
+        (await service.update(
+          id: 301,
+          expectedRevision: 4,
+          groupId: 201,
+          nama: 'Operator',
+          username: 'operator.301',
+          email: 'operator301@example.invalid',
+        )).status,
+        0,
+      );
+    },
+  );
+  test('deactivate and separate reset carry expected revision', () async {
+    var calls = 0;
+    final service = api((r) async {
+      calls++;
+      if (r.method == 'DELETE') {
+        expect(r.data, {'expected_revision': 3});
+      } else {
+        expect(r.path, '/users/301/password-reset');
+        expect((r.data as Map)['expected_revision'], 4);
+        expect((r.data as Map)['password_confirm'], 'unit-test-password');
+      }
+      return reply({'success': true, 'data': null});
+    });
+    await service.deactivate(301, expectedRevision: 3);
+    await service.resetPassword(
+      301,
+      expectedRevision: 4,
+      password: 'unit-test-password',
+      passwordConfirm: 'unit-test-password',
+    );
+    expect(calls, 2);
+  });
+  test('malformed/absent status and invalid revision never become active', () {
+    for (final key in ['status', 'revision', 'group_status']) {
+      final row = userRow()..remove(key);
+      expect(() => UserApiModel.fromJson(row), throwsFormatException);
+    }
+    expect(
+      () => UserApiModel.fromJson(userRow()..['status'] = '1'),
+      throwsFormatException,
+    );
+  });
+  test('assignable groups reject privileged and inactive references', () async {
+    for (final (kind, status) in [('superadmin', 1), ('user', 0)]) {
+      final service = api(
+        (r) async => reply({
+          'success': true,
+          'data': [
+            {
+              'id': 1,
+              'group_nama': 'Wrong',
+              'group_jenis': kind,
+              'status': status,
+            },
+          ],
+        }),
+      );
+      await expectLater(service.assignableGroups(), throwsFormatException);
+    }
+  });
+  test('failure bodies and passwords are never echoed by error messages', () {
+    final request = RequestOptions(
+      path: '/users',
+      data: {'password': 'DO_NOT_DISPLAY'},
+    );
+    final error = DioException(
+      requestOptions: request,
+      response: Response(
+        requestOptions: request,
+        statusCode: 409,
+        data: {
+          'code': 'identity_conflict',
+          'message': 'SQL password DO_NOT_DISPLAY',
+          'request_id': '12345678-1234-1234-1234-123456789abc',
+        },
+      ),
+    );
+    expect(usersError(error), contains('Username atau email'));
+    expect(usersError(error), isNot(contains('DO_NOT_DISPLAY')));
+    expect(usersError(error), contains('ID:'));
+  });
+  test('narrow Petugas reference never reads full Users', () async {
+    final service = api((r) async {
+      expect(r.path, '/petugas/references/users/201');
+      return reply({
+        'success': true,
+        'data': {'id': 201, 'status': 1},
+      });
+    });
+    expect(await service.verifiedPetugasReference(201), 201);
+  });
 }

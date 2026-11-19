@@ -1,8 +1,9 @@
 # Users P0 security foundation
 
 Status: implemented for isolated verification; operational activation **OFF**.
-Architecture remains User → one Group → Sidebar grants. Flutter Users is still
-the existing prototype. This does not grant an account or deployment any access.
+Architecture remains User → one Group → Sidebar grants. Flutter Users V1 now
+uses this API; see [Users V1](USERS_MANAGEMENT_V1.md). This does not grant an
+account or deployment any access. The recorded promotional profile remains isolated.
 
 ## Authorization and supported operations
 
@@ -25,7 +26,8 @@ provisioners/DB owners must not be exposed as request writers.
 
 | Endpoint under `/api/v1` | Contract |
 | --- | --- |
-| GET `/users` | Strict Users READ; active and inactive users, safe fields, revisions |
+| GET `/users` | Strict Users READ; bounded page object, active/inactive, literal search, group/status filters; see V1 contract |
+| GET `/users/:id` | Strict Users READ; current safe profile/revision for explicit conflict review |
 | GET `/users/assignable-groups` | Strict Users READ; active `user` Groups only |
 | POST `/users` | Users CREATE; group_id, username, email, nama, optional no_telp/alamat, password and password_confirm |
 | PUT `/users/:id` | Users UPDATE; same profile fields, required expected_revision; no password/status/role/audit fields |

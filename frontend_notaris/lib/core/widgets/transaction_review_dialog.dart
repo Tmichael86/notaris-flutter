@@ -14,6 +14,7 @@ class TransactionReviewDialog extends StatelessWidget {
     this.bodyKey,
     this.width = 600,
     this.canClose = true,
+    this.onClose,
   });
 
   final String title;
@@ -23,6 +24,7 @@ class TransactionReviewDialog extends StatelessWidget {
   final Key? bodyKey;
   final double width;
   final bool canClose;
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +92,7 @@ class TransactionReviewDialog extends StatelessWidget {
                     IconButton(
                       tooltip: 'Tutup',
                       onPressed: canClose
-                          ? () => Navigator.of(context).pop()
+                          ? onClose ?? () => Navigator.of(context).pop()
                           : null,
                       icon: const Icon(Icons.close),
                     ),

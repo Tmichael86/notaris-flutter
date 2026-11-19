@@ -482,3 +482,36 @@ func TestUsersSecurityMigrationGuards(t *testing.T) {
 		t.Fatal("FK invalid")
 	}
 }
+
+func TestUsersSecurityListingV1(t *testing.T) {
+	f := usersSetup(t)
+	page := func(path string) map[string]any { return f.req(t, "GET", path, 1, nil, 200)["data"].(map[string]any) }
+	first := page("/users?page=1&page_size=2")
+	second := page("/users?page=2&page_size=2")
+	if first["total"] != float64(6) || len(first["items"].([]any)) != 2 || second["items"].([]any)[0].(map[string]any)["id"] != float64(3) {
+		t.Fatal("unstable bounded pagination")
+	}
+	filtered := page("/users?group_id=2&status=0")
+	if filtered["total"] != float64(1) || filtered["items"].([]any)[0].(map[string]any)["id"] != float64(6) {
+		t.Fatal("inactive/group filter")
+	}
+	if page("/users?search=user5")["total"] != float64(1) || page("/users?search=%27%20OR%201=1--")["total"] != float64(0) || page("/users?search=%25")["total"] != float64(0) {
+		t.Fatal("literal search")
+	}
+	empty := page("/users?page=100")
+	if empty["total"] != float64(6) || len(empty["items"].([]any)) != 0 {
+		t.Fatal("empty page total lost")
+	}
+	record := f.req(t, "GET", "/users/6", 1, nil, 200)["data"].(map[string]any)
+	if record["status"] != float64(0) || record["revision"] != float64(1) || record["group_jenis"] != "user" || record["group_nama"] != "Operator" {
+		t.Fatal("invalid safe projection")
+	}
+	if len(f.req(t, "GET", "/users/assignable-groups", 1, nil, 200)["data"].([]any)) != 1 {
+		t.Fatal("assignable groups leaked protected/inactive groups")
+	}
+	for _, query := range []string{"?page=0", "?page_size=51", "?status=2", "?group_id=0"} {
+		f.req(t, "GET", "/users"+query, 1, nil, 400)
+	}
+	f.req(t, "GET", "/users/999", 1, nil, 404)
+	f.req(t, "GET", "/users/5", 3, nil, 403)
+}
