@@ -587,6 +587,9 @@ func randomBytes(n int) []byte {
 }
 
 func run(args []string) error {
+	if len(args) > 0 && strings.HasPrefix(args[0], "promo-") {
+		return runPromotional(args)
+	}
 	if len(args) == 3 && (args[0] == "provision" || args[0] == "provision-monitoring" || args[0] == "provision-pengeluaran" || args[0] == "provision-presentation" || args[0] == "provision-materai" || args[0] == "provision-materai-usage") {
 		scope := strings.TrimPrefix(args[0], "provision")
 		id, err := provision(args[1], args[2], strings.TrimPrefix(scope, "-"))

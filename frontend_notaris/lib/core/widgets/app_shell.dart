@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import 'promotional_preview.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -659,13 +662,25 @@ class _AppShellState extends State<AppShell> {
       case 'Pendapatan':
         return const LaporanPendapatanDesktopScreen();
       case 'Users':
-        return const UsersDesktopScreen();
+        return PromotionalPreview.prototype(
+          context,
+          const UsersDesktopScreen(),
+        );
       case 'Groups':
-        return const GroupsDesktopScreen();
+        return PromotionalPreview.prototype(
+          context,
+          const GroupsDesktopScreen(),
+        );
       case 'Sidebars':
-        return const SidebarDesktopScreen();
+        return PromotionalPreview.prototype(
+          context,
+          const SidebarDesktopScreen(),
+        );
       case 'Konfigurasi Umum':
-        return const KonfigurasiUmumDesktopScreen();
+        return PromotionalPreview.prototype(
+          context,
+          const KonfigurasiUmumDesktopScreen(),
+        );
       case 'Log Sinkronisasi':
         return const SyncLogDesktopScreen();
       case 'Monitoring Sinkronisasi':
