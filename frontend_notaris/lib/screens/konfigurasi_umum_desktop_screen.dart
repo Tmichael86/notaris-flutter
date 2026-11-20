@@ -1,462 +1,178 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme/app_colors.dart';
-import '../../core/widgets/loading_overlay.dart';
+import '../core/theme/app_colors.dart';
+import '../core/widgets/master_data_viewport.dart';
+import '../core/widgets/promotional_preview.dart';
+import '../providers/auth_provider.dart';
+import '../providers/office_configuration_provider.dart';
+import '../services/office_configuration_api_service.dart';
 
-class KonfigurasiUmumDesktopScreen extends StatefulWidget {
+class KonfigurasiUmumDesktopScreen extends ConsumerWidget {
   const KonfigurasiUmumDesktopScreen({super.key});
-
   @override
-  State<KonfigurasiUmumDesktopScreen> createState() =>
-      _KonfigurasiUmumDesktopScreenState();
-}
-
-class _KonfigurasiUmumDesktopScreenState
-    extends State<KonfigurasiUmumDesktopScreen> {
-  bool _isLoading = false;
-
-  final Map<String, TextEditingController> _controllers = {};
-
-  final List<_ConfigItem> _configItems = const [
-    _ConfigItem('Alamat', 'alamat', 'Jl. Contoh No. 123, Kota Blitar', false),
-    _ConfigItem('Telepon Rumah', 'telp_rumah', '0342-123456', false),
-    _ConfigItem('Telepon Pertama', 'telp_pertama', '081234567890', false),
-    _ConfigItem('Telepon Kedua', 'telp_kedua', '081298765432', false),
-    _ConfigItem('Email', 'email', 'info@blitaris.id', false),
-    _ConfigItem(
-      'Cetak: Dari Notaris Bersangkutan',
-      'notaris_bersangkutan',
-      'Ya',
-      false,
-    ),
-    _ConfigItem(
-      'Cetak: Dari PPAT Bersangkutan',
-      'ppat_bersangkutan',
-      'Ya',
-      false,
-    ),
-    _ConfigItem(
-      'Nilai Besaran Tidak Kena Pajak',
-      'besaran_nilai_tidak_kena_pajak',
-      '60000000',
-      true,
-    ),
-    _ConfigItem(
-      'Nilai Pajak Pengecekan',
-      'pengecekan',
-      '100000',
-      true,
-    ),
-    _ConfigItem(
-      'Nilai Pajak SKMHT',
-      'surat_kuasa_membebankan_hak_tanggungan',
-      '150000',
-      true,
-    ),
-    _ConfigItem(
-      'Ploting Validasi',
-      'ploting_validasi',
-      '50000',
-      true,
-    ),
-    _ConfigItem(
-      'Harga Beli Materai',
-      'harga_beli_materai',
-      '10000',
-      true,
-    ),
-    _ConfigItem(
-      'Harga Jual Materai',
-      'harga_jual_materai',
-      '10000',
-      true,
-    ),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-
-    for (final item in _configItems) {
-      _controllers[item.key] = TextEditingController(text: item.value);
-    }
-  }
-
-  @override
-  void dispose() {
-    for (final controller in _controllers.values) {
-      controller.dispose();
-    }
-    super.dispose();
-  }
-
-  Future<void> _showEditDialog() async {
-    final formKey = GlobalKey<FormState>();
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        final width = MediaQuery.sizeOf(dialogContext).width;
-        final isMobile = width < 650;
-
-        return AlertDialog(
-          title: const Text(
-            'Ubah Nilai Konfigurasi',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          content: SizedBox(
-            width: isMobile ? width * 0.9 : 700,
-            child: Form(
-              key: formKey,
-              child: SingleChildScrollView(
-                child: Column(
-                  children: _configItems.map((item) {
-                    final controller = _controllers[item.key]!;
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: TextFormField(
-                        controller: controller,
-                        keyboardType: item.isMoney
-                            ? TextInputType.number
-                            : TextInputType.text,
-                        maxLines: item.key == 'alamat' ? 2 : 1,
-                        decoration: InputDecoration(
-                          labelText: item.label,
-                          hintText: 'Masukkan ${item.label.toLowerCase()}',
-                          prefixText: item.isMoney ? 'Rp ' : null,
-                          filled: true,
-                          fillColor: AppColors.background,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide:
-                                const BorderSide(color: AppColors.border),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide:
-                                const BorderSide(color: AppColors.border),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide:
-                                const BorderSide(color: AppColors.primary),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (item.isMoney &&
-                              value != null &&
-                              value.trim().isNotEmpty &&
-                              double.tryParse(value.trim()) == null) {
-                            return 'Nilai harus berupa angka';
-                          }
-                          return null;
-                        },
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text(
-                'Batal',
-                style: TextStyle(color: AppColors.textSecondary),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (formKey.currentState?.validate() ?? false) {
-                  Navigator.pop(dialogContext, true);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text('Simpan'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (result == true && mounted) {
-      setState(() => _isLoading = true);
-
-      await Future.delayed(const Duration(milliseconds: 700));
-
-      if (mounted) {
-        setState(() => _isLoading = false);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Konfigurasi berhasil diperbarui.'),
-          ),
-        );
-      }
-    }
-  }
-
-  String _displayValue(_ConfigItem item) {
-    final value = _controllers[item.key]?.text.trim() ?? '';
-
-    if (value.isEmpty) {
-      return '-';
-    }
-
-    if (item.isMoney) {
-      return 'Rp ${_formatNumber(value)}';
-    }
-
-    return value;
-  }
-
-  String _formatNumber(String value) {
-    final number = int.tryParse(value.replaceAll('.', ''));
-    if (number == null) return value;
-
-    final digits = number.toString();
-    final buffer = StringBuffer();
-
-    for (var i = 0; i < digits.length; i++) {
-      if (i > 0 && (digits.length - i) % 3 == 0) {
-        buffer.write('.');
-      }
-      buffer.write(digits[i]);
-    }
-
-    return buffer.toString();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LoadingOverlay(
-      isLoading: _isLoading,
-      message: 'Menyimpan konfigurasi...',
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isMobile = constraints.maxWidth < 700;
-
-          return SingleChildScrollView(
-            padding: EdgeInsets.all(isMobile ? 16 : 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHeader(isMobile),
-                const SizedBox(height: 20),
-                _buildCard(isMobile),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildHeader(bool isMobile) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Konfigurasi Umum',
-          style: TextStyle(
-            fontSize: isMobile ? 22 : 26,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'System  >  Konfigurasi Umum',
-          style: TextStyle(
-            fontSize: 13,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCard(bool isMobile) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(isMobile ? 14 : 20),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final permitted =
+        allowsOfficeConfiguration(ref.watch(authControllerProvider).session) &&
+        context.dependOnInheritedWidgetOfExactType<PromotionalPreview>() ==
+            null;
+    final data = permitted ? ref.watch(officeConfigurationProvider) : null;
+    return MasterDataViewport(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (isMobile)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Nilai Konfigurasi',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 16,
+            runSpacing: 12,
+            children: [
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Konfigurasi Umum',
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600),
                   ),
-                ),
-                const SizedBox(height: 12),
-                _editButton(),
-              ],
-            )
-          else
-            Row(
-              children: [
-                const Text(
-                  'Nilai Konfigurasi',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                  Text(
+                    'System > Konfigurasi Umum · Baca Saja',
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
-                ),
-                const Spacer(),
-                _editButton(),
-              ],
-            ),
+                ],
+              ),
+              OutlinedButton.icon(
+                key: const Key('office-refresh'),
+                onPressed: !permitted || data?.isLoading == true
+                    ? null
+                    : () => ref.invalidate(officeConfigurationProvider),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Refresh'),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
-          const Divider(height: 1, color: AppColors.divider),
-          const SizedBox(height: 8),
-          _buildConfigTable(isMobile),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: AppColors.border),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: !permitted
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          'Konfigurasi Umum memerlukan sesi online yang valid dan izin baca konfigurasi. Data offline tidak tersedia.',
+                        ),
+                      ),
+                    )
+                  : data!.when(
+                      skipLoadingOnRefresh: false,
+                      data: (v) => _OfficeValues(v),
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (e, _) => Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Text(officeConfigurationError(e)),
+                        ),
+                      ),
+                    ),
+            ),
+          ),
         ],
       ),
     );
   }
-
-  Widget _editButton() {
-    return ElevatedButton.icon(
-      onPressed: _showEditDialog,
-      icon: const Icon(Icons.edit_outlined, size: 18),
-      label: const Text('Ubah Nilai'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildConfigTable(bool isMobile) {
-    if (isMobile) {
-      return Column(
-        children: _configItems.map((item) {
-          return Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            decoration: const BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: AppColors.divider),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.label,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _displayValue(item),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
-      );
-    }
-
-    return Table(
-      columnWidths: const {
-        0: FlexColumnWidth(1.2),
-        1: FlexColumnWidth(2.2),
-      },
-      children: _configItems.map((item) {
-        return TableRow(
-          decoration: const BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: AppColors.divider),
-            ),
-          ),
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 15,
-              ),
-              child: Text(
-                item.label,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 15,
-              ),
-              child: Text(
-                _displayValue(item),
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-            ),
-          ],
-        );
-      }).toList(),
-    );
-  }
 }
 
-class _ConfigItem {
-  final String label;
-  final String key;
-  final String value;
-  final bool isMoney;
+const _sections = <String, Map<String, String>>{
+  'Identitas dan Kontak Kantor': {
+    'alamat': 'Alamat',
+    'telp_rumah': 'Telepon Rumah',
+    'telp_pertama': 'Telepon Pertama',
+    'telp_kedua': 'Telepon Kedua',
+    'email': 'Email',
+  },
+  'Identitas Pengirim': {
+    'notaris_bersangkutan': 'Dari Notaris Bersangkutan',
+    'ppat_bersangkutan': 'Dari PPAT Bersangkutan',
+  },
+  'Referensi Pajak dan Biaya': {
+    'besaran_nilai_tidak_kena_pajak': 'Nilai Besaran Tidak Kena Pajak',
+    'pengecekan': 'Nilai Pajak Pengecekan',
+    'surat_kuasa_membebankan_hak_tanggungan': 'Nilai Pajak SKMHT',
+    'ploting_validasi': 'Ploting Validasi',
+  },
+  'Harga Materai': {
+    'harga_beli_materai': 'Harga Beli Materai',
+    'harga_jual_materai': 'Harga Jual Materai',
+  },
+};
 
-  const _ConfigItem(
-    this.label,
-    this.key,
-    this.value,
-    this.isMoney,
+class _OfficeValues extends StatelessWidget {
+  const _OfficeValues(this.value);
+  final OfficeConfiguration value;
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+    key: const Key('office-values'),
+    padding: const EdgeInsets.all(24),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          value.developmentData
+              ? 'Lingkungan pengembangan · identitas contoh bukan identitas pejabat resmi.'
+              : 'Sumber: konfigurasi kantor pada server · Baca Saja',
+          style: const TextStyle(color: AppColors.textSecondary),
+        ),
+        for (final section in _sections.entries) ...[
+          Padding(
+            padding: const EdgeInsets.only(top: 22, bottom: 8),
+            child: Text(
+              section.key,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          for (final field in section.value.entries)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppColors.border)),
+              ),
+              child: LayoutBuilder(
+                builder: (context, c) {
+                  final label = Text(
+                    field.value,
+                    style: const TextStyle(color: AppColors.textSecondary),
+                  );
+                  final text = SelectableText(
+                    value.display(field.key),
+                    key: Key('office-${field.key}'),
+                  );
+                  return c.maxWidth < 600
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [label, const SizedBox(height: 5), text],
+                        )
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(width: 300, child: label),
+                            const SizedBox(width: 20),
+                            Expanded(child: text),
+                          ],
+                        );
+                },
+              ),
+            ),
+        ],
+      ],
+    ),
   );
 }

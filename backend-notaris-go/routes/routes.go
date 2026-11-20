@@ -161,6 +161,7 @@ func SetupRouter(
 			groups.GET("/:id/sidebar-access", middleware.JWTAuth(cfg), admin.Guard("groups", "read"), admin.GroupAccess)
 			groups.PUT("/:id/sidebar-access", middleware.JWTAuth(cfg), admin.Guard("groups", "update"), admin.Grants)
 		}
+		v1.GET("/konfigurasi", controllers.RequireOfficeSecurity(cfg), middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "konfigurasi", middleware.PermissionRead), controllers.OfficeConfigurationRead)
 		sidebars := v1.Group("/sidebars")
 		{
 			sidebars.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "sidebars", middleware.PermissionRead), sidebarController.GetAll)

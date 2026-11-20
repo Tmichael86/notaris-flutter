@@ -68,6 +68,9 @@ def main():
             if '--sidebars' in sys.argv:
                 testenv['NOTARIS_SIDEBARS_V1_FLUTTER_E2E']='1'
                 selection='^(TestSidebarsV1|TestGroupsV2|TestUsersSecurityHTTP)'
+            if '--office' in sys.argv:
+                testenv['NOTARIS_OFFICE_V1_FLUTTER_E2E']='1'
+                selection='^(TestOfficeConfiguration|TestSidebarsV1Authorization|TestUsersSecurityHTTP)'
             run(['go', 'test', './routes', '-run', selection, '-count=1', '-v'], testenv)
         finally:
             if (data / 'postmaster.pid').exists():
