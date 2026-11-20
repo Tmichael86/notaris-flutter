@@ -1,6 +1,8 @@
 # Groups V2 — Atur Akses
 
-Operational activation **OFF**. Operator Windows acceptance **PENDING**.
+Operational activation **OFF**. Original reduced-fixture Windows acceptance
+accepted by the operator. Full supported catalog acceptance is a separate
+[V2.1 checkpoint](GROUPS_MANAGEMENT_V21_ACCEPTANCE.md).
 Implemented after accepted Groups V1 (`946d072`). No schema migration or local
 Groups ledger. System → Sidebars remains its existing listing prototype; the
 permission editor belongs to **System → Groups → Atur Akses**.

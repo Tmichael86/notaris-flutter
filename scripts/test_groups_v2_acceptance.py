@@ -15,8 +15,12 @@ class GroupsV2Predicates(unittest.TestCase):
     def runcheck(self,base,state,phase='initial',sqlite=None):
         with tempfile.TemporaryDirectory(prefix='groups-v2-predicate-')as folder:
             root=Path(folder).resolve(strict=True);(root/'groups-v2-baseline.json').write_text(json.dumps(base))
-            probe={'read':200,'create':403,'update':403,'delete':403}
-            with patch.dict(m['check'].__globals__,{'postgres':lambda _:state,'snapshot':lambda _:sqlite or base['sqlite'],'occupied':lambda _:True,'helper':lambda _,action:'{}'if action=='http-check'else json.dumps(probe)}):
+            revision=state['access']['group']['revision']
+            probe={key:200 if revision==2 or (revision==4 and key=='read') else 403 for key in ('read','create','update','delete')}
+            def helper(_,action):
+                if action=='validate':return json.dumps({'Catalog':'full-v2.1'})
+                return '{}' if action=='http-check' else json.dumps(probe)
+            with patch.dict(m['check'].__globals__,{'postgres':lambda _:state,'snapshot':lambda _:sqlite or base['sqlite'],'occupied':lambda _:True,'helper':helper}):
                 m['check'](root,phase)
     def test_initial_and_protected_state(self):
         base=self.baseline()
@@ -41,5 +45,22 @@ class GroupsV2Predicates(unittest.TestCase):
             with self.assertRaises(RuntimeError):self.runcheck(base,state,'final')
             row[key]=old
         with self.assertRaises(RuntimeError):self.runcheck(base,state,'final',{'schema':27,'fingerprints':{'payments':'changed'}})
+
+    def test_full_catalog_save_and_excluded_actions_are_exact(self):
+        base=self.baseline();base['catalog']='full-v2.1'
+        base['postgres']['access']['entries']=[{'sidebar':{'id':i},'editable':i not in (20,21),'read':int(i in (20,21)),'create':0,'update':0,'delete':0}for i in (1,2,3,4,10,11,20,21,*range(22,35))]
+        state=copy.deepcopy(base['postgres']);state['groups'][0]['revision']=2;state['access']['group']['revision']=2
+        for row in state['access']['entries']:
+            if row['editable']:
+                for key,value in zip(('read','create','update','delete'),m['acceptance_flags'](row['sidebar']['id'],2,True)):row[key]=value
+        state['audits']=[{'actor_id':101,'target_id':201,'target_type':'group','action':'group_grants','result':'success','request_id':'00000000-0000-4000-8000-000000000001','before_state':base['postgres']['access'],'after_state':copy.deepcopy(state['access'])}]
+        self.runcheck(base,state,'save')
+        self.runcheck(base,state,'permission-refresh')
+        with self.assertRaises(RuntimeError):self.runcheck(base,state,'backend-denied')
+        for id,key in ((23,'create'),(32,'delete'),(33,'update'),(20,'read'),(28,'delete')):
+            bad=copy.deepcopy(state);row=next(row for row in bad['access']['entries']if row['sidebar']['id']==id);row[key]=1-row[key]
+            with self.assertRaises(RuntimeError):self.runcheck(base,bad,'save')
+        badbase=copy.deepcopy(base);badbase['postgres']['access']['entries'].pop()
+        with self.assertRaises(RuntimeError):self.runcheck(badbase,state,'save')
 
 if __name__=='__main__':unittest.main()

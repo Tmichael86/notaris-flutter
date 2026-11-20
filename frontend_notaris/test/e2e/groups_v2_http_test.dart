@@ -135,19 +135,26 @@ void main() {
       expect(s!.revision, 3);
       expect(s.entries.last.editable, false);
       expect(s.entries.last.flags, [1, 1, 0, 0]);
-      expect(await db.customSelect('SELECT * FROM transaksis').get(), before);
-      expect(await db.customSelect('PRAGMA foreign_key_check').get(), isEmpty);
-      expect(
-        (await db.customSelect('PRAGMA integrity_check').getSingle())
-            .data
-            .values
-            .single,
-        'ok',
-      );
+      // Native SQLite completion must run outside the widget fake clock,
+      // just like the real HTTP operations above.
+      await t.runAsync(() async {
+        expect(await db.customSelect('SELECT * FROM transaksis').get(), before);
+        expect(
+          await db.customSelect('PRAGMA foreign_key_check').get(),
+          isEmpty,
+        );
+        expect(
+          (await db.customSelect('PRAGMA integrity_check').getSingle())
+              .data
+              .values
+              .single,
+          'ok',
+        );
+      });
       expect(t.takeException(), isNull);
       await t.pumpWidget(const SizedBox());
       await t.pump();
-      await db.close();
+      await t.runAsync(db.close);
       dio.close();
     },
     skip: base == null,

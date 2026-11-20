@@ -25,6 +25,7 @@ import (
 	"backend-notaris-go/controllers"
 	"backend-notaris-go/database"
 	"backend-notaris-go/dto/request"
+	"backend-notaris-go/internal/devfixture"
 	"backend-notaris-go/middleware"
 	"backend-notaris-go/repositories"
 	"backend-notaris-go/services"
@@ -43,14 +44,23 @@ const groupsV2HTTP = 55885
 type groupsV2Secrets struct {
 	Owner, App, JWT, Migration string
 	Passwords                  map[string]string
+	FullCatalog                bool
 }
 type groupsV2Manifest struct {
 	Profile, Scope, Database, BaseURL string
 	Port, Schema                      int
+	Catalog                           string `json:",omitempty"`
 }
 
 func groupsV2ManifestFor(id string) groupsV2Manifest {
-	return groupsV2Manifest{id, "groups-v2/" + id, "groups_v2_" + id, "http://127.0.0.1:55885/api/v1", groupsV2PG, 27}
+	return groupsV2Manifest{Profile: id, Scope: "groups-v2/" + id, Database: "groups_v2_" + id, BaseURL: "http://127.0.0.1:55885/api/v1", Port: groupsV2PG, Schema: 27}
+}
+func groupsV2CatalogManifest(id string, full bool) groupsV2Manifest {
+	m := groupsV2ManifestFor(id)
+	if full {
+		m.Catalog = "full-v2.1"
+	}
+	return m
 }
 func groupsV2Root(id string) (string, groupsV2Secrets, error) {
 	var s groupsV2Secrets
@@ -71,12 +81,12 @@ func groupsV2Root(id string) (string, groupsV2Secrets, error) {
 	}
 	raw, e := readOwnedFile(root, "groups-v2.json")
 	var m groupsV2Manifest
-	if e != nil || json.Unmarshal(raw, &m) != nil || m != groupsV2ManifestFor(id) {
+	if e != nil || json.Unmarshal(raw, &m) != nil || m != groupsV2CatalogManifest(id, s.FullCatalog) {
 		return "", s, rejected
 	}
 	return root, s, nil
 }
-func groupsV2Init() error {
+func groupsV2Init(full bool) error {
 	migration, e := os.ReadFile("migration_proposals/20261119_users_security.sql")
 	if e != nil {
 		return rejected
@@ -115,7 +125,7 @@ func groupsV2Init() error {
 		}
 	}
 	sum := sha256.Sum256(migration)
-	s := groupsV2Secrets{hex.EncodeToString(randomBytes(32)), hex.EncodeToString(randomBytes(32)), hex.EncodeToString(randomBytes(32)), hex.EncodeToString(sum[:]), map[string]string{}}
+	s := groupsV2Secrets{Owner: hex.EncodeToString(randomBytes(32)), App: hex.EncodeToString(randomBytes(32)), JWT: hex.EncodeToString(randomBytes(32)), Migration: hex.EncodeToString(sum[:]), Passwords: map[string]string{}, FullCatalog: full}
 	for _, name := range []string{"admin.groups", "recovery.groups", "admin.biasa", "petugas.groups"} {
 		s.Passwords[name] = hex.EncodeToString(randomBytes(18))
 	}
@@ -129,7 +139,7 @@ func groupsV2Init() error {
 	if e = writeNew(filepath.Join(root, "initdb-password"), []byte(s.Owner+"\n")); e != nil {
 		return e
 	}
-	raw, _ := json.Marshal(groupsV2ManifestFor(id))
+	raw, _ := json.Marshal(groupsV2CatalogManifest(id, full))
 	if e = writeNew(filepath.Join(root, "groups-v2.json"), raw); e != nil {
 		return e
 	}
@@ -228,6 +238,25 @@ func groupsV2Bootstrap(id string) error {
 		if e := tx.Exec(ddl).Error; e != nil {
 			return e
 		}
+		if s.FullCatalog {
+			// Only inside a newly created, locked disposable database, before
+			// the security proposal and acceptance baseline. Never an upgrade.
+			if e := tx.Exec("DELETE FROM sidebar_akses; DELETE FROM sidebar").Error; e != nil {
+				return e
+			}
+			rows := devfixture.GroupsAcceptanceCatalog()
+			for _, row := range rows {
+				if e := tx.Exec("INSERT INTO sidebar(id,sidebar_parent_id,sidebar_nama,sidebar_kode,sidebar_route,sidebar_icon,sidebar_index,status) VALUES(?,?,?,?,?,?,?,?)", row.ID, row.SidebarParentID, row.SidebarNama, row.SidebarKode, row.SidebarRoute, row.SidebarIcon, row.SidebarIndex, row.Status).Error; e != nil {
+					return e
+				}
+			}
+			if e := tx.Exec(`INSERT INTO sidebar_akses(sidebar_id,group_id,"read","create","update","delete") SELECT s.id,g,1,1,1,1 FROM sidebar s CROSS JOIN (VALUES(101),(102))v(g) WHERE s.status=1;
+INSERT INTO sidebar_akses(sidebar_id,group_id,"read","create","update","delete") SELECT id,201,0,0,0,0 FROM sidebar WHERE id NOT IN(20,21);
+INSERT INTO sidebar_akses(sidebar_id,group_id,"read","create","update","delete") VALUES(20,201,1,1,0,0),(21,201,1,0,1,0),(4,202,1,0,0,0);
+SELECT setval('sidebar_id_seq',34);`).Error; e != nil {
+				return e
+			}
+		}
 		type fixture struct {
 			id, group      int
 			username, name string
@@ -257,7 +286,7 @@ func groupsV2Bootstrap(id string) error {
  GRANT SELECT ON users,groups,sidebar,sidebar_akses TO groups_v2_app;GRANT UPDATE(revision) ON groups TO groups_v2_app;
  GRANT INSERT ON sidebar_akses TO groups_v2_app;GRANT UPDATE("read","create","update","delete",updated_by,updated_at) ON sidebar_akses TO groups_v2_app;
  GRANT INSERT ON administrative_audit TO groups_v2_app;GRANT USAGE ON SEQUENCE sidebar_akses_id_seq,administrative_audit_id_seq TO groups_v2_app;
- SELECT setval('users_id_seq',1000);SELECT setval('groups_id_seq',1000);SELECT setval('sidebar_id_seq',21);`).Error; e != nil {
+ SELECT setval('users_id_seq',1000);SELECT setval('groups_id_seq',1000);SELECT setval('sidebar_id_seq',(SELECT max(id) FROM sidebar));`).Error; e != nil {
 			return e
 		}
 		return (services.Administration{DB: tx, Enabled: true}).Ready(context.Background())
@@ -390,8 +419,8 @@ func groupsV2State(db *gorm.DB) (map[string]any, error) {
 	return map[string]any{"grant_counts": counts, "access": snapshot, "groups": groupsV2, "users": users, "audits": audits, "fingerprints": hashes, "integrity": "PASS", "recovery": "PASS"}, nil
 }
 func runGroupsV2(args []string) error {
-	if len(args) == 1 && args[0] == "groups-v2-init" {
-		return groupsV2Init()
+	if len(args) == 1 && (args[0] == "groups-v2-init" || args[0] == "groups-v2-init-full") {
+		return groupsV2Init(args[0] == "groups-v2-init-full")
 	}
 	if len(args) < 2 || len(args) > 3 {
 		return rejected
@@ -405,7 +434,7 @@ func runGroupsV2(args []string) error {
 	case "groups-v2-bootstrap":
 		return groupsV2Bootstrap(id)
 	case "groups-v2-validate":
-		return json.NewEncoder(os.Stdout).Encode(groupsV2ManifestFor(id))
+		return json.NewEncoder(os.Stdout).Encode(groupsV2CatalogManifest(id, s.FullCatalog))
 	case "groups-v2-credential":
 		if len(args) != 3 || s.Passwords[args[2]] == "" {
 			return rejected

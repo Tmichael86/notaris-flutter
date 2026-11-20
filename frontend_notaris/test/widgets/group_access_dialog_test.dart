@@ -116,6 +116,83 @@ Finder flag(int id, int col) => find.byKey(ValueKey('access-$id-$col'));
 Future<void> openAccess(WidgetTester t) async =>
     clickGroups(t, find.byTooltip('Atur Akses Grup 2'));
 void main() {
+  for (final size in [const Size(1366, 768), const Size(1920, 1080)]) {
+    testWidgets('full catalog hierarchy survives collapse/save at $size', (
+      t,
+    ) async {
+      final api = AccessApi();
+      api.data['entries'] = [
+        for (final (id, parent, name, code) in [
+          (1, 34, 'Users', 'users'),
+          (2, 34, 'Groups', 'groups'),
+          (3, 34, 'Sidebars', 'sidebars'),
+          (4, 10, 'Petugas', 'petugas'),
+          (10, 0, 'Master', 'master'),
+          (11, 10, 'Pemohon', 'pemohon'),
+          (22, 0, 'Transaksi', 'transaksi'),
+          (23, 0, 'Monitoring', 'monitoring'),
+          (24, 0, 'Pengeluaran', 'pengeluaran'),
+          (25, 0, 'Piutang', 'piutang'),
+          (26, 0, 'Penghasilan', 'penghasilan'),
+          (27, 10, 'Pekerjaan Notaris', 'pekerjaan_notaris'),
+          (28, 10, 'Pekerjaan PPAT', 'pekerjaan_ppat'),
+          (29, 10, 'Kategori Pekerjaan', 'kategori_pekerjaan'),
+          (30, 10, 'Jenis Pengeluaran', 'jenis_pengeluaran'),
+          (31, 0, 'Laporan', 'laporan'),
+          (32, 31, 'Materai', 'laporan_materai'),
+          (33, 31, 'Pendapatan', 'laporan_pendapatan'),
+          (34, 0, 'System', 'system'),
+          (20, 0, 'Historis', 'historis'),
+          (21, 999, 'Parent tidak tersedia', 'unsupported'),
+        ])
+          {
+            'sidebar': {
+              'id': id,
+              'sidebar_parent_id': parent,
+              'sidebar_nama': name,
+              'sidebar_kode': code,
+              'sidebar_route': {10, 31, 34}.contains(id) ? '#' : '/$code',
+              'sidebar_icon': 'folder',
+              'sidebar_index': id,
+              'status': id == 20 ? 0 : 1,
+            },
+            'read': id == 20 || id == 21 ? 1 : 0,
+            'create': 0,
+            'update': 0,
+            'delete': 0,
+            'editable': id != 20 && id != 21,
+            'reason': id == 20
+                ? 'Nonaktif'
+                : id == 21
+                ? 'Parent tidak tersedia'
+                : '',
+          },
+      ];
+      await mountAccess(t, api, size: size);
+      await openAccess(t);
+      expect(find.byKey(const ValueKey('access-row-33')), findsOneWidget);
+      await clickGroups(t, flag(28, 2));
+      expect(t.widget<Checkbox>(flag(28, 0)).value, true);
+      expect(t.widget<Checkbox>(flag(10, 0)).value, false);
+      await clickGroups(t, find.byTooltip('Buka/tutup Master'));
+      expect(flag(28, 0), findsNothing);
+      await clickGroups(t, flag(24, 0));
+      await clickGroups(t, find.byTooltip('Buka/tutup Master'));
+      expect(t.widget<Checkbox>(flag(28, 2)).value, true);
+      expect(t.widget<Checkbox>(flag(20, 0)).onChanged, isNull);
+      expect(t.widget<Checkbox>(flag(21, 0)).onChanged, isNull);
+      await clickGroups(t, find.text('Simpan Perubahan'));
+      expect(api.sent!.length, 19);
+      expect(
+        api.sent!.any((p) => p.sidebarId == 20 || p.sidebarId == 21),
+        false,
+      );
+      await openAccess(t);
+      expect(t.widget<Checkbox>(flag(28, 2)).value, true);
+      expect(t.widget<Checkbox>(flag(24, 0)).value, true);
+      expect(t.takeException(), isNull);
+    });
+  }
   testWidgets(
     'API tree, explicit CRUD, independence, bulk and collapse preserve hidden rows',
     (t) async {

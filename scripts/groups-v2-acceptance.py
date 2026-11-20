@@ -18,6 +18,19 @@ execute, clean_env, occupied = common['execute'], common['clean_env'], common['o
 require, snapshot = common['require'], common['snapshot']
 PORT, HTTP = 55797, 55885
 PHASES = ('initial','list','open','expand','enable-read','enable-cud','save','reopen','revoke','permission-refresh','conflict','denied','protected','recovery','restart','final')
+ALIASES = {'catalog':'list','grant':'enable-cud','backend-denied':'permission-refresh'}
+# Explicit acceptance selections, not new authorization policy. Unsupported
+# actions stay zero; actual module authorization is tested independently.
+FULL_CRUD = {4,11,22,24,27,28,29,30}
+
+
+def acceptance_flags(sidebar_id, revision, full):
+    if revision == 2:
+        if full:
+            return [1,1,1,1] if sidebar_id in FULL_CRUD else [1,1,0,0] if sidebar_id == 32 else [1,0,0,0]
+        if sidebar_id == 4:return [1,1,1,1]
+    if revision == 4 and sidebar_id == 4:return [1,0,0,0]
+    return [0,0,0,0]
 
 
 def root_for(profile):
@@ -65,8 +78,19 @@ def postgres(root):
 
 
 def check(root, phase, *, concurrent_edit=False):
+    requested_phase=phase
+    phase=ALIASES.get(phase,phase)
     require(concurrent_edit or phase in ('open','expand','enable-read','enable-cud') or not (root/'launch.lock').exists(), 'Tutup Flutter sebelum postcheck commit; lock ambigu dipertahankan.')
     base=json.loads(auth['plain'](root/'groups-v2-baseline.json').read_text())
+    full=base.get('catalog')=='full-v2.1'
+    # V2.1 refreshes granted permissions before revocation. The accepted V2
+    # sequence retains its original post-revoke permission-refresh checkpoint.
+    if full and requested_phase=='permission-refresh':phase='reopen'
+    if full:
+        manifest=json.loads(helper(root,'validate'))
+        require(manifest.get('Catalog')=='full-v2.1','Katalog tidak terikat ke profil DPAPI.')
+        entries=base['postgres']['access']['entries']
+        require(len(entries)==21 and sum(row['editable'] for row in entries)==19,'Baseline full catalog tidak lengkap.')
     require(snapshot(root)==base['sqlite'],'Fingerprint SQLite terproteksi berubah.')
     state=postgres(root);before=base['postgres'];stage=PHASES.index(phase)
     require(state['fingerprints']==before['fingerprints'],'Definisi/grant tersembunyi/akun/grup terproteksi berubah.')
@@ -82,10 +106,7 @@ def check(root, phase, *, concurrent_edit=False):
     expected_access['group']['revision']=revision
     for row in expected_access['entries']:
         if row['editable']:
-            flags=[0,0,0,0]
-            if row['sidebar']['id']==4:
-                if revision==2:flags=[1,1,1,1]
-                if revision==4:flags=[1,0,0,0]
+            flags=acceptance_flags(row['sidebar']['id'],revision,full)
             for key,value in zip(('read','create','update','delete'),flags):row[key]=value
     require(access==expected_access,'Snapshot/hidden grant/catalog berbeda.')
     expected_audits=[('group_grants',201,'success')]*(revision-1)
@@ -110,13 +131,13 @@ def check(root, phase, *, concurrent_edit=False):
     print(result['marker']);print(f'EVIDENCE={evidence}')
 
 
-def prepare():
+def prepare(full=False):
     require(os.name == 'nt', 'Windows DPAPI diperlukan.')
     require(not occupied(PORT) and not occupied(HTTP), 'Port acceptance terpakai.')
     with tempfile.TemporaryDirectory(prefix='notaris-groups-v2-build-') as folder:
         built = Path(folder).resolve(strict=True) / 'session.exe'
         auth['build_helper'](built)
-        raw = json.loads(execute([built,'groups-v2-init'],capture=True))
+        raw = json.loads(execute([built,'groups-v2-init-full' if full else 'groups-v2-init'],capture=True))
         profile = raw['profile']; root=root_for(profile)
         with (root / 'session.exe').open('xb') as f:
             f.write(built.read_bytes())
@@ -135,7 +156,7 @@ def prepare():
         before = snapshot(root)
         require(before['counts']['transaksis']==2 and before['counts']['transaksi_riwayat_pembayaran']==2,'Fixture proteksi tidak lengkap.')
         with (root/'groups-v2-baseline.json').open('x',encoding='utf-8') as f:
-            json.dump({'sqlite':before,'postgres':postgres(root)},f,indent=2)
+            json.dump({'sqlite':before,'postgres':postgres(root), 'catalog':'full-v2.1' if full else 'reduced-v2'},f,indent=2)
         check(root,'initial')
     finally:
         cluster(root,'stop')
@@ -146,10 +167,12 @@ def prepare():
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('action',choices=('prepare','backend','credential','launch','check','postcheck','state','conflict-edit','stop'))
-    p.add_argument('--id');p.add_argument('--account');p.add_argument('--expect',choices=PHASES,default='initial')
+    p.add_argument('--id');p.add_argument('--account');p.add_argument('--expect',choices=PHASES+tuple(ALIASES),default='initial')
+    p.add_argument('--catalog',choices=('reduced','full'))
     args=p.parse_args()
     if args.action=='prepare':
-        require(args.id is None,'Prepare wajib membuat profil BARU.');prepare();return
+        require(args.id is None,'Prepare wajib membuat profil BARU.');prepare(args.catalog=='full');return
+    require(args.catalog is None,'Katalog hanya dapat dipilih saat membuat profil BARU.')
     root=root_for(args.id);pin(root)
     if args.action=='backend':
         if not occupied(PORT):cluster(root,'start')
@@ -168,7 +191,7 @@ def main():
         check(root,args.expect)
     elif args.action=='conflict-edit':
         require((root / 'launch.lock').exists(), 'Buka Atur Akses CS revisi 3 di Flutter dahulu.')
-        check(root,'permission-refresh',concurrent_edit=True);print(helper(root,'conflict'))
+        check(root,'backend-denied',concurrent_edit=True);print(helper(root,'conflict'))
     elif args.action=='launch':
         # State may be intentionally between phases. Do not force an old baseline.
         require(snapshot(root)==json.loads((root/'groups-v2-baseline.json').read_text())['sqlite'],'SQLite berubah.')

@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -15,8 +16,13 @@ import (
 	"backend-notaris-go/controllers"
 	"backend-notaris-go/database"
 	"backend-notaris-go/dto/request"
+	"backend-notaris-go/internal/devfixture"
+	"backend-notaris-go/middleware"
 	"backend-notaris-go/models"
+	"backend-notaris-go/repositories"
 	"backend-notaris-go/services"
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	"gorm.io/driver/postgres"
@@ -367,11 +373,21 @@ func TestGroupsV2ParentSemanticsAndWriters(t *testing.T) {
 }
 
 func TestGroupsV2FlutterHTTP(t *testing.T) {
+	testGroupsV2FlutterHTTP(t, false)
+}
+func TestGroupsV21FlutterHTTP(t *testing.T) {
+	testGroupsV2FlutterHTTP(t, true)
+}
+func testGroupsV2FlutterHTTP(t *testing.T, full bool) {
 	if os.Getenv("NOTARIS_GROUPS_V2_FLUTTER_E2E") != "1" {
 		t.Skip("Groups V2 Flutter opt-in")
 	}
 	f := usersSetup(t)
-	f.db.Exec(`INSERT INTO sidebar(id,sidebar_parent_id,sidebar_nama,sidebar_kode,sidebar_route,sidebar_icon,sidebar_index,status) VALUES(10,0,'Master','master','#','folder',10,1),(11,0,'Historis','historis','/historis','archive',11,0); UPDATE sidebar SET sidebar_parent_id=10 WHERE id=4; INSERT INTO sidebar_akses(group_id,sidebar_id,"read","create","update","delete") VALUES(2,11,1,1,0,0)`)
+	if full {
+		groupsV21Fixture(t, f)
+	} else {
+		f.db.Exec(`INSERT INTO sidebar(id,sidebar_parent_id,sidebar_nama,sidebar_kode,sidebar_route,sidebar_icon,sidebar_index,status) VALUES(10,0,'Master','master','#','folder',10,1),(11,0,'Historis','historis','/historis','archive',11,0); UPDATE sidebar SET sidebar_parent_id=10 WHERE id=4; INSERT INTO sidebar_akses(group_id,sidebar_id,"read","create","update","delete") VALUES(2,11,1,1,0,0)`)
+	}
 	before := accessState(t, f, 2)
 	role := fmt.Sprintf("groups_access_runtime_%d", time.Now().UnixNano())
 	var schema string
@@ -404,17 +420,46 @@ func TestGroupsV2FlutterHTTP(t *testing.T) {
 	f.api = SetupRouter(f.cfg, controllers.NewHealthController(), nil, nil, nil, nil, controllers.NewGroupController(), controllers.NewUserController(), controllers.NewAuthController(services.NewAuthService(f.cfg)), controllers.NewMeController(), controllers.NewSidebarController(), controllers.NewSidebarAccessController(services.NewSidebarService()))
 	server := httptest.NewServer(f.api)
 	defer server.Close()
-	cmd := exec.Command("flutter.bat", "test", "--no-pub", "test/e2e/groups_v2_http_test.dart", "--reporter", "expanded")
+	file := "test/e2e/groups_v2_http_test.dart"
+	if full {
+		file = "test/e2e/groups_v21_http_test.dart"
+	}
+	cmd := exec.Command("flutter.bat", "test", "--no-pub", file, "--reporter", "expanded")
 	cmd.Dir = "../../frontend_notaris"
 	token := f.token(1, nil)
 	member := f.token(3, nil)
-	cmd.Env = append(os.Environ(), "NOTARIS_GROUPS_V2_HTTP="+server.URL+"/api/v1", "NOTARIS_GROUPS_V2_TOKEN="+token, "NOTARIS_GROUPS_V2_MEMBER="+member)
-	output, e := cmd.CombinedOutput()
-	safe := strings.ReplaceAll(strings.ReplaceAll(string(output), token, "[REDACTED]"), member, "[REDACTED]")
-	if e != nil {
-		t.Fatalf("Groups V2 Flutter HTTP: %s", safe)
+	if full {
+		// Match real AuthService.login claims, required by local financial reads.
+		member = f.token(3, func(c jwt.MapClaims) { c["gid"] = 2 })
 	}
-	t.Log(safe)
+	cmd.Env = append(os.Environ(), "NOTARIS_GROUPS_V2_HTTP="+server.URL+"/api/v1", "NOTARIS_GROUPS_V2_TOKEN="+token, "NOTARIS_GROUPS_V2_MEMBER="+member)
+	if full {
+		// Surface bounded, token-redacted test diagnostics while native I/O is
+		// running rather than concealing a teardown failure until the timeout.
+		pipe, err := cmd.StdoutPipe()
+		if err != nil {
+			t.Fatal("test output pipe")
+		}
+		cmd.Stderr = cmd.Stdout
+		if cmd.Start() != nil {
+			t.Fatal("start Flutter test")
+		}
+		scan := bufio.NewScanner(pipe)
+		scan.Buffer(make([]byte, 4096), 1<<20)
+		for scan.Scan() {
+			t.Log(strings.ReplaceAll(strings.ReplaceAll(scan.Text(), token, "[REDACTED]"), member, "[REDACTED]"))
+		}
+		if err := cmd.Wait(); err != nil || scan.Err() != nil {
+			t.Fatal("Groups V2.1 Flutter HTTP failed; see sanitized output")
+		}
+	} else {
+		output, e := cmd.CombinedOutput()
+		safe := strings.ReplaceAll(strings.ReplaceAll(string(output), token, "[REDACTED]"), member, "[REDACTED]")
+		if e != nil {
+			t.Fatalf("Groups V2 Flutter HTTP: %s", safe)
+		}
+		t.Log(safe)
+	}
 	after := accessState(t, f, 2)
 	if after.Group.Revision != 3 {
 		t.Fatal("UI save/revoke not committed")
@@ -428,5 +473,107 @@ func TestGroupsV2FlutterHTTP(t *testing.T) {
 	f.db.Table("administrative_audit").Where("action='group_grants' AND result='success'").Count(&count)
 	if count != 2 {
 		t.Fatal("audit count")
+	}
+}
+
+func groupsV21Fixture(t *testing.T, f usersFixture) {
+	t.Helper()
+	if e := f.db.Exec("DELETE FROM sidebar_akses; DELETE FROM sidebar").Error; e != nil {
+		t.Fatal(e)
+	}
+	rows := devfixture.GroupsAcceptanceCatalog()
+	for _, row := range rows {
+		if e := f.db.Exec("INSERT INTO sidebar(id,sidebar_parent_id,sidebar_nama,sidebar_kode,sidebar_route,sidebar_icon,sidebar_index,status) VALUES(?,?,?,?,?,?,?,?)", row.ID, row.SidebarParentID, row.SidebarNama, row.SidebarKode, row.SidebarRoute, row.SidebarIcon, row.SidebarIndex, row.Status).Error; e != nil {
+			t.Fatal(e)
+		}
+	}
+	if e := f.db.Exec(`INSERT INTO sidebar_akses(group_id,sidebar_id,"read","create","update","delete") SELECT 1,id,1,1,1,1 FROM sidebar WHERE status=1;
+INSERT INTO sidebar_akses(group_id,sidebar_id,"read","create","update","delete") SELECT 2,id,0,0,0,0 FROM sidebar WHERE id NOT IN(20,21);
+INSERT INTO sidebar_akses(group_id,sidebar_id,"read","create","update","delete") VALUES(2,20,1,1,0,0),(2,21,1,0,1,0)`).Error; e != nil {
+		t.Fatal(e)
+	}
+}
+
+func TestGroupsV21FullCatalog(t *testing.T) {
+	f := usersSetup(t)
+	groupsV21Fixture(t, f)
+	s := accessState(t, f, 2)
+	if len(s.Entries) != 21 || len(accessItems(s, 0)) != 19 {
+		t.Fatal("full catalog coverage")
+	}
+	codes := map[string]bool{}
+	for _, row := range s.Entries {
+		codes[row.Sidebar.Code] = true
+	}
+	for _, code := range []string{"transaksi", "monitoring", "pengeluaran", "piutang", "penghasilan", "pekerjaan_notaris", "pekerjaan_ppat", "kategori_pekerjaan", "jenis_pengeluaran", "laporan", "laporan_materai", "laporan_pendapatan", "system", "users", "groups", "sidebars", "petugas", "pemohon", "master"} {
+		if !codes[code] {
+			t.Fatal("missing canonical code", code)
+		}
+	}
+	for _, alias := range []string{"materai", "pendapatan", "konfigurasi", "konfigurasi_umum", "pekerjaan-notaris", "dashboard", "recycle_bin"} {
+		if codes[alias] {
+			t.Fatal("unsupported/duplicate permission", alias)
+		}
+	}
+	// Read grant is necessary, never sufficient for Superadmin administration.
+	items := accessItems(s, 0)
+	for i := range items {
+		items[i].Read = 1
+	}
+	f.req(t, "GET", "/sidebars", 3, nil, 403)
+	f.req(t, "PUT", "/groups/2/sidebar-access", 1, grantBody(s, items), 200)
+	f.req(t, "GET", "/sidebars", 3, nil, 200)
+	f.req(t, "GET", "/users", 3, nil, 403)
+	f.req(t, "GET", "/groups", 3, nil, 403)
+	f.req(t, "GET", "/petugas/references/users/1", 3, nil, 200)
+	after := accessState(t, f, 2)
+	for i, row := range after.Entries {
+		if !row.Editable && !reflect.DeepEqual(row, s.Entries[i]) {
+			t.Fatal("frozen grant changed")
+		}
+	}
+	f.req(t, "PUT", "/groups/2/sidebar-access", 1, grantBody(s, items), 409)
+	f.req(t, "PUT", "/groups/2/sidebar-access", 1, grantBody(after, accessItems(after, 0)), 200)
+	f.req(t, "GET", "/sidebars", 3, nil, 403)
+	f.req(t, "GET", "/petugas/references/users/1", 3, nil, 403)
+}
+
+func TestGroupsV21CanonicalMiddleware(t *testing.T) {
+	f := usersSetup(t)
+	groupsV21Fixture(t, f)
+	// Authorization middleware only, not invented operational CRUD endpoints.
+	probe := gin.New()
+	for _, code := range []string{"transaksi", "petugas", "pemohon", "pekerjaan_notaris", "pekerjaan_ppat", "kategori_pekerjaan", "jenis_pengeluaran", "master", "pekerjaan-notaris"} {
+		for _, action := range []string{"read", "create", "update", "delete"} {
+			probe.GET("/"+code+"/"+action, middleware.JWTAuth(f.cfg), middleware.RequirePermission(repositories.NewSidebarAccessRepository(), code, action), func(c *gin.Context) { c.Status(204) })
+		}
+	}
+	for _, enabled := range []bool{false, true, false} {
+		s := accessState(t, f, 2)
+		items := accessItems(s, 0)
+		if enabled {
+			for i := range items {
+				items[i].Read = 1
+				items[i].Create = 1
+				items[i].Update = 1
+				items[i].Delete = 1
+			}
+		}
+		f.req(t, "PUT", "/groups/2/sidebar-access", 1, grantBody(s, items), 200)
+		for _, code := range []string{"transaksi", "petugas", "pemohon", "pekerjaan_notaris", "pekerjaan_ppat", "kategori_pekerjaan", "jenis_pengeluaran", "master", "pekerjaan-notaris"} {
+			for _, action := range []string{"read", "create", "update", "delete"} {
+				r := httptest.NewRequest("GET", "/"+code+"/"+action, nil)
+				r.Header.Set("Authorization", "Bearer "+f.token(3, nil))
+				w := httptest.NewRecorder()
+				probe.ServeHTTP(w, r)
+				want := 403
+				if enabled && code != "master" && code != "pekerjaan-notaris" {
+					want = 204
+				}
+				if w.Code != want {
+					t.Fatalf("%s/%s: %d wanted %d", code, action, w.Code, want)
+				}
+			}
+		}
 	}
 }

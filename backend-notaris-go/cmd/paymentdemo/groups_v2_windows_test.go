@@ -16,6 +16,10 @@ func TestGroupsV2ManifestIsolation(t *testing.T) {
 	if _, _, e := groupsV2Root("../daily"); e == nil {
 		t.Fatal("unscoped path accepted")
 	}
+	full := groupsV2CatalogManifest(id, true)
+	if full.Catalog != "full-v2.1" || full == v2 || groupsV2CatalogManifest(id, false) != v2 {
+		t.Fatal("catalog mode not independently bound")
+	}
 }
 func TestGroupsV2OwnedReadOnly(t *testing.T) {
 	id := os.Getenv("NOTARIS_GROUPS_V2_TEST_PROFILE")
