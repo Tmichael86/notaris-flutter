@@ -26,6 +26,7 @@ import '../../screens/piutang_desktop_screen.dart';
 import '../../screens/sidebar_desktop_screen.dart';
 import '../../screens/transaction_desktop_screen.dart';
 import '../../screens/users_desktop_screen.dart';
+import '../../screens/profile_dialog.dart';
 import '../../screens/sync_log_desktop_screen.dart';
 import '../../screens/sync_monitor_desktop_screen.dart';
 import '../../screens/recycle_bin_desktop_screen.dart';
@@ -49,6 +50,7 @@ class _AppShellState extends State<AppShell> {
 
   String selectedMenu = 'Dashboard';
   bool _refreshingPermissions = false;
+  bool _profileOpen = false;
   Future<void> _refreshPermissions() async {
     if (_refreshingPermissions) return;
     setState(() => _refreshingPermissions = true);
@@ -236,7 +238,17 @@ class _AppShellState extends State<AppShell> {
                 size: 20,
               ),
             ),
-            onSelected: (value) {
+            onSelected: (value) async {
+              if (value == 'profile') {
+                if (_profileOpen) return;
+                _profileOpen = true;
+                try {
+                  await showOwnProfile(context);
+                } finally {
+                  _profileOpen = false;
+                }
+                return;
+              }
               if (value == 'refresh-permissions') {
                 _refreshPermissions();
                 return;

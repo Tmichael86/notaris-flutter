@@ -71,6 +71,9 @@ def main():
             if '--office' in sys.argv:
                 testenv['NOTARIS_OFFICE_V1_FLUTTER_E2E']='1'
                 selection='^(TestOfficeConfiguration|TestSidebarsV1Authorization|TestUsersSecurityHTTP)'
+            if '--profile' in sys.argv:
+                testenv['NOTARIS_PROFILE_V1_FLUTTER_E2E']='1'
+                selection='^(TestProfile|TestUsersSecurity|TestGroupsV1)'
             run(['go', 'test', './routes', '-run', selection, '-count=1', '-v'], testenv)
         finally:
             if (data / 'postmaster.pid').exists():
