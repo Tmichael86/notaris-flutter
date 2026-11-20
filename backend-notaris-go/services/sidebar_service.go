@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"sort"
 
@@ -13,6 +14,11 @@ import (
 )
 
 var ErrSidebarNotFound = errors.New("sidebar not found")
+
+func (s *SidebarService) Catalog(ctx context.Context, page, size int, search, status string) (response.SidebarCatalogPage, error) {
+	return s.sidebarRepository.Catalog(ctx, page, size, search, status)
+}
+
 var ErrInvalidSidebarAccess = errors.New("invalid sidebar access")
 
 type SidebarService struct {

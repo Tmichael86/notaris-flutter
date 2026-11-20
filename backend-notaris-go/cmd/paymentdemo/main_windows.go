@@ -590,6 +590,9 @@ func run(args []string) error {
 	if len(args) > 0 && strings.HasPrefix(args[0], "groups-v1-") {
 		return runGroupsV1(args)
 	}
+	if len(args) > 0 && strings.HasPrefix(args[0], "sidebars-v1-") {
+		return runSidebarsV1(args)
+	}
 	if len(args) > 0 && strings.HasPrefix(args[0], "groups-v2-") {
 		return runGroupsV2(args)
 	}

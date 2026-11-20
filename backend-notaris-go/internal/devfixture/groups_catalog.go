@@ -35,3 +35,15 @@ func GroupsAcceptanceCatalog() []models.Sidebar {
 		models.Sidebar{ID: 21, SidebarParentID: &orphan, SidebarNama: "Parent tidak tersedia", SidebarKode: "unsupported", SidebarRoute: "/unsupported", SidebarIcon: "folder", SidebarIndex: 21, Status: 1},
 	)
 }
+
+// Separate Sidebars listing fixture; never modifies a Groups acceptance profile.
+func SidebarsAcceptanceCatalog() []models.Sidebar {
+	rows := GroupsAcceptanceCatalog()
+	zero, inactive, deep := uint(0), uint(35), uint(36)
+	return append(rows,
+		models.Sidebar{ID: 35, SidebarParentID: &zero, SidebarNama: "Arsip Nonaktif", SidebarKode: "arsip_nonaktif", SidebarRoute: "#", SidebarIcon: "archive", SidebarIndex: 4, Status: 0},
+		models.Sidebar{ID: 36, SidebarParentID: &inactive, SidebarNama: "Anak Arsip Aktif", SidebarKode: "anak_arsip", SidebarRoute: "/anak_arsip", SidebarIcon: "folder", SidebarIndex: 36, Status: 1},
+		models.Sidebar{ID: 37, SidebarParentID: &zero, SidebarNama: "Referensi %_ Literal", SidebarKode: "literal_catalog", SidebarRoute: "/literal", SidebarIcon: "unknown-icon-reference", SidebarIndex: 37, Status: 1},
+		models.Sidebar{ID: 38, SidebarParentID: &deep, SidebarNama: "Detail Tingkat Tiga", SidebarKode: "detail_tingkat_tiga", SidebarRoute: "/detail_tiga", SidebarIndex: 38, Status: 1},
+	)
+}

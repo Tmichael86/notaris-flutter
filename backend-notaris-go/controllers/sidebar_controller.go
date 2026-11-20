@@ -3,7 +3,10 @@ package controllers
 import (
 	"errors"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
+	"unicode/utf8"
 
 	"backend-notaris-go/dto/response"
 	"backend-notaris-go/services"
@@ -13,6 +16,43 @@ import (
 )
 
 type SidebarController struct{ service *services.SidebarService }
+
+func (c *SidebarController) Catalog(ctx *gin.Context) {
+	q, queryError := url.ParseQuery(ctx.Request.URL.RawQuery)
+	if queryError != nil {
+		response.Error(ctx, 400, "Filter katalog tidak valid", nil)
+		return
+	}
+	for key, values := range q {
+		if !map[string]bool{"page": true, "page_size": true, "search": true, "status": true}[key] || len(values) != 1 {
+			response.Error(ctx, 400, "Filter katalog tidak valid", nil)
+			return
+		}
+	}
+	parse := func(key string, fallback, max int) (int, bool) {
+		raw, ok := q[key]
+		if !ok {
+			return fallback, true
+		}
+		n, e := strconv.Atoi(raw[0])
+		return n, e == nil && n >= 1 && n <= max
+	}
+	page, ok := parse("page", 1, 1000000)
+	size, valid := parse("page_size", 10, 50)
+	status := ctx.DefaultQuery("status", "all")
+	search := strings.TrimSpace(ctx.Query("search"))
+	if !ok || !valid || !utf8.ValidString(search) || strings.ContainsRune(search, 0) || utf8.RuneCountInString(search) > 200 || (status != "all" && status != "active" && status != "inactive") {
+		response.Error(ctx, 400, "Filter katalog tidak valid", nil)
+		return
+	}
+	out, err := c.service.Catalog(ctx.Request.Context(), page, size, search, status)
+	if err != nil {
+		response.Error(ctx, 500, "Katalog Sidebars belum dapat dimuat", nil)
+		return
+	}
+	ctx.Header("Cache-Control", "no-store")
+	response.Success(ctx, "Katalog Sidebars", out)
+}
 
 func NewSidebarController() *SidebarController {
 	return &SidebarController{service: services.NewSidebarService()}

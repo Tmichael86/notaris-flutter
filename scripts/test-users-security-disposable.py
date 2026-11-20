@@ -64,7 +64,11 @@ def main():
                 testenv['NOTARIS_USERS_V1_FLUTTER_E2E'] = '1'
                 testenv['NOTARIS_GROUPS_V1_FLUTTER_E2E'] = '1'
                 testenv['NOTARIS_GROUPS_V2_FLUTTER_E2E'] = '1'
-            run(['go', 'test', './routes', '-run', '^(TestUsersSecurity|TestGroupsV[12])', '-count=1', '-v'], testenv)
+            selection='^(TestUsersSecurity|TestGroupsV[12])'
+            if '--sidebars' in sys.argv:
+                testenv['NOTARIS_SIDEBARS_V1_FLUTTER_E2E']='1'
+                selection='^(TestSidebarsV1|TestGroupsV2|TestUsersSecurityHTTP)'
+            run(['go', 'test', './routes', '-run', selection, '-count=1', '-v'], testenv)
         finally:
             if (data / 'postmaster.pid').exists():
                 run([PG / 'pg_ctl.exe', 'stop', '-D', data, '-m', 'fast', '-w', '-t', '25'], env, True)

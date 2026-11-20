@@ -1,724 +1,381 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme/app_colors.dart';
+import '../core/widgets/sync_presentation.dart' show syncLocalTime;
 
-class SidebarDesktopScreen extends StatefulWidget {
+import '../core/theme/app_colors.dart';
+import '../core/widgets/master_data_viewport.dart';
+import '../core/widgets/promotional_preview.dart';
+import '../providers/auth_provider.dart';
+import '../providers/sidebar_catalog_provider.dart';
+import '../services/sidebar_api_service.dart';
+
+class SidebarDesktopScreen extends ConsumerStatefulWidget {
   const SidebarDesktopScreen({super.key});
-
   @override
-  State<SidebarDesktopScreen> createState() => _SidebarDesktopScreenState();
+  ConsumerState<SidebarDesktopScreen> createState() => _SidebarState();
 }
 
-class _SidebarDesktopScreenState extends State<SidebarDesktopScreen> {
-  final _tableScroll = ScrollController();
-  final TextEditingController _searchController = TextEditingController();
-
-  int _currentPage = 1;
-  final int _itemsPerPage = 8;
-  String _searchQuery = '';
-
-  final List<_SidebarItem> _items = [
-    _SidebarItem(
-      id: 1,
-      nama: 'Dashboard',
-      parent: '-',
-      route: '/dashboard',
-      kode: 'dashboard',
-      index: 1,
-      icon: 'dashboard',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 2,
-      nama: 'Transaksi',
-      parent: '-',
-      route: '#',
-      kode: 'transaksi',
-      index: 2,
-      icon: 'swap_horiz',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 3,
-      nama: 'Transaksi Notaris',
-      parent: 'Transaksi',
-      route: '/transaksi/notaris',
-      kode: 'transaksi-notaris',
-      index: 1,
-      icon: 'description',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 4,
-      nama: 'Transaksi PPAT',
-      parent: 'Transaksi',
-      route: '/transaksi/ppat',
-      kode: 'transaksi-ppat',
-      index: 2,
-      icon: 'description',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 5,
-      nama: 'Monitoring',
-      parent: '-',
-      route: '/monitoring',
-      kode: 'monitoring',
-      index: 3,
-      icon: 'monitor',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 6,
-      nama: 'Master',
-      parent: '-',
-      route: '#',
-      kode: 'master',
-      index: 4,
-      icon: 'folder',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 7,
-      nama: 'Pekerjaan Notaris',
-      parent: 'Master',
-      route: '/master/pekerjaan-notaris',
-      kode: 'pekerjaan-notaris',
-      index: 1,
-      icon: 'work',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 8,
-      nama: 'Pekerjaan PPAT',
-      parent: 'Master',
-      route: '/master/pekerjaan-ppat',
-      kode: 'pekerjaan-ppat',
-      index: 2,
-      icon: 'work',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 9,
-      nama: 'Kategori Pekerjaan',
-      parent: 'Master',
-      route: '/master/kategori-pekerjaan',
-      kode: 'kategori-pekerjaan',
-      index: 3,
-      icon: 'category',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 10,
-      nama: 'Jenis Pengeluaran',
-      parent: 'Master',
-      route: '/master/jenis-pengeluaran',
-      kode: 'jenis-pengeluaran',
-      index: 4,
-      icon: 'payments',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 11,
-      nama: 'Petugas',
-      parent: 'Master',
-      route: '/master/petugas',
-      kode: 'petugas',
-      index: 5,
-      icon: 'badge',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 12,
-      nama: 'Pemohon',
-      parent: 'Master',
-      route: '/master/pemohon',
-      kode: 'pemohon',
-      index: 6,
-      icon: 'person',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 13,
-      nama: 'Laporan',
-      parent: '-',
-      route: '#',
-      kode: 'laporan',
-      index: 5,
-      icon: 'assessment',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 14,
-      nama: 'Materai',
-      parent: 'Laporan',
-      route: '/laporan/materai',
-      kode: 'laporan-materai',
-      index: 1,
-      icon: 'receipt_long',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 15,
-      nama: 'Pendapatan',
-      parent: 'Laporan',
-      route: '/laporan/pendapatan',
-      kode: 'laporan-pendapatan',
-      index: 2,
-      icon: 'bar_chart',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 16,
-      nama: 'System',
-      parent: '-',
-      route: '#',
-      kode: 'system',
-      index: 6,
-      icon: 'settings',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 17,
-      nama: 'Pengguna',
-      parent: 'System',
-      route: '/system/users',
-      kode: 'users',
-      index: 1,
-      icon: 'people',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 18,
-      nama: 'Groups',
-      parent: 'System',
-      route: '/system/groups',
-      kode: 'groups',
-      index: 2,
-      icon: 'groups',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 19,
-      nama: 'Sidebar',
-      parent: 'System',
-      route: '/system/sidebars',
-      kode: 'sidebars',
-      index: 3,
-      icon: 'menu',
-      createdAt: '29/06/2026',
-    ),
-    _SidebarItem(
-      id: 20,
-      nama: 'Konfigurasi Umum',
-      parent: 'System',
-      route: '/system/konfigurasi',
-      kode: 'konfigurasi',
-      index: 4,
-      icon: 'tune',
-      createdAt: '29/06/2026',
-    ),
-  ];
-
-  List<_SidebarItem> get _filteredItems {
-    final query = _searchQuery.trim().toLowerCase();
-
-    if (query.isEmpty) {
-      return _items;
-    }
-
-    return _items.where((item) {
-      return item.nama.toLowerCase().contains(query) ||
-          item.parent.toLowerCase().contains(query) ||
-          item.route.toLowerCase().contains(query) ||
-          item.kode.toLowerCase().contains(query) ||
-          item.icon.toLowerCase().contains(query);
-    }).toList();
-  }
-
-  int get _totalPages {
-    final total = _filteredItems.length;
-    return total == 0 ? 1 : (total / _itemsPerPage).ceil();
-  }
-
-  List<_SidebarItem> get _pagedItems {
-    final items = _filteredItems;
-    final start = (_currentPage - 1) * _itemsPerPage;
-
-    if (start >= items.length) {
-      return [];
-    }
-
-    final end = (start + _itemsPerPage).clamp(0, items.length);
-    return items.sublist(start, end);
-  }
-
-  void _onSearch(String value) {
-    setState(() {
-      _searchQuery = value;
-      _currentPage = 1;
-    });
-  }
-
-  void _resetSearch() {
-    _searchController.clear();
-    setState(() {
-      _searchQuery = '';
-      _currentPage = 1;
-    });
-  }
-
+class _SidebarState extends ConsumerState<SidebarDesktopScreen> {
+  final search = TextEditingController(),
+      horizontal = ScrollController(),
+      vertical = ScrollController();
+  int page = 1;
+  String status = 'all', text = '';
+  SidebarCatalogQuery get query => (page: page, search: text, status: status);
+  void submit(String value) => setState(() {
+    text = value.trim();
+    page = 1;
+  });
   @override
   void dispose() {
-    _tableScroll.dispose();
-    _searchController.dispose();
+    search.dispose();
+    horizontal.dispose();
+    vertical.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isMobile = constraints.maxWidth < 700;
-
-        return SingleChildScrollView(
-          padding: EdgeInsets.all(isMobile ? 16 : 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(isMobile),
-              const SizedBox(height: 20),
-              _buildTableCard(isMobile),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildHeader(bool isMobile) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Sidebar',
-          style: TextStyle(
-            fontSize: isMobile ? 22 : 26,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
+    final session = ref.watch(authControllerProvider).session;
+    if (context.dependOnInheritedWidgetOfExactType<PromotionalPreview>() !=
+            null ||
+        !allowsSidebarCatalog(session)) {
+      return const Padding(
+        padding: EdgeInsets.all(28),
+        child: Text(
+          'Sidebars memerlukan sesi online yang valid dan izin baca Sidebars. Katalog offline tidak tersedia.',
         ),
-        const SizedBox(height: 6),
-        Text(
-          'System  >  Sidebar',
-          style: TextStyle(
-            fontSize: 13,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTableCard(bool isMobile) {
-    final rows = _pagedItems;
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(isMobile ? 14 : 20),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildToolbar(isMobile),
-          const SizedBox(height: 16),
-          const Divider(height: 1, color: AppColors.divider),
-          const SizedBox(height: 12),
-          if (rows.isEmpty)
-            _buildEmptyState()
-          else
-            _buildTable(),
-          const SizedBox(height: 16),
-          _buildFooter(rows.length, isMobile),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildToolbar(bool isMobile) {
-    final searchField = SizedBox(
-      width: isMobile ? double.infinity : 360,
-      child: TextField(
-        controller: _searchController,
-        onChanged: _onSearch,
-        decoration: InputDecoration(
-          hintText: 'Cari sidebar...',
-          prefixIcon: const Icon(Icons.search, size: 20),
-          suffixIcon: _searchQuery.isEmpty
-              ? null
-              : IconButton(
-                  tooltip: 'Reset',
-                  onPressed: _resetSearch,
-                  icon: const Icon(Icons.close, size: 19),
-                ),
-          filled: true,
-          fillColor: AppColors.background,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppColors.border),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppColors.border),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppColors.primary),
-          ),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 12,
-          ),
-        ),
-      ),
-    );
-
-    final count = Text(
-      '${_filteredItems.length} data',
-      style: const TextStyle(
-        fontSize: 13,
-        color: AppColors.textSecondary,
-      ),
-    );
-
-    if (isMobile) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          searchField,
-          const SizedBox(height: 12),
-          count,
-        ],
       );
     }
-
-    return Row(
-      children: [
-        searchField,
-        const Spacer(),
-        count,
-      ],
-    );
-  }
-
-  Widget _buildTable() {
-    return Scrollbar(
-      controller: _tableScroll,
-      thumbVisibility: true,
-      child: SingleChildScrollView(
-        controller: _tableScroll,
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowHeight: 46,
-          dataRowMinHeight: 54,
-          dataRowMaxHeight: 62,
-          columnSpacing: 24,
-          horizontalMargin: 8,
-          headingTextStyle: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
-          ),
-          dataTextStyle: const TextStyle(
-            fontSize: 13,
-            color: AppColors.textPrimary,
-          ),
-          columns: const [
-            DataColumn(label: Text('#')),
-            DataColumn(label: Text('Nama')),
-            DataColumn(label: Text('Parent')),
-            DataColumn(label: Text('Route')),
-            DataColumn(label: Text('Kode')),
-            DataColumn(label: Text('Index')),
-            DataColumn(label: Text('Icon')),
-            DataColumn(label: Text('Created At')),
-          ],
-          rows: _pagedItems.map((item) {
-            return DataRow(
-              cells: [
-                DataCell(Text(item.id.toString())),
-                DataCell(
+    final result = ref.watch(sidebarCatalogProvider(query));
+    return MasterDataViewport(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    item.nama,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    'Sidebars',
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600),
                   ),
-                ),
-                DataCell(_parentBadge(item.parent)),
-                DataCell(
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 210),
-                    child: Text(
-                      item.route,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                  Text(
+                    'System > Sidebars · Katalog online baca saja',
+                    style: TextStyle(color: AppColors.textSecondary),
                   ),
-                ),
-                DataCell(_codeBadge(item.kode)),
-                DataCell(Text(item.index.toString())),
-                DataCell(
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
+                ],
+              ),
+              OutlinedButton.icon(
+                key: const Key('sidebars-refresh'),
+                onPressed: () => ref.invalidate(sidebarCatalogProvider(query)),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Refresh'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: AppColors.border),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 10,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Icon(
-                        _iconFromName(item.icon),
-                        size: 18,
-                        color: AppColors.textSecondary,
+                      SizedBox(
+                        width: 300,
+                        child: TextField(
+                          key: const Key('sidebars-search'),
+                          controller: search,
+                          onSubmitted: submit,
+                          decoration: InputDecoration(
+                            labelText:
+                                'Cari nama, kode, route, parent, ikon atau ID',
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: IconButton(
+                              tooltip: 'Cari',
+                              onPressed: () => submit(search.text),
+                              icon: const Icon(Icons.arrow_forward),
+                            ),
+                          ),
+                        ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(item.icon),
+                      SizedBox(
+                        width: 175,
+                        child: DropdownButtonFormField<String>(
+                          key: const Key('sidebars-status'),
+                          initialValue: status,
+                          decoration: const InputDecoration(
+                            labelText: 'Status',
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'all',
+                              child: Text('Semua'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'active',
+                              child: Text('Aktif'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'inactive',
+                              child: Text('Nonaktif'),
+                            ),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) {
+                              setState(() {
+                                status = v;
+                                page = 1;
+                              });
+                            }
+                          },
+                        ),
+                      ),
+                      Text(
+                        result.asData == null
+                            ? 'Jumlah belum tersedia'
+                            : '${result.asData!.value.total} definisi',
+                      ),
                     ],
                   ),
-                ),
-                DataCell(Text(item.createdAt)),
-              ],
-            );
-          }).toList(),
-        ),
-      ),
-    );
-  }
-
-  Widget _parentBadge(String parent) {
-    final isRoot = parent == '-';
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 5,
-      ),
-      decoration: BoxDecoration(
-        color: isRoot
-            ? AppColors.selectedMenuBg
-            : AppColors.background,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        parent,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: isRoot
-              ? AppColors.primary
-              : AppColors.textSecondary,
-        ),
-      ),
-    );
-  }
-
-  Widget _codeBadge(String code) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 9,
-        vertical: 5,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        code,
-        style: const TextStyle(
-          fontSize: 12,
-          color: AppColors.textSecondary,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 50),
-      child: Center(
-        child: Column(
-          children: const [
-            Icon(
-              Icons.search_off,
-              size: 42,
-              color: AppColors.textMuted,
-            ),
-            SizedBox(height: 10),
-            Text(
-              'Data sidebar tidak ditemukan',
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 14,
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: result.when(
+                      skipLoadingOnRefresh: false,
+                      skipLoadingOnReload: false,
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (e, _) => Center(
+                        child: Text(
+                          sidebarCatalogError(e),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      data: (d) => d.items.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.menu_book_outlined,
+                                    size: 32,
+                                  ),
+                                  const Text(
+                                    'Tidak ada definisi Sidebars yang cocok.',
+                                  ),
+                                  if (page > 1)
+                                    TextButton(
+                                      onPressed: () => setState(() => page = 1),
+                                      child: const Text('Halaman pertama'),
+                                    ),
+                                ],
+                              ),
+                            )
+                          : MasterDataTableViewport(
+                              horizontalController: horizontal,
+                              verticalController: vertical,
+                              child: DataTable(
+                                headingRowColor: const WidgetStatePropertyAll(
+                                  Color(0xfff2f3f5),
+                                ),
+                                columnSpacing: 24,
+                                dataRowMinHeight: 56,
+                                dataRowMaxHeight: 66,
+                                columns: [
+                                  for (final label in [
+                                    'No.',
+                                    'Nama Menu',
+                                    'Parent',
+                                    'Route',
+                                    'Kode',
+                                    'Urutan',
+                                    'Ikon',
+                                    'Status',
+                                    'Dibuat Pada',
+                                  ])
+                                    DataColumn(label: Text(label)),
+                                ],
+                                rows: [
+                                  for (final (i, r) in d.items.indexed)
+                                    DataRow(
+                                      key: ValueKey('sidebar-${r.id}'),
+                                      cells: [
+                                        DataCell(
+                                          Text(
+                                            '${(d.page - 1) * d.pageSize + i + 1}',
+                                          ),
+                                        ),
+                                        DataCell(
+                                          SizedBox(
+                                            width: 180,
+                                            child: Column(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                _text(r.name),
+                                                Text(
+                                                  'ID ${r.id}',
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    color:
+                                                        AppColors.textSecondary,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          SizedBox(
+                                            width: 210,
+                                            child: _text(r.parentLabel),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          SizedBox(
+                                            width: 190,
+                                            child: _text(r.route),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          SizedBox(
+                                            width: 185,
+                                            child: _text(r.code),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          Text(r.order?.toString() ?? '—'),
+                                        ),
+                                        DataCell(
+                                          SizedBox(
+                                            width: 170,
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  sidebarReferenceIcon(r.icon),
+                                                  size: 18,
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Expanded(child: _text(r.icon)),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          Text(
+                                            r.statusLabel,
+                                            style: TextStyle(
+                                              color: r.status == 1
+                                                  ? AppColors.success
+                                                  : AppColors.textSecondary,
+                                            ),
+                                          ),
+                                        ),
+                                        DataCell(
+                                          SizedBox(
+                                            width: 215,
+                                            child: _text(
+                                              sidebarCatalogTimestamp(r),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                ],
+                              ),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          result.asData == null
+                              ? 'Halaman belum tersedia'
+                              : 'Halaman ${result.asData!.value.page} / ${result.asData!.value.totalPages} · ${result.asData!.value.total} definisi',
+                        ),
+                      ),
+                      IconButton(
+                        key: const Key('sidebars-previous'),
+                        tooltip: 'Halaman sebelumnya',
+                        onPressed:
+                            !result.isLoading &&
+                                result.asData != null &&
+                                page > 1
+                            ? () => setState(() => page--)
+                            : null,
+                        icon: const Icon(Icons.chevron_left),
+                      ),
+                      IconButton(
+                        key: const Key('sidebars-next'),
+                        tooltip: 'Halaman berikutnya',
+                        onPressed:
+                            !result.isLoading &&
+                                result.asData != null &&
+                                page < result.asData!.value.totalPages
+                            ? () => setState(() => page++)
+                            : null,
+                        icon: const Icon(Icons.chevron_right),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildFooter(int visibleCount, bool isMobile) {
-    final start = _filteredItems.isEmpty
-        ? 0
-        : ((_currentPage - 1) * _itemsPerPage) + 1;
-    final end = _filteredItems.isEmpty
-        ? 0
-        : start + visibleCount - 1;
-
-    return isMobile
-        ? Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Menampilkan $start-$end dari ${_filteredItems.length} data',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const SizedBox(height: 10),
-              _buildPagination(),
-            ],
-          )
-        : Row(
-            children: [
-              Text(
-                'Menampilkan $start-$end dari ${_filteredItems.length} data',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-              const Spacer(),
-              _buildPagination(),
-            ],
-          );
-  }
-
-  Widget _buildPagination() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _pageButton(
-          icon: Icons.chevron_left,
-          enabled: _currentPage > 1,
-          onPressed: () {
-            if (_currentPage > 1) {
-              setState(() => _currentPage--);
-            }
-          },
-        ),
-        const SizedBox(width: 6),
-        Container(
-          height: 36,
-          width: 36,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.primary,
-            borderRadius: BorderRadius.circular(7),
-          ),
-          child: Text(
-            '$_currentPage',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
-            ),
-          ),
-        ),
-        const SizedBox(width: 6),
-        _pageButton(
-          icon: Icons.chevron_right,
-          enabled: _currentPage < _totalPages,
-          onPressed: () {
-            if (_currentPage < _totalPages) {
-              setState(() => _currentPage++);
-            }
-          },
-        ),
-      ],
+  Widget _text(String? raw) {
+    final value = raw == null || raw.isEmpty ? '—' : raw;
+    return Tooltip(
+      message: value,
+      child: Text(value, maxLines: 2, overflow: TextOverflow.ellipsis),
     );
-  }
-
-  Widget _pageButton({
-    required IconData icon,
-    required bool enabled,
-    required VoidCallback onPressed,
-  }) {
-    return SizedBox(
-      height: 36,
-      width: 36,
-      child: OutlinedButton(
-        onPressed: enabled ? onPressed : null,
-        style: OutlinedButton.styleFrom(
-          padding: EdgeInsets.zero,
-          side: const BorderSide(color: AppColors.border),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(7),
-          ),
-        ),
-        child: Icon(
-          icon,
-          size: 19,
-          color: enabled
-              ? AppColors.textPrimary
-              : AppColors.textMuted,
-        ),
-      ),
-    );
-  }
-
-  IconData _iconFromName(String name) {
-    const icons = <String, IconData>{
-      'dashboard': Icons.dashboard_outlined,
-      'swap_horiz': Icons.swap_horiz,
-      'description': Icons.description_outlined,
-      'monitor': Icons.monitor_outlined,
-      'folder': Icons.folder_outlined,
-      'work': Icons.work_outline,
-      'category': Icons.category_outlined,
-      'payments': Icons.payments_outlined,
-      'badge': Icons.badge_outlined,
-      'person': Icons.person_outline,
-      'assessment': Icons.assessment_outlined,
-      'receipt_long': Icons.receipt_long_outlined,
-      'bar_chart': Icons.bar_chart_outlined,
-      'settings': Icons.settings_outlined,
-      'people': Icons.people_outline,
-      'groups': Icons.groups_outlined,
-      'menu': Icons.menu,
-      'tune': Icons.tune,
-    };
-
-    return icons[name] ?? Icons.circle_outlined;
   }
 }
 
-class _SidebarItem {
-  final int id;
-  final String nama;
-  final String parent;
-  final String route;
-  final String kode;
-  final int index;
-  final String icon;
-  final String createdAt;
-
-  const _SidebarItem({
-    required this.id,
-    required this.nama,
-    required this.parent,
-    required this.route,
-    required this.kode,
-    required this.index,
-    required this.icon,
-    required this.createdAt,
-  });
+// Display-only references; unknown values retain their exact raw label.
+String sidebarCatalogTimestamp(SidebarCatalogItem r) {
+  if (r.createdAtRaw == null) {
+    return 'Belum tersedia';
+  }
+  if (RegExp(r'(Z|[+-][0-9]{2}:[0-9]{2})$').hasMatch(r.createdAtRaw!)) {
+    return syncLocalTime(r.createdAt);
+  }
+  return '${r.createdAtRaw!.replaceFirst('T', ' ')} · tanpa zona waktu';
 }
+
+IconData sidebarReferenceIcon(String? name) => switch (name) {
+  'folder' || 'fa-folder' => Icons.folder_outlined,
+  'people' || 'fa-users' => Icons.people_outline,
+  'groups' => Icons.groups_outlined,
+  'menu' || 'fa-bars' => Icons.menu,
+  'badge' => Icons.badge_outlined,
+  'person' || 'fa-user' => Icons.person_outline,
+  'archive' => Icons.archive_outlined,
+  _ => Icons.help_outline,
+};
