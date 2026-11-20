@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -315,17 +316,52 @@ func (a *AdministrationController) Grants(c *gin.Context) {
 		return
 	}
 	var input struct {
-		Revision int64                       `json:"expected_revision"`
-		Access   []request.SidebarAccessItem `json:"access"`
+		Revision int64           `json:"expected_revision"`
+		Catalog  string          `json:"catalog_fingerprint"`
+		Access   json.RawMessage `json:"access"`
 	}
 	if !a.decode(c, &input) {
 		return
 	}
-	if err := a.service.Grants(c.Request.Context(), adminActor(c), id, input.Revision, input.Access); err != nil {
+	var raw []struct {
+		ID     *uint  `json:"sidebar_id"`
+		Read   *int16 `json:"read"`
+		Create *int16 `json:"create"`
+		Update *int16 `json:"update"`
+		Delete *int16 `json:"delete"`
+	}
+	d := json.NewDecoder(bytes.NewReader(input.Access))
+	d.DisallowUnknownFields()
+	if len(input.Catalog) != 64 || d.Decode(&raw) != nil || raw == nil {
+		a.reject(c, "invalid_grants")
+		return
+	}
+	items := make([]request.SidebarAccessItem, 0, len(raw))
+	for _, r := range raw {
+		if r.ID == nil || r.Read == nil || r.Create == nil || r.Update == nil || r.Delete == nil {
+			a.reject(c, "invalid_grants")
+			return
+		}
+		items = append(items, request.SidebarAccessItem{SidebarID: *r.ID, Read: *r.Read, Create: *r.Create, Update: *r.Update, Delete: *r.Delete})
+	}
+	if err := a.service.Grants(c.Request.Context(), adminActor(c), id, input.Revision, items, input.Catalog); err != nil {
 		adminResponse(c, err)
 		return
 	}
 	adminOK(c, 200, nil)
+}
+
+func (a *AdministrationController) GroupAccess(c *gin.Context) {
+	id, ok := a.id(c)
+	if !ok {
+		return
+	}
+	snapshot, e := a.service.GroupAccess(c.Request.Context(), adminActor(c), id)
+	if e != nil {
+		adminResponse(c, e)
+		return
+	}
+	adminOK(c, 200, snapshot)
 }
 
 // Deliberately not a Users listing: a single active reference, no credentials,

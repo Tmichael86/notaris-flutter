@@ -158,7 +158,7 @@ func SetupRouter(
 			groups.POST("", middleware.JWTAuth(cfg), admin.Guard("groups", "create"), admin.Group)
 			groups.PUT("/:id", middleware.JWTAuth(cfg), admin.Guard("groups", "update"), admin.Group)
 			groups.DELETE("/:id", middleware.JWTAuth(cfg), admin.Guard("groups", "delete"), admin.Group)
-			groups.GET("/:id/sidebar-access", middleware.JWTAuth(cfg), admin.Guard("groups", "read"), sidebarAccessController.GetByGroup)
+			groups.GET("/:id/sidebar-access", middleware.JWTAuth(cfg), admin.Guard("groups", "read"), admin.GroupAccess)
 			groups.PUT("/:id/sidebar-access", middleware.JWTAuth(cfg), admin.Guard("groups", "update"), admin.Grants)
 		}
 		sidebars := v1.Group("/sidebars")

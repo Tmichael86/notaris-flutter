@@ -34,7 +34,7 @@ provisioners/DB owners must not be exposed as request writers.
 | DELETE `/users/:id` | Users DELETE; body `{ "expected_revision": n }`; soft deactivate only |
 | POST `/users/:id/password-reset` | Users UPDATE; expected_revision, password, password_confirm |
 | GET/POST/PUT/DELETE `/groups` or `/groups/:id` | Strict Groups action; bounded listing/current detail; ordinary lifecycle only, Superadmin targets protected; revision and deactivation membership confirmation required; see [Groups V1](GROUPS_MANAGEMENT_V1.md) |
-| PUT `/groups/:id/sidebar-access` | Strict Groups UPDATE; expected_revision and access array; atomic replacement |
+| PUT `/groups/:id/sidebar-access` | Strict Groups UPDATE; active ordinary target, expected_revision/catalog_fingerprint and complete explicit editable access array; atomic reconciliation preserving hidden grants; see [Groups V2](GROUPS_MANAGEMENT_V2.md) |
 | GET `/petugas/references/users/:id` | Petugas READ; one active user/group reference, **only id/status**, no Users listing |
 
 Requests are bounded to 32 KiB and unknown administration fields are rejected.

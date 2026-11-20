@@ -49,6 +49,35 @@ class AuthController extends StateNotifier<AuthState> {
 
   final AuthService _service;
 
+  bool _refreshingPermissions = false;
+  Future<void> refreshCurrentPermissions() async {
+    if (_refreshingPermissions) return;
+    final before = state.session;
+    if (before == null) {
+      throw const AuthException(
+        'Sesi online diperlukan untuk memuat ulang izin.',
+      );
+    }
+    _refreshingPermissions = true;
+    try {
+      final next = await _service.refreshPermissions(before.token);
+      if (mounted && state.session?.token == before.token) {
+        state = AuthState.authenticated(next);
+      }
+    } catch (e) {
+      if (mounted && state.session?.token == before.token) {
+        if (_service.isUnauthorized(e)) {
+          await logout();
+        } else {
+          state = AuthState.authenticated(before.asOffline());
+        }
+      }
+      rethrow;
+    } finally {
+      _refreshingPermissions = false;
+    }
+  }
+
   Future<void> handleApiRejection(int status, String requestToken) async {
     if (state.session?.token != requestToken) return;
     if (status == 401) {

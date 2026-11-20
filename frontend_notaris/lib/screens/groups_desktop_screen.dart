@@ -13,6 +13,7 @@ import '../providers/auth_provider.dart';
 import '../providers/groups_provider.dart';
 import '../providers/pekerjaan_provider.dart' show groupApiServiceProvider;
 import '../services/group_api_service.dart';
+import '../widgets/group_access_dialog.dart';
 
 class GroupsDesktopScreen extends ConsumerStatefulWidget {
   const GroupsDesktopScreen({super.key});
@@ -71,23 +72,43 @@ class _GroupsState extends ConsumerState<GroupsDesktopScreen> {
       }
       setState(() => fetching = false);
       var dirty = false, busy = false;
-      final committed = await showEditDialog<bool>(
-        context: context,
-        dirty: () => dirty,
-        saving: () => busy,
-        discardBackgroundColor: Colors.white,
-        builder: (_) => _GroupEditor(
-          mode: mode,
-          record: current,
-          activity: (d, b) {
-            dirty = d;
-            busy = b;
-          },
-        ),
-      );
+      final committed = mode == 'access'
+          ? await showGroupAccessDialog(context, current!.id)
+          : await showEditDialog<bool>(
+              context: context,
+              dirty: () => dirty,
+              saving: () => busy,
+              discardBackgroundColor: Colors.white,
+              builder: (_) => _GroupEditor(
+                mode: mode,
+                record: current,
+                activity: (d, b) {
+                  dirty = d;
+                  busy = b;
+                },
+              ),
+            );
       if (!mounted) return;
       refresh(first: true);
       if (committed == true) {
+        if (mode == 'access') {
+          try {
+            await ref
+                .read(authControllerProvider.notifier)
+                .refreshCurrentPermissions();
+          } catch (_) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Akses tersimpan di server; muat ulang izin sesi belum berhasil.',
+                ),
+              ),
+            );
+            return;
+          }
+          if (!mounted) return;
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Perubahan Groups dikonfirmasi oleh server.'),
@@ -389,6 +410,22 @@ class _GroupsState extends ConsumerState<GroupsDesktopScreen> {
                                           : Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
+                                                if (allowsGroups(
+                                                  session,
+                                                  'update',
+                                                ))
+                                                  IconButton(
+                                                    tooltip:
+                                                        'Atur Akses ${r.groupNama}',
+                                                    onPressed: !dialog
+                                                        ? () =>
+                                                              open('access', r)
+                                                        : null,
+                                                    icon: const Icon(
+                                                      Icons
+                                                          .admin_panel_settings_outlined,
+                                                    ),
+                                                  ),
                                                 IconButton(
                                                   tooltip:
                                                       'Ubah nama ${r.groupNama}',

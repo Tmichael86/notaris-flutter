@@ -63,7 +63,8 @@ def main():
             if '--flutter' in sys.argv:
                 testenv['NOTARIS_USERS_V1_FLUTTER_E2E'] = '1'
                 testenv['NOTARIS_GROUPS_V1_FLUTTER_E2E'] = '1'
-            run(['go', 'test', './routes', '-run', '^(TestUsersSecurity|TestGroupsV1)', '-count=1', '-v'], testenv)
+                testenv['NOTARIS_GROUPS_V2_FLUTTER_E2E'] = '1'
+            run(['go', 'test', './routes', '-run', '^(TestUsersSecurity|TestGroupsV[12])', '-count=1', '-v'], testenv)
         finally:
             if (data / 'postmaster.pid').exists():
                 run([PG / 'pg_ctl.exe', 'stop', '-D', data, '-m', 'fast', '-w', '-t', '25'], env, True)

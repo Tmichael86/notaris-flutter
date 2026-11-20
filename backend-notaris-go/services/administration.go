@@ -456,11 +456,14 @@ func (a Administration) GroupChange(ctx context.Context, actor AdminActor, input
 	})
 }
 
-func (a Administration) Grants(ctx context.Context, actor AdminActor, id uint, revision int64, items []request.SidebarAccessItem) error {
+func (a Administration) Grants(ctx context.Context, actor AdminActor, id uint, revision int64, items []request.SidebarAccessItem, catalog ...string) error {
 	return a.Mutate(ctx, actor, "groups", "update", "group_grants", "group", id, func(tx *gorm.DB) (any, any, error) {
 		var group models.Group
 		if e := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&group, id).Error; e != nil || group.Status != 1 {
 			return nil, nil, adminError(404, "group_unavailable")
+		}
+		if group.GroupJenis != "user" {
+			return nil, nil, adminError(403, "protected_group")
 		}
 		if revision < 1 || group.Revision != revision {
 			return nil, nil, adminError(409, "stale_revision")
@@ -468,9 +471,27 @@ func (a Administration) Grants(ctx context.Context, actor AdminActor, id uint, r
 		if len(items) > 1000 {
 			return nil, nil, adminError(400, "invalid_grants")
 		}
-		var before []models.SidebarAccess
-		if e := tx.Where("group_id=?", id).Order("sidebar_id").Find(&before).Error; e != nil {
+		// SELECT-level lock excludes destructive DDL without granting metadata
+		// UPDATE to this runtime. No metadata writer is exposed; any future one
+		// must take AdminLock. Uncoordinated external DML must be prohibited.
+		if e := tx.Exec("LOCK TABLE sidebar IN ACCESS SHARE MODE").Error; e != nil {
 			return nil, nil, e
+		}
+		snapshot, e := accessSnapshot(tx, id)
+		if e != nil {
+			return nil, nil, e
+		}
+		if len(catalog) != 1 || catalog[0] != snapshot.Catalog {
+			return nil, nil, adminError(409, "stale_catalog")
+		}
+		editable := map[uint]bool{}
+		for _, r := range snapshot.Entries {
+			if r.Editable {
+				editable[r.Sidebar.ID] = true
+			}
+		}
+		if items == nil || len(items) != len(editable) {
+			return nil, nil, adminError(400, "incomplete_grants")
 		}
 		seen := map[uint]bool{}
 		for _, item := range items {
@@ -479,26 +500,30 @@ func (a Administration) Grants(ctx context.Context, actor AdminActor, id uint, r
 				return nil, nil, adminError(400, "invalid_grants")
 			}
 			seen[item.SidebarID] = true
-			var count int64
-			if e := tx.Model(&models.Sidebar{}).Where("id=? AND status=1", item.SidebarID).Count(&count).Error; e != nil {
-				return nil, nil, e
-			}
-			if count != 1 {
+			if !editable[item.SidebarID] {
 				return nil, nil, adminError(422, "invalid_reference")
 			}
 		}
-		if e := tx.Where("group_id=?", id).Delete(&models.SidebarAccess{}).Error; e != nil {
-			return nil, nil, e
-		}
+		// Reconcile only the server-derived editable set. Hidden/inactive grants
+		// retain their PK, flags and provenance; never echo them from the client.
 		for _, item := range items {
 			if e := tx.Exec(`INSERT INTO sidebar_akses(group_id,sidebar_id,"read","create","update","delete",created_by,updated_by,created_at,updated_at)
-       VALUES(?,?,?,?,?,?,?,?,now(),now())`, id, item.SidebarID, item.Read, item.Create, item.Update, item.Delete, actor.ID, actor.ID).Error; e != nil {
+       VALUES(?,?,?,?,?,?,?,?,now(),now()) ON CONFLICT(group_id,sidebar_id) DO UPDATE SET
+       "read"=excluded."read","create"=excluded."create","update"=excluded."update","delete"=excluded."delete",
+       updated_by=excluded.updated_by,updated_at=excluded.updated_at`, id, item.SidebarID, item.Read, item.Create, item.Update, item.Delete, actor.ID, actor.ID).Error; e != nil {
 				return nil, nil, e
 			}
 		}
 		if e := tx.Model(&models.Group{}).Where("id=?", id).UpdateColumn("revision", gorm.Expr("revision+1")).Error; e != nil {
 			return nil, nil, e
 		}
-		return before, items, nil
+		after, e := accessSnapshot(tx, id)
+		if e != nil {
+			return nil, nil, e
+		}
+		if after.Catalog != snapshot.Catalog {
+			return nil, nil, adminError(409, "stale_catalog")
+		}
+		return snapshot, after, nil
 	})
 }

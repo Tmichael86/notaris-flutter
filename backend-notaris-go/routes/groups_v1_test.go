@@ -14,7 +14,6 @@ import (
 	"backend-notaris-go/config"
 	"backend-notaris-go/controllers"
 	"backend-notaris-go/database"
-	"backend-notaris-go/dto/request"
 	"backend-notaris-go/models"
 	"backend-notaris-go/services"
 	"github.com/gin-gonic/gin"
@@ -186,6 +185,7 @@ func TestGroupsV1Concurrency(t *testing.T) {
 	for _, race := range []string{"rename", "deactivate", "assignment", "grants"} {
 		t.Run(race, func(t *testing.T) {
 			f := usersSetup(t)
+			state := accessState(t, f, 2)
 			s := services.Administration{DB: f.db, Enabled: true}
 			if race == "assignment" {
 				f.db.Exec("UPDATE users SET group_id=4 WHERE id=5")
@@ -205,7 +205,7 @@ func TestGroupsV1Concurrency(t *testing.T) {
 					_, e := s.SaveUser(context.Background(), actor(1), models.User{ID: 5, GroupID: 2, Username: "user5", Email: "user5@example.invalid", Nama: "Assigned"}, 1, "")
 					ch <- e
 				case "grants":
-					ch <- s.Grants(context.Background(), actor(1), 2, 1, []request.SidebarAccessItem{{SidebarID: 4, Read: 1}})
+					ch <- s.Grants(context.Background(), actor(1), 2, 1, accessItems(state, 4), state.Catalog)
 				}
 			}()
 			a, b := <-ch, <-ch

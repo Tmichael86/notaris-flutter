@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/auth_session.dart';
+import '../../providers/auth_provider.dart';
 import '../../screens/dashboard_desktop_screen.dart';
 import '../../screens/groups_desktop_screen.dart';
 import '../../screens/jenis_pengeluaran_desktop_screen.dart';
@@ -47,6 +48,35 @@ class _AppShellState extends State<AppShell> {
   static const String logoImage = 'assets/images/logo_notaris_ppat.png';
 
   String selectedMenu = 'Dashboard';
+  bool _refreshingPermissions = false;
+  Future<void> _refreshPermissions() async {
+    if (_refreshingPermissions) return;
+    setState(() => _refreshingPermissions = true);
+    try {
+      await ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(authControllerProvider.notifier).refreshCurrentPermissions();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Izin akun dimuat ulang dari server.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Izin belum dapat diverifikasi. Periksa koneksi atau login kembali.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _refreshingPermissions = false);
+    }
+  }
+
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   final masterMenus = const [
@@ -207,6 +237,10 @@ class _AppShellState extends State<AppShell> {
               ),
             ),
             onSelected: (value) {
+              if (value == 'refresh-permissions') {
+                _refreshPermissions();
+                return;
+              }
               if (value == 'logout') {
                 final logout = widget.onLogout;
                 if (logout != null) {
@@ -221,10 +255,16 @@ class _AppShellState extends State<AppShell> {
                 }
               }
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'profile', child: Text('Profile')),
-              PopupMenuDivider(),
-              PopupMenuItem(
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'profile', child: Text('Profile')),
+              if (widget.session != null)
+                PopupMenuItem(
+                  value: 'refresh-permissions',
+                  enabled: !_refreshingPermissions,
+                  child: const Text('Muat Ulang Izin'),
+                ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
                 value: 'logout',
                 child: Text('Keluar', style: TextStyle(color: AppColors.error)),
               ),

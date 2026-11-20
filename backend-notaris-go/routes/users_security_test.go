@@ -360,10 +360,13 @@ func TestUsersSecurityAtomic(t *testing.T) {
 		if target == 0 {
 			t.Fatal("missing group audit identity")
 		}
-		if err := s.Grants(context.Background(), actor(1), 2, 1, []request.SidebarAccessItem{{SidebarID: 4, Read: 1}}); err != nil {
+		if err := grantOnce(t, f, 2, 4); err != nil {
 			t.Fatal(err)
 		}
-		f.req(t, "PUT", "/groups/2/sidebar-access", 1, map[string]any{"expected_revision": 1, "access": []any{}}, 409)
+		state := accessState(t, f, 2)
+		body := grantBody(state, accessItems(state, 4))
+		body["expected_revision"] = 1
+		f.req(t, "PUT", "/groups/2/sidebar-access", 1, body, 409)
 		if err := services.NewUserService().Deactivate(&models.User{ID: 1}, 1); err == nil {
 			t.Fatal("legacy bypass")
 		}
@@ -421,7 +424,7 @@ func TestUsersSecurityAtomic(t *testing.T) {
 		f := usersSetup(t)
 		s := services.Administration{DB: f.db, Enabled: true}
 		assertCode(t, s.GroupChange(context.Background(), actor(1), models.Group{ID: 1}, 1, true), "protected_group")
-		assertCode(t, s.Grants(context.Background(), actor(1), 1, 1, nil), "last_recovery_administrator")
+		assertCode(t, s.Grants(context.Background(), actor(1), 1, 1, nil), "protected_group")
 		assertCode(t, s.GroupChange(context.Background(), actor(1), models.Group{ID: 2, GroupNama: "Escalate", GroupJenis: "superadmin"}, 1, false), "privileged_transition_blocked")
 		var count int64
 		f.db.Table("administrative_audit").Where("result='denied'").Count(&count)
@@ -454,9 +457,8 @@ func TestUsersSecurityAtomic(t *testing.T) {
 		go func() { ch <- s.GroupChange(context.Background(), actor(1), models.Group{ID: 5}, 1, true) }()
 		go func() { ch <- s.Grants(context.Background(), actor(2), 1, 1, []request.SidebarAccessItem{}) }()
 		a, b := <-ch, <-ch
-		if (a == nil) == (b == nil) {
-			t.Fatalf("must preserve exactly one recovery: %v %v", a, b)
-		}
+		assertCode(t, a, "protected_group")
+		assertCode(t, b, "protected_group")
 	})
 }
 
