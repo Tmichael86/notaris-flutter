@@ -420,7 +420,7 @@ func TestUsersSecurityAtomic(t *testing.T) {
 	t.Run("groups grants and audit rollback", func(t *testing.T) {
 		f := usersSetup(t)
 		s := services.Administration{DB: f.db, Enabled: true}
-		assertCode(t, s.GroupChange(context.Background(), actor(1), models.Group{ID: 1}, 1, true), "last_recovery_administrator")
+		assertCode(t, s.GroupChange(context.Background(), actor(1), models.Group{ID: 1}, 1, true), "protected_group")
 		assertCode(t, s.Grants(context.Background(), actor(1), 1, 1, nil), "last_recovery_administrator")
 		assertCode(t, s.GroupChange(context.Background(), actor(1), models.Group{ID: 2, GroupNama: "Escalate", GroupJenis: "superadmin"}, 1, false), "privileged_transition_blocked")
 		var count int64

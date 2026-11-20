@@ -295,14 +295,15 @@ func (a *AdministrationController) Group(c *gin.Context) {
 		}
 	}
 	var input struct {
-		Name     string `json:"group_nama"`
-		Kind     string `json:"group_jenis"`
-		Revision int64  `json:"expected_revision"`
+		Name       string `json:"group_nama"`
+		Kind       string `json:"group_jenis"`
+		Revision   int64  `json:"expected_revision"`
+		Membership string `json:"expected_membership"`
 	}
 	if !a.decode(c, &input) {
 		return
 	}
-	if err := a.service.GroupChange(c.Request.Context(), adminActor(c), models.Group{ID: id, GroupNama: input.Name, GroupJenis: input.Kind}, input.Revision, c.Request.Method == http.MethodDelete); err != nil {
+	if err := a.service.GroupChange(c.Request.Context(), adminActor(c), models.Group{ID: id, GroupNama: input.Name, GroupJenis: input.Kind}, input.Revision, c.Request.Method == http.MethodDelete, input.Membership); err != nil {
 		adminResponse(c, err)
 		return
 	}

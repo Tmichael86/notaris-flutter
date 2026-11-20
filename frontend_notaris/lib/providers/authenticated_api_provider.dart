@@ -61,8 +61,7 @@ void installAuthenticatedSessionInterceptor(
         final administrative =
             path == '/users' ||
             path.startsWith('/users/') ||
-            ((path == '/groups' || path.startsWith('/groups/')) &&
-                options.method != 'GET');
+            (path == '/groups' || path.startsWith('/groups/'));
         if (administrative && session?.canUseOnlineAdministration != true) {
           handler.reject(
             DioException(

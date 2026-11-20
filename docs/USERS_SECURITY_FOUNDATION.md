@@ -8,7 +8,7 @@ account or deployment any access. The recorded promotional profile remains isola
 ## Authorization and supported operations
 
 `USERS_SECURITY_ENABLED=false` is the default. It blocks Users administration
-(including listing), Groups mutations and grant replacement with HTTP 503.
+(including listing), Groups administration (including read) and grant replacement with HTTP 503.
 There is no fallback to the old unversioned writers. Ordinary login and existing
 local-first operations remain available before the coordinated JWT cutover.
 
@@ -16,7 +16,7 @@ When enabled, Users READ/CREATE/UPDATE/DELETE require the current active backend
 user, current active Group with exact `group_jenis=superadmin`, a matching token
 security version, and exactly one active canonical `users` grant. READ plus the
 requested action must be 1. No display name, account ID or JWT group label grants
-authority. Groups mutations use the same role check and the `groups` action.
+authority. Groups administrative reads/mutations use the same role check and the `groups` action.
 Ambiguous duplicate grants fail closed; they are never merged permissively.
 
 All registered Users/Groups/grant writers use `services.Administration`. The old
@@ -33,7 +33,7 @@ provisioners/DB owners must not be exposed as request writers.
 | PUT `/users/:id` | Users UPDATE; same profile fields, required expected_revision; no password/status/role/audit fields |
 | DELETE `/users/:id` | Users DELETE; body `{ "expected_revision": n }`; soft deactivate only |
 | POST `/users/:id/password-reset` | Users UPDATE; expected_revision, password, password_confirm |
-| POST/PUT/DELETE `/groups` or `/groups/:id` | Strict Groups action; creation ordinary only, edits cannot change classification; existing writes require expected_revision |
+| GET/POST/PUT/DELETE `/groups` or `/groups/:id` | Strict Groups action; bounded listing/current detail; ordinary lifecycle only, Superadmin targets protected; revision and deactivation membership confirmation required; see [Groups V1](GROUPS_MANAGEMENT_V1.md) |
 | PUT `/groups/:id/sidebar-access` | Strict Groups UPDATE; expected_revision and access array; atomic replacement |
 | GET `/petugas/references/users/:id` | Petugas READ; one active user/group reference, **only id/status**, no Users listing |
 

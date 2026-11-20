@@ -62,7 +62,8 @@ def main():
                        f'host=127.0.0.1 port={PORT} user=postgres password={password} dbname=users_security_disposable sslmode=disable'}
             if '--flutter' in sys.argv:
                 testenv['NOTARIS_USERS_V1_FLUTTER_E2E'] = '1'
-            run(['go', 'test', './routes', '-run', '^TestUsersSecurity', '-count=1', '-v'], testenv)
+                testenv['NOTARIS_GROUPS_V1_FLUTTER_E2E'] = '1'
+            run(['go', 'test', './routes', '-run', '^(TestUsersSecurity|TestGroupsV1)', '-count=1', '-v'], testenv)
         finally:
             if (data / 'postmaster.pid').exists():
                 run([PG / 'pg_ctl.exe', 'stop', '-D', data, '-m', 'fast', '-w', '-t', '25'], env, True)

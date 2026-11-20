@@ -391,7 +391,7 @@ func (a Administration) UserSecurity(ctx context.Context, actor AdminActor, id u
 	})
 }
 
-func (a Administration) GroupChange(ctx context.Context, actor AdminActor, input models.Group, revision int64, remove bool) error {
+func (a Administration) GroupChange(ctx context.Context, actor AdminActor, input models.Group, revision int64, remove bool, expectedMembership ...string) error {
 	permission, action := "update", "group_update"
 	if input.ID == 0 {
 		permission, action = "create", "group_create"
@@ -399,6 +399,7 @@ func (a Administration) GroupChange(ctx context.Context, actor AdminActor, input
 	if remove {
 		permission, action = "delete", "group_deactivate"
 	}
+	input.GroupNama = strings.TrimSpace(input.GroupNama)
 	return a.Mutate(ctx, actor, "groups", permission, action, "group", input.ID, func(tx *gorm.DB) (any, any, error) {
 		if input.ID == 0 {
 			if input.GroupJenis != "user" || strings.TrimSpace(input.GroupNama) == "" || len(input.GroupNama) > 160 {
@@ -408,17 +409,30 @@ func (a Administration) GroupChange(ctx context.Context, actor AdminActor, input
 			var createdID uint
 			err := tx.Raw(`INSERT INTO groups(group_nama,group_jenis,status,created_by,created_at,updated_at)
               VALUES(?,'user',1,?,?,?) RETURNING id`, strings.TrimSpace(input.GroupNama), actor.ID, now, now).Scan(&createdID).Error
-			return nil, map[string]any{"id": createdID, "name": strings.TrimSpace(input.GroupNama), "kind": "user"}, err
+			return nil, map[string]any{"id": createdID, "name": strings.TrimSpace(input.GroupNama), "kind": "user", "status": 1, "revision": 1}, err
 		}
 		var before models.Group
 		if e := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&before, input.ID).Error; e != nil {
 			return nil, nil, adminError(404, "group_unavailable")
+		}
+		if before.GroupJenis == "superadmin" {
+			return nil, nil, adminError(403, "protected_group")
+		}
+		if before.GroupJenis != "user" || before.Status != 1 {
+			return nil, nil, adminError(409, "group_inactive")
 		}
 		if revision < 1 || revision != before.Revision {
 			return nil, nil, adminError(409, "stale_revision")
 		}
 		changes := map[string]any{"revision": gorm.Expr("revision+1"), "updated_at": time.Now(), "updated_by": actor.ID}
 		if remove {
+			var membership string
+			if e := tx.Raw("SELECT "+GroupMembershipSQL+" FROM users m WHERE m.group_id=?", input.ID).Scan(&membership).Error; e != nil {
+				return nil, nil, e
+			}
+			if len(expectedMembership) != 1 || expectedMembership[0] != membership {
+				return nil, nil, adminError(409, "membership_changed")
+			}
 			changes["status"] = 0
 		} else {
 			if input.GroupJenis != before.GroupJenis || strings.TrimSpace(input.GroupNama) == "" || len(input.GroupNama) > 160 {
