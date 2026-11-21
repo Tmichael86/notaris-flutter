@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -227,18 +228,19 @@ func (a Administration) Reject(actor AdminActor, kind, action string, err error)
 // approved migration and a real recovery administrator already in the database.
 func (a Administration) Ready(ctx context.Context) error {
 	if !a.Enabled {
-		return nil
+		return adminError(503, "admin_security_not_enabled")
 	}
-	var count int64
-	if err := a.DB.WithContext(ctx).Raw(`SELECT count(*) FROM information_schema.columns
- WHERE table_schema=current_schema() AND ((table_name='users' AND column_name IN ('revision','security_version'))
- OR (table_name='groups' AND column_name='revision'))`).Scan(&count).Error; err != nil || count != 3 {
+	if a.DB == nil {
 		return adminError(503, "security_schema_required")
 	}
-	if !a.DB.Migrator().HasTable("administrative_audit") {
-		return adminError(503, "security_schema_required")
-	}
-	return adminSafeRead(a.recovery(a.DB.WithContext(ctx)))
+	return a.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := usersSecuritySchema(tx); err != nil {
+			return err
+		}
+		// A schema alone is not login/recovery readiness. Preserve the existing
+		// active, explicitly granted administrator and usable bcrypt-hash check.
+		return adminSafeRead(a.recovery(tx))
+	}, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
 }
 func adminSafeRead(err error) error {
 	if err == nil {

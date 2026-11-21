@@ -80,6 +80,11 @@ def main():
                 testenv['NOTARIS_SYNC_TEST_DSN'] = testenv['NOTARIS_USERS_SECURITY_TEST_DSN']
                 selection = '^(TestH04|TestPetugasSyncHTTPPostgres|TestPetugasSyncPostgres|TestPetugasConcurrentCreatePostgres|TestMutationFingerprint|TestPetugasVersionRules|TestUsersSecurityHTTP|TestGroupsV2Revocation)'
                 packages = ['./routes', './repositories']
+            if '--h05' in sys.argv:
+                # Go-only startup/schema/auth regressions; never opt into Flutter
+                # launchers or any existing PostgreSQL target.
+                selection = '^(TestH05|TestPublicationEnvironmentConfiguration|TestUsersSecurity(HTTP|Atomic|MigrationGuards|ListingV1)$|TestGroupsV(1(Authorization|Listing|Lifecycle|Concurrency|ExplicitGrants)|2(SnapshotAndPreservation|Payload|AuthorizationAndConflicts|RevocationAndRollback|ConcurrentSnapshots|SnapshotConsistency|EmptyCatalogAndCommitRecheck|GroupIsolationAndAmbiguity|ParentSemanticsAndWriters))$|TestH04(Repository|HTTP|Concurrent|Permission|Selective|Invalid|Strict|Canonical|Retry))'
+                packages = ['./config', './cmd', './routes', './services']
             run(['go', 'test', *packages, '-run', selection, '-count=1', '-v'], testenv)
         finally:
             if (data / 'postmaster.pid').exists():
