@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'dart:convert';
 import 'dart:ffi' show DynamicLibrary;
 import 'dart:io';
@@ -148,10 +150,14 @@ void main() {
             ],
           );
           final jobId = notaris
-              ? await PekerjaanNotarisRepository(db.pekerjaanDao)
-                    .createAggregate(input: master)
-              : await PekerjaanPpatRepository(db.pekerjaanDao)
-                    .createAggregate(input: master);
+              ? await PekerjaanNotarisRepository(
+                  db.pekerjaanDao,
+                  authorization: masterTestAuthority(db),
+                ).createAggregate(input: master)
+              : await PekerjaanPpatRepository(
+                  db.pekerjaanDao,
+                  authorization: masterTestAuthority(db),
+                ).createAggregate(input: master);
           final txId = await repo.save(
             nomorTransaksi: '${index + 1}001611260001',
             jenisTransaksi: domain,

@@ -1,3 +1,6 @@
+import '../providers/database_provider.dart';
+import '../providers/local_master_authorization_provider.dart';
+import '../providers/auth_provider.dart';
 import '../core/widgets/edit_dialog.dart';
 
 import 'dart:convert';
@@ -31,8 +34,21 @@ class _PekerjaanNotarisDesktopScreenState
   int _page = 1;
   static const _limit = 10;
 
+  bool _can(MasterAction action) => ref
+      .read(localMasterAuthorizationProvider)
+      .allows(MasterModule.notaris, action);
+  void _sameActor((Object?, AppDatabase) opening, MasterAction action) {
+    final authority = ref.read(localMasterAuthorizationProvider);
+    if (!identical(opening.$1, authority.session()) ||
+        !identical(opening.$2, authority.database)) {
+      throw const LocalMasterDenied('session_or_profile_changed');
+    }
+    authority.require(MasterModule.notaris, action);
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.watch(authControllerProvider);
     final data = ref.watch(pekerjaanNotarisProvider);
     final categories = ref.watch(pekerjaanKategoriProvider);
 
@@ -89,7 +105,7 @@ class _PekerjaanNotarisDesktopScreenState
         ),
       ),
       ElevatedButton.icon(
-        onPressed: _busy ? null : () => _form(),
+        onPressed: _busy || !_can(MasterAction.create) ? null : () => _form(),
         icon: const Icon(Icons.add, size: 18),
         label: Text(mobile ? 'Tambah' : 'Tambah Pekerjaan'),
         style: ElevatedButton.styleFrom(
@@ -209,12 +225,16 @@ class _PekerjaanNotarisDesktopScreenState
                 children: [
                   IconButton(
                     tooltip: 'Edit',
-                    onPressed: _busy ? null : () => _form(item: item),
+                    onPressed: _busy || !_can(MasterAction.update)
+                        ? null
+                        : () => _form(item: item),
                     icon: const Icon(Icons.edit_outlined),
                   ),
                   IconButton(
                     tooltip: 'Hapus',
-                    onPressed: _busy ? null : () => _delete(item),
+                    onPressed: _busy || !_can(MasterAction.delete)
+                        ? null
+                        : () => _delete(item),
                     icon: const Icon(Icons.delete_outline),
                   ),
                 ],
@@ -297,6 +317,10 @@ class _PekerjaanNotarisDesktopScreenState
   }
 
   Future<void> _form({PekerjaanNotarisLocal? item}) async {
+    final openingActor = (
+      ref.read(authControllerProvider).session,
+      ref.read(appDatabaseProvider),
+    );
     final cats = await ref.read(pekerjaanKategoriProvider.future);
     if (!mounted) return;
     if (cats.isEmpty) {
@@ -472,6 +496,12 @@ class _PekerjaanNotarisDesktopScreenState
                   await _process(
                     existing == null ? 'Menyimpan data...' : 'Mengubah data...',
                     () async {
+                      _sameActor(
+                        openingActor,
+                        existing == null
+                            ? MasterAction.create
+                            : MasterAction.update,
+                      );
                       final input = PekerjaanAggregateInput(
                         nama: name.text.trim(),
                         harga: prices
@@ -747,6 +777,10 @@ class _PekerjaanNotarisDesktopScreenState
       ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(message)));
 
   Future<void> _delete(PekerjaanNotarisLocal item) async {
+    final openingActor = (
+      ref.read(authControllerProvider).session,
+      ref.read(appDatabaseProvider),
+    );
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -768,6 +802,7 @@ class _PekerjaanNotarisDesktopScreenState
     );
     if (ok != true || !mounted) return;
     await _process('Menghapus data...', () async {
+      _sameActor(openingActor, MasterAction.delete);
       final deleted = await ref
           .read(pekerjaanNotarisControllerProvider.notifier)
           .delete(item.id);

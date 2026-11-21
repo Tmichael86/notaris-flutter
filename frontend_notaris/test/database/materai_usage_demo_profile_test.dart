@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -52,9 +54,14 @@ void main() {
             ),
           ],
         );
-        await PekerjaanNotarisRepository(writer.pekerjaanDao)
-            .createAggregate(input: job('Materai Uji Notaris'));
-        final ppat = PekerjaanPpatRepository(writer.pekerjaanDao);
+        await PekerjaanNotarisRepository(
+          writer.pekerjaanDao,
+          authorization: masterTestAuthority(writer),
+        ).createAggregate(input: job('Materai Uji Notaris'));
+        final ppat = PekerjaanPpatRepository(
+          writer.pekerjaanDao,
+          authorization: masterTestAuthority(writer),
+        );
         await ppat.createAggregate(input: job('Materai Uji PPAT A'));
         await ppat.createAggregate(input: job('Materai Uji PPAT B'));
       } finally {

@@ -3,10 +3,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'screens/auth_startup_gate.dart';
 import 'h01_acceptance_bootstrap.dart';
+import 'h02_acceptance_bootstrap.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   const h01 = String.fromEnvironment('NOTARIS_H01_ID');
+  const h02 = String.fromEnvironment('NOTARIS_H02_ID');
+  if (h01.isNotEmpty && h02.isNotEmpty) {
+    throw StateError('Ambiguous acceptance profile.');
+  }
+  if (h02.isNotEmpty) {
+    runApp(
+      await h02AcceptanceApplication(
+        h02,
+        const String.fromEnvironment('NOTARIS_H02_HELPER_SHA256'),
+        const MyApp(),
+      ),
+    );
+    return;
+  }
+
   if (h01.isNotEmpty) {
     runApp(
       await h01AcceptanceApplication(

@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -43,8 +45,11 @@ void main() {
           [categoryUuid],
         );
       }
-      final id = await PekerjaanNotarisRepository(a.pekerjaanDao)
-          .createAggregate(
+      final id =
+          await PekerjaanNotarisRepository(
+            a.pekerjaanDao,
+            authorization: masterTestAuthority(a),
+          ).createAggregate(
             input: const PekerjaanAggregateInput(
               nama: 'E2E Notaris fixture',
               harga: [
@@ -155,7 +160,10 @@ void main() {
       final aHarga = (await a.pekerjaanDao.getHargaNotaris(id)).single;
       final aProses = (await a.pekerjaanDao.getProsesNotaris(id)).single;
       expect(
-        await PekerjaanNotarisRepository(a.pekerjaanDao).updateAggregate(
+        await PekerjaanNotarisRepository(
+          a.pekerjaanDao,
+          authorization: masterTestAuthority(a),
+        ).updateAggregate(
           id: id,
           input: PekerjaanAggregateInput(
             nama: 'E2E Notaris updated',
@@ -292,7 +300,10 @@ void main() {
         0,
       );
       expect(
-        await PekerjaanNotarisRepository(a.pekerjaanDao).deleteAggregate(id),
+        await PekerjaanNotarisRepository(
+          a.pekerjaanDao,
+          authorization: masterTestAuthority(a),
+        ).deleteAggregate(id),
         isTrue,
       );
       final deletedAck = await sender.pushDelete(id);

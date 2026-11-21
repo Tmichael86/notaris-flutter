@@ -1,3 +1,5 @@
+import 'local_master_authorization_provider.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../repositories/recycle_bin_repository.dart';
@@ -8,6 +10,7 @@ final recycleBinRepositoryProvider = Provider<RecycleBinRepository>(
   (ref) => RecycleBinRepository(
     ref.watch(appDatabaseProvider),
     () => ref.read(authControllerProvider).session,
+    masterAuthorization: ref.watch(localMasterAuthorizationProvider),
   ),
 );
 

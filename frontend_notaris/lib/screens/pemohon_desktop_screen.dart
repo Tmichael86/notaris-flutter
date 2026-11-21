@@ -1,3 +1,7 @@
+import '../providers/database_provider.dart';
+import '../providers/local_master_authorization_provider.dart';
+import '../providers/auth_provider.dart';
+
 import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -25,8 +29,21 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
   int _page = 1;
   bool _loading = false;
 
+  bool _can(MasterAction action) => ref
+      .read(localMasterAuthorizationProvider)
+      .allows(MasterModule.applicant, action);
+  void _sameActor((Object?, AppDatabase) opening, MasterAction action) {
+    final authority = ref.read(localMasterAuthorizationProvider);
+    if (!identical(opening.$1, authority.session()) ||
+        !identical(opening.$2, authority.database)) {
+      throw const LocalMasterDenied('session_or_profile_changed');
+    }
+    authority.require(MasterModule.applicant, action);
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.watch(authControllerProvider);
     final data = ref.watch(pemohonProvider);
     final genders = ref.watch(jenisKelaminProvider);
 
@@ -89,7 +106,7 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
       ),
       const SizedBox(width: 8),
       FilledButton.icon(
-        onPressed: _loading ? null : _showForm,
+        onPressed: _loading || !_can(MasterAction.create) ? null : _showForm,
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
@@ -192,16 +209,24 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
                                     children: [
                                       IconButton(
                                         tooltip: 'Edit',
-                                        onPressed: () {
-                                          _showForm(item: rows[i]);
-                                        },
+                                        onPressed:
+                                            _loading ||
+                                                !_can(MasterAction.update)
+                                            ? null
+                                            : () {
+                                                _showForm(item: rows[i]);
+                                              },
                                         icon: const Icon(Icons.edit_outlined),
                                       ),
                                       IconButton(
                                         tooltip: 'Hapus',
-                                        onPressed: () {
-                                          _delete(rows[i]);
-                                        },
+                                        onPressed:
+                                            _loading ||
+                                                !_can(MasterAction.delete)
+                                            ? null
+                                            : () {
+                                                _delete(rows[i]);
+                                              },
                                         icon: const Icon(Icons.delete_outline),
                                       ),
                                     ],
@@ -239,6 +264,10 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
   }
 
   void _showForm({Pemohon? item}) {
+    final openingActor = (
+      ref.read(authControllerProvider).session,
+      ref.read(appDatabaseProvider),
+    );
     String nik = item?.nik ?? '';
     String nama = item?.nama ?? '';
     String telp = item?.noTelp ?? '';
@@ -333,6 +362,12 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
                       setDialogState(() => saving = true);
 
                       try {
+                        _sameActor(
+                          openingActor,
+                          item == null
+                              ? MasterAction.create
+                              : MasterAction.update,
+                        );
                         final controller = ref.read(
                           pemohonControllerProvider.notifier,
                         );
@@ -431,6 +466,10 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
   }
 
   Future<void> _delete(Pemohon item) async {
+    final openingActor = (
+      ref.read(authControllerProvider).session,
+      ref.read(appDatabaseProvider),
+    );
     final yes = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -456,6 +495,7 @@ class _PemohonDesktopScreenState extends ConsumerState<PemohonDesktopScreen> {
     setState(() => _loading = true);
 
     try {
+      _sameActor(openingActor, MasterAction.delete);
       final ok = await ref
           .read(pemohonControllerProvider.notifier)
           .delete(item.id);

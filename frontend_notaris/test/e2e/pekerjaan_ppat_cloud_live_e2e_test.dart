@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -39,25 +41,29 @@ void main() {
           [categoryUuid],
         );
       }
-      final id = await PekerjaanPpatRepository(a.pekerjaanDao).createAggregate(
-        input: const PekerjaanAggregateInput(
-          nama: 'E2E Ppat fixture',
-          harga: [
-            PekerjaanHargaInput(
-              harga: '100000',
-              kategoriPekerjaanId: 1,
-              estimasiWaktu: '2 hari',
+      final id =
+          await PekerjaanPpatRepository(
+            a.pekerjaanDao,
+            authorization: masterTestAuthority(a),
+          ).createAggregate(
+            input: const PekerjaanAggregateInput(
+              nama: 'E2E Ppat fixture',
+              harga: [
+                PekerjaanHargaInput(
+                  harga: '100000',
+                  kategoriPekerjaanId: 1,
+                  estimasiWaktu: '2 hari',
+                ),
+              ],
+              proses: [
+                PekerjaanProsesInput(
+                  nama: 'Periksa',
+                  detail: 'Fixture',
+                  atribut: [PekerjaanAtributInput(atribut: 'KTP')],
+                ),
+              ],
             ),
-          ],
-          proses: [
-            PekerjaanProsesInput(
-              nama: 'Periksa',
-              detail: 'Fixture',
-              atribut: [PekerjaanAtributInput(atribut: 'KTP')],
-            ),
-          ],
-        ),
-      );
+          );
       final dio = Dio(
         BaseOptions(baseUrl: url, headers: {'Authorization': 'Bearer $token'}),
       );
@@ -154,7 +160,10 @@ void main() {
       final aHarga = (await a.pekerjaanDao.getHargaPpat(id)).single;
       final aProses = (await a.pekerjaanDao.getProsesPpat(id)).single;
       expect(
-        await PekerjaanPpatRepository(a.pekerjaanDao).updateAggregate(
+        await PekerjaanPpatRepository(
+          a.pekerjaanDao,
+          authorization: masterTestAuthority(a),
+        ).updateAggregate(
           id: id,
           input: PekerjaanAggregateInput(
             nama: 'E2E Ppat updated',
@@ -286,7 +295,10 @@ void main() {
         0,
       );
       expect(
-        await PekerjaanPpatRepository(a.pekerjaanDao).deleteAggregate(id),
+        await PekerjaanPpatRepository(
+          a.pekerjaanDao,
+          authorization: masterTestAuthority(a),
+        ).deleteAggregate(id),
         isTrue,
       );
       final deletedAck = await sender.pushDelete(id);

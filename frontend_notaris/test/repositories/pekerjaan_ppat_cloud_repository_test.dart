@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -32,8 +34,11 @@ void main() {
       addTearDown(b.close);
       await category(a);
       await category(b);
-      final localId = await PekerjaanPpatRepository(a.pekerjaanDao)
-          .createAggregate(
+      final localId =
+          await PekerjaanPpatRepository(
+            a.pekerjaanDao,
+            authorization: masterTestAuthority(a),
+          ).createAggregate(
             input: const PekerjaanAggregateInput(
               nama: 'Cloud fixture',
               harga: [
@@ -240,19 +245,25 @@ void main() {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
       await category(db);
-      final id = await PekerjaanPpatRepository(db.pekerjaanDao).createAggregate(
-        input: const PekerjaanAggregateInput(
-          nama: 'Original',
-          harga: [
-            PekerjaanHargaInput(
-              harga: '100',
-              kategoriPekerjaanId: 1,
-              estimasiWaktu: '1 hari',
+      final id =
+          await PekerjaanPpatRepository(
+            db.pekerjaanDao,
+            authorization: masterTestAuthority(db),
+          ).createAggregate(
+            input: const PekerjaanAggregateInput(
+              nama: 'Original',
+              harga: [
+                PekerjaanHargaInput(
+                  harga: '100',
+                  kategoriPekerjaanId: 1,
+                  estimasiWaktu: '1 hari',
+                ),
+              ],
+              proses: [
+                PekerjaanProsesInput(nama: 'Periksa', detail: 'Fixture'),
+              ],
             ),
-          ],
-          proses: [PekerjaanProsesInput(nama: 'Periksa', detail: 'Fixture')],
-        ),
-      );
+          );
       final dio = Dio(BaseOptions(baseUrl: 'http://example.invalid/api/v1'));
       dio.interceptors.add(
         InterceptorsWrapper(
@@ -303,19 +314,25 @@ void main() {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
       await category(db);
-      final id = await PekerjaanPpatRepository(db.pekerjaanDao).createAggregate(
-        input: const PekerjaanAggregateInput(
-          nama: 'Original',
-          harga: [
-            PekerjaanHargaInput(
-              harga: '100',
-              kategoriPekerjaanId: 1,
-              estimasiWaktu: '1 hari',
+      final id =
+          await PekerjaanPpatRepository(
+            db.pekerjaanDao,
+            authorization: masterTestAuthority(db),
+          ).createAggregate(
+            input: const PekerjaanAggregateInput(
+              nama: 'Original',
+              harga: [
+                PekerjaanHargaInput(
+                  harga: '100',
+                  kategoriPekerjaanId: 1,
+                  estimasiWaktu: '1 hari',
+                ),
+              ],
+              proses: [
+                PekerjaanProsesInput(nama: 'Periksa', detail: 'Fixture'),
+              ],
             ),
-          ],
-          proses: [PekerjaanProsesInput(nama: 'Periksa', detail: 'Fixture')],
-        ),
-      );
+          );
       final dio = Dio(BaseOptions(baseUrl: 'http://example.invalid/api/v1'));
       dio.interceptors.add(
         InterceptorsWrapper(
@@ -353,8 +370,10 @@ void main() {
       );
       final cloud = PekerjaanPpatCloudRepository(db, dio, scope: 'test-scope');
       await cloud.pushCreate(id);
-      await PekerjaanPpatRepository(db.pekerjaanDao)
-          .updateNama(id: id, nama: 'Unsent edit');
+      await PekerjaanPpatRepository(
+        db.pekerjaanDao,
+        authorization: masterTestAuthority(db),
+      ).updateNama(id: id, nama: 'Unsent edit');
       await expectLater(
         cloud.pushUpdate(id),
         throwsA(

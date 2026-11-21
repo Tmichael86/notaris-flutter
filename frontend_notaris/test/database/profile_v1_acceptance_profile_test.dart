@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -65,10 +67,14 @@ void main() {
         );
         final notaris = domain == 'notaris';
         final job = notaris
-            ? await PekerjaanNotarisRepository(db.pekerjaanDao)
-                  .createAggregate(input: input)
-            : await PekerjaanPpatRepository(db.pekerjaanDao)
-                  .createAggregate(input: input);
+            ? await PekerjaanNotarisRepository(
+                db.pekerjaanDao,
+                authorization: masterTestAuthority(db),
+              ).createAggregate(input: input)
+            : await PekerjaanPpatRepository(
+                db.pekerjaanDao,
+                authorization: masterTestAuthority(db),
+              ).createAggregate(input: input);
         await TransactionRepository(db).save(
           nomorTransaksi: '${index + 1}001911260001',
           jenisTransaksi: domain,

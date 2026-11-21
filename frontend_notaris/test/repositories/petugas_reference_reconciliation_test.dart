@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
@@ -41,8 +43,10 @@ void main() {
             nama: 'Noncanonical label',
           ),
         );
-    id = await PetugasRepository(db)
-        .create(nama: 'Local', email: 'a@example.com', jenisKelamin: gender);
+    id = await PetugasRepository(
+      db,
+      authorization: masterTestAuthority(db),
+    ).create(nama: 'Local', email: 'a@example.com', jenisKelamin: gender);
     uuid = (await db.select(db.petugasLocals).getSingle()).uuid;
   });
   tearDown(() async => db.close());
@@ -214,8 +218,10 @@ void main() {
         server: identity(),
         evidence: 'explicit operator promotion',
       );
-      final otherId = await PetugasRepository(db)
-          .create(nama: 'Other', email: 'other@example.com');
+      final otherId = await PetugasRepository(
+        db,
+        authorization: masterTestAuthority(db),
+      ).create(nama: 'Other', email: 'other@example.com');
       final other = (await (db.select(
         db.petugasLocals,
       )..where((r) => r.id.equals(otherId))).getSingle()).uuid;
@@ -316,7 +322,7 @@ void main() {
       server: identity(version: 1),
       evidence: 'reviewed server-only materialization',
     );
-    await PetugasRepository(db).update(
+    await PetugasRepository(db, authorization: masterTestAuthority(db)).update(
       id: server.id,
       nama: 'Offline edit',
       email: server.email,

@@ -1,3 +1,7 @@
+import '../providers/database_provider.dart';
+import '../providers/local_master_authorization_provider.dart';
+import '../providers/auth_provider.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -25,8 +29,21 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
   int _page = 1;
   bool _loading = false;
 
+  bool _can(MasterAction action) => ref
+      .read(localMasterAuthorizationProvider)
+      .allows(MasterModule.officer, action);
+  void _sameActor((Object?, AppDatabase) opening, MasterAction action) {
+    final authority = ref.read(localMasterAuthorizationProvider);
+    if (!identical(opening.$1, authority.session()) ||
+        !identical(opening.$2, authority.database)) {
+      throw const LocalMasterDenied('session_or_profile_changed');
+    }
+    authority.require(MasterModule.officer, action);
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.watch(authControllerProvider);
     final data = ref.watch(petugasProvider);
     final genders = ref.watch(jenisKelaminProvider);
 
@@ -76,7 +93,7 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
           ),
         ),
         FilledButton.icon(
-          onPressed: _showForm,
+          onPressed: _loading || !_can(MasterAction.create) ? null : _showForm,
           style: FilledButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
@@ -174,13 +191,20 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
                                     children: [
                                       IconButton(
                                         tooltip: 'Edit',
-                                        onPressed: () =>
-                                            _showForm(item: rows[i]),
+                                        onPressed:
+                                            _loading ||
+                                                !_can(MasterAction.update)
+                                            ? null
+                                            : () => _showForm(item: rows[i]),
                                         icon: const Icon(Icons.edit_outlined),
                                       ),
                                       IconButton(
                                         tooltip: 'Hapus',
-                                        onPressed: () => _delete(rows[i]),
+                                        onPressed:
+                                            _loading ||
+                                                !_can(MasterAction.delete)
+                                            ? null
+                                            : () => _delete(rows[i]),
                                         icon: const Icon(Icons.delete_outline),
                                       ),
                                     ],
@@ -216,6 +240,10 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
   }
 
   Future<void> _showForm({PetugasLocal? item}) async {
+    final openingActor = (
+      ref.read(authControllerProvider).session,
+      ref.read(appDatabaseProvider),
+    );
     String nik = item?.nik ?? '';
     String nama = item?.nama ?? '';
     String tempat = item?.tempatLahir ?? '';
@@ -265,6 +293,10 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
             setDialogState(() => saving = true);
 
             try {
+              _sameActor(
+                openingActor,
+                item == null ? MasterAction.create : MasterAction.update,
+              );
               final c = ref.read(petugasControllerProvider.notifier);
               final uid = normalizedUserId.isEmpty
                   ? null
@@ -516,6 +548,10 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
   }
 
   Future<void> _delete(PetugasLocal item) async {
+    final openingActor = (
+      ref.read(authControllerProvider).session,
+      ref.read(appDatabaseProvider),
+    );
     final yes = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -541,6 +577,7 @@ class _PetugasDesktopScreenState extends ConsumerState<PetugasDesktopScreen> {
     setState(() => _loading = true);
 
     try {
+      _sameActor(openingActor, MasterAction.delete);
       final ok = await ref
           .read(petugasControllerProvider.notifier)
           .delete(item.id);

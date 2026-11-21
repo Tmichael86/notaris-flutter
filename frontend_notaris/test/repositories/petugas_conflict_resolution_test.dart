@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -53,7 +55,7 @@ void main() {
   setUp(() async {
     temp = await Directory.systemTemp.createTemp('petugas-conflict-');
     db = AppDatabase(NativeDatabase(File('${temp.path}/db.sqlite')));
-    people = PetugasRepository(db);
+    people = PetugasRepository(db, authorization: masterTestAuthority(db));
     id = await people.create(
       nama: 'Local original',
       email: 'local@example.com',

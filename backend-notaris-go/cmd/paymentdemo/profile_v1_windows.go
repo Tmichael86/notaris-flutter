@@ -38,6 +38,7 @@ import (
 var profileV1PG = 55800
 var profileV1HTTP = 55888
 var profileV1H01 = false
+var profileV1H02 = false
 
 func profileV1Bootstrap(id string) error {
 	root, s, e := profileV1Root(id)
@@ -133,11 +134,19 @@ GRANT INSERT ON administrative_audit TO profile_v1_app;
 GRANT USAGE ON SEQUENCE administrative_audit_id_seq TO profile_v1_app;`).Error; e != nil {
 			return e
 		}
-		if profileV1H01 {
+		if profileV1H01 || profileV1H02 {
 			if e := tx.Exec(`REVOKE UPDATE(nama,no_telp,alamat,revision,updated_at,updated_by) ON users FROM profile_v1_app;
 REVOKE INSERT ON administrative_audit FROM profile_v1_app;
 REVOKE USAGE ON SEQUENCE administrative_audit_id_seq FROM profile_v1_app;
 ALTER ROLE profile_v1_app SET default_transaction_read_only=on;`).Error; e != nil {
+				return e
+			}
+		}
+		if profileV1H02 {
+			if e := tx.Exec(`DELETE FROM sidebar_akses WHERE group_id IN(102,201,202) AND sidebar_id IN(4,11,27,28,29,30);
+INSERT INTO sidebar_akses(sidebar_id,group_id,"read","create","update","delete")
+SELECT s.id,g,CASE WHEN g=102 THEN 0 ELSE 1 END,CASE WHEN g=202 THEN 1 ELSE 0 END,0,0
+FROM sidebar s CROSS JOIN(VALUES(102),(201),(202))v(g) WHERE s.id IN(4,11,27,28,29,30);`).Error; e != nil {
 				return e
 			}
 		}
@@ -185,7 +194,7 @@ func profileV1Handler(id string, db *gorm.DB, s profileV1Secrets) http.Handler {
 	})
 	return http.HandlerFunc(func(w http.ResponseWriter, q *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
-		if profileV1H01 && !(q.Method == http.MethodGet || (q.Method == http.MethodPost && q.URL.Path == "/api/v1/auth/login")) {
+		if (profileV1H01 || profileV1H02) && !(q.Method == http.MethodGet || (q.Method == http.MethodPost && q.URL.Path == "/api/v1/auth/login")) {
 			w.WriteHeader(http.StatusForbidden)
 			return
 		}
@@ -314,6 +323,12 @@ func profileV1Root(id string) (string, profileV1Secrets, error) {
 			return "", s, rejected
 		}
 	}
+	if profileV1H02 {
+		marker, err := readOwnedFile(root, "h02-owner")
+		if err != nil || string(marker) != id {
+			return "", s, rejected
+		}
+	}
 	if unseal(root, id, "profile-v1-secrets", &s) != nil {
 		return "", s, rejected
 	}
@@ -359,6 +374,11 @@ func profileV1Init() error {
 	}
 	if profileV1H01 {
 		if e = writeNew(filepath.Join(root, "h01-owner"), []byte(id)); e != nil {
+			return e
+		}
+	}
+	if profileV1H02 {
+		if e = writeNew(filepath.Join(root, "h02-owner"), []byte(id)); e != nil {
 			return e
 		}
 	}

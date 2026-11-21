@@ -17,7 +17,10 @@ import 'providers/database_provider.dart';
 import 'providers/app_providers.dart';
 import 'providers/authenticated_api_provider.dart';
 import 'providers/petugas_manual_sync_provider.dart';
-import 'repositories/people_repository.dart';
+
+import 'package:uuid/uuid.dart';
+import 'package:drift/drift.dart' show Value;
+
 import 'repositories/petugas_reference_resolver.dart';
 import 'repositories/petugas_identity_reconciliation.dart';
 import 'repositories/petugas_identity_map_repository.dart';
@@ -148,11 +151,16 @@ Future<void> _startManual() async {
       // Only create the dedicated fixture on an empty profile. Existing records
       // remain unclassified and cannot be bulk-promoted into synchronization.
       if (rows.isEmpty) {
-        final id = await PetugasRepository(db).create(
-          nama: 'Manual E2E Petugas',
-          email: 'manual@e2e.invalid',
-          jenisKelamin: gender,
-        );
+        final id = await db
+            .into(db.petugasLocals)
+            .insert(
+              PetugasLocalsCompanion.insert(
+                uuid: const Uuid().v4(),
+                nama: 'Manual E2E Petugas',
+                email: 'manual@e2e.invalid',
+                jenisKelamin: Value(gender),
+              ),
+            );
         final row = await (db.select(
           db.petugasLocals,
         )..where((r) => r.id.equals(id))).getSingle();

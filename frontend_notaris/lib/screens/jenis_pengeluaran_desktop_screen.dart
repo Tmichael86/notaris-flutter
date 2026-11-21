@@ -1,3 +1,7 @@
+import '../providers/database_provider.dart';
+import '../providers/local_master_authorization_provider.dart';
+import '../providers/auth_provider.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -25,8 +29,21 @@ class _JenisPengeluaranDesktopScreenState
   int _page = 1;
   static const _limit = 10;
 
+  bool _can(MasterAction action) => ref
+      .read(localMasterAuthorizationProvider)
+      .allows(MasterModule.expenseType, action);
+  void _sameActor((Object?, AppDatabase) opening, MasterAction action) {
+    final authority = ref.read(localMasterAuthorizationProvider);
+    if (!identical(opening.$1, authority.session()) ||
+        !identical(opening.$2, authority.database)) {
+      throw const LocalMasterDenied('session_or_profile_changed');
+    }
+    authority.require(MasterModule.expenseType, action);
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.watch(authControllerProvider);
     final data = ref.watch(pengeluaranJenisProvider);
     return LoadingOverlay(
       isLoading: _busy,
@@ -94,7 +111,7 @@ class _JenisPengeluaranDesktopScreenState
         const SizedBox(width: 8),
 
         ElevatedButton.icon(
-          onPressed: _busy ? null : () => _form(),
+          onPressed: _busy || !_can(MasterAction.create) ? null : () => _form(),
           icon: const Icon(Icons.add, size: 18),
           label: Text(mobile ? 'Tambah' : 'Tambah Jenis'),
           style: ElevatedButton.styleFrom(
@@ -216,12 +233,16 @@ class _JenisPengeluaranDesktopScreenState
                   children: [
                     IconButton(
                       tooltip: 'Edit',
-                      onPressed: _busy ? null : () => _form(item: item),
+                      onPressed: _busy || !_can(MasterAction.update)
+                          ? null
+                          : () => _form(item: item),
                       icon: const Icon(Icons.edit_outlined),
                     ),
                     IconButton(
                       tooltip: 'Hapus',
-                      onPressed: _busy ? null : () => _delete(item),
+                      onPressed: _busy || !_can(MasterAction.delete)
+                          ? null
+                          : () => _delete(item),
                       icon: const Icon(Icons.delete_outline),
                     ),
                   ],
@@ -274,6 +295,10 @@ class _JenisPengeluaranDesktopScreenState
   }
 
   Future<void> _form({PengeluaranJenisData? item}) async {
+    final openingActor = (
+      ref.read(authControllerProvider).session,
+      ref.read(appDatabaseProvider),
+    );
     String namaInput = item?.nama ?? '';
     String? validationError;
     bool saving = false;
@@ -297,6 +322,10 @@ class _JenisPengeluaranDesktopScreenState
       });
 
       try {
+        _sameActor(
+          openingActor,
+          item == null ? MasterAction.create : MasterAction.update,
+        );
         final c = ref.read(pengeluaranJenisControllerProvider.notifier);
 
         if (item == null) {
@@ -319,10 +348,12 @@ class _JenisPengeluaranDesktopScreenState
             saving = false;
           });
         }
-      } catch (_) {
+      } catch (error) {
         if (dialogContext.mounted) {
           setDialogState(() {
-            validationError = 'Gagal menyimpan data. Silakan coba lagi.';
+            validationError = error is LocalMasterDenied
+                ? error.toString()
+                : 'Gagal menyimpan data. Silakan coba lagi.';
             saving = false;
           });
         }
@@ -400,6 +431,10 @@ class _JenisPengeluaranDesktopScreenState
   }
 
   Future<void> _delete(PengeluaranJenisData item) async {
+    final openingActor = (
+      ref.read(authControllerProvider).session,
+      ref.read(appDatabaseProvider),
+    );
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -423,6 +458,7 @@ class _JenisPengeluaranDesktopScreenState
     if (ok != true || !mounted) return;
 
     await _process('Menghapus data...', () async {
+      _sameActor(openingActor, MasterAction.delete);
       final deleted = await ref
           .read(pengeluaranJenisControllerProvider.notifier)
           .delete(item.id);

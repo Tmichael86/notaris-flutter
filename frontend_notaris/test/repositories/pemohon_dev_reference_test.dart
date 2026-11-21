@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -89,7 +91,11 @@ void main() {
     dio = Dio()..httpClientAdapter = catalog;
     pairs = manifest();
     refs = DevelopmentPemohonGenderReferences(db, dio, pairs);
-    repo = PemohonRepository(db, genderReferences: refs);
+    repo = PemohonRepository(
+      db,
+      authorization: masterTestAuthority(db),
+      genderReferences: refs,
+    );
   });
   tearDown(() async {
     dio.close();

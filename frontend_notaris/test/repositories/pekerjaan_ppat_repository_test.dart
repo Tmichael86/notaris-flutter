@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -40,8 +42,14 @@ void main() {
 
   setUp(() async {
     database = AppDatabase.forTesting(NativeDatabase.memory());
-    repository = PekerjaanPpatRepository(database.pekerjaanDao);
-    kategoriRepository = PekerjaanKategoriRepository(database);
+    repository = PekerjaanPpatRepository(
+      database.pekerjaanDao,
+      authorization: masterTestAuthority(database),
+    );
+    kategoriRepository = PekerjaanKategoriRepository(
+      database,
+      authorization: masterTestAuthority(database),
+    );
     kategoriId = await kategoriRepository.create(nama: 'Jual Beli');
   });
 
@@ -76,7 +84,10 @@ void main() {
   });
 
   test('same name in Notaris and PPAT keeps separate aggregates', () async {
-    final notaris = PekerjaanNotarisRepository(database.pekerjaanDao);
+    final notaris = PekerjaanNotarisRepository(
+      database.pekerjaanDao,
+      authorization: masterTestAuthority(database),
+    );
     final notarisId = await notaris.createAggregate(
       input: validInput(nama: 'Synthetic Pekerjaan Notaris 1'),
     );

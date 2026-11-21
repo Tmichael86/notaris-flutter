@@ -1,3 +1,5 @@
+import 'local_master_authorization_provider.dart';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,7 +24,10 @@ import '../repositories/pemohon_gender_references.dart';
 final pekerjaanNotarisRepositoryProvider = Provider<PekerjaanNotarisRepository>(
   (ref) {
     final database = ref.watch(appDatabaseProvider);
-    return PekerjaanNotarisRepository(database.pekerjaanDao);
+    return PekerjaanNotarisRepository(
+      database.pekerjaanDao,
+      authorization: ref.watch(localMasterAuthorizationProvider),
+    );
   },
 );
 
@@ -30,7 +35,10 @@ final pekerjaanPpatRepositoryProvider = Provider<PekerjaanPpatRepository>((
   ref,
 ) {
   final database = ref.watch(appDatabaseProvider);
-  return PekerjaanPpatRepository(database.pekerjaanDao);
+  return PekerjaanPpatRepository(
+    database.pekerjaanDao,
+    authorization: ref.watch(localMasterAuthorizationProvider),
+  );
 });
 
 final pekerjaanNotarisProvider =
@@ -48,7 +56,10 @@ final pekerjaanPpatProvider =
 final pekerjaanKategoriRepositoryProvider =
     Provider<PekerjaanKategoriRepository>((ref) {
       final database = ref.watch(appDatabaseProvider);
-      return PekerjaanKategoriRepository(database);
+      return PekerjaanKategoriRepository(
+        database,
+        authorization: ref.watch(localMasterAuthorizationProvider),
+      );
     });
 
 final pekerjaanKategoriProvider =
@@ -313,7 +324,10 @@ class PekerjaanKategoriController extends AsyncNotifier<void> {
 final pengeluaranJenisRepositoryProvider = Provider<PengeluaranJenisRepository>(
   (ref) {
     final database = ref.watch(appDatabaseProvider);
-    return PengeluaranJenisRepository(database);
+    return PengeluaranJenisRepository(
+      database,
+      authorization: ref.watch(localMasterAuthorizationProvider),
+    );
   },
 );
 

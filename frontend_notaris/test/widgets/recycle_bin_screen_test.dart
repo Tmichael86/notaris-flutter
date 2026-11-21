@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'dart:async';
 
 import 'package:drift/native.dart';
@@ -19,7 +21,11 @@ void main() {
   late RecycleBinRepository repo;
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    repo = RecycleBinRepository(db, () => recoverySession());
+    repo = RecycleBinRepository(
+      db,
+      () => recoverySession(),
+      masterAuthorization: masterTestAuthority(db),
+    );
   });
   tearDown(() => db.close());
 
@@ -27,9 +33,19 @@ void main() {
     'revoked read permission on selected module hides records without dropdown assertion',
     (tester) async {
       var allowed = true;
-      repo = RecycleBinRepository(db, () => allowed ? recoverySession() : null);
+      repo = RecycleBinRepository(
+        db,
+        () => allowed ? recoverySession() : null,
+        masterAuthorization: masterTestAuthority(
+          db,
+          session: () => allowed ? recoverySession() : null,
+        ),
+      );
       await seedMaster(db, 'ppat');
-      await PekerjaanPpatRepository(db.pekerjaanDao).delete(1);
+      await PekerjaanPpatRepository(
+        db.pekerjaanDao,
+        authorization: masterTestAuthority(db),
+      ).delete(1);
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -88,7 +104,10 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       await seedMaster(db, 'notaris');
-      await PekerjaanNotarisRepository(db.pekerjaanDao).delete(1);
+      await PekerjaanNotarisRepository(
+        db.pekerjaanDao,
+        authorization: masterTestAuthority(db),
+      ).delete(1);
       await show(tester);
       await tester.pumpAndSettle();
       expect(find.text('Same label'), findsOneWidget);
@@ -133,8 +152,14 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       await seedMaster(db, 'notaris');
       await seedMaster(db, 'ppat');
-      await PekerjaanNotarisRepository(db.pekerjaanDao).delete(1);
-      await PekerjaanPpatRepository(db.pekerjaanDao).delete(1);
+      await PekerjaanNotarisRepository(
+        db.pekerjaanDao,
+        authorization: masterTestAuthority(db),
+      ).delete(1);
+      await PekerjaanPpatRepository(
+        db.pekerjaanDao,
+        authorization: masterTestAuthority(db),
+      ).delete(1);
       await db.customStatement('UPDATE pekerjaan_ppat SET last_synced_at=10');
       await show(tester);
       await tester.pumpAndSettle();
@@ -192,13 +217,23 @@ void main() {
     'permission revoked after confirmation yields failure without restore',
     (tester) async {
       var allowed = true;
-      repo = RecycleBinRepository(db, () => recoverySession(update: allowed));
+      repo = RecycleBinRepository(
+        db,
+        () => recoverySession(update: allowed),
+        masterAuthorization: masterTestAuthority(
+          db,
+          session: () => recoverySession(update: allowed),
+        ),
+      );
       tester.view.physicalSize = const Size(1600, 900);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       await seedMaster(db, 'ppat');
-      await PekerjaanPpatRepository(db.pekerjaanDao).delete(1);
+      await PekerjaanPpatRepository(
+        db.pekerjaanDao,
+        authorization: masterTestAuthority(db),
+      ).delete(1);
       await show(tester);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Restore'));
@@ -210,7 +245,7 @@ void main() {
         find.text('Izin baca dan ubah modul diperlukan untuk memulihkan.'),
         findsWidgets,
       );
-      expect((await repo.history()).single['outcome'], 'failed');
+      expect(await repo.history(), isEmpty);
       expect(await repo.list(), hasLength(1));
       await tester.pumpWidget(const SizedBox());
     },

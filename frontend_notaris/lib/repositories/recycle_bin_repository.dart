@@ -1,3 +1,5 @@
+import '../services/local_master_authorization.dart';
+
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
@@ -50,7 +52,8 @@ class RecycleRecord {
 
 /// Local recovery only. No HTTP client, coordinator, or cloud mutation capability.
 class RecycleBinRepository {
-  RecycleBinRepository(this.db, this.session);
+  RecycleBinRepository(this.db, this.session, {this.masterAuthorization});
+  final LocalMasterAuthorization? masterAuthorization;
   final AppDatabase db;
   final AuthSession? Function() session;
 
@@ -61,7 +64,8 @@ class RecycleBinRepository {
           final sidebar = a['sidebar'];
           return sidebar is Map &&
               (sidebar['sidebar_kode'] == module.permission ||
-                  (sidebar['sidebar_kode'] == null &&
+                  (module.isTransaction &&
+                      sidebar['sidebar_kode'] == null &&
                       sidebar['sidebar_nama'] ==
                           (module.isTransaction
                               ? 'Transaksi'
@@ -126,6 +130,38 @@ class RecycleBinRepository {
   }
 
   Future<void> restore(RecycleRecord record) async {
+    if (record.module.isTransaction) return _restore(record);
+    final authority = masterAuthorization;
+    final module = record.module == RecycleModule.notaris
+        ? MasterModule.notaris
+        : MasterModule.ppat;
+    if (authority == null) throw const RestoreFailure('permission');
+    try {
+      final actor = authority.require(module, MasterAction.update);
+      try {
+        await authority.write(
+          db,
+          module,
+          MasterAction.update,
+          (_) => _restore(record, logFailure: false),
+        );
+      } on RestoreFailure catch (e) {
+        if (e.code == 'permission') rethrow;
+        authority.require(module, MasterAction.update, expected: actor);
+        await authority.write(
+          db,
+          module,
+          MasterAction.update,
+          (_) => _log(record, const Uuid().v4(), 'failed', e.code),
+        );
+        rethrow;
+      }
+    } on LocalMasterDenied {
+      throw const RestoreFailure('permission');
+    }
+  }
+
+  Future<void> _restore(RecycleRecord record, {bool logFailure = true}) async {
     final attempt = const Uuid().v4();
     try {
       await db.transaction(() async {
@@ -207,7 +243,7 @@ class RecycleBinRepository {
     } catch (e) {
       // Rolled-back data writes and success audit cannot survive a failure.
       final failure = e is RestoreFailure ? e : const RestoreFailure('storage');
-      await _log(record, attempt, 'failed', failure.code);
+      if (logFailure) await _log(record, attempt, 'failed', failure.code);
       throw failure;
     }
   }

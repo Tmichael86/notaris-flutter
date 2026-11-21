@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -58,7 +60,10 @@ void main() {
         serverId: catalog.single.serverId,
         evidence: 'controlled fixture manifest selection confirmed',
       );
-      final people = PetugasRepository(db);
+      final people = PetugasRepository(
+        db,
+        authorization: masterTestAuthority(db),
+      );
       final id = await people.create(
         nama: 'E2E device',
         email: 'device@e2e.invalid',

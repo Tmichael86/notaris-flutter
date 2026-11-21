@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -9,7 +11,7 @@ import 'package:frontend_notaris/repositories/recycle_bin_repository.dart';
 import 'package:frontend_notaris/repositories/transaction_repository.dart';
 
 AuthSession recoverySession({bool update = true, String? only}) => AuthSession(
-  token: 'fixture',
+  token: masterTestToken(),
   userId: 1,
   groupId: 1,
   userName: 'fixture',
@@ -49,9 +51,14 @@ Future<int> seedMaster(AppDatabase db, String domain) async {
     ],
   );
   return domain == 'notaris'
-      ? PekerjaanNotarisRepository(db.pekerjaanDao)
-            .createAggregate(input: input)
-      : PekerjaanPpatRepository(db.pekerjaanDao).createAggregate(input: input);
+      ? PekerjaanNotarisRepository(
+          db.pekerjaanDao,
+          authorization: masterTestAuthority(db),
+        ).createAggregate(input: input)
+      : PekerjaanPpatRepository(
+          db.pekerjaanDao,
+          authorization: masterTestAuthority(db),
+        ).createAggregate(input: input);
 }
 
 Future<int> seedTransaction(AppDatabase db, String domain) async {
@@ -99,7 +106,11 @@ void main() {
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
     session = recoverySession();
-    bin = RecycleBinRepository(db, () => session);
+    bin = RecycleBinRepository(
+      db,
+      () => session,
+      masterAuthorization: masterTestAuthority(db, session: () => session),
+    );
   });
   tearDown(() => db.close());
 
@@ -117,24 +128,42 @@ void main() {
         });
         final file = File('${folder.path}/fixture.sqlite');
         db = AppDatabase.forTesting(NativeDatabase(file));
-        bin = RecycleBinRepository(db, () => session);
+        bin = RecycleBinRepository(
+          db,
+          () => session,
+          masterAuthorization: masterTestAuthority(db, session: () => session),
+        );
         await seedMaster(db, domain);
         final original = <String, List<Map<String, dynamic>>>{};
         for (final suffix in ['harga', 'proses', 'atributs']) {
           original[suffix] = await rows(db, 'pekerjaan_${domain}_$suffix');
         }
         if (domain == 'notaris') {
-          await PekerjaanNotarisRepository(db.pekerjaanDao).deleteAggregate(1);
+          await PekerjaanNotarisRepository(
+            db.pekerjaanDao,
+            authorization: masterTestAuthority(db),
+          ).deleteAggregate(1);
         } else {
-          await PekerjaanPpatRepository(db.pekerjaanDao).deleteAggregate(1);
+          await PekerjaanPpatRepository(
+            db.pekerjaanDao,
+            authorization: masterTestAuthority(db),
+          ).deleteAggregate(1);
         }
         await db.close();
         db = AppDatabase.forTesting(NativeDatabase(file));
-        bin = RecycleBinRepository(db, () => session);
+        bin = RecycleBinRepository(
+          db,
+          () => session,
+          masterAuthorization: masterTestAuthority(db, session: () => session),
+        );
         await bin.restore((await bin.list()).single);
         await db.close();
         db = AppDatabase.forTesting(NativeDatabase(file));
-        bin = RecycleBinRepository(db, () => session);
+        bin = RecycleBinRepository(
+          db,
+          () => session,
+          masterAuthorization: masterTestAuthority(db, session: () => session),
+        );
         for (final entry in original.entries) {
           final actual = await rows(db, 'pekerjaan_${domain}_${entry.key}');
           expect(
@@ -143,9 +172,15 @@ void main() {
           );
         }
         if (domain == 'notaris') {
-          await PekerjaanNotarisRepository(db.pekerjaanDao).deleteAggregate(1);
+          await PekerjaanNotarisRepository(
+            db.pekerjaanDao,
+            authorization: masterTestAuthority(db),
+          ).deleteAggregate(1);
         } else {
-          await PekerjaanPpatRepository(db.pekerjaanDao).deleteAggregate(1);
+          await PekerjaanPpatRepository(
+            db.pekerjaanDao,
+            authorization: masterTestAuthority(db),
+          ).deleteAggregate(1);
         }
         await db.customStatement(
           "DELETE FROM recycle_bin_events WHERE action='delete'",
@@ -185,9 +220,15 @@ void main() {
             await rows(db, '${table}_$suffix'),
         ];
         if (domain == 'notaris') {
-          await PekerjaanNotarisRepository(db.pekerjaanDao).deleteAggregate(id);
+          await PekerjaanNotarisRepository(
+            db.pekerjaanDao,
+            authorization: masterTestAuthority(db),
+          ).deleteAggregate(id);
         } else {
-          await PekerjaanPpatRepository(db.pekerjaanDao).deleteAggregate(id);
+          await PekerjaanPpatRepository(
+            db.pekerjaanDao,
+            authorization: masterTestAuthority(db),
+          ).deleteAggregate(id);
         }
         final record = (await bin.list(module: masterModule)).single;
         expect(record.blocked, isNull);
@@ -320,7 +361,10 @@ void main() {
     'master invalid category and mismatched attribute relation block restore',
     () async {
       await seedMaster(db, 'ppat');
-      await PekerjaanPpatRepository(db.pekerjaanDao).delete(1);
+      await PekerjaanPpatRepository(
+        db.pekerjaanDao,
+        authorization: masterTestAuthority(db),
+      ).delete(1);
       await db.customStatement('UPDATE pekerjaan_kategori SET status=0');
       expect((await bin.list()).single.blocked?.code, 'reference');
       await db.customStatement('UPDATE pekerjaan_kategori SET status=1');
@@ -333,7 +377,10 @@ void main() {
 
   test('cloud identity and pending receipt in either state never permit local restore', () async {
     await seedMaster(db, 'notaris');
-    await PekerjaanNotarisRepository(db.pekerjaanDao).delete(1);
+    await PekerjaanNotarisRepository(
+      db.pekerjaanDao,
+      authorization: masterTestAuthority(db),
+    ).delete(1);
     final uuid = (await rows(db, 'pekerjaan_notaris')).single['uuid'];
     await db.customStatement(
       "INSERT INTO pekerjaan_notaris_sync_identity VALUES(?,?,'scope',3)",
@@ -405,7 +452,7 @@ void main() {
     },
   );
 
-  test('v18 upgrade and restart preserve existing data and durable restore history', () async {
+  test('current schema restart preserves existing data and durable restore history', () async {
     await db.close();
     final folder = await Directory.systemTemp.createTemp('recycle_bin_');
     addTearDown(() async {
@@ -416,23 +463,29 @@ void main() {
     db = AppDatabase.forTesting(NativeDatabase(file));
     await seedTransaction(db, 'ppat');
     final original = await rows(db, 'transaksis');
-    await db.customStatement('DROP TABLE recycle_bin_events');
-    await db.customStatement('PRAGMA user_version=18');
     await db.close();
     db = AppDatabase.forTesting(NativeDatabase(file));
-    bin = RecycleBinRepository(db, () => session);
+    bin = RecycleBinRepository(
+      db,
+      () => session,
+      masterAuthorization: masterTestAuthority(db, session: () => session),
+    );
     expect(await rows(db, 'transaksis'), original);
     expect(
       (await db.customSelect('PRAGMA user_version').getSingle()).read<int>(
         'user_version',
       ),
-      19,
+      db.schemaVersion,
     );
     await TransactionRepository(db).delete(1);
     await bin.restore((await bin.list()).single);
     await db.close();
     db = AppDatabase.forTesting(NativeDatabase(file));
-    bin = RecycleBinRepository(db, () => session);
+    bin = RecycleBinRepository(
+      db,
+      () => session,
+      masterAuthorization: masterTestAuthority(db, session: () => session),
+    );
     expect(
       (await rows(db, 'transaksis')).single['uuid'],
       original.single['uuid'],

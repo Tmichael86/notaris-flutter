@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -10,7 +12,10 @@ void main() {
 
   setUp(() {
     database = AppDatabase.forTesting(NativeDatabase.memory());
-    repository = PengeluaranJenisRepository(database);
+    repository = PengeluaranJenisRepository(
+      database,
+      authorization: masterTestAuthority(database),
+    );
   });
 
   tearDown(() async {

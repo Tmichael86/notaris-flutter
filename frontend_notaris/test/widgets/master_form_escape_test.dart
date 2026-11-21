@@ -1,3 +1,6 @@
+import '../support/local_master_test_authority.dart';
+
+import 'package:frontend_notaris/providers/auth_provider.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,7 +27,10 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [appDatabaseProvider.overrideWithValue(db)],
+          overrides: [
+            authControllerProvider.overrideWith((ref) => MasterTestAuth()),
+            appDatabaseProvider.overrideWithValue(db),
+          ],
           child: MaterialApp(
             home: Scaffold(
               body: ppat

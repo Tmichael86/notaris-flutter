@@ -1,3 +1,7 @@
+import '../support/local_master_test_authority.dart';
+
+import 'package:frontend_notaris/providers/auth_provider.dart';
+
 import 'dart:ui' as ui;
 
 import 'package:frontend_notaris/models/auth_session.dart';
@@ -97,7 +101,12 @@ void main() {
             final wrapped = entry.key == 'Pemohon' || entry.key == 'Petugas';
             await tester.pumpWidget(
               ProviderScope(
-                overrides: [appDatabaseProvider.overrideWithValue(db)],
+                overrides: [
+                  authControllerProvider.overrideWith(
+                    (ref) => MasterTestAuth(),
+                  ),
+                  appDatabaseProvider.overrideWithValue(db),
+                ],
                 child: MaterialApp(
                   theme: ThemeData(
                     platform: TargetPlatform.windows,
@@ -229,7 +238,10 @@ void main() {
       ]) {
         await tester.pumpWidget(
           ProviderScope(
-            overrides: [appDatabaseProvider.overrideWithValue(db)],
+            overrides: [
+              authControllerProvider.overrideWith((ref) => MasterTestAuth()),
+              appDatabaseProvider.overrideWithValue(db),
+            ],
             child: MaterialApp(
               theme: ThemeData(
                 platform: TargetPlatform.windows,
@@ -322,7 +334,10 @@ void main() {
       );
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [appDatabaseProvider.overrideWithValue(db)],
+          overrides: [
+            authControllerProvider.overrideWith((ref) => MasterTestAuth()),
+            appDatabaseProvider.overrideWithValue(db),
+          ],
           child: MaterialApp(
             theme: ThemeData(fontFamily: 'Roboto'),
             home: AppShell(session: session),
@@ -351,7 +366,10 @@ void main() {
     addTearDown(db.close);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [appDatabaseProvider.overrideWithValue(db)],
+        overrides: [
+          authControllerProvider.overrideWith((ref) => MasterTestAuth()),
+          appDatabaseProvider.overrideWithValue(db),
+        ],
         child: RepaintBoundary(
           key: Key('capture'),
           child: MaterialApp(

@@ -1,3 +1,5 @@
+import '../services/local_master_authorization.dart';
+
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
@@ -109,7 +111,8 @@ class PekerjaanNotarisRepository {
 
   final PekerjaanDao dao;
 
-  PekerjaanNotarisRepository(this.dao);
+  PekerjaanNotarisRepository(this.dao, {this.authorization});
+  final LocalMasterAuthorization? authorization;
 
   Stream<List<PekerjaanNotarisLocal>> watchAll() => dao.watchPekerjaanNotaris();
 
@@ -163,18 +166,30 @@ class PekerjaanNotarisRepository {
     required String uuid,
     required String nama,
     int? createdBy,
-  }) {
-    final now = DateTime.now();
+  }) async {
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    return authority.write(
+      dao.attachedDatabase,
+      MasterModule.notaris,
+      MasterAction.create,
+      (actor) async {
+        createdBy = actor.userId;
 
-    return dao.insertPekerjaanNotaris(
-      PekerjaanNotarisLocalsCompanion.insert(
-        uuid: uuid,
-        nama: nama,
-        createdBy: Value(createdBy),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        isSyncDirty: const Value(true),
-      ),
+        final now = DateTime.now();
+
+        return dao.insertPekerjaanNotaris(
+          PekerjaanNotarisLocalsCompanion.insert(
+            uuid: uuid,
+            nama: nama,
+            createdBy: Value(createdBy),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            isSyncDirty: const Value(true),
+          ),
+        );
+      },
+      claimedActor: createdBy,
     );
   }
 
@@ -182,17 +197,29 @@ class PekerjaanNotarisRepository {
     required int id,
     required String nama,
     int? updatedBy,
-  }) {
-    final now = DateTime.now();
+  }) async {
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    return authority.write(
+      dao.attachedDatabase,
+      MasterModule.notaris,
+      MasterAction.update,
+      (actor) async {
+        updatedBy = actor.userId;
 
-    return dao.updatePekerjaanNotaris(
-      id,
-      PekerjaanNotarisLocalsCompanion(
-        nama: Value(nama),
-        updatedBy: Value(updatedBy),
-        updatedAt: Value(now),
-        isSyncDirty: const Value(true),
-      ),
+        final now = DateTime.now();
+
+        return dao.updatePekerjaanNotaris(
+          id,
+          PekerjaanNotarisLocalsCompanion(
+            nama: Value(nama),
+            updatedBy: Value(updatedBy),
+            updatedAt: Value(now),
+            isSyncDirty: const Value(true),
+          ),
+        );
+      },
+      claimedActor: updatedBy,
     );
   }
 
@@ -330,70 +357,82 @@ class PekerjaanNotarisRepository {
     required PekerjaanAggregateInput input,
     int? createdBy,
   }) async {
-    input = _validateAndNormalizeInput(input);
-    final now = DateTime.now();
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    return authority.write(
+      dao.attachedDatabase,
+      MasterModule.notaris,
+      MasterAction.create,
+      (actor) async {
+        createdBy = actor.userId;
 
-    return dao.attachedDatabase.transaction(() async {
-      await _validateCategories(dao, input);
-      final pekerjaanId = await dao.insertPekerjaanNotaris(
-        PekerjaanNotarisLocalsCompanion.insert(
-          uuid: _uuid.v4(),
-          nama: input.nama,
-          createdBy: Value(createdBy),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-          isSyncDirty: const Value(true),
-        ),
-      );
+        input = _validateAndNormalizeInput(input);
+        final now = DateTime.now();
 
-      for (final harga in input.harga) {
-        await dao.insertHargaNotaris(
-          PekerjaanNotarisHargaLocalsCompanion.insert(
-            uuid: _uuid.v4(),
-            pekerjaanNotarisId: pekerjaanId,
-            harga: harga.harga,
-            kategoriPekerjaanId: harga.kategoriPekerjaanId,
-            estimasiWaktu: harga.estimasiWaktu,
-            createdBy: Value(createdBy),
-            createdAt: Value(now),
-            updatedAt: Value(now),
-            isSyncDirty: const Value(true),
-          ),
-        );
-      }
-
-      for (final proses in input.proses) {
-        final prosesId = await dao.insertProsesNotaris(
-          PekerjaanNotarisProsesLocalsCompanion.insert(
-            uuid: _uuid.v4(),
-            pekerjaanNotarisId: pekerjaanId,
-            nama: proses.nama,
-            detail: proses.detail,
-            createdBy: Value(createdBy),
-            createdAt: Value(now),
-            updatedAt: Value(now),
-            isSyncDirty: const Value(true),
-          ),
-        );
-
-        for (final atribut in proses.atribut) {
-          await dao.insertAtributNotaris(
-            PekerjaanNotarisAtributLocalsCompanion.insert(
+        return dao.attachedDatabase.transaction(() async {
+          await _validateCategories(dao, input);
+          final pekerjaanId = await dao.insertPekerjaanNotaris(
+            PekerjaanNotarisLocalsCompanion.insert(
               uuid: _uuid.v4(),
-              pekerjaanNotarisId: pekerjaanId,
-              prosesPekerjaanNotarisId: prosesId,
-              atribut: Value(atribut.atribut),
+              nama: input.nama,
               createdBy: Value(createdBy),
               createdAt: Value(now),
               updatedAt: Value(now),
               isSyncDirty: const Value(true),
             ),
           );
-        }
-      }
 
-      return pekerjaanId;
-    });
+          for (final harga in input.harga) {
+            await dao.insertHargaNotaris(
+              PekerjaanNotarisHargaLocalsCompanion.insert(
+                uuid: _uuid.v4(),
+                pekerjaanNotarisId: pekerjaanId,
+                harga: harga.harga,
+                kategoriPekerjaanId: harga.kategoriPekerjaanId,
+                estimasiWaktu: harga.estimasiWaktu,
+                createdBy: Value(createdBy),
+                createdAt: Value(now),
+                updatedAt: Value(now),
+                isSyncDirty: const Value(true),
+              ),
+            );
+          }
+
+          for (final proses in input.proses) {
+            final prosesId = await dao.insertProsesNotaris(
+              PekerjaanNotarisProsesLocalsCompanion.insert(
+                uuid: _uuid.v4(),
+                pekerjaanNotarisId: pekerjaanId,
+                nama: proses.nama,
+                detail: proses.detail,
+                createdBy: Value(createdBy),
+                createdAt: Value(now),
+                updatedAt: Value(now),
+                isSyncDirty: const Value(true),
+              ),
+            );
+
+            for (final atribut in proses.atribut) {
+              await dao.insertAtributNotaris(
+                PekerjaanNotarisAtributLocalsCompanion.insert(
+                  uuid: _uuid.v4(),
+                  pekerjaanNotarisId: pekerjaanId,
+                  prosesPekerjaanNotarisId: prosesId,
+                  atribut: Value(atribut.atribut),
+                  createdBy: Value(createdBy),
+                  createdAt: Value(now),
+                  updatedAt: Value(now),
+                  isSyncDirty: const Value(true),
+                ),
+              );
+            }
+          }
+
+          return pekerjaanId;
+        });
+      },
+      claimedActor: createdBy,
+    );
   }
 
   /// Updates the complete aggregate atomically.
@@ -405,151 +444,163 @@ class PekerjaanNotarisRepository {
     required PekerjaanAggregateInput input,
     int? updatedBy,
   }) async {
-    input = _validateAndNormalizeInput(input);
-    final now = DateTime.now();
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    return authority.write(
+      dao.attachedDatabase,
+      MasterModule.notaris,
+      MasterAction.update,
+      (actor) async {
+        updatedBy = actor.userId;
 
-    return dao.attachedDatabase.transaction(() async {
-      final parent = await dao.getPekerjaanNotarisById(id);
-      if (parent == null || parent.status != 1) return false;
+        input = _validateAndNormalizeInput(input);
+        final now = DateTime.now();
 
-      await _validateChildOwnership(pekerjaanId: id, input: input);
+        return dao.attachedDatabase.transaction(() async {
+          final parent = await dao.getPekerjaanNotarisById(id);
+          if (parent == null || parent.status != 1) return false;
 
-      final updated = await dao.updatePekerjaanNotaris(
-        id,
-        PekerjaanNotarisLocalsCompanion(
-          nama: Value(input.nama),
-          updatedBy: Value(updatedBy),
-          updatedAt: Value(now),
-          isSyncDirty: const Value(true),
-        ),
-      );
-      if (!updated) return false;
+          await _validateChildOwnership(pekerjaanId: id, input: input);
 
-      final existingHarga = await dao.getHargaNotaris(id);
-      final incomingHargaIds = input.harga
-          .where((item) => item.id != null)
-          .map((item) => item.id!)
-          .toSet();
-
-      for (final existing in existingHarga) {
-        if (!incomingHargaIds.contains(existing.id)) {
-          await dao.softDeleteHargaNotaris(existing.id, now);
-        }
-      }
-
-      for (final harga in input.harga) {
-        if (harga.id == null) {
-          await dao.insertHargaNotaris(
-            PekerjaanNotarisHargaLocalsCompanion.insert(
-              uuid: _uuid.v4(),
-              pekerjaanNotarisId: id,
-              harga: harga.harga,
-              kategoriPekerjaanId: harga.kategoriPekerjaanId,
-              estimasiWaktu: harga.estimasiWaktu,
-              createdBy: Value(updatedBy),
-              createdAt: Value(now),
-              updatedAt: Value(now),
-              isSyncDirty: const Value(true),
-            ),
-          );
-        } else {
-          await dao.updateHargaNotaris(
-            harga.id!,
-            PekerjaanNotarisHargaLocalsCompanion(
-              harga: Value(harga.harga),
-              kategoriPekerjaanId: Value(harga.kategoriPekerjaanId),
-              estimasiWaktu: Value(harga.estimasiWaktu),
+          final updated = await dao.updatePekerjaanNotaris(
+            id,
+            PekerjaanNotarisLocalsCompanion(
+              nama: Value(input.nama),
               updatedBy: Value(updatedBy),
               updatedAt: Value(now),
               isSyncDirty: const Value(true),
             ),
           );
-        }
-      }
+          if (!updated) return false;
 
-      final existingProses = await dao.getProsesNotaris(id);
-      final incomingProsesIds = input.proses
-          .where((item) => item.id != null)
-          .map((item) => item.id!)
-          .toSet();
+          final existingHarga = await dao.getHargaNotaris(id);
+          final incomingHargaIds = input.harga
+              .where((item) => item.id != null)
+              .map((item) => item.id!)
+              .toSet();
 
-      for (final existing in existingProses) {
-        if (!incomingProsesIds.contains(existing.id)) {
-          await _softDeleteNotarisProsesTree(existing.id, now);
-        }
-      }
-
-      for (final proses in input.proses) {
-        final prosesId =
-            proses.id ??
-            await dao.insertProsesNotaris(
-              PekerjaanNotarisProsesLocalsCompanion.insert(
-                uuid: _uuid.v4(),
-                pekerjaanNotarisId: id,
-                nama: proses.nama,
-                detail: proses.detail,
-                createdBy: Value(updatedBy),
-                createdAt: Value(now),
-                updatedAt: Value(now),
-                isSyncDirty: const Value(true),
-              ),
-            );
-
-        if (proses.id != null) {
-          await dao.updateProsesNotaris(
-            prosesId,
-            PekerjaanNotarisProsesLocalsCompanion(
-              nama: Value(proses.nama),
-              detail: Value(proses.detail),
-              updatedBy: Value(updatedBy),
-              updatedAt: Value(now),
-              isSyncDirty: const Value(true),
-            ),
-          );
-        }
-
-        final existingAtribut = await dao.getAtributNotaris(prosesId);
-        final incomingAtributIds = proses.atribut
-            .where((item) => item.id != null)
-            .map((item) => item.id!)
-            .toSet();
-
-        for (final existing in existingAtribut) {
-          if (!incomingAtributIds.contains(existing.id)) {
-            await dao.softDeleteAtributNotaris(existing.id, now);
+          for (final existing in existingHarga) {
+            if (!incomingHargaIds.contains(existing.id)) {
+              await dao.softDeleteHargaNotaris(existing.id, now);
+            }
           }
-        }
 
-        for (final atribut in proses.atribut) {
-          if (atribut.id == null) {
-            await dao.insertAtributNotaris(
-              PekerjaanNotarisAtributLocalsCompanion.insert(
-                uuid: _uuid.v4(),
-                pekerjaanNotarisId: id,
-                prosesPekerjaanNotarisId: prosesId,
-                atribut: Value(atribut.atribut),
-                createdBy: Value(updatedBy),
-                createdAt: Value(now),
-                updatedAt: Value(now),
-                isSyncDirty: const Value(true),
-              ),
-            );
-          } else {
-            await dao.updateAtributNotaris(
-              atribut.id!,
-              PekerjaanNotarisAtributLocalsCompanion(
-                atribut: Value(atribut.atribut),
-                updatedBy: Value(updatedBy),
-                updatedAt: Value(now),
-                isSyncDirty: const Value(true),
-              ),
-            );
+          for (final harga in input.harga) {
+            if (harga.id == null) {
+              await dao.insertHargaNotaris(
+                PekerjaanNotarisHargaLocalsCompanion.insert(
+                  uuid: _uuid.v4(),
+                  pekerjaanNotarisId: id,
+                  harga: harga.harga,
+                  kategoriPekerjaanId: harga.kategoriPekerjaanId,
+                  estimasiWaktu: harga.estimasiWaktu,
+                  createdBy: Value(updatedBy),
+                  createdAt: Value(now),
+                  updatedAt: Value(now),
+                  isSyncDirty: const Value(true),
+                ),
+              );
+            } else {
+              await dao.updateHargaNotaris(
+                harga.id!,
+                PekerjaanNotarisHargaLocalsCompanion(
+                  harga: Value(harga.harga),
+                  kategoriPekerjaanId: Value(harga.kategoriPekerjaanId),
+                  estimasiWaktu: Value(harga.estimasiWaktu),
+                  updatedBy: Value(updatedBy),
+                  updatedAt: Value(now),
+                  isSyncDirty: const Value(true),
+                ),
+              );
+            }
           }
-        }
-      }
 
-      return true;
-    });
+          final existingProses = await dao.getProsesNotaris(id);
+          final incomingProsesIds = input.proses
+              .where((item) => item.id != null)
+              .map((item) => item.id!)
+              .toSet();
+
+          for (final existing in existingProses) {
+            if (!incomingProsesIds.contains(existing.id)) {
+              await _softDeleteNotarisProsesTree(existing.id, now);
+            }
+          }
+
+          for (final proses in input.proses) {
+            final prosesId =
+                proses.id ??
+                await dao.insertProsesNotaris(
+                  PekerjaanNotarisProsesLocalsCompanion.insert(
+                    uuid: _uuid.v4(),
+                    pekerjaanNotarisId: id,
+                    nama: proses.nama,
+                    detail: proses.detail,
+                    createdBy: Value(updatedBy),
+                    createdAt: Value(now),
+                    updatedAt: Value(now),
+                    isSyncDirty: const Value(true),
+                  ),
+                );
+
+            if (proses.id != null) {
+              await dao.updateProsesNotaris(
+                prosesId,
+                PekerjaanNotarisProsesLocalsCompanion(
+                  nama: Value(proses.nama),
+                  detail: Value(proses.detail),
+                  updatedBy: Value(updatedBy),
+                  updatedAt: Value(now),
+                  isSyncDirty: const Value(true),
+                ),
+              );
+            }
+
+            final existingAtribut = await dao.getAtributNotaris(prosesId);
+            final incomingAtributIds = proses.atribut
+                .where((item) => item.id != null)
+                .map((item) => item.id!)
+                .toSet();
+
+            for (final existing in existingAtribut) {
+              if (!incomingAtributIds.contains(existing.id)) {
+                await dao.softDeleteAtributNotaris(existing.id, now);
+              }
+            }
+
+            for (final atribut in proses.atribut) {
+              if (atribut.id == null) {
+                await dao.insertAtributNotaris(
+                  PekerjaanNotarisAtributLocalsCompanion.insert(
+                    uuid: _uuid.v4(),
+                    pekerjaanNotarisId: id,
+                    prosesPekerjaanNotarisId: prosesId,
+                    atribut: Value(atribut.atribut),
+                    createdBy: Value(updatedBy),
+                    createdAt: Value(now),
+                    updatedAt: Value(now),
+                    isSyncDirty: const Value(true),
+                  ),
+                );
+              } else {
+                await dao.updateAtributNotaris(
+                  atribut.id!,
+                  PekerjaanNotarisAtributLocalsCompanion(
+                    atribut: Value(atribut.atribut),
+                    updatedBy: Value(updatedBy),
+                    updatedAt: Value(now),
+                    isSyncDirty: const Value(true),
+                  ),
+                );
+              }
+            }
+          }
+
+          return true;
+        });
+      },
+      claimedActor: updatedBy,
+    );
   }
 
   Future<void> _softDeleteNotarisProsesTree(int prosesId, DateTime now) async {
@@ -563,30 +614,39 @@ class PekerjaanNotarisRepository {
   }
 
   Future<bool> deleteAggregate(int id) async {
-    final now = DateTime.now();
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    return authority.write(
+      dao.attachedDatabase,
+      MasterModule.notaris,
+      MasterAction.delete,
+      (actor) async {
+        final now = DateTime.now();
 
-    return dao.attachedDatabase.transaction(() async {
-      final parent = await dao.getPekerjaanNotarisById(id);
-      if (parent == null) return false;
+        return dao.attachedDatabase.transaction(() async {
+          final parent = await dao.getPekerjaanNotarisById(id);
+          if (parent == null) return false;
 
-      await _captureMasterDelete(
-        dao.attachedDatabase,
-        'notaris',
-        id,
-        parent.uuid,
-        now,
-      );
+          await _captureMasterDelete(
+            dao.attachedDatabase,
+            'notaris',
+            id,
+            parent.uuid,
+            now,
+          );
 
-      for (final harga in await dao.getHargaNotaris(id)) {
-        await dao.softDeleteHargaNotaris(harga.id, now);
-      }
+          for (final harga in await dao.getHargaNotaris(id)) {
+            await dao.softDeleteHargaNotaris(harga.id, now);
+          }
 
-      for (final proses in await dao.getProsesNotaris(id)) {
-        await _softDeleteNotarisProsesTree(proses.id, now);
-      }
+          for (final proses in await dao.getProsesNotaris(id)) {
+            await _softDeleteNotarisProsesTree(proses.id, now);
+          }
 
-      return dao.softDeletePekerjaanNotaris(id, now);
-    });
+          return dao.softDeletePekerjaanNotaris(id, now);
+        });
+      },
+    );
   }
 }
 
@@ -595,7 +655,8 @@ class PekerjaanPpatRepository {
 
   final PekerjaanDao dao;
 
-  PekerjaanPpatRepository(this.dao);
+  PekerjaanPpatRepository(this.dao, {this.authorization});
+  final LocalMasterAuthorization? authorization;
 
   Stream<List<PekerjaanPpatLocal>> watchAll() => dao.watchPekerjaanPpat();
 
@@ -648,18 +709,30 @@ class PekerjaanPpatRepository {
     required String uuid,
     required String nama,
     int? createdBy,
-  }) {
-    final now = DateTime.now();
+  }) async {
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    return authority.write(
+      dao.attachedDatabase,
+      MasterModule.ppat,
+      MasterAction.create,
+      (actor) async {
+        createdBy = actor.userId;
 
-    return dao.insertPekerjaanPpat(
-      PekerjaanPpatLocalsCompanion.insert(
-        uuid: uuid,
-        nama: nama,
-        createdBy: Value(createdBy),
-        createdAt: Value(now),
-        updatedAt: Value(now),
-        isSyncDirty: const Value(true),
-      ),
+        final now = DateTime.now();
+
+        return dao.insertPekerjaanPpat(
+          PekerjaanPpatLocalsCompanion.insert(
+            uuid: uuid,
+            nama: nama,
+            createdBy: Value(createdBy),
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            isSyncDirty: const Value(true),
+          ),
+        );
+      },
+      claimedActor: createdBy,
     );
   }
 
@@ -667,17 +740,29 @@ class PekerjaanPpatRepository {
     required int id,
     required String nama,
     int? updatedBy,
-  }) {
-    final now = DateTime.now();
+  }) async {
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    return authority.write(
+      dao.attachedDatabase,
+      MasterModule.ppat,
+      MasterAction.update,
+      (actor) async {
+        updatedBy = actor.userId;
 
-    return dao.updatePekerjaanPpat(
-      id,
-      PekerjaanPpatLocalsCompanion(
-        nama: Value(nama),
-        updatedBy: Value(updatedBy),
-        updatedAt: Value(now),
-        isSyncDirty: const Value(true),
-      ),
+        final now = DateTime.now();
+
+        return dao.updatePekerjaanPpat(
+          id,
+          PekerjaanPpatLocalsCompanion(
+            nama: Value(nama),
+            updatedBy: Value(updatedBy),
+            updatedAt: Value(now),
+            isSyncDirty: const Value(true),
+          ),
+        );
+      },
+      claimedActor: updatedBy,
     );
   }
 
@@ -813,70 +898,82 @@ class PekerjaanPpatRepository {
     required PekerjaanAggregateInput input,
     int? createdBy,
   }) async {
-    input = _validateAndNormalizeInput(input);
-    final now = DateTime.now();
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    return authority.write(
+      dao.attachedDatabase,
+      MasterModule.ppat,
+      MasterAction.create,
+      (actor) async {
+        createdBy = actor.userId;
 
-    return dao.attachedDatabase.transaction(() async {
-      await _validateCategories(dao, input);
-      final pekerjaanId = await dao.insertPekerjaanPpat(
-        PekerjaanPpatLocalsCompanion.insert(
-          uuid: _uuid.v4(),
-          nama: input.nama,
-          createdBy: Value(createdBy),
-          createdAt: Value(now),
-          updatedAt: Value(now),
-          isSyncDirty: const Value(true),
-        ),
-      );
+        input = _validateAndNormalizeInput(input);
+        final now = DateTime.now();
 
-      for (final harga in input.harga) {
-        await dao.insertHargaPpat(
-          PekerjaanPpatHargaLocalsCompanion.insert(
-            uuid: _uuid.v4(),
-            pekerjaanPpatId: pekerjaanId,
-            harga: harga.harga,
-            kategoriPekerjaanId: harga.kategoriPekerjaanId,
-            estimasiWaktu: harga.estimasiWaktu,
-            createdBy: Value(createdBy),
-            createdAt: Value(now),
-            updatedAt: Value(now),
-            isSyncDirty: const Value(true),
-          ),
-        );
-      }
-
-      for (final proses in input.proses) {
-        final prosesId = await dao.insertProsesPpat(
-          PekerjaanPpatProsesLocalsCompanion.insert(
-            uuid: _uuid.v4(),
-            pekerjaanPpatId: pekerjaanId,
-            nama: proses.nama,
-            detail: proses.detail,
-            createdBy: Value(createdBy),
-            createdAt: Value(now),
-            updatedAt: Value(now),
-            isSyncDirty: const Value(true),
-          ),
-        );
-
-        for (final atribut in proses.atribut) {
-          await dao.insertAtributPpat(
-            PekerjaanPpatAtributLocalsCompanion.insert(
+        return dao.attachedDatabase.transaction(() async {
+          await _validateCategories(dao, input);
+          final pekerjaanId = await dao.insertPekerjaanPpat(
+            PekerjaanPpatLocalsCompanion.insert(
               uuid: _uuid.v4(),
-              pekerjaanPpatId: pekerjaanId,
-              prosesPekerjaanPpatId: prosesId,
-              atribut: Value(atribut.atribut),
+              nama: input.nama,
               createdBy: Value(createdBy),
               createdAt: Value(now),
               updatedAt: Value(now),
               isSyncDirty: const Value(true),
             ),
           );
-        }
-      }
 
-      return pekerjaanId;
-    });
+          for (final harga in input.harga) {
+            await dao.insertHargaPpat(
+              PekerjaanPpatHargaLocalsCompanion.insert(
+                uuid: _uuid.v4(),
+                pekerjaanPpatId: pekerjaanId,
+                harga: harga.harga,
+                kategoriPekerjaanId: harga.kategoriPekerjaanId,
+                estimasiWaktu: harga.estimasiWaktu,
+                createdBy: Value(createdBy),
+                createdAt: Value(now),
+                updatedAt: Value(now),
+                isSyncDirty: const Value(true),
+              ),
+            );
+          }
+
+          for (final proses in input.proses) {
+            final prosesId = await dao.insertProsesPpat(
+              PekerjaanPpatProsesLocalsCompanion.insert(
+                uuid: _uuid.v4(),
+                pekerjaanPpatId: pekerjaanId,
+                nama: proses.nama,
+                detail: proses.detail,
+                createdBy: Value(createdBy),
+                createdAt: Value(now),
+                updatedAt: Value(now),
+                isSyncDirty: const Value(true),
+              ),
+            );
+
+            for (final atribut in proses.atribut) {
+              await dao.insertAtributPpat(
+                PekerjaanPpatAtributLocalsCompanion.insert(
+                  uuid: _uuid.v4(),
+                  pekerjaanPpatId: pekerjaanId,
+                  prosesPekerjaanPpatId: prosesId,
+                  atribut: Value(atribut.atribut),
+                  createdBy: Value(createdBy),
+                  createdAt: Value(now),
+                  updatedAt: Value(now),
+                  isSyncDirty: const Value(true),
+                ),
+              );
+            }
+          }
+
+          return pekerjaanId;
+        });
+      },
+      claimedActor: createdBy,
+    );
   }
 
   Future<bool> updateAggregate({
@@ -884,151 +981,163 @@ class PekerjaanPpatRepository {
     required PekerjaanAggregateInput input,
     int? updatedBy,
   }) async {
-    input = _validateAndNormalizeInput(input);
-    final now = DateTime.now();
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    return authority.write(
+      dao.attachedDatabase,
+      MasterModule.ppat,
+      MasterAction.update,
+      (actor) async {
+        updatedBy = actor.userId;
 
-    return dao.attachedDatabase.transaction(() async {
-      final parent = await dao.getPekerjaanPpatById(id);
-      if (parent == null || parent.status != 1) return false;
+        input = _validateAndNormalizeInput(input);
+        final now = DateTime.now();
 
-      await _validateChildOwnership(pekerjaanId: id, input: input);
+        return dao.attachedDatabase.transaction(() async {
+          final parent = await dao.getPekerjaanPpatById(id);
+          if (parent == null || parent.status != 1) return false;
 
-      final updated = await dao.updatePekerjaanPpat(
-        id,
-        PekerjaanPpatLocalsCompanion(
-          nama: Value(input.nama),
-          updatedBy: Value(updatedBy),
-          updatedAt: Value(now),
-          isSyncDirty: const Value(true),
-        ),
-      );
-      if (!updated) return false;
+          await _validateChildOwnership(pekerjaanId: id, input: input);
 
-      final existingHarga = await dao.getHargaPpat(id);
-      final incomingHargaIds = input.harga
-          .where((item) => item.id != null)
-          .map((item) => item.id!)
-          .toSet();
-
-      for (final existing in existingHarga) {
-        if (!incomingHargaIds.contains(existing.id)) {
-          await dao.softDeleteHargaPpat(existing.id, now);
-        }
-      }
-
-      for (final harga in input.harga) {
-        if (harga.id == null) {
-          await dao.insertHargaPpat(
-            PekerjaanPpatHargaLocalsCompanion.insert(
-              uuid: _uuid.v4(),
-              pekerjaanPpatId: id,
-              harga: harga.harga,
-              kategoriPekerjaanId: harga.kategoriPekerjaanId,
-              estimasiWaktu: harga.estimasiWaktu,
-              createdBy: Value(updatedBy),
-              createdAt: Value(now),
-              updatedAt: Value(now),
-              isSyncDirty: const Value(true),
-            ),
-          );
-        } else {
-          await dao.updateHargaPpat(
-            harga.id!,
-            PekerjaanPpatHargaLocalsCompanion(
-              harga: Value(harga.harga),
-              kategoriPekerjaanId: Value(harga.kategoriPekerjaanId),
-              estimasiWaktu: Value(harga.estimasiWaktu),
+          final updated = await dao.updatePekerjaanPpat(
+            id,
+            PekerjaanPpatLocalsCompanion(
+              nama: Value(input.nama),
               updatedBy: Value(updatedBy),
               updatedAt: Value(now),
               isSyncDirty: const Value(true),
             ),
           );
-        }
-      }
+          if (!updated) return false;
 
-      final existingProses = await dao.getProsesPpat(id);
-      final incomingProsesIds = input.proses
-          .where((item) => item.id != null)
-          .map((item) => item.id!)
-          .toSet();
+          final existingHarga = await dao.getHargaPpat(id);
+          final incomingHargaIds = input.harga
+              .where((item) => item.id != null)
+              .map((item) => item.id!)
+              .toSet();
 
-      for (final existing in existingProses) {
-        if (!incomingProsesIds.contains(existing.id)) {
-          await _softDeletePpatProsesTree(existing.id, now);
-        }
-      }
-
-      for (final proses in input.proses) {
-        final prosesId =
-            proses.id ??
-            await dao.insertProsesPpat(
-              PekerjaanPpatProsesLocalsCompanion.insert(
-                uuid: _uuid.v4(),
-                pekerjaanPpatId: id,
-                nama: proses.nama,
-                detail: proses.detail,
-                createdBy: Value(updatedBy),
-                createdAt: Value(now),
-                updatedAt: Value(now),
-                isSyncDirty: const Value(true),
-              ),
-            );
-
-        if (proses.id != null) {
-          await dao.updateProsesPpat(
-            prosesId,
-            PekerjaanPpatProsesLocalsCompanion(
-              nama: Value(proses.nama),
-              detail: Value(proses.detail),
-              updatedBy: Value(updatedBy),
-              updatedAt: Value(now),
-              isSyncDirty: const Value(true),
-            ),
-          );
-        }
-
-        final existingAtribut = await dao.getAtributPpat(prosesId);
-        final incomingAtributIds = proses.atribut
-            .where((item) => item.id != null)
-            .map((item) => item.id!)
-            .toSet();
-
-        for (final existing in existingAtribut) {
-          if (!incomingAtributIds.contains(existing.id)) {
-            await dao.softDeleteAtributPpat(existing.id, now);
+          for (final existing in existingHarga) {
+            if (!incomingHargaIds.contains(existing.id)) {
+              await dao.softDeleteHargaPpat(existing.id, now);
+            }
           }
-        }
 
-        for (final atribut in proses.atribut) {
-          if (atribut.id == null) {
-            await dao.insertAtributPpat(
-              PekerjaanPpatAtributLocalsCompanion.insert(
-                uuid: _uuid.v4(),
-                pekerjaanPpatId: id,
-                prosesPekerjaanPpatId: prosesId,
-                atribut: Value(atribut.atribut),
-                createdBy: Value(updatedBy),
-                createdAt: Value(now),
-                updatedAt: Value(now),
-                isSyncDirty: const Value(true),
-              ),
-            );
-          } else {
-            await dao.updateAtributPpat(
-              atribut.id!,
-              PekerjaanPpatAtributLocalsCompanion(
-                atribut: Value(atribut.atribut),
-                updatedBy: Value(updatedBy),
-                updatedAt: Value(now),
-                isSyncDirty: const Value(true),
-              ),
-            );
+          for (final harga in input.harga) {
+            if (harga.id == null) {
+              await dao.insertHargaPpat(
+                PekerjaanPpatHargaLocalsCompanion.insert(
+                  uuid: _uuid.v4(),
+                  pekerjaanPpatId: id,
+                  harga: harga.harga,
+                  kategoriPekerjaanId: harga.kategoriPekerjaanId,
+                  estimasiWaktu: harga.estimasiWaktu,
+                  createdBy: Value(updatedBy),
+                  createdAt: Value(now),
+                  updatedAt: Value(now),
+                  isSyncDirty: const Value(true),
+                ),
+              );
+            } else {
+              await dao.updateHargaPpat(
+                harga.id!,
+                PekerjaanPpatHargaLocalsCompanion(
+                  harga: Value(harga.harga),
+                  kategoriPekerjaanId: Value(harga.kategoriPekerjaanId),
+                  estimasiWaktu: Value(harga.estimasiWaktu),
+                  updatedBy: Value(updatedBy),
+                  updatedAt: Value(now),
+                  isSyncDirty: const Value(true),
+                ),
+              );
+            }
           }
-        }
-      }
 
-      return true;
-    });
+          final existingProses = await dao.getProsesPpat(id);
+          final incomingProsesIds = input.proses
+              .where((item) => item.id != null)
+              .map((item) => item.id!)
+              .toSet();
+
+          for (final existing in existingProses) {
+            if (!incomingProsesIds.contains(existing.id)) {
+              await _softDeletePpatProsesTree(existing.id, now);
+            }
+          }
+
+          for (final proses in input.proses) {
+            final prosesId =
+                proses.id ??
+                await dao.insertProsesPpat(
+                  PekerjaanPpatProsesLocalsCompanion.insert(
+                    uuid: _uuid.v4(),
+                    pekerjaanPpatId: id,
+                    nama: proses.nama,
+                    detail: proses.detail,
+                    createdBy: Value(updatedBy),
+                    createdAt: Value(now),
+                    updatedAt: Value(now),
+                    isSyncDirty: const Value(true),
+                  ),
+                );
+
+            if (proses.id != null) {
+              await dao.updateProsesPpat(
+                prosesId,
+                PekerjaanPpatProsesLocalsCompanion(
+                  nama: Value(proses.nama),
+                  detail: Value(proses.detail),
+                  updatedBy: Value(updatedBy),
+                  updatedAt: Value(now),
+                  isSyncDirty: const Value(true),
+                ),
+              );
+            }
+
+            final existingAtribut = await dao.getAtributPpat(prosesId);
+            final incomingAtributIds = proses.atribut
+                .where((item) => item.id != null)
+                .map((item) => item.id!)
+                .toSet();
+
+            for (final existing in existingAtribut) {
+              if (!incomingAtributIds.contains(existing.id)) {
+                await dao.softDeleteAtributPpat(existing.id, now);
+              }
+            }
+
+            for (final atribut in proses.atribut) {
+              if (atribut.id == null) {
+                await dao.insertAtributPpat(
+                  PekerjaanPpatAtributLocalsCompanion.insert(
+                    uuid: _uuid.v4(),
+                    pekerjaanPpatId: id,
+                    prosesPekerjaanPpatId: prosesId,
+                    atribut: Value(atribut.atribut),
+                    createdBy: Value(updatedBy),
+                    createdAt: Value(now),
+                    updatedAt: Value(now),
+                    isSyncDirty: const Value(true),
+                  ),
+                );
+              } else {
+                await dao.updateAtributPpat(
+                  atribut.id!,
+                  PekerjaanPpatAtributLocalsCompanion(
+                    atribut: Value(atribut.atribut),
+                    updatedBy: Value(updatedBy),
+                    updatedAt: Value(now),
+                    isSyncDirty: const Value(true),
+                  ),
+                );
+              }
+            }
+          }
+
+          return true;
+        });
+      },
+      claimedActor: updatedBy,
+    );
   }
 
   Future<void> _softDeletePpatProsesTree(int prosesId, DateTime now) async {
@@ -1042,30 +1151,39 @@ class PekerjaanPpatRepository {
   }
 
   Future<bool> deleteAggregate(int id) async {
-    final now = DateTime.now();
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    return authority.write(
+      dao.attachedDatabase,
+      MasterModule.ppat,
+      MasterAction.delete,
+      (actor) async {
+        final now = DateTime.now();
 
-    return dao.attachedDatabase.transaction(() async {
-      final parent = await dao.getPekerjaanPpatById(id);
-      if (parent == null) return false;
+        return dao.attachedDatabase.transaction(() async {
+          final parent = await dao.getPekerjaanPpatById(id);
+          if (parent == null) return false;
 
-      await _captureMasterDelete(
-        dao.attachedDatabase,
-        'ppat',
-        id,
-        parent.uuid,
-        now,
-      );
+          await _captureMasterDelete(
+            dao.attachedDatabase,
+            'ppat',
+            id,
+            parent.uuid,
+            now,
+          );
 
-      for (final harga in await dao.getHargaPpat(id)) {
-        await dao.softDeleteHargaPpat(harga.id, now);
-      }
+          for (final harga in await dao.getHargaPpat(id)) {
+            await dao.softDeleteHargaPpat(harga.id, now);
+          }
 
-      for (final proses in await dao.getProsesPpat(id)) {
-        await _softDeletePpatProsesTree(proses.id, now);
-      }
+          for (final proses in await dao.getProsesPpat(id)) {
+            await _softDeletePpatProsesTree(proses.id, now);
+          }
 
-      return dao.softDeletePekerjaanPpat(id, now);
-    });
+          return dao.softDeletePekerjaanPpat(id, now);
+        });
+      },
+    );
   }
 }
 

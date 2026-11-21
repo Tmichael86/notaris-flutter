@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -32,8 +34,11 @@ void main() {
       addTearDown(b.close);
       await category(a);
       await category(b);
-      final localId = await PekerjaanNotarisRepository(a.pekerjaanDao)
-          .createAggregate(
+      final localId =
+          await PekerjaanNotarisRepository(
+            a.pekerjaanDao,
+            authorization: masterTestAuthority(a),
+          ).createAggregate(
             input: const PekerjaanAggregateInput(
               nama: 'Cloud fixture',
               harga: [
@@ -245,8 +250,11 @@ void main() {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
       await category(db);
-      final id = await PekerjaanNotarisRepository(db.pekerjaanDao)
-          .createAggregate(
+      final id =
+          await PekerjaanNotarisRepository(
+            db.pekerjaanDao,
+            authorization: masterTestAuthority(db),
+          ).createAggregate(
             input: const PekerjaanAggregateInput(
               nama: 'Original',
               harga: [
@@ -313,8 +321,11 @@ void main() {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
       await category(db);
-      final id = await PekerjaanNotarisRepository(db.pekerjaanDao)
-          .createAggregate(
+      final id =
+          await PekerjaanNotarisRepository(
+            db.pekerjaanDao,
+            authorization: masterTestAuthority(db),
+          ).createAggregate(
             input: const PekerjaanAggregateInput(
               nama: 'Original',
               harga: [
@@ -370,8 +381,10 @@ void main() {
         scope: 'test-scope',
       );
       await cloud.pushCreate(id);
-      await PekerjaanNotarisRepository(db.pekerjaanDao)
-          .updateNama(id: id, nama: 'Unsent edit');
+      await PekerjaanNotarisRepository(
+        db.pekerjaanDao,
+        authorization: masterTestAuthority(db),
+      ).updateNama(id: id, nama: 'Unsent edit');
       await expectLater(
         cloud.pushUpdate(id),
         throwsA(

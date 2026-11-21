@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -138,8 +140,10 @@ void main() {
       final db = AppDatabase.forTesting(NativeDatabase.memory());
       addTearDown(db.close);
       for (var i = 0; i < 11; i++) {
-        await PetugasRepository(db)
-            .create(nama: 'Fixture $i', email: 'fixture$i@e2e.invalid');
+        await PetugasRepository(
+          db,
+          authorization: masterTestAuthority(db),
+        ).create(nama: 'Fixture $i', email: 'fixture$i@e2e.invalid');
       }
       await tester.pumpWidget(
         ProviderScope(

@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -50,7 +52,7 @@ void main() {
   late int id;
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    people = PetugasRepository(db);
+    people = PetugasRepository(db, authorization: masterTestAuthority(db));
     id = await people.create(nama: 'Local', email: 'a@example.com');
     uuid = (await db.select(db.petugasLocals).getSingle()).uuid;
     await PetugasIdentityMapRepository(db).registerLocalOnly(localUuid: uuid);
