@@ -1,5 +1,3 @@
-import '../providers/isolated_transaction_profile_provider.dart';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,9 +5,6 @@ import '../core/theme/app_colors.dart';
 import '../core/widgets/app_shell.dart';
 import '../models/auth_session.dart';
 import '../providers/auth_provider.dart';
-import '../providers/development_smoke_provider.dart';
-import '../providers/pekerjaan_provider.dart';
-import '../services/session_sync_controller.dart';
 import 'login_desktop_screen.dart';
 
 class AuthStartupGate extends ConsumerWidget {
@@ -34,75 +29,16 @@ class AuthStartupGate extends ConsumerWidget {
   }
 }
 
-class _AuthenticatedShell extends ConsumerStatefulWidget {
+// Authentication grants access to the local shell, never sync activation.
+// No lifecycle observer, queued sync callback or background timer is installed.
+class _AuthenticatedShell extends StatelessWidget {
   const _AuthenticatedShell({required this.session, required this.onLogout});
-
   final AuthSession session;
   final VoidCallback onLogout;
 
   @override
-  ConsumerState<_AuthenticatedShell> createState() =>
-      _AuthenticatedShellState();
-}
-
-class _AuthenticatedShellState extends ConsumerState<_AuthenticatedShell>
-    with WidgetsBindingObserver {
-  late final SessionSyncController _sessionSyncController;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _sessionSyncController = SessionSyncController(
-      synchronize: () => ref.read(syncCoordinatorProvider).synchronizeNow(),
-      onInitialSyncResult: (error) {
-        if (!mounted) return;
-        final succeeded = error == null;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              succeeded
-                  ? 'Sinkronisasi awal berhasil.'
-                  : 'Sinkronisasi awal gagal. ${error.toString()}',
-            ),
-            backgroundColor: succeeded
-                ? Colors.green.shade700
-                : Colors.orange.shade800,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      },
-    );
-    // Wait until the first frame is complete before sync updates Riverpod state.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted &&
-          !ref.read(developmentUiSmokeProvider) &&
-          ref.read(isolatedTransactionSyncConfigurationProvider) == null) {
-        _sessionSyncController.start();
-      }
-    });
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed &&
-        !ref.read(developmentUiSmokeProvider) &&
-        ref.read(isolatedTransactionSyncConfigurationProvider) == null) {
-      _sessionSyncController.onAppResumed();
-    }
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _sessionSyncController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AppShell(session: widget.session, onLogout: widget.onLogout);
-  }
+  Widget build(BuildContext context) =>
+      AppShell(session: session, onLogout: onLogout);
 }
 
 class _StartupLoadingScreen extends StatelessWidget {

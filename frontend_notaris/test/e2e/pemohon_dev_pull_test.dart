@@ -14,7 +14,7 @@ import 'package:frontend_notaris/providers/pekerjaan_provider.dart';
 import 'package:frontend_notaris/repositories/pemohon_gender_references.dart';
 
 void main() {
-  test('development initial and manual coordinator pull 20 Pemohon with verified fixture references', () async {
+  test('legacy development coordinator remains disabled even with authenticated fixture references', () async {
     final root = Platform.environment['NOTARIS_DEV_SMOKE_ROOT']!;
     final profile = jsonDecode(
       await File('$root/.local/notarisdev-profile.json').readAsString(),
@@ -73,23 +73,13 @@ void main() {
       ],
     );
     try {
-      await container.read(syncCoordinatorProvider).synchronizeNow();
-      expect(container.read(syncStatusProvider), SyncStatus.success);
-      final initial = await db.select(db.pemohons).get();
-      expect(initial.length, 20);
-      expect(
-        initial.every((r) => r.uuid.startsWith('fa000001-') && !r.isSyncDirty),
-        isTrue,
+      await expectLater(
+        container.read(syncCoordinatorProvider).synchronizeNow(),
+        throwsA(isA<SyncFailure>()),
       );
-      expect(
-        initial.every((r) => r.jenisKelamin == initial.first.jenisKelamin),
-        isTrue,
-      );
-      expect(initial.first.jenisKelamin, await refs.toLocal(29));
-      expect(initial.first.jenisKelamin, isNot(29));
-      await container.read(syncCoordinatorProvider).synchronizeNow();
-      expect((await db.select(db.pemohons).get()).length, 20);
-      expect(container.read(syncStatusProvider), SyncStatus.success);
+      expect(container.read(syncStatusProvider), SyncStatus.disabledByPolicy);
+      expect(await db.select(db.pemohons).get(), isEmpty);
+      expect(container.read(syncStatusProvider), SyncStatus.disabledByPolicy);
     } finally {
       container.dispose();
       await db.close();

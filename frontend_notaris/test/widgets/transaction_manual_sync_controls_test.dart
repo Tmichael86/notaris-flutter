@@ -710,7 +710,10 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     session.onAppResumed();
     await Future<void>.delayed(Duration.zero);
-    await coordinator.synchronizeNow();
+    await expectLater(
+      coordinator.synchronizeNow(),
+      throwsA(isA<SyncFailure>()),
+    );
     session.dispose();
     expect(touched, 0);
     await c

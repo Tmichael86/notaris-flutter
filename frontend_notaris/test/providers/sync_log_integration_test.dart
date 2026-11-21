@@ -3,39 +3,54 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart' hide Fake;
 import 'package:frontend_notaris/database/app_database.dart';
+import 'package:frontend_notaris/providers/app_providers.dart';
 import 'package:frontend_notaris/providers/database_provider.dart';
 import 'package:frontend_notaris/providers/authenticated_api_provider.dart';
 import 'package:frontend_notaris/providers/pekerjaan_provider.dart';
-import 'package:frontend_notaris/providers/sync_log_provider.dart';
 import 'package:frontend_notaris/providers/development_smoke_provider.dart';
 
-import '../repositories/petugas_local_sync_test.dart' show Fake, reply;
+import '../repositories/petugas_local_sync_test.dart' show Fake;
 
 void main() {
-  test('real coordinator logs only reached modules; single flight retry preserves failure', () async {
-    final db = AppDatabase.forTesting(NativeDatabase.memory());
-    var failed = true;
-    var calls = 0;
-    final dio = Dio(BaseOptions(baseUrl: 'http://fixture.invalid/api/v1'));
-    dio.httpClientAdapter = Fake((request) async {
-      calls++;
-      expect(request.method, 'GET');
-      if (failed) {
-        return ResponseBody.fromString(
-          '{}',
-          403,
-          headers: {
-            Headers.contentTypeHeader: ['application/json'],
-          },
+  for (final smoke in [false, true]) {
+    test(
+      'global deny opens neither SQLite nor either Dio; smoke=$smoke',
+      () async {
+        var touched = 0;
+        final c = ProviderContainer(
+          overrides: [
+            developmentUiSmokeProvider.overrideWithValue(smoke),
+            appDatabaseProvider.overrideWith((ref) {
+              touched++;
+              throw StateError('must not open');
+            }),
+            dioProvider.overrideWith((ref) {
+              touched++;
+              throw StateError('must not resolve base HTTP');
+            }),
+            authenticatedDioProvider.overrideWith((ref) {
+              touched++;
+              throw StateError('must not clone HTTP');
+            }),
+          ],
         );
-      }
-      return reply({
-        'success': true,
-        'data': {
-          'items': [],
-          'pagination': {'has_more': false},
-        },
-      });
+        addTearDown(c.dispose);
+        await expectLater(
+          c.read(syncCoordinatorProvider).synchronizeNow(),
+          throwsA(isA<SyncFailure>()),
+        );
+        expect(c.read(syncStatusProvider), SyncStatus.disabledByPolicy);
+        expect(touched, 0);
+      },
+    );
+  }
+  test('different authenticated transport cannot escape global containment or fabricate logs', () async {
+    final db = AppDatabase.forTesting(NativeDatabase.memory());
+    final requests = <RequestOptions>[];
+    final dio = Dio(BaseOptions(baseUrl: 'http://fixture.invalid/api/v1'));
+    dio.httpClientAdapter = Fake((r) async {
+      requests.add(r);
+      throw StateError('unexpected network');
     });
     final c = ProviderContainer(
       overrides: [
@@ -43,35 +58,23 @@ void main() {
         authenticatedDioProvider.overrideWithValue(dio),
       ],
     );
-    final sync = c.read(syncCoordinatorProvider);
-    await expectLater(sync.synchronizeNow(), throwsA(anything));
-    final logger = c.read(syncLogRepositoryProvider);
-    expect((await logger.list()).single['status'], 'failed');
-    expect((await logger.list()).single['module'], 'kategori');
-    failed = false;
-    final a = sync.synchronizeNow(), b = sync.synchronizeNow();
-    expect(identical(a, b), true);
-    await a;
-    final rows = await logger.list();
-    expect(rows.length, 4);
-    expect(rows.where((r) => r['status'] == 'success').length, 3);
-    expect(rows.where((r) => r['module'] == 'petugas'), isEmpty);
-    expect(rows.first['record_count'], 0);
-    expect(calls, 4);
-    c.dispose();
-    dio.close(force: true);
-    await db.close();
-  });
-  test('smoke bypass opens neither log storage nor sync', () async {
-    final c = ProviderContainer(
-      overrides: [
-        developmentUiSmokeProvider.overrideWithValue(true),
-        appDatabaseProvider.overrideWith(
-          (ref) => throw StateError('Must not open database'),
-        ),
-      ],
+    await db.customStatement(
+      "INSERT INTO sync_logs(operation_id,attempt_id,module,direction,started_at,status,error_code,error_message) VALUES('old','old','transaksi_ppat','push','2026-01-01','failed','conflict','Riwayat 409')",
     );
-    await c.read(syncCoordinatorProvider).synchronizeNow();
+    final before = await db.customSelect('SELECT * FROM sync_logs').get();
+    await expectLater(
+      c.read(pekerjaanKategoriControllerProvider.notifier).synchronize(),
+      throwsA(isA<SyncFailure>()),
+    );
+    expect(requests, isEmpty);
+    expect(
+      (await db.customSelect('SELECT * FROM sync_logs').get()).map(
+        (r) => r.data,
+      ),
+      before.map((r) => r.data),
+    );
     c.dispose();
+    dio.close();
+    await db.close();
   });
 }

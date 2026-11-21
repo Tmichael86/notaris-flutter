@@ -33,8 +33,11 @@ import (
 	"unsafe"
 )
 
-const profileV1PG = 55800
-const profileV1HTTP = 55888
+// Defaults retain the accepted Profile V1 target. Only runH01 selects its
+// fixed NEW-profile ports; no environment or caller-selected endpoint.
+var profileV1PG = 55800
+var profileV1HTTP = 55888
+var profileV1H01 = false
 
 func profileV1Bootstrap(id string) error {
 	root, s, e := profileV1Root(id)
@@ -130,6 +133,14 @@ GRANT INSERT ON administrative_audit TO profile_v1_app;
 GRANT USAGE ON SEQUENCE administrative_audit_id_seq TO profile_v1_app;`).Error; e != nil {
 			return e
 		}
+		if profileV1H01 {
+			if e := tx.Exec(`REVOKE UPDATE(nama,no_telp,alamat,revision,updated_at,updated_by) ON users FROM profile_v1_app;
+REVOKE INSERT ON administrative_audit FROM profile_v1_app;
+REVOKE USAGE ON SEQUENCE administrative_audit_id_seq FROM profile_v1_app;
+ALTER ROLE profile_v1_app SET default_transaction_read_only=on;`).Error; e != nil {
+				return e
+			}
+		}
 		return (services.Administration{DB: tx, Enabled: true}).Ready(context.Background())
 	})
 	if e != nil {
@@ -174,6 +185,10 @@ func profileV1Handler(id string, db *gorm.DB, s profileV1Secrets) http.Handler {
 	})
 	return http.HandlerFunc(func(w http.ResponseWriter, q *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
+		if profileV1H01 && !(q.Method == http.MethodGet || (q.Method == http.MethodPost && q.URL.Path == "/api/v1/auth/login")) {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
 		r.ServeHTTP(w, q)
 	})
 }
@@ -256,7 +271,7 @@ func runProfileV1(args []string) error {
 		}
 		return json.NewEncoder(os.Stdout).Encode(v)
 	case "profile-v1-http-check":
-		return profileV1HTTPCheck(id, s, "http://127.0.0.1:55888")
+		return profileV1HTTPCheck(id, s, fmt.Sprintf("http://127.0.0.1:%d", profileV1HTTP))
 	case "profile-v1-self-check":
 		server := httptest.NewServer(profileV1Handler(id, db, s))
 		defer server.Close()
@@ -277,7 +292,7 @@ type profileV1Secrets = groupsV2Secrets
 type profileV1Manifest = groupsV2Manifest
 
 func profileV1ManifestFor(id string) groupsV2Manifest {
-	return groupsV2Manifest{Profile: id, Scope: "profile-v1/" + id, Database: "profile_v1_" + id, BaseURL: "http://127.0.0.1:55888/api/v1", Port: profileV1PG, Schema: 27, Catalog: "profile-v1"}
+	return groupsV2Manifest{Profile: id, Scope: "profile-v1/" + id, Database: "profile_v1_" + id, BaseURL: fmt.Sprintf("http://127.0.0.1:%d/api/v1", profileV1HTTP), Port: profileV1PG, Schema: 27, Catalog: "profile-v1"}
 }
 func profileV1Root(id string) (string, profileV1Secrets, error) {
 	var s profileV1Secrets
@@ -292,6 +307,12 @@ func profileV1Root(id string) (string, profileV1Secrets, error) {
 	marker, e := readOwnedFile(root, "profile-v1-owner")
 	if e != nil || string(marker) != id {
 		return "", s, rejected
+	}
+	if profileV1H01 {
+		marker, err := readOwnedFile(root, "h01-owner")
+		if err != nil || string(marker) != id {
+			return "", s, rejected
+		}
 	}
 	if unseal(root, id, "profile-v1-secrets", &s) != nil {
 		return "", s, rejected
@@ -335,6 +356,11 @@ func profileV1Init() error {
 	}
 	if e = windows.SetNamedSecurityInfo(root, windows.SE_FILE_OBJECT, windows.DACL_SECURITY_INFORMATION|windows.PROTECTED_DACL_SECURITY_INFORMATION, nil, nil, dacl, nil); e != nil {
 		return e
+	}
+	if profileV1H01 {
+		if e = writeNew(filepath.Join(root, "h01-owner"), []byte(id)); e != nil {
+			return e
+		}
 	}
 	for n, v := range map[string][]byte{"owner": []byte(id), "profile-v1-owner": []byte(id), "public.key": pub} {
 		if e = writeNew(filepath.Join(root, n), v); e != nil {

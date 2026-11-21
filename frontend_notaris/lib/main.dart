@@ -2,14 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'screens/auth_startup_gate.dart';
+import 'h01_acceptance_bootstrap.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(
-    const ProviderScope(
-      child: MyApp(),
-    ),
-  );
+  const h01 = String.fromEnvironment('NOTARIS_H01_ID');
+  if (h01.isNotEmpty) {
+    runApp(
+      await h01AcceptanceApplication(
+        h01,
+        const String.fromEnvironment('NOTARIS_H01_HELPER_SHA256'),
+        const MyApp(),
+      ),
+    );
+    return;
+  }
+  runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends StatelessWidget {

@@ -32,29 +32,32 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     controller.onAppResumed();
     await Future<void>.delayed(Duration.zero);
-    await sync.synchronizeNow();
+    await expectLater(sync.synchronizeNow(), throwsA(isA<SyncFailure>()));
     controller.dispose();
     expect(touched, 0);
   });
 
-  test('normal mode still executes existing synchronization', () async {
-    var touched = 0;
-    final container = ProviderContainer(
-      overrides: [
-        pekerjaanKategoriRepositoryProvider.overrideWith((ref) {
-          touched++;
-          throw StateError('Normal sync reached repository');
-        }),
-      ],
-    );
-    addTearDown(container.dispose);
-    expect(container.read(developmentUiSmokeProvider), false);
-    await expectLater(
-      container.read(syncCoordinatorProvider).synchronizeNow(),
-      throwsA(anything),
-    );
-    expect(touched, 1);
-  });
+  test(
+    'normal mode denies global synchronization before repository access',
+    () async {
+      var touched = 0;
+      final container = ProviderContainer(
+        overrides: [
+          pekerjaanKategoriRepositoryProvider.overrideWith((ref) {
+            touched++;
+            throw StateError('Normal sync reached repository');
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+      expect(container.read(developmentUiSmokeProvider), false);
+      await expectLater(
+        container.read(syncCoordinatorProvider).synchronizeNow(),
+        throwsA(anything),
+      );
+      expect(touched, 0);
+    },
+  );
 
   test(
     'base smoke client allows GET/login but blocks every business write',

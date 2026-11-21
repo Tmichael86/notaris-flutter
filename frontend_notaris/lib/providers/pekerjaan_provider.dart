@@ -1,5 +1,3 @@
-import 'isolated_transaction_profile_provider.dart';
-
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,21 +10,13 @@ import '../services/group_api_service.dart';
 import '../services/group_sidebar_access_api_service.dart';
 import '../services/sidebar_api_service.dart';
 import 'authenticated_api_provider.dart';
-import 'development_smoke_provider.dart';
-import 'sync_log_provider.dart';
-
-import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
 import '../repositories/pekerjaan_repository.dart';
 import '../repositories/pekerjaan_kategori_repository.dart';
 import '../repositories/pengeluaran_jenis_repository.dart';
-import '../repositories/people_repository.dart';
-
-import 'package:flutter/foundation.dart';
 
 import 'database_provider.dart';
-import 'app_providers.dart' show pemohonGenderReferencesProvider;
 import '../repositories/pemohon_gender_references.dart';
 
 final pekerjaanNotarisRepositoryProvider = Provider<PekerjaanNotarisRepository>(
@@ -67,9 +57,18 @@ final pekerjaanKategoriProvider =
       return repository.watchAll();
     });
 
-enum SyncStatus { idle, syncing, pending, success, failed }
+enum SyncStatus {
+  idle,
+  syncing,
+  pending,
+  success,
+  failed,
+  disabledByPolicy,
+  skipped,
+}
 
 enum SyncFailureKind {
+  disabledByPolicy,
   offline,
   timeout,
   unauthorized,
@@ -91,39 +90,22 @@ class SyncFailure implements Exception {
   String toString() => userMessage;
 }
 
-/// Single-flight coordinator for category push/pull. Future sync triggers should
-/// call this provider instead of invoking repository sync methods directly.
+/// Global batch synchronization has no approved activation contract.
+/// No transport/database callback is accepted: callers cannot enable it with
+/// a flag or accidentally reuse a selective manual operation as a batch runner.
 class SyncCoordinator {
-  SyncCoordinator({required this._runSync, required this._onStatusChanged});
+  SyncCoordinator({required this._onStatusChanged});
 
-  final Future<void> Function() _runSync;
   final void Function(SyncStatus) _onStatusChanged;
-  Future<void>? _inFlight;
 
-  Future<void> synchronizeNow() {
-    final current = _inFlight;
-    if (current != null) return current;
-    final operation = _run();
-    _inFlight = operation;
-    return operation;
-  }
-
-  Future<void> _run() async {
-    try {
-      _onStatusChanged(SyncStatus.syncing);
-      await _runSync();
-      _onStatusChanged(SyncStatus.success);
-    } catch (error) {
-      final failure = mapSyncFailure(error);
-      final canRetry =
-          failure.kind == SyncFailureKind.offline ||
-          failure.kind == SyncFailureKind.timeout ||
-          failure.kind == SyncFailureKind.server;
-      _onStatusChanged(canRetry ? SyncStatus.pending : SyncStatus.failed);
-      throw failure;
-    } finally {
-      _inFlight = null;
-    }
+  Future<void> synchronizeNow() async {
+    _onStatusChanged(SyncStatus.disabledByPolicy);
+    throw const SyncFailure(
+      SyncFailureKind.disabledByPolicy,
+      'DISABLED_BY_POLICY: Sinkronisasi otomatis/global dinonaktifkan. '
+      'Data lokal dan antrean tetap tersimpan. Operasi manual selektif '
+      'memerlukan profil dan persetujuan yang sah.',
+    );
   }
 
   static SyncFailure mapSyncFailure(Object error) {
@@ -203,105 +185,9 @@ class SyncCoordinator {
 
 final syncStatusProvider = StateProvider<SyncStatus>((ref) => SyncStatus.idle);
 
+// Deliberately resolves neither SQLite, HTTP, auth nor sync-log repositories.
 final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
   return SyncCoordinator(
-    runSync: () async {
-      if (ref.read(developmentUiSmokeProvider) ||
-          ref.read(isolatedTransactionSyncConfigurationProvider) != null) {
-        return;
-      }
-      final logger = ref.read(syncLogRepositoryProvider);
-      final attempt = const Uuid().v4();
-      Future<void> record(
-        String module,
-        String direction,
-        Future<int?> Function() action,
-      ) => logger.track(
-        module: module,
-        direction: direction,
-        attemptId: attempt,
-        action: action,
-        errorCode: (error) => SyncCoordinator.mapSyncFailure(error).kind.name,
-      );
-      Future<void> push(
-        String module,
-        String table,
-        Future<int?> Function() action,
-      ) async {
-        final dirty = await ref
-            .read(appDatabaseProvider)
-            .customSelect(
-              'SELECT count(*) AS n FROM $table WHERE is_sync_dirty=1',
-            )
-            .getSingle();
-        if (dirty.read<int>('n') == 0) {
-          try {
-            await action();
-          } catch (error) {
-            // Reference/auth preparation may fail even without queued rows.
-            // Record that real failure without repeating the network operation.
-            await record(module, 'push', () async => throw error);
-          }
-          return;
-        }
-        await record(module, 'push', action);
-      }
-
-      final kategoriRepository = ref.read(pekerjaanKategoriRepositoryProvider);
-      final kategoriApi = ref.read(kategoriPekerjaanApiServiceProvider);
-      final pengeluaranRepository = ref.read(
-        pengeluaranJenisRepositoryProvider,
-      );
-      final pengeluaranApi = ref.read(jenisPengeluaranApiServiceProvider);
-
-      // Push local changes first, then pull the authoritative cloud snapshot.
-      debugPrint('[SYNC] Mulai sync kategori pekerjaan');
-      await push(
-        'kategori',
-        'pekerjaan_kategori',
-        () => kategoriRepository.syncToCloud(kategoriApi),
-      );
-      debugPrint('[SYNC] Mulai sync jenis pengeluaran');
-      await push(
-        'pengeluaran',
-        'pengeluaran_jenis',
-        () => pengeluaranRepository.syncToCloud(pengeluaranApi),
-      );
-
-      final pemohonRepository = PemohonRepository(
-        ref.read(appDatabaseProvider),
-        genderReferences: ref.read(pemohonGenderReferencesProvider),
-      );
-      final pemohonApi = ref.read(pemohonApiServiceProvider);
-      debugPrint('[SYNC] Mulai push Pemohon');
-      await push('pemohon', 'pemohons', () async {
-        await pemohonRepository.syncToCloud(pemohonApi);
-        return null;
-      });
-
-      debugPrint('[SYNC] Mulai pull kategori pekerjaan');
-      await record('kategori', 'pull', () async {
-        final rows = await kategoriApi.getAllPages();
-        await kategoriRepository.syncFromCloud(rows);
-        return rows.length;
-      });
-
-      debugPrint('[SYNC] Mulai pull jenis pengeluaran');
-      await record('pengeluaran', 'pull', () async {
-        final rows = await pengeluaranApi.getAllPages();
-        await pengeluaranRepository.syncFromCloud(rows);
-        return rows.length;
-      });
-
-      debugPrint('[SYNC] Mulai pull Pemohon');
-      await record('pemohon', 'pull', () async {
-        final rows = await pemohonApi.getAllPages();
-        await pemohonRepository.syncFromCloud(rows);
-        return rows.length;
-      });
-
-      debugPrint('[SYNC] Pemohon berhasil disimpan ke SQLite');
-    },
     onStatusChanged: (status) {
       ref.read(syncStatusProvider.notifier).state = status;
     },
