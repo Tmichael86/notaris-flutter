@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.notaris" "\0"
-            VALUE "FileDescription", "frontend_notaris" "\0"
+            VALUE "CompanyName", "MY NOTARIS" "\0"
+            VALUE "FileDescription", "MY NOTARIS - SIM Notaris & PPAT" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "frontend_notaris" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.notaris. All rights reserved." "\0"
             VALUE "OriginalFilename", "frontend_notaris.exe" "\0"
-            VALUE "ProductName", "frontend_notaris" "\0"
+            VALUE "ProductName", "MY NOTARIS - SIM Notaris & PPAT" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
