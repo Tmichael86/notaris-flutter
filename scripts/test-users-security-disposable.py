@@ -74,7 +74,13 @@ def main():
             if '--profile' in sys.argv:
                 testenv['NOTARIS_PROFILE_V1_FLUTTER_E2E']='1'
                 selection='^(TestProfile|TestUsersSecurity|TestGroupsV1)'
-            run(['go', 'test', './routes', '-run', selection, '-count=1', '-v'], testenv)
+            packages = ['./routes']
+            if '--h04' in sys.argv:
+                testenv['NOTARIS_H04_FLUTTER_E2E'] = '1'
+                testenv['NOTARIS_SYNC_TEST_DSN'] = testenv['NOTARIS_USERS_SECURITY_TEST_DSN']
+                selection = '^(TestH04|TestPetugasSyncHTTPPostgres|TestPetugasSyncPostgres|TestPetugasConcurrentCreatePostgres|TestMutationFingerprint|TestPetugasVersionRules|TestUsersSecurityHTTP|TestGroupsV2Revocation)'
+                packages = ['./routes', './repositories']
+            run(['go', 'test', *packages, '-run', selection, '-count=1', '-v'], testenv)
         finally:
             if (data / 'postmaster.pid').exists():
                 run([PG / 'pg_ctl.exe', 'stop', '-D', data, '-m', 'fast', '-w', '-t', '25'], env, True)

@@ -81,106 +81,135 @@ func (r *PemohonRepository) UpsertByUUID(
 	input *models.Pemohon,
 	userID uint,
 ) (*models.Pemohon, error) {
+	uuid = strings.ToLower(strings.TrimSpace(uuid))
+	if !mutationUUIDPattern.MatchString(uuid) || input == nil || strings.TrimSpace(input.Nama) == "" {
+		return nil, ErrInvalidMutationInput
+	}
+	var result *models.Pemohon
+
 	var item models.Pemohon
 
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// Serialize requests for the same UUID, including first-time inserts.
-		if err := tx.Exec(
-			"SELECT pg_advisory_xact_lock(hashtext(?))",
-			"pemohon:uuid:"+uuid,
-		).Error; err != nil {
-			return err
-		}
+	err := authorizedMasterMutation(ctx, r.db, userID, "pemohon", func(tx *gorm.DB, access *mutationAccess) error {
+		mutationErr := func() error {
 
-		var current models.Pemohon
-		findErr := tx.Table("pemohon").
-			Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("uuid = ?", uuid).
-			Take(&current).Error
-
-		if findErr != nil && !errors.Is(findErr, gorm.ErrRecordNotFound) {
-			return findErr
-		}
-
-		// Never silently resurrect a previously deactivated record.
-		if findErr == nil && current.Status != 1 {
-			return gorm.ErrRecordNotFound
-		}
-
-		if input.NIK != nil && strings.TrimSpace(*input.NIK) != "" {
-			if err := lockPemohonNIK(tx, *input.NIK); err != nil {
+			// Serialize requests for the same UUID, including first-time inserts.
+			if err := tx.Exec(
+				"SELECT pg_advisory_xact_lock(hashtext(?))",
+				"pemohon:uuid:"+uuid,
+			).Error; err != nil {
 				return err
 			}
 
-			query := tx.Table("pemohon").
-				Where(
-					"status = ? AND regexp_replace(nik, '[^0-9]', '', 'g') = ?",
-					1,
-					*input.NIK,
-				)
+			var current models.Pemohon
+			findErr := tx.Table("pemohon").
+				Clauses(clause.Locking{Strength: "UPDATE"}).
+				Where("uuid = ?", uuid).
+				Take(&current).Error
 
-			if findErr == nil {
-				query = query.Where("uuid <> ?", uuid)
+			if findErr != nil && !errors.Is(findErr, gorm.ErrRecordNotFound) {
+				return findErr
 			}
 
-			var count int64
-			if err := query.Count(&count).Error; err != nil {
+			exists := findErr == nil
+			equal := exists && samePemohonPayload(&current, input)
+			if !exists {
+				if err := access.require("create"); err != nil {
+					return err
+				}
+			} else if err := access.existing(equal, current.CreatedBy != nil && *current.CreatedBy == userID && current.UpdatedBy == nil); err != nil {
 				return err
 			}
-			if count > 0 {
-				return ErrDuplicatePemohonNIK
-			}
-		}
-
-		now := time.Now()
-
-		if errors.Is(findErr, gorm.ErrRecordNotFound) {
-			item = models.Pemohon{
-				UUID:         uuid,
-				Nama:         input.Nama,
-				Alamat:       input.Alamat,
-				JenisKelamin: input.JenisKelamin,
-				NoTelp:       input.NoTelp,
-				NIK:          input.NIK,
-				CreatedBy:    &userID,
-				CreatedAt:    &now,
-				UpdatedAt:    &now,
-				Status:       1,
-				IsDirty:      false,
-				LastSyncedAt: &now,
+			// Never silently resurrect a previously deactivated record.
+			if findErr == nil && current.Status != 1 {
+				return gorm.ErrRecordNotFound
 			}
 
-			return tx.Table("pemohon").Create(&item).Error
-		}
+			if equal {
+				item = current
+				return nil
+			}
 
-		updates := map[string]interface{}{
-			"nama":           input.Nama,
-			"alamat":         input.Alamat,
-			"jenis_kelamin":  input.JenisKelamin,
-			"no_telp":        input.NoTelp,
-			"nik":            input.NIK,
-			"updated_by":     userID,
-			"updated_at":     now,
-			"is_dirty":       false,
-			"last_synced_at": now,
-		}
+			if input.NIK != nil && strings.TrimSpace(*input.NIK) != "" {
+				if err := lockPemohonNIK(tx, *input.NIK); err != nil {
+					return err
+				}
 
-		if err := tx.Table("pemohon").
-			Where("uuid = ? AND status = ?", uuid, 1).
-			Updates(updates).Error; err != nil {
-			return err
-		}
+				query := tx.Table("pemohon").
+					Where(
+						"status = ? AND regexp_replace(nik, '[^0-9]', '', 'g') = ?",
+						1,
+						*input.NIK,
+					)
 
-		return tx.Table("pemohon").
-			Where("uuid = ?", uuid).
-			Take(&item).Error
+				if findErr == nil {
+					query = query.Where("uuid <> ?", uuid)
+				}
+
+				var count int64
+				if err := query.Count(&count).Error; err != nil {
+					return err
+				}
+				if count > 0 {
+					return ErrDuplicatePemohonNIK
+				}
+			}
+
+			now := time.Now()
+
+			if errors.Is(findErr, gorm.ErrRecordNotFound) {
+				item = models.Pemohon{
+					UUID:         uuid,
+					Nama:         input.Nama,
+					Alamat:       input.Alamat,
+					JenisKelamin: input.JenisKelamin,
+					NoTelp:       input.NoTelp,
+					NIK:          input.NIK,
+					CreatedBy:    &userID,
+					CreatedAt:    &now,
+					UpdatedAt:    &now,
+					Status:       1,
+					IsDirty:      false,
+					LastSyncedAt: &now,
+				}
+
+				return tx.Table("pemohon").Create(&item).Error
+			}
+
+			updates := map[string]interface{}{
+				"nama":           input.Nama,
+				"alamat":         input.Alamat,
+				"jenis_kelamin":  input.JenisKelamin,
+				"no_telp":        input.NoTelp,
+				"nik":            input.NIK,
+				"updated_by":     userID,
+				"updated_at":     now,
+				"is_dirty":       false,
+				"last_synced_at": now,
+			}
+
+			if err := tx.Table("pemohon").
+				Where("uuid = ? AND status = ?", uuid, 1).
+				Updates(updates).Error; err != nil {
+				return err
+			}
+
+			return tx.Table("pemohon").
+				Where("uuid = ?", uuid).
+				Take(&item).Error
+		}()
+		if mutationErr != nil {
+			return mutationErr
+		}
+		var readErr error
+		result, readErr = (&PemohonRepository{db: tx}).FindActiveByUUID(ctx, uuid)
+		return readErr
 	})
 
 	if err != nil {
 		return nil, err
 	}
 
-	return r.FindActiveByUUID(ctx, uuid)
+	return result, nil
 }
 
 func (r *PemohonRepository) FindActiveByUUID(
@@ -249,77 +278,111 @@ func (r *PemohonRepository) DeactivateByUUID(
 }
 
 func (r *PemohonRepository) Create(ctx context.Context, item *models.Pemohon, userID uint) (*models.Pemohon, error) {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if item.NIK != nil && strings.TrimSpace(*item.NIK) != "" {
-			if err := lockPemohonNIK(tx, *item.NIK); err != nil {
-				return err
-			}
-			var count int64
-			if err := tx.Table("pemohon").Where("status = ? AND regexp_replace(nik, '[^0-9]', '', 'g') = ?", 1, *item.NIK).Count(&count).Error; err != nil {
-				return err
-			}
-			if count > 0 {
-				return ErrDuplicatePemohonNIK
-			}
+	if item == nil || item.ID != 0 || item.UUID != "" || strings.TrimSpace(item.Nama) == "" {
+		return nil, ErrInvalidMutationInput
+	}
+	var result *models.Pemohon
+
+	err := authorizedMasterMutation(ctx, r.db, userID, "pemohon", func(tx *gorm.DB, access *mutationAccess) error {
+		if err := access.require("create"); err != nil {
+			return err
 		}
-		now := time.Now()
-		item.CreatedBy = &userID
-		item.CreatedAt = &now
-		item.Status = 1
-		return tx.Table("pemohon").Create(item).Error
+		mutationErr := func() error {
+
+			if item.NIK != nil && strings.TrimSpace(*item.NIK) != "" {
+				if err := lockPemohonNIK(tx, *item.NIK); err != nil {
+					return err
+				}
+				var count int64
+				if err := tx.Table("pemohon").Where("status = ? AND regexp_replace(nik, '[^0-9]', '', 'g') = ?", 1, *item.NIK).Count(&count).Error; err != nil {
+					return err
+				}
+				if count > 0 {
+					return ErrDuplicatePemohonNIK
+				}
+			}
+			now := time.Now()
+			item.CreatedBy = &userID
+			item.CreatedAt = &now
+			item.Status = 1
+			return tx.Table("pemohon").Create(item).Error
+		}()
+		if mutationErr != nil {
+			return mutationErr
+		}
+		var readErr error
+		result, readErr = (&PemohonRepository{db: tx}).FindActiveByID(ctx, uint64(item.ID))
+		return readErr
 	})
 	if err != nil {
 		return nil, err
 	}
-	return r.FindActiveByID(ctx, uint64(item.ID))
+	return result, nil
 }
 
 func (r *PemohonRepository) Update(ctx context.Context, id uint64, input *models.Pemohon, userID uint) (*models.Pemohon, error) {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var current models.Pemohon
-		if err := tx.Table("pemohon").Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("id = ? AND status = ?", id, 1).Take(&current).Error; err != nil {
+	if input == nil || strings.TrimSpace(input.Nama) == "" {
+		return nil, ErrInvalidMutationInput
+	}
+	var result *models.Pemohon
+
+	err := authorizedMasterMutation(ctx, r.db, userID, "pemohon", func(tx *gorm.DB, access *mutationAccess) error {
+		if err := access.require("update"); err != nil {
 			return err
 		}
+		mutationErr := func() error {
 
-		if input.NIK != nil && strings.TrimSpace(*input.NIK) != "" {
-			if err := lockPemohonNIK(tx, *input.NIK); err != nil {
+			var current models.Pemohon
+			if err := tx.Table("pemohon").Clauses(clause.Locking{Strength: "UPDATE"}).
+				Where("id = ? AND status = ?", id, 1).Take(&current).Error; err != nil {
 				return err
 			}
-			var count int64
-			if err := tx.Table("pemohon").
-				Where("status = ? AND regexp_replace(nik, '[^0-9]', '', 'g') = ? AND id <> ?", 1, *input.NIK, id).
-				Count(&count).Error; err != nil {
-				return err
-			}
-			if count > 0 {
-				return ErrDuplicatePemohonNIK
-			}
-		}
 
-		now := time.Now()
-		updates := map[string]interface{}{
-			"nama":          input.Nama,
-			"alamat":        input.Alamat,
-			"jenis_kelamin": input.JenisKelamin,
-			"no_telp":       input.NoTelp,
-			"nik":           input.NIK,
-			"updated_by":    userID,
-			"updated_at":    now,
+			if input.NIK != nil && strings.TrimSpace(*input.NIK) != "" {
+				if err := lockPemohonNIK(tx, *input.NIK); err != nil {
+					return err
+				}
+				var count int64
+				if err := tx.Table("pemohon").
+					Where("status = ? AND regexp_replace(nik, '[^0-9]', '', 'g') = ? AND id <> ?", 1, *input.NIK, id).
+					Count(&count).Error; err != nil {
+					return err
+				}
+				if count > 0 {
+					return ErrDuplicatePemohonNIK
+				}
+			}
+
+			now := time.Now()
+			updates := map[string]interface{}{
+				"nama":          input.Nama,
+				"alamat":        input.Alamat,
+				"jenis_kelamin": input.JenisKelamin,
+				"no_telp":       input.NoTelp,
+				"nik":           input.NIK,
+				"updated_by":    userID,
+				"updated_at":    now,
+			}
+			result := tx.Table("pemohon").Where("id = ? AND status = ?", id, 1).Updates(updates)
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected == 0 {
+				return gorm.ErrRecordNotFound
+			}
+			return nil
+		}()
+		if mutationErr != nil {
+			return mutationErr
 		}
-		result := tx.Table("pemohon").Where("id = ? AND status = ?", id, 1).Updates(updates)
-		if result.Error != nil {
-			return result.Error
-		}
-		if result.RowsAffected == 0 {
-			return gorm.ErrRecordNotFound
-		}
-		return nil
+		var readErr error
+		result, readErr = (&PemohonRepository{db: tx}).FindActiveByID(ctx, id)
+		return readErr
 	})
 	if err != nil {
 		return nil, err
 	}
-	return r.FindActiveByID(ctx, id)
+	return result, nil
 }
 
 func (r *PemohonRepository) Deactivate(ctx context.Context, id uint64, userID uint) error {
@@ -344,4 +407,16 @@ func (r *PemohonRepository) Deactivate(ctx context.Context, id uint64, userID ui
 func lockPemohonNIK(tx *gorm.DB, nik string) error {
 	key := fmt.Sprintf("pemohon:nik:%s", strings.TrimSpace(nik))
 	return tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", key).Error
+}
+
+// Gender display names are derived by JOIN; only persisted business fields
+// identify an exact retry. Sync metadata and timestamps are never replayed.
+func samePemohonPayload(a, b *models.Pemohon) bool {
+	return a.Nama == b.Nama && sameOptional(a.Alamat, b.Alamat) && sameOptional(a.JenisKelamin, b.JenisKelamin) && sameOptional(a.NoTelp, b.NoTelp) && sameOptional(a.NIK, b.NIK)
+}
+func sameOptional[T comparable](a, b *T) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
 }

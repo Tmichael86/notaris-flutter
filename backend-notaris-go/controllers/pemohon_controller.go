@@ -115,6 +115,9 @@ func (c *PemohonController) Create(ctx *gin.Context) {
 
 	item := toPemohonModel(input)
 	created, err := c.repository.Create(ctx.Request.Context(), item, userID)
+	if masterMutationError(ctx, err) {
+		return
+	}
 	if errors.Is(err, repositories.ErrDuplicatePemohonNIK) {
 		response.Error(ctx, http.StatusConflict, "NIK pemohon sudah digunakan", gin.H{"nik": "NIK harus unik di antara data aktif"})
 		return
@@ -157,6 +160,9 @@ func (c *PemohonController) Update(ctx *gin.Context) {
 	updated, err := c.repository.Update(ctx.Request.Context(), id, toPemohonModel(input), userID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		response.Error(ctx, http.StatusNotFound, "Pemohon tidak ditemukan", nil)
+		return
+	}
+	if masterMutationError(ctx, err) {
 		return
 	}
 	if errors.Is(err, repositories.ErrDuplicatePemohonNIK) {
@@ -253,6 +259,9 @@ func (c *PemohonController) SyncUpsert(ctx *gin.Context) {
 		toPemohonModel(input),
 		userID,
 	)
+	if masterMutationError(ctx, err) {
+		return
+	}
 	if errors.Is(err, repositories.ErrDuplicatePemohonNIK) {
 		response.Error(
 			ctx,

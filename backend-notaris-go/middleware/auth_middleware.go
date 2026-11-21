@@ -46,6 +46,10 @@ func JWTAuth(cfg config.Config) gin.HandlerFunc {
 
 		ctx.Set("user_id", claims.UID)
 		ctx.Set("group_id", claims.GID)
+		ctx.Request = ctx.Request.WithContext(repositories.WithMutationActor(ctx.Request.Context(), repositories.MutationActor{
+			UserID: claims.UID, GroupID: claims.GID, SecurityVersion: claims.Version,
+			SecurityRequired: cfg.UsersSecurityEnabled, ExpiresAt: claims.ExpiresAt.Time,
+		}))
 		ctx.Next()
 	}
 }
