@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -29,7 +31,7 @@ void main() {
     temp = await Directory.systemTemp.createTemp('payment-audit-');
     file = File('${temp.path}/fixture.sqlite');
     db = AppDatabase.forTesting(NativeDatabase(file));
-    repo = TransactionRepository(db);
+    repo = testTransactionRepository(db, session: () => actor);
     notaris = await seedTransaction(db, 'notaris');
     ppat = await seedTransaction(db, 'ppat');
   });
@@ -169,7 +171,7 @@ void main() {
     final next = await add(notaris, third, 5);
     await db.close();
     db = AppDatabase.forTesting(NativeDatabase(file));
-    repo = TransactionRepository(db);
+    repo = testTransactionRepository(db, session: () => actor);
     final reopened = await repo.watchPaymentStatement(notaris, actor).first;
     expect((reopened.paid, reopened.remaining), (30, 70));
     expect(reopened.payments.map((p) => p.urutanPembayaran), [1, 2, 3, 4]);

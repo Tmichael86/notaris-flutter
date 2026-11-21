@@ -47,6 +47,29 @@ class LocalMasterAuthorization {
     AuthSession? expected,
     int? claimedActor,
   }) {
+    final s = requireContext(expected: expected, claimedActor: claimedActor);
+    bool yes(Object? v) => v == true || v == 1 || v == '1';
+    final grants = s.sidebars
+        .where(
+          (a) =>
+              a['sidebar'] is Map &&
+              (a['sidebar'] as Map)['sidebar_kode'] == module.code,
+        )
+        .toList();
+    if (grants.length != 1) throw const LocalMasterDenied();
+    final g = grants.single, sidebar = g['sidebar'] as Map;
+    if (!yes(sidebar['status']) ||
+        sidebar['sidebar_route'] == '#' ||
+        !yes(g['read']) ||
+        !yes(g[action.name])) {
+      throw const LocalMasterDenied();
+    }
+    return s;
+  }
+
+  /// Shared verified local identity/profile policy; grants remain domain-owned.
+  /// Transaction CUD uses this same context validation without Master aliases.
+  AuthSession requireContext({AuthSession? expected, int? claimedActor}) {
     AuthSession? s;
     AppDatabase? active;
     try {
@@ -106,21 +129,6 @@ class LocalMasterAuthorization {
     if ((s.user.containsKey('status') && !yes(s.user['status'])) ||
         (s.user.containsKey('group_status') && !yes(s.user['group_status']))) {
       throw const LocalMasterDenied('inactive_identity');
-    }
-    final grants = s.sidebars
-        .where(
-          (a) =>
-              a['sidebar'] is Map &&
-              (a['sidebar'] as Map)['sidebar_kode'] == module.code,
-        )
-        .toList();
-    if (grants.length != 1) throw const LocalMasterDenied();
-    final g = grants.single, sidebar = g['sidebar'] as Map;
-    if (!yes(sidebar['status']) ||
-        sidebar['sidebar_route'] == '#' ||
-        !yes(g['read']) ||
-        !yes(g[action.name])) {
-      throw const LocalMasterDenied();
     }
     return s;
   }

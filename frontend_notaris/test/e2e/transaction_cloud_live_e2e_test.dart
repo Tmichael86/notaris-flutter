@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -182,45 +184,46 @@ void main() {
     if (Platform.environment['TRANSACTION_MIXED_FEED'] == '1') {
       if (!bridge) throw StateError('Mixed feed requires application service');
       var ppatNumber = '', notarisNumber = '';
-      Future<int> save(String kind, {int? id}) => TransactionRepository(a).save(
-        id: id,
-        nomorTransaksi: id == null
-            ? 'OFFLINE-$kind'
-            : kind == 'ppat'
-            ? ppatNumber
-            : notarisNumber,
-        jenisTransaksi: kind,
-        pemohonId: 10,
-        pemohonUuid: applicant,
-        petugasId: 20,
-        petugasUuid: officer,
-        status: 'Baru',
-        tanggalTransaksi: DateTime.utc(2020),
-        pembayaranSekarang: id == null ? 25 : 0,
-        jobs: [
-          TransactionJobInput(
-            jenisPekerjaan: kind,
-            namaPekerjaan: '$kind snapshot ${id == null ? 1 : 2}',
-            pekerjaanNotarisId: kind == 'notaris' ? 40 : null,
-            pekerjaanPpatId: kind == 'ppat' ? 50 : null,
-            detailUuid: kind == 'notaris'
-                ? detail
-                : '00000000-0000-4000-8000-000000000017',
-            hargaUuid: price,
-            kategoriUuid: category,
-            biayaLayanan: id == null ? 100 : 150,
-            kategoriSnapshot: 'Historical category',
-            estimasiWaktuSnapshot: '2 hari',
-            prosesSnapshot: jsonEncode([
-              {
-                'id': 'synthetic-$kind',
-                'name': 'Periksa',
-                'attributes': ['KTP', id == null ? 'Initial' : 'Updated'],
-              },
-            ]),
-          ),
-        ],
-      );
+      Future<int> save(String kind, {int? id}) =>
+          testTransactionRepository(a).save(
+            id: id,
+            nomorTransaksi: id == null
+                ? 'OFFLINE-$kind'
+                : kind == 'ppat'
+                ? ppatNumber
+                : notarisNumber,
+            jenisTransaksi: kind,
+            pemohonId: 10,
+            pemohonUuid: applicant,
+            petugasId: 20,
+            petugasUuid: officer,
+            status: 'Baru',
+            tanggalTransaksi: DateTime.utc(2020),
+            pembayaranSekarang: id == null ? 25 : 0,
+            jobs: [
+              TransactionJobInput(
+                jenisPekerjaan: kind,
+                namaPekerjaan: '$kind snapshot ${id == null ? 1 : 2}',
+                pekerjaanNotarisId: kind == 'notaris' ? 40 : null,
+                pekerjaanPpatId: kind == 'ppat' ? 50 : null,
+                detailUuid: kind == 'notaris'
+                    ? detail
+                    : '00000000-0000-4000-8000-000000000017',
+                hargaUuid: price,
+                kategoriUuid: category,
+                biayaLayanan: id == null ? 100 : 150,
+                kategoriSnapshot: 'Historical category',
+                estimasiWaktuSnapshot: '2 hari',
+                prosesSnapshot: jsonEncode([
+                  {
+                    'id': 'synthetic-$kind',
+                    'name': 'Periksa',
+                    'attributes': ['KTP', id == null ? 'Initial' : 'Updated'],
+                  },
+                ]),
+              ),
+            ],
+          );
       final ids = <String, int>{}, uuids = <String, String>{};
       final numbers = <String, String>{};
       var seq = 0;
@@ -251,7 +254,7 @@ void main() {
       );
       for (final kind in ['ppat', 'notaris']) {
         ids[kind] = await save(kind);
-        uuids[kind] = (await TransactionRepository(a).findById(ids[kind]!))!
+        uuids[kind] = (await testTransactionRepository(a).findById(ids[kind]!))!
             .uuid;
       }
       final first = await upload(a, ids['ppat']!);
@@ -259,7 +262,8 @@ void main() {
       ppatNumber = numbers['ppat']!;
       expect(ppatNumber, matches(r'^200\d{6}0001$'));
       expect(
-        (await TransactionRepository(a).findById(ids['notaris']!))!.isSyncDirty,
+        (await testTransactionRepository(a).findById(ids['notaris']!))!
+            .isSyncDirty,
         true,
       );
       expect(
@@ -276,7 +280,8 @@ void main() {
       notarisNumber = numbers['notaris']!;
       expect(notarisNumber, matches(r'^100\d{6}0001$'));
       expect(
-        (await TransactionRepository(a).findById(ids['ppat']!))!.isSyncDirty,
+        (await testTransactionRepository(a).findById(ids['ppat']!))!
+            .isSyncDirty,
         false,
       );
       await publish('notaris', 'create', 1);
@@ -359,9 +364,10 @@ void main() {
         );
         expect(proc.uuid, source.uuid);
         processes[kind] = proc.uuid;
-        final payment = (await TransactionRepository(b).getPaymentHistory(h.id))
-            .single;
-        final sourcePayment = (await TransactionRepository(
+        final payment = (await testTransactionRepository(
+          b,
+        ).getPaymentHistory(h.id)).single;
+        final sourcePayment = (await testTransactionRepository(
           a,
         ).getPaymentHistory(ids[kind]!)).single;
         expect(payment.uuid, sourcePayment.uuid);
@@ -375,7 +381,7 @@ void main() {
         'green',
       );
       for (final kind in ['ppat', 'notaris']) {
-        await TransactionRepository(a).delete(ids[kind]!);
+        await testTransactionRepository(a).delete(ids[kind]!);
         final ack = await upload(a, ids[kind]!);
         expect(ack['revision'], 3);
         expect(ack['final_number'], numbers[kind]);
@@ -427,7 +433,7 @@ void main() {
         1,
       );
       expect(
-        (await TransactionRepository(b).findById(dirty.id))!.catatan,
+        (await testTransactionRepository(b).findById(dirty.id))!.catatan,
         'local dirty test',
       );
       // Explicit fixture-only resolution. The application never clears a 409.
@@ -497,7 +503,7 @@ void main() {
       return;
     }
 
-    final id = await TransactionRepository(a).save(
+    final id = await testTransactionRepository(a).save(
       nomorTransaksi: 'OFFLINE-TEMP',
       jenisTransaksi: domain,
       pemohonId: 10,
@@ -523,7 +529,7 @@ void main() {
       ],
       pembayaranSekarang: 25,
     );
-    final before = (await TransactionRepository(a).findById(id))!;
+    final before = (await testTransactionRepository(a).findById(id))!;
     final ack = bridge ? await upload(a, id) : await sender.pushCreate(id);
     if (bridge) {
       expect((await monitor(a))['color'], 'yellow');
@@ -540,7 +546,7 @@ void main() {
       ack['final_number'],
       matches(domain == 'ppat' ? r'^200\d{6}0001$' : r'^100\d{6}0001$'),
     );
-    final accepted = (await TransactionRepository(a).findById(id))!;
+    final accepted = (await testTransactionRepository(a).findById(id))!;
     expect(accepted.uuid, before.uuid);
     expect(accepted.id, id);
     expect(accepted.noAkta, ack['final_number']);
@@ -676,7 +682,7 @@ void main() {
     expect(await b.select(b.transaksiRiwayatPembayarans).get(), hasLength(1));
     var expectedCursor = 1;
     if (Platform.environment['TRANSACTION_MUTATIONS'] == '1') {
-      await TransactionRepository(a).save(
+      await testTransactionRepository(a).save(
         id: id,
         nomorTransaksi: ack['final_number'] as String,
         jenisTransaksi: domain,
@@ -865,7 +871,7 @@ void main() {
         'UPDATE transaksis SET is_sync_dirty=0 WHERE id=?',
         [id],
       );
-      expect(await TransactionRepository(a).delete(id), true);
+      expect(await testTransactionRepository(a).delete(id), true);
       final deleted = bridge
           ? await upload(a, id)
           : await sender.pushDelete(id);
@@ -923,7 +929,7 @@ void main() {
       expectedCursor = 3;
     }
     // Legacy unresolved detail cannot create a new pending request or HTTP mutation.
-    final legacyId = await TransactionRepository(a).save(
+    final legacyId = await testTransactionRepository(a).save(
       nomorTransaksi: 'LEGACY-LOCAL',
       jenisTransaksi: domain,
       pemohonId: 10,
@@ -977,7 +983,7 @@ void main() {
         petugasScope: officerScope(a),
         masterScope: masterScope(a),
       );
-      final otherId = await TransactionRepository(a).save(
+      final otherId = await testTransactionRepository(a).save(
         nomorTransaksi: 'OTHER-DOMAIN-OFFLINE',
         jenisTransaksi: 'notaris',
         pemohonId: 10,

@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -10,7 +12,7 @@ void main() {
 
   setUp(() async {
     database = AppDatabase.forTesting(NativeDatabase.memory());
-    repository = TransactionRepository(database);
+    repository = testTransactionRepository(database);
     await database.customStatement(
       "INSERT INTO pemohons(id,uuid,nama) VALUES(1,'pemohon-test','Fixture')",
     );

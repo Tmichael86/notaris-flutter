@@ -1,3 +1,7 @@
+import 'package:frontend_notaris/models/auth_session.dart';
+
+import '../support/transaction_test_authority.dart';
+
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -12,6 +16,7 @@ import '../support/transaction_ui_test_support.dart';
 
 void main() {
   late AppDatabase db;
+  late AuthSession current;
   late TransaksiProsesRepository repository;
   late int processId;
   late Directory directory;
@@ -21,7 +26,8 @@ void main() {
     directory = await Directory.systemTemp.createTemp('process-validation-');
     databaseFile = File('${directory.path}/fixture.sqlite');
     db = AppDatabase(NativeDatabase(databaseFile));
-    repository = TransaksiProsesRepository(db);
+    current = uiSession();
+    repository = testProcessRepository(db, session: () => current);
 
     final transactionId = await db
         .into(db.transaksis)
@@ -57,6 +63,35 @@ void main() {
         );
   });
 
+  // Explicit fake account switches for the isolated legacy workflow unit tests.
+  Future<void> initializeAs({
+    required int processId,
+    required int actorUserId,
+    String? note,
+  }) {
+    current = transactionTestSession(uid: actorUserId);
+    return repository.initializeLegacyProcess(
+      processId: processId,
+      actorUserId: actorUserId,
+      note: note,
+    );
+  }
+
+  Future<void> transitionAs({
+    required int processId,
+    required String nextStatus,
+    required int actorUserId,
+    String? note,
+  }) {
+    current = transactionTestSession(uid: actorUserId);
+    return repository.transition(
+      processId: processId,
+      nextStatus: nextStatus,
+      actorUserId: actorUserId,
+      note: note,
+    );
+  }
+
   tearDown(() async {
     await db.close();
     await directory.delete(recursive: true);
@@ -65,7 +100,7 @@ void main() {
   test(
     'direct validation persists note, actor and audit through restart',
     () async {
-      final session = uiSession();
+      final session = current;
       final legacy = (await repository.getByTransactionId(1)).single;
       await expectLater(
         repository.saveDirectValidation(
@@ -99,7 +134,7 @@ void main() {
 
       await db.close();
       db = AppDatabase(NativeDatabase(databaseFile));
-      repository = TransaksiProsesRepository(db);
+      repository = testProcessRepository(db, session: () => current);
       final reopened = (await repository.getByTransactionId(1)).single;
       expect(reopened.statusProses, 'valid');
       expect(reopened.catatan, 'Lengkap');
@@ -163,7 +198,7 @@ void main() {
     );
     await expectLater(
       repository.saveDirectValidation(
-        session: uiSession(),
+        session: current,
         expected: process,
         valid: null,
       ),
@@ -188,13 +223,13 @@ void main() {
       "UPDATE transaction_cloud_pending SET state='acked'",
     );
     final initialized = await repository.saveDirectValidation(
-      session: uiSession(),
+      session: current,
       expected: process,
       valid: null,
     );
     await expectLater(
       repository.saveDirectValidation(
-        session: uiSession(),
+        session: current,
         expected: process,
         valid: null,
       ),
@@ -212,7 +247,7 @@ void main() {
     ''');
     await expectLater(
       repository.saveDirectValidation(
-        session: uiSession(),
+        session: current,
         expected: process,
         valid: null,
       ),
@@ -227,7 +262,7 @@ void main() {
     () async {
       final process = (await repository.getByTransactionId(1)).single;
       await repository.saveDirectValidation(
-        session: uiSession(),
+        session: current,
         expected: process,
         valid: null,
       );
@@ -268,7 +303,7 @@ void main() {
     'legacy process must be initialized before normal transitions',
     () async {
       await expectLater(
-        repository.transition(
+        transitionAs(
           processId: processId,
           nextStatus: ProcessValidationStatus.dalamPengerjaan,
           actorUserId: 10,
@@ -276,7 +311,7 @@ void main() {
         throwsA(isA<StateError>()),
       );
 
-      await repository.initializeLegacyProcess(
+      await initializeAs(
         processId: processId,
         actorUserId: 10,
         note: 'Mulai menggunakan alur validasi baru',
@@ -292,13 +327,10 @@ void main() {
   );
 
   test('rejects an illegal transition', () async {
-    await repository.initializeLegacyProcess(
-      processId: processId,
-      actorUserId: 10,
-    );
+    await initializeAs(processId: processId, actorUserId: 10);
 
     await expectLater(
-      repository.transition(
+      transitionAs(
         processId: processId,
         nextStatus: ProcessValidationStatus.valid,
         actorUserId: 20,
@@ -308,16 +340,13 @@ void main() {
   });
 
   test('submitter cannot validate own work and history is atomic', () async {
-    await repository.initializeLegacyProcess(
-      processId: processId,
-      actorUserId: 10,
-    );
-    await repository.transition(
+    await initializeAs(processId: processId, actorUserId: 10);
+    await transitionAs(
       processId: processId,
       nextStatus: ProcessValidationStatus.dalamPengerjaan,
       actorUserId: 10,
     );
-    await repository.transition(
+    await transitionAs(
       processId: processId,
       nextStatus: ProcessValidationStatus.menungguValidasi,
       actorUserId: 10,
@@ -325,7 +354,7 @@ void main() {
     );
 
     await expectLater(
-      repository.transition(
+      transitionAs(
         processId: processId,
         nextStatus: ProcessValidationStatus.valid,
         actorUserId: 10,
@@ -333,7 +362,7 @@ void main() {
       throwsA(isA<StateError>()),
     );
 
-    await repository.transition(
+    await transitionAs(
       processId: processId,
       nextStatus: ProcessValidationStatus.valid,
       actorUserId: 20,
@@ -359,16 +388,13 @@ void main() {
   test(
     'revision requires a note and can be resubmitted by the worker',
     () async {
-      await repository.initializeLegacyProcess(
-        processId: processId,
-        actorUserId: 10,
-      );
-      await repository.transition(
+      await initializeAs(processId: processId, actorUserId: 10);
+      await transitionAs(
         processId: processId,
         nextStatus: ProcessValidationStatus.dalamPengerjaan,
         actorUserId: 10,
       );
-      await repository.transition(
+      await transitionAs(
         processId: processId,
         nextStatus: ProcessValidationStatus.menungguValidasi,
         actorUserId: 10,
@@ -376,7 +402,7 @@ void main() {
       );
 
       await expectLater(
-        repository.transition(
+        transitionAs(
           processId: processId,
           nextStatus: ProcessValidationStatus.perluRevisi,
           actorUserId: 20,
@@ -384,18 +410,18 @@ void main() {
         throwsA(isA<ArgumentError>()),
       );
 
-      await repository.transition(
+      await transitionAs(
         processId: processId,
         nextStatus: ProcessValidationStatus.perluRevisi,
         actorUserId: 20,
         note: 'Lampiran belum lengkap',
       );
-      await repository.transition(
+      await transitionAs(
         processId: processId,
         nextStatus: ProcessValidationStatus.dalamPengerjaan,
         actorUserId: 10,
       );
-      await repository.transition(
+      await transitionAs(
         processId: processId,
         nextStatus: ProcessValidationStatus.menungguValidasi,
         actorUserId: 10,

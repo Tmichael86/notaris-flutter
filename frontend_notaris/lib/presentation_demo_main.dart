@@ -81,6 +81,7 @@ Future<void> main() async {
   }
   runCompletionDemo(
     db,
+    verifiedProfileId: authId,
     auth: (dio) => PaymentDemoAuth(
       dio,
       authId,

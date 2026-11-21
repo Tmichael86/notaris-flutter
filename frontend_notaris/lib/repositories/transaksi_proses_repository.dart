@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
 import '../models/auth_session.dart';
+import '../services/local_transaction_authorization.dart';
 
 /// Process states owned by the local process-validation workflow.
 abstract final class ProcessValidationStatus {
@@ -36,7 +37,24 @@ abstract final class ProcessValidationStatus {
 /// checks as the authoritative authorization boundary when synchronization
 /// and multi-user validation are implemented.
 class TransaksiProsesRepository {
-  TransaksiProsesRepository(this.db);
+  TransaksiProsesRepository(this.db, {this.authorization});
+  final LocalTransactionAuthorization? authorization;
+
+  Future<T> _write<T>(
+    Future<T> Function(AuthSession) operation, {
+    AuthSession? expected,
+    int? claimedActor,
+  }) {
+    final guard = authorization;
+    if (guard == null) throw LocalTransactionDenied('missing_context');
+    return guard.write(
+      db,
+      TransactionAction.update,
+      operation,
+      expected: expected,
+      claimedActor: claimedActor,
+    );
+  }
 
   final AppDatabase db;
   static const _uuid = Uuid();
@@ -67,7 +85,7 @@ class TransaksiProsesRepository {
     if (session == null || !canValidate(session)) {
       throw StateError('Izin ubah Transaksi diperlukan untuk validasi proses.');
     }
-    return db.transaction(() async {
+    return _write((_) async {
       final process = await _getActiveProcess(expected.id);
       if (process != expected) {
         throw StateError('Proses sudah berubah. Buka ulang detail proses.');
@@ -118,7 +136,7 @@ class TransaksiProsesRepository {
         ),
       );
       return _getActiveProcess(process.id);
-    });
+    }, expected: session);
   }
 
   /// Returns active process rows belonging to active transaction details.
@@ -163,7 +181,7 @@ class TransaksiProsesRepository {
       throw ArgumentError.value(actorUserId, 'actorUserId', 'Harus positif.');
     }
 
-    await db.transaction(() async {
+    await _write((_) async {
       final process = await _getActiveProcess(processId);
       if (process.statusProses != null) {
         throw StateError('Proses sudah memiliki status validasi.');
@@ -176,7 +194,7 @@ class TransaksiProsesRepository {
         note: note,
         now: DateTime.now(),
       );
-    });
+    }, claimedActor: actorUserId);
   }
 
   /// Applies one allowed state transition and appends its audit record.
@@ -201,7 +219,7 @@ class TransaksiProsesRepository {
       );
     }
 
-    await db.transaction(() async {
+    await _write((_) async {
       final process = await _getActiveProcess(processId);
       final currentStatus = process.statusProses;
 
@@ -252,7 +270,7 @@ class TransaksiProsesRepository {
         note: note,
         now: DateTime.now(),
       );
-    });
+    }, claimedActor: actorUserId);
   }
 
   /// Returns audit entries in chronological order for one process.

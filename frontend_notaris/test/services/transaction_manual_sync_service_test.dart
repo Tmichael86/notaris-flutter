@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -169,7 +171,7 @@ void main() {
       "INSERT INTO pekerjaan_notaris_harga(uuid,pekerjaan_notaris_id,kategori_pekerjaan_id,harga,estimasi_waktu,is_sync_dirty) VALUES(?,40,30,'100','2 hari',0)",
       [price],
     );
-    id = await TransactionRepository(db).save(
+    id = await testTransactionRepository(db).save(
       nomorTransaksi: 'OFFLINE',
       jenisTransaksi: 'notaris',
       pemohonId: 10,
@@ -918,7 +920,7 @@ void main() {
       "INSERT INTO pekerjaan_ppat_harga(uuid,pekerjaan_ppat_id,kategori_pekerjaan_id,harga,estimasi_waktu,is_sync_dirty) VALUES(?,40,30,'100','2 hari',0)",
       [price],
     );
-    return TransactionRepository(db).save(
+    return testTransactionRepository(db).save(
       nomorTransaksi: 'PPAT-OFFLINE',
       jenisTransaksi: 'ppat',
       pemohonId: 10,
@@ -1102,9 +1104,10 @@ void main() {
     'local payment audit blocks a newer feed without changing cursor or ACK',
     () async {
       await run(ManualSyncDirection.upload, selectedId: id);
-      final repo = TransactionRepository(db);
+      final paymentActor = transactionTestSession();
+      final repo = testTransactionRepository(db, session: () => paymentActor);
       await repo.addPayment(
-        session: session,
+        session: paymentActor,
         transactionId: id,
         paymentUuid: '00000000-0000-4000-8000-000000000201',
         paymentDate: DateTime(2026, 11, 11),
@@ -1311,7 +1314,10 @@ void main() {
       ).read()).singleWhere((r) => r['module'] == 'transaksi_ppat')['color'],
       'yellow',
     );
-    expect((await TransactionRepository(db).findById(id))!.isSyncDirty, true);
+    expect(
+      (await testTransactionRepository(db).findById(id))!.isSyncDirty,
+      true,
+    );
     expect(
       (await db
               .customSelect('SELECT local_uuid FROM transaction_cloud_pending')

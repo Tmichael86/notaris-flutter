@@ -4,11 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/app_database.dart';
 import '../repositories/transaksi_proses_repository.dart';
 import 'database_provider.dart';
+import 'local_transaction_authorization_provider.dart';
 
 final transaksiProsesRepositoryProvider = Provider<TransaksiProsesRepository>((
   ref,
 ) {
-  return TransaksiProsesRepository(ref.watch(appDatabaseProvider));
+  return TransaksiProsesRepository(
+    ref.watch(appDatabaseProvider),
+    authorization: ref.watch(localTransactionAuthorizationProvider),
+  );
 });
 
 /// Streams active process rows for a transaction and follows both process and

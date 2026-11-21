@@ -1,3 +1,4 @@
+import '../support/transaction_test_authority.dart';
 import '../support/local_master_test_authority.dart';
 
 import 'dart:io';
@@ -75,7 +76,7 @@ void main() {
                 db.pekerjaanDao,
                 authorization: masterTestAuthority(db),
               ).createAggregate(input: input);
-        await TransactionRepository(db).save(
+        await testTransactionRepository(db).save(
           nomorTransaksi: '${index + 1}001911260001',
           jenisTransaksi: domain,
           pemohonId: applicant,

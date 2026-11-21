@@ -13,6 +13,9 @@ import '../core/theme/app_colors.dart';
 import '../core/widgets/searchable_dropdown.dart';
 import '../database/app_database.dart';
 import '../models/transaction_payments.dart';
+import '../models/auth_session.dart';
+import '../providers/local_transaction_authorization_provider.dart';
+import '../providers/database_provider.dart';
 import '../providers/people_provider.dart';
 import '../providers/materai_provider.dart';
 import '../providers/pekerjaan_provider.dart';
@@ -271,25 +274,30 @@ class _TransactionDesktopScreenState
         !binding.acceptsWrites) {
       return false;
     }
+    final authority = ref.read(localTransactionAuthorizationProvider);
+    if (!_formContextCurrent ||
+        !authority.allows(
+          _editingTransactionId == null
+              ? TransactionAction.create
+              : TransactionAction.update,
+          expected: _formSession,
+        )) {
+      return false;
+    }
     return selectedType == TransactionType.notaris
         ? canSaveNotarisTransaction(
             ref.read(authControllerProvider).session,
             editing: _editingTransactionId != null,
             completing: _notarisCompleted,
           )
-        : (_editingTransactionId == null &&
-                  ref
-                          .read(materaiStockBindingProvider)
-                          ?.transactionUsageEnabled !=
-                      true) ||
-              ref
-                      .read(authControllerProvider)
-                      .session
-                      ?.hasTransactionAccess(
-                        create: _editingTransactionId == null,
-                        update: _editingTransactionId != null,
-                      ) ==
-                  true;
+        : ref
+                  .read(authControllerProvider)
+                  .session
+                  ?.hasTransactionAccess(
+                    create: _editingTransactionId == null,
+                    update: _editingTransactionId != null,
+                  ) ==
+              true;
   }
 
   List<DummyApplicant> applicants = [];
@@ -489,6 +497,7 @@ class _TransactionDesktopScreenState
   @override
   void initState() {
     super.initState();
+    _bindFormContext();
     registrationDate = _formatTransactionDate(DateTime.now());
     deadline = '';
     _syncEditableControllers();
@@ -496,6 +505,18 @@ class _TransactionDesktopScreenState
       _refreshTransactionNumber();
     });
   }
+
+  AuthSession? _formSession;
+  AppDatabase? _formDatabase;
+  void _bindFormContext() {
+    _formSession = ref.read(authControllerProvider).session;
+    _formDatabase = ref.read(appDatabaseProvider);
+  }
+
+  bool get _formContextCurrent =>
+      _formSession != null &&
+      identical(_formSession, ref.read(authControllerProvider).session) &&
+      identical(_formDatabase, ref.read(appDatabaseProvider));
 
   static String _formatTransactionDate(DateTime date) {
     final day = date.day.toString().padLeft(2, '0');
@@ -615,6 +636,7 @@ class _TransactionDesktopScreenState
 
   void changeType(TransactionType type) {
     if (type == selectedType) return;
+    _bindFormContext();
 
     setState(() {
       _editingTransactionId = null;
@@ -640,6 +662,7 @@ class _TransactionDesktopScreenState
   }
 
   void resetForm() {
+    _bindFormContext();
     setState(() {
       _editingTransactionId = null;
       _newTransactionUuid = null;
@@ -664,6 +687,7 @@ class _TransactionDesktopScreenState
   }
 
   void loadTransaction(DummyTransaction transaction) {
+    _bindFormContext();
     setState(() {
       _editingTransactionId = transaction.id;
       _currentStep = 0;
@@ -697,6 +721,8 @@ class _TransactionDesktopScreenState
 
   Future<void> showTransactionSearchDialog() async {
     final repository = ref.read(transactionRepositoryProvider);
+    final dialogSession = ref.read(authControllerProvider).session;
+    final authority = ref.read(localTransactionAuthorizationProvider);
     final database = repository.db;
     final jenis = selectedType == TransactionType.notaris ? 'notaris' : 'ppat';
 
@@ -888,12 +914,19 @@ class _TransactionDesktopScreenState
           title: 'Cari Transaksi ${typeLabel(selectedType)}',
           transactions: records,
           formatPrice: formatPrice,
-          canDelete: () => _canDeleteTransaction,
-          onDelete: _deleteTransaction,
+          canDelete: () => authority.allows(
+            TransactionAction.delete,
+            expected: dialogSession,
+          ),
+          onDelete: (item) =>
+              _deleteTransaction(item, expectedSession: dialogSession),
         ),
       );
 
-      if (result != null && mounted) {
+      if (result != null &&
+          mounted &&
+          identical(dialogSession, ref.read(authControllerProvider).session) &&
+          identical(repository.db, ref.read(appDatabaseProvider))) {
         loadTransaction(result);
       }
     } catch (error) {
@@ -1906,6 +1939,8 @@ class _TransactionDesktopScreenState
       final savedId = await ref
           .read(transactionControllerProvider.notifier)
           .save(
+            expectedSession: _formSession,
+            expectedDatabase: _formDatabase,
             id: _editingTransactionId == null
                 ? null
                 : int.tryParse(_editingTransactionId!),
@@ -2039,25 +2074,24 @@ class _TransactionDesktopScreenState
   }
 
   bool get _canDeleteTransaction {
-    final session = ref.read(authControllerProvider).session;
-    return session?.sidebars.any((a) {
-          final sidebar = a['sidebar'];
-          bool yes(dynamic x) => x == 1 || x == true || x == '1';
-          return sidebar is Map &&
-              sidebar['sidebar_kode'] == 'transaksi' &&
-              yes(a['read']) &&
-              yes(a['delete']) &&
-              (sidebar['status'] == null || yes(sidebar['status']));
-        }) ??
-        false;
+    return ref
+        .read(localTransactionAuthorizationProvider)
+        .allows(TransactionAction.delete);
   }
 
-  Future<bool> _deleteTransaction(DummyTransaction item) async {
+  Future<bool> _deleteTransaction(
+    DummyTransaction item, {
+    AuthSession? expectedSession,
+  }) async {
+    final actor = expectedSession ?? ref.read(authControllerProvider).session;
+    final authority = ref.read(localTransactionAuthorizationProvider);
+    final repository = ref.read(transactionRepositoryProvider);
     final id = int.tryParse(item.id);
     if (id == null ||
         item.uuid == null ||
         _isSaving ||
-        !_canDeleteTransaction) {
+        !_canDeleteTransaction ||
+        !authority.allows(TransactionAction.delete, expected: actor)) {
       return false;
     }
     setState(() => _isSaving = true);
@@ -2082,9 +2116,8 @@ class _TransactionDesktopScreenState
         ),
       );
       if (ok != true || !mounted || !_canDeleteTransaction) return false;
-      final current = await ref
-          .read(transactionRepositoryProvider)
-          .findById(id);
+      authority.require(TransactionAction.delete, expected: actor);
+      final current = await repository.findById(id);
       if (current == null ||
           current.uuid != item.uuid ||
           current.noAkta != item.number ||
@@ -2092,7 +2125,13 @@ class _TransactionDesktopScreenState
               (item.type == TransactionType.notaris ? 'notaris' : 'ppat')) {
         throw StateError('stale');
       }
-      if (!await ref.read(transactionControllerProvider.notifier).delete(id)) {
+      if (!await ref
+          .read(transactionControllerProvider.notifier)
+          .delete(
+            id,
+            expectedSession: actor,
+            expectedDatabase: repository.db,
+          )) {
         throw StateError('stale');
       }
       if (!mounted) return true;
@@ -2720,6 +2759,13 @@ class _TransactionDesktopScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (!_formContextCurrent)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Text(
+              'Sesi atau profil berubah. Buka ulang formulir atau transaksi sebelum menyimpan.',
+            ),
+          ),
         card(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2739,13 +2785,7 @@ class _TransactionDesktopScreenState
                 value: transactionStatus,
                 items: const ['Baru', 'Dalam Proses', 'Selesai'],
                 label: 'Status Transaksi',
-                enabled:
-                    selectedType != TransactionType.notaris ||
-                    canSaveNotarisTransaction(
-                      ref.watch(authControllerProvider).session,
-                      editing: _editingTransactionId != null,
-                      completing: false,
-                    ),
+                enabled: _canSaveForm && !_isSaving,
                 onChanged: (value) {
                   if (value != null) {
                     setState(() {

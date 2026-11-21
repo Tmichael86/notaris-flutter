@@ -1,3 +1,4 @@
+import '../support/transaction_test_authority.dart';
 import '../support/local_master_test_authority.dart';
 
 import 'dart:io';
@@ -69,7 +70,7 @@ Future<int> seedTransaction(AppDatabase db, String domain) async {
   await db.customStatement(
     "INSERT OR IGNORE INTO petugas(id,uuid,nama,email) VALUES(1,'officer','Officer','fixture@example.invalid')",
   );
-  return TransactionRepository(db).save(
+  return testTransactionRepository(db).save(
     nomorTransaksi: '${domain == 'notaris' ? 1 : 2}000611260001',
     jenisTransaksi: domain,
     pemohonId: 1,
@@ -110,6 +111,10 @@ void main() {
       db,
       () => session,
       masterAuthorization: masterTestAuthority(db, session: () => session),
+      transactionAuthorization: transactionTestAuthority(
+        db,
+        session: () => session,
+      ),
     );
   });
   tearDown(() => db.close());
@@ -132,6 +137,10 @@ void main() {
           db,
           () => session,
           masterAuthorization: masterTestAuthority(db, session: () => session),
+          transactionAuthorization: transactionTestAuthority(
+            db,
+            session: () => session,
+          ),
         );
         await seedMaster(db, domain);
         final original = <String, List<Map<String, dynamic>>>{};
@@ -155,6 +164,10 @@ void main() {
           db,
           () => session,
           masterAuthorization: masterTestAuthority(db, session: () => session),
+          transactionAuthorization: transactionTestAuthority(
+            db,
+            session: () => session,
+          ),
         );
         await bin.restore((await bin.list()).single);
         await db.close();
@@ -163,6 +176,10 @@ void main() {
           db,
           () => session,
           masterAuthorization: masterTestAuthority(db, session: () => session),
+          transactionAuthorization: transactionTestAuthority(
+            db,
+            session: () => session,
+          ),
         );
         for (final entry in original.entries) {
           final actual = await rows(db, 'pekerjaan_${domain}_${entry.key}');
@@ -274,7 +291,7 @@ void main() {
           "INSERT INTO transaksi_details(uuid,transaksi_id,jenis_pekerjaan,nama_pekerjaan_snapshot,deleted_at,status) VALUES('old-detail',1,?,'Removed earlier',10,0)",
           [domain],
         );
-        await TransactionRepository(db).delete(id);
+        await testTransactionRepository(db).delete(id);
         final record = (await bin.list(module: transactionModule)).single;
         expect(record.blocked, isNull);
         await bin.restore(record);
@@ -329,7 +346,7 @@ void main() {
 
   test('permission/reference revalidation rejects with no partial write and sanitized failure audit', () async {
     await seedTransaction(db, 'notaris');
-    await TransactionRepository(db).delete(1);
+    await testTransactionRepository(db).delete(1);
     final record = (await bin.list()).single;
     final parent = await rows(db, 'transaksis'),
         child = await rows(db, 'transaksi_details');
@@ -350,7 +367,7 @@ void main() {
     expect(await rows(db, 'transaksi_details'), child);
     expect((await bin.history()).map((e) => e['error_code']), [
       'reference',
-      'permission',
+      // Denied authority cannot write a failure audit either.
     ]);
     session = null;
     expect(await bin.list(), isEmpty);
@@ -401,7 +418,7 @@ void main() {
       expect((await bin.list()).single.blocked?.code, 'cloud');
     }
     await seedTransaction(db, 'ppat');
-    await TransactionRepository(db).delete(1);
+    await testTransactionRepository(db).delete(1);
     final tx = (await rows(db, 'transaksis')).single;
     await db.customStatement(
       "INSERT INTO transaction_cloud_identity VALUES(?,?,'scope',3,?,'{}')",
@@ -421,7 +438,7 @@ void main() {
     'failure after child update rolls back parent children and success audit',
     () async {
       await seedTransaction(db, 'notaris');
-      await TransactionRepository(db).delete(1);
+      await testTransactionRepository(db).delete(1);
       final record = (await bin.list()).single;
       final parent = await rows(db, 'transaksis'),
           child = await rows(db, 'transaksi_details');
@@ -469,6 +486,10 @@ void main() {
       db,
       () => session,
       masterAuthorization: masterTestAuthority(db, session: () => session),
+      transactionAuthorization: transactionTestAuthority(
+        db,
+        session: () => session,
+      ),
     );
     expect(await rows(db, 'transaksis'), original);
     expect(
@@ -477,7 +498,7 @@ void main() {
       ),
       db.schemaVersion,
     );
-    await TransactionRepository(db).delete(1);
+    await testTransactionRepository(db).delete(1);
     await bin.restore((await bin.list()).single);
     await db.close();
     db = AppDatabase.forTesting(NativeDatabase(file));
@@ -485,6 +506,10 @@ void main() {
       db,
       () => session,
       masterAuthorization: masterTestAuthority(db, session: () => session),
+      transactionAuthorization: transactionTestAuthority(
+        db,
+        session: () => session,
+      ),
     );
     expect(
       (await rows(db, 'transaksis')).single['uuid'],

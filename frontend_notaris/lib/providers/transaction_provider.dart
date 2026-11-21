@@ -9,6 +9,7 @@ import '../repositories/materai_stock_repository.dart';
 import 'database_provider.dart';
 import 'auth_provider.dart';
 import 'materai_provider.dart';
+import 'local_transaction_authorization_provider.dart';
 import '../models/auth_session.dart';
 
 bool canSaveNotarisTransaction(
@@ -26,6 +27,7 @@ bool canSaveNotarisTransaction(
 final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
   return TransactionRepository(
     ref.watch(appDatabaseProvider),
+    authorization: ref.watch(localTransactionAuthorizationProvider),
     materaiStock:
         ref.watch(materaiStockBindingProvider)?.transactionUsageEnabled == true
         ? ref.watch(materaiStockRepositoryProvider)
@@ -118,7 +120,14 @@ class TransactionController extends AsyncNotifier<void> {
     NotarisDeedInput? deed,
     String? createUuid,
     MateraiCorrectionIntent? materaiCorrection,
+    AuthSession? expectedSession,
+    AppDatabase? expectedDatabase,
   }) async {
+    final repository = _repository;
+    if (expectedDatabase != null &&
+        !identical(expectedDatabase, repository.db)) {
+      throw LocalTransactionDenied('profile');
+    }
     final stockEnabled =
         ref.read(materaiStockBindingProvider)?.transactionUsageEnabled == true;
     if (jenisTransaksi == 'notaris' &&
@@ -130,7 +139,6 @@ class TransactionController extends AsyncNotifier<void> {
       throw StateError('Izin simpan Transaksi Notaris tidak tersedia.');
     }
     if (jenisTransaksi == 'ppat' &&
-        (id != null || stockEnabled) &&
         ref
                 .read(authControllerProvider)
                 .session
@@ -143,7 +151,7 @@ class TransactionController extends AsyncNotifier<void> {
     }
     state = const AsyncLoading();
     try {
-      final result = await _repository.save(
+      final result = await repository.save(
         id: id,
         nomorTransaksi: nomorTransaksi,
         jenisTransaksi: jenisTransaksi,
@@ -164,6 +172,7 @@ class TransactionController extends AsyncNotifier<void> {
         createUuid: createUuid,
         materaiCorrection: materaiCorrection,
         requireMateraiStockOut: stockEnabled,
+        expectedSession: expectedSession,
       );
       state = const AsyncData(null);
       return result;
@@ -173,10 +182,22 @@ class TransactionController extends AsyncNotifier<void> {
     }
   }
 
-  Future<bool> delete(int id) async {
+  Future<bool> delete(
+    int id, {
+    AuthSession? expectedSession,
+    AppDatabase? expectedDatabase,
+  }) async {
+    final repository = _repository;
+    if (expectedDatabase != null &&
+        !identical(expectedDatabase, repository.db)) {
+      throw LocalTransactionDenied('profile');
+    }
     state = const AsyncLoading();
     try {
-      final result = await _repository.delete(id);
+      final result = await repository.delete(
+        id,
+        expectedSession: expectedSession,
+      );
       state = const AsyncData(null);
       return result;
     } catch (error, stackTrace) {

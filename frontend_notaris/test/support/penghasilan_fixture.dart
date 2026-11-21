@@ -1,3 +1,5 @@
+import 'transaction_test_authority.dart';
+
 import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/models/auth_session.dart';
 import 'package:frontend_notaris/repositories/penghasilan_repository.dart';
@@ -49,8 +51,8 @@ Future<void> seedPenghasilan(AppDatabase db) async {
   await db.customStatement(
     "INSERT INTO petugas(id,uuid,nama,email) VALUES(1,'officer','Dimas Prasetyo','dimas@demo.example.invalid'),(2,'officer-2','Nadia Pertiwi','nadia@demo.example.invalid')",
   );
-  final repo = TransactionRepository(db);
   final actor = uiSession(groupType: 'superadmin');
+  final repo = testTransactionRepository(db, session: () => actor);
   final sharedDate = DateTime(2026, 11, 10, 23, 59, 59);
   for (var i = 1; i <= 16; i++) {
     final domain = i.isOdd ? 'notaris' : 'ppat';

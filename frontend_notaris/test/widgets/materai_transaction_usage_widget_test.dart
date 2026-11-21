@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,8 +8,8 @@ import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/providers/auth_provider.dart';
 import 'package:frontend_notaris/providers/database_provider.dart';
 import 'package:frontend_notaris/providers/materai_provider.dart';
+import 'package:frontend_notaris/providers/local_master_authorization_provider.dart';
 import 'package:frontend_notaris/repositories/materai_stock_repository.dart';
-import 'package:frontend_notaris/repositories/transaction_repository.dart';
 import 'package:frontend_notaris/screens/transaction_desktop_screen.dart';
 
 import '../support/materai_stock_fixture.dart';
@@ -38,7 +40,7 @@ void main() {
         );
         final actor = usageActor(binding.profileId);
         final stock = MateraiStockRepository(binding, () => actor);
-        final repo = TransactionRepository(db, materaiStock: stock);
+        final repo = testTransactionRepository(db, materaiStock: stock);
         final id = await saveUsage(repo, deadline: DateTime(2026, 11, 20));
         final row = await (db.select(
           db.transaksis,
@@ -51,6 +53,9 @@ void main() {
         ProviderScope(
           overrides: [
             appDatabaseProvider.overrideWithValue(db),
+            localMasterProfileIdProvider.overrideWithValue(
+              fixture.binding.profileId,
+            ),
             authControllerProvider.overrideWith(
               (_) => TransactionUiAuth(fixture.actor),
             ),

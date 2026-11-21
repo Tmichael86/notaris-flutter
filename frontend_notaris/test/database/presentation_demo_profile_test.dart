@@ -1,3 +1,4 @@
+import '../support/transaction_test_authority.dart';
 import '../support/local_master_test_authority.dart';
 
 import 'dart:convert';
@@ -66,7 +67,7 @@ void main() {
         lifecycle: true,
       );
       const uuid = Uuid();
-      final repo = TransactionRepository(db);
+      final repo = testTransactionRepository(db);
       final windowsBuild = p.absolute(
         'build',
         'windows',

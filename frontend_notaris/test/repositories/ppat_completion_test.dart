@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -18,12 +20,13 @@ void main() {
   late AppDatabase db;
   late TransactionRepository repo;
   late int id;
+  final actor = uiSession();
 
   setUp(() async {
     folder = await Directory.systemTemp.createTemp('ppat-completion-');
     file = File('${folder.path}/fixture.sqlite');
     db = AppDatabase.forTesting(NativeDatabase(file));
-    repo = TransactionRepository(db);
+    repo = testTransactionRepository(db, session: () => actor);
     id = await seedTransaction(db, 'ppat');
     final first = (await repo.watchDetailsOnce(id)).single;
     await db
@@ -43,8 +46,8 @@ void main() {
     await folder.delete(recursive: true);
   });
 
-  Future<TransaksiDetail> read([String uuid = 'detail-ppat']) => repo
-      .readPpatJob(session: uiSession(), transactionId: id, detailUuid: uuid);
+  Future<TransaksiDetail> read([String uuid = 'detail-ppat']) =>
+      repo.readPpatJob(session: actor, transactionId: id, detailUuid: uuid);
 
   test('separate detail with same Master is isolated through completion and restart', () async {
     final initial = await read();
@@ -53,7 +56,7 @@ void main() {
     final other = await read('same-master-second-detail');
     expect(other.pekerjaanPpatId, initial.pekerjaanPpatId);
     await repo.savePpatJobStatus(
-      session: uiSession(),
+      session: actor,
       expected: other,
       status: PpatJobStatus.dalamProses,
     );
@@ -68,7 +71,7 @@ void main() {
         table: await rows(db, table),
     };
     await repo.savePpatJobStatus(
-      session: uiSession(),
+      session: actor,
       expected: initial,
       status: PpatJobStatus.selesai,
       title: ' Akta Jual Beli ',
@@ -77,7 +80,7 @@ void main() {
     );
     await db.close();
     db = AppDatabase.forTesting(NativeDatabase(file));
-    repo = TransactionRepository(db);
+    repo = testTransactionRepository(db, session: () => actor);
     final completed = await read();
     expect(completed.uuid, initial.uuid);
     expect(completed.id, initial.id);
@@ -86,7 +89,7 @@ void main() {
     expect(completed.nomorAktaPpat, '0025211/A');
     expect(completed.tanggalAktaPpat?.toUtc(), DateTime.utc(2026, 11, 11));
     await repo.savePpatJobStatus(
-      session: uiSession(),
+      session: actor,
       expected: completed,
       status: PpatJobStatus.dalamProses,
     );
@@ -108,7 +111,7 @@ void main() {
       final detail = await read();
       await expectLater(
         repo.savePpatJobStatus(
-          session: uiSession(),
+          session: actor,
           expected: detail,
           status: PpatJobStatus.dalamProses,
           number: '25',
@@ -117,7 +120,7 @@ void main() {
       );
       expect(await read(), detail);
       await repo.savePpatJobStatus(
-        session: uiSession(),
+        session: actor,
         expected: detail,
         status: PpatJobStatus.selesai,
       );
@@ -170,7 +173,7 @@ void main() {
     ''');
       await expectLater(
         repo.savePpatJobStatus(
-          session: uiSession(),
+          session: actor,
           expected: detail,
           status: PpatJobStatus.selesai,
           title: 'Jual Beli',
@@ -193,7 +196,7 @@ void main() {
     await stage();
     await expectLater(
       repo.savePpatJobStatus(
-        session: uiSession(),
+        session: actor,
         expected: detail,
         status: PpatJobStatus.selesai,
       ),
@@ -202,7 +205,7 @@ void main() {
     expect(await read(), detail);
     await db.customStatement('DELETE FROM transaction_cloud_pending');
     await repo.savePpatJobStatus(
-      session: uiSession(),
+      session: actor,
       expected: detail,
       status: PpatJobStatus.selesai,
     );

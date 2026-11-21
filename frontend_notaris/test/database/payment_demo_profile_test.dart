@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -43,7 +45,7 @@ void main() {
       }
       final db = PaymentDemoDatabase(NativeDatabase(file));
       try {
-        final repo = TransactionRepository(db);
+        final repo = testTransactionRepository(db);
         await db.transaction(() async {
           for (final sql in [
             "INSERT INTO pemohons(id,uuid,nama) VALUES(1,'44eb657b-2f98-4c92-b346-d695d5ac0001','Bagas Pradipta'),(2,'44eb657b-2f98-4c92-b346-d695d5ac0002','Laras Mahendra')",
@@ -207,7 +209,7 @@ Future<void> rehearsePaymentCheckpoints(File original) async {
     ]) {
       final db = PaymentDemoDatabase(NativeDatabase(file));
       try {
-        final repo = TransactionRepository(db);
+        final repo = testTransactionRepository(db);
         final records = await db.select(db.transaksis).get();
         final id = records
             .singleWhere((row) => row.noAkta == paymentDemoNotaris)

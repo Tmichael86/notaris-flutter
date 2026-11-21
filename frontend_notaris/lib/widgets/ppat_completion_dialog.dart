@@ -5,12 +5,16 @@ import '../core/widgets/edit_dialog.dart';
 import '../database/app_database.dart';
 import '../providers/auth_provider.dart';
 import '../providers/transaction_provider.dart';
+import '../providers/local_transaction_authorization_provider.dart';
 import '../repositories/transaction_repository.dart';
 
 Future<void> showPpatCompletionDialog(
   BuildContext context,
   TransaksiDetail detail,
 ) async {
+  final container = ProviderScope.containerOf(context, listen: false);
+  final openingSession = container.read(authControllerProvider).session;
+  final repository = container.read(transactionRepositoryProvider);
   final title = TextEditingController(text: detail.judulAktaPpat);
   final number = TextEditingController(text: detail.nomorAktaPpat);
   final initialDate = detail.tanggalAktaPpat?.toUtc();
@@ -41,7 +45,11 @@ Future<void> showPpatCompletionDialog(
         builder: (context, ref, _) => StatefulBuilder(
           builder: (context, setState) {
             final session = ref.watch(authControllerProvider).session;
-            final canEdit = session?.hasTransactionAccess(update: true) == true;
+            final canEdit =
+                identical(session, openingSession) &&
+                ref
+                    .watch(localTransactionAuthorizationProvider)
+                    .allows(TransactionAction.update, expected: openingSession);
             final canRead = session?.hasTransactionAccess() == true;
             final complete = status == PpatJobStatus.selesai;
             final canEditDeed = canEdit && complete && !saving;
@@ -74,22 +82,22 @@ Future<void> showPpatCompletionDialog(
                 error = null;
               });
               try {
-                await ref
-                    .read(transactionRepositoryProvider)
-                    .savePpatJobStatus(
-                      session: ref.read(authControllerProvider).session,
-                      expected: detail,
-                      status: status,
-                      title: complete ? optional(title.text) : null,
-                      number: complete ? optional(number.text) : null,
-                      date: complete ? date : null,
-                    );
+                await repository.savePpatJobStatus(
+                  session: openingSession,
+                  expected: detail,
+                  status: status,
+                  title: complete ? optional(title.text) : null,
+                  number: complete ? optional(number.text) : null,
+                  date: complete ? date : null,
+                );
                 if (context.mounted) Navigator.pop(context);
               } catch (failure) {
                 if (!context.mounted) return;
                 setState(() {
                   saving = false;
-                  error = failure is StateError
+                  error = failure is LocalTransactionDenied
+                      ? failure.toString()
+                      : failure is StateError
                       ? failure.message
                       : 'Status pekerjaan gagal disimpan.';
                 });

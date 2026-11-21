@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -111,7 +113,14 @@ void main() {
             expect(find.text('Edit Transaksi'), findsNothing);
             await tester.tap(find.text('Tutup'));
             await tester.pumpAndSettle();
-            final bin = RecycleBinRepository(db, () => session);
+            final bin = RecycleBinRepository(
+              db,
+              () => session,
+              transactionAuthorization: transactionTestAuthority(
+                db,
+                session: () => session,
+              ),
+            );
             await bin.restore((await bin.list()).single);
             expect((await db.select(db.transaksis).getSingle()).noAkta, number);
             expect(

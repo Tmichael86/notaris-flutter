@@ -1,3 +1,5 @@
+import 'transaction_test_authority.dart';
+
 import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/models/auth_session.dart';
 import 'package:frontend_notaris/repositories/piutang_repository.dart';
@@ -41,8 +43,8 @@ Future<void> seedPiutang(AppDatabase db) async {
   await db.customStatement(
     "INSERT INTO petugas(id,uuid,nama,email) VALUES(1,'officer','Dimas Prasetyo','dimas@demo.example.invalid')",
   );
-  final repo = TransactionRepository(db);
   final actor = uiSession(groupType: 'superadmin');
+  final repo = testTransactionRepository(db, session: () => actor);
   for (var id = 1; id <= 16; id++) {
     final domain = id.isOdd ? 'notaris' : 'ppat';
     final master = masters[domain]!;

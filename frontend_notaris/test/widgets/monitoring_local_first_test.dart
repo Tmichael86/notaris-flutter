@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -110,7 +112,7 @@ void main() {
       status: 'Dalam Proses',
       dated: false,
     );
-    final repo = TransactionRepository(db);
+    final repo = testTransactionRepository(db);
     Future<MonitoringPage> page(int index) => repo
         .watchMonitoringPage(
           filter(
@@ -208,7 +210,7 @@ void main() {
           petugasUuid: const Value('o'),
         ),
       );
-      final repo = TransactionRepository(db);
+      final repo = testTransactionRepository(db);
       final page = await repo.watchMonitoringPage(filter(search: '3%4')).first;
       expect(page.rows.single.nik, '123%456');
       expect(page.rows.single.applicant, 'Pemohon nyata');
@@ -248,7 +250,7 @@ void main() {
   );
 
   test('Monitoring stream reacts to local header and detail changes', () async {
-    final repo = TransactionRepository(db);
+    final repo = testTransactionRepository(db);
     final stream = StreamIterator(
       repo.watchMonitoringPage(filter(search: 'cari')),
     );

@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'dart:async';
 
 import 'package:drift/native.dart';
@@ -5,12 +7,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/models/auth_session.dart';
 import 'package:frontend_notaris/repositories/penghasilan_repository.dart';
-import 'package:frontend_notaris/repositories/transaction_repository.dart';
 
 import '../support/penghasilan_fixture.dart';
 import '../support/transaction_ui_test_support.dart' show uiSession;
 
 void main() {
+  final actor = uiSession(groupType: 'superadmin');
   late AppDatabase db;
   late AuthSession session;
   late PenghasilanRepository repo;
@@ -54,10 +56,10 @@ void main() {
   });
 
   test('two active installments plus initial payment stay separate for one dirty transaction', () async {
-    final tx = TransactionRepository(db);
+    final tx = testTransactionRepository(db, session: () => actor);
     const uuid = '00000000-0000-4000-8000-333333333333';
     await tx.addPayment(
-      session: uiSession(groupType: 'superadmin'),
+      session: actor,
       transactionId: 1,
       paymentUuid: uuid,
       paymentDate: DateTime(2026, 11, 10, 23, 59, 59),
@@ -83,12 +85,12 @@ void main() {
     final stream = StreamIterator(repo.watch());
     addTearDown(stream.cancel);
     expect(await stream.moveNext(), isTrue);
-    final tx = TransactionRepository(db);
+    final tx = testTransactionRepository(db, session: () => actor);
     final old = (await tx.getPaymentHistory(1))
         .singleWhere((row) => row.nominalRupiah == 120000);
     final moved = DateTime(2026, 11, 12, 0, 1);
     await tx.editPayment(
-      session: uiSession(groupType: 'superadmin'),
+      session: actor,
       transactionId: 1,
       expected: old,
       paymentDate: moved,

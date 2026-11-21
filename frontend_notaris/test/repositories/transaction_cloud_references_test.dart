@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/database/app_database.dart';
@@ -60,7 +62,7 @@ void main() {
           "INSERT INTO pekerjaan_${domain}_harga(id,uuid,pekerjaan_${domain}_id,kategori_pekerjaan_id,harga,estimasi_waktu,is_sync_dirty) VALUES(50,?,40,30,'100','1 hari',0)",
           [price],
         );
-        transactionId = await TransactionRepository(db).save(
+        transactionId = await testTransactionRepository(db).save(
           nomorTransaksi: 'OFFLINE-ONLY',
           jenisTransaksi: domain,
           pemohonId: 10,
@@ -103,13 +105,14 @@ void main() {
           },
         ]);
         await prepare();
-        final header = await TransactionRepository(db).findById(transactionId);
+        final header = await testTransactionRepository(db)
+            .findById(transactionId);
         expect(header!.petugasId, 20);
         expect(header.petugasUuid, officer);
         expect(header.isSyncDirty, true);
         expect(header.noAkta, 'OFFLINE-ONLY');
         expect(
-          await TransactionRepository(db).getPaymentHistory(transactionId),
+          await testTransactionRepository(db).getPaymentHistory(transactionId),
           hasLength(1),
         );
         expect(
@@ -142,7 +145,7 @@ void main() {
         await db.customStatement(
           "UPDATE pekerjaan_${domain}_harga SET harga='900',estimasi_waktu='changed'",
         );
-        await TransactionRepository(db).save(
+        await testTransactionRepository(db).save(
           id: transactionId,
           nomorTransaksi: 'OFFLINE-ONLY',
           jenisTransaksi: domain,
@@ -170,7 +173,7 @@ void main() {
         expect(saved.biayaLayanan, 100);
         expect(saved.kategoriSnapshot, 'historical label');
         expect(
-          await TransactionRepository(db).getPaymentHistory(transactionId),
+          await testTransactionRepository(db).getPaymentHistory(transactionId),
           hasLength(1),
         );
       });
@@ -178,7 +181,7 @@ void main() {
         'wrong price/category provenance rolls back header and children',
         () async {
           await expectLater(
-            TransactionRepository(db).save(
+            testTransactionRepository(db).save(
               id: transactionId,
               nomorTransaksi: 'MUST-ROLLBACK',
               jenisTransaksi: domain,
@@ -204,7 +207,8 @@ void main() {
             throwsStateError,
           );
           expect(
-            (await TransactionRepository(db).findById(transactionId))!.noAkta,
+            (await testTransactionRepository(db).findById(transactionId))!
+                .noAkta,
             'OFFLINE-ONLY',
           );
           expect(

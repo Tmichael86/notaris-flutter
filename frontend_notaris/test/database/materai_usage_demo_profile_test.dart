@@ -1,3 +1,4 @@
+import '../support/transaction_test_authority.dart';
 import '../support/local_master_test_authority.dart';
 
 import 'dart:io';
@@ -8,7 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/materai_stock_demo_main.dart';
 import 'package:frontend_notaris/repositories/pekerjaan_repository.dart';
-import 'package:frontend_notaris/repositories/transaction_repository.dart';
 import 'package:path/path.dart' as p;
 
 import '../support/materai_stock_fixture.dart';
@@ -100,7 +100,7 @@ void main() {
               .read<int>('recorded_stock'),
           20,
         );
-        final repo = TransactionRepository(db);
+        final repo = testTransactionRepository(db);
         expect(
           await repo.generateNextTransactionNumber(
             jenisTransaksi: 'notaris',

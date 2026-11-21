@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -58,7 +60,7 @@ void main() {
         ]) {
           await db.customStatement(sql);
         }
-        final repo = TransactionRepository(db);
+        final repo = testTransactionRepository(db);
         for (final domain in ['notaris', 'ppat']) {
           final notaris = domain == 'notaris';
           final id = await repo.save(

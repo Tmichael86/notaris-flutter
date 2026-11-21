@@ -1,3 +1,4 @@
+import '../support/transaction_test_authority.dart';
 import '../support/local_master_test_authority.dart';
 
 import 'dart:convert';
@@ -64,7 +65,7 @@ void main() {
       NativeDatabase(file, setup: (d) => d.execute('PRAGMA foreign_keys=ON')),
     );
     const uuid = Uuid();
-    final tx = TransactionRepository(db);
+    final tx = testTransactionRepository(db);
     try {
       final officerUuid = uuid.v4();
       final officer = await db

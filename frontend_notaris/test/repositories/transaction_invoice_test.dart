@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -26,7 +28,7 @@ void main() {
 
   setUp(() async {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    repo = TransactionRepository(db);
+    repo = testTransactionRepository(db, session: () => admin);
     final notarisTemplate = await seedTransaction(db, 'notaris');
     final ppatTemplate = await seedTransaction(db, 'ppat');
     final notarisJob = (await repo.watchDetailsOnce(notarisTemplate)).single;

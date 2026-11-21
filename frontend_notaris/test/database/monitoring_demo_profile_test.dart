@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -21,7 +23,7 @@ void main() {
     );
     final db = AppDatabase.forTesting(NativeDatabase(file));
     try {
-      final repo = TransactionRepository(db);
+      final repo = testTransactionRepository(db);
       final master = {
         for (final domain in ['notaris', 'ppat'])
           domain: await seedMaster(db, domain),

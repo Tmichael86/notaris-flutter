@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -33,7 +35,7 @@ void main() {
     String status, {
     NotarisDeedInput? deed,
     bool invalidJob = false,
-  }) => TransactionRepository(db).save(
+  }) => testTransactionRepository(db).save(
     id: id,
     nomorTransaksi: '1000611260001',
     jenisTransaksi: 'notaris',

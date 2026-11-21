@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
+import 'package:sqlite3/sqlite3.dart' show SqliteException;
 
 import '../database/app_database.dart';
 import '../models/auth_session.dart';
@@ -9,6 +10,7 @@ import '../models/dashboard_transactions.dart';
 import '../models/transaction_invoice.dart';
 import '../models/transaction_monitoring.dart';
 import '../models/transaction_payments.dart';
+import '../services/local_transaction_authorization.dart';
 import 'materai_repository.dart';
 import 'materai_stock_repository.dart';
 
@@ -81,11 +83,41 @@ class TransactionJobInput {
 
 /// Local-first persistence for transaction headers and their job details.
 class TransactionRepository {
-  TransactionRepository(this.db, {this.materaiStock});
+  TransactionRepository(this.db, {this.materaiStock, this.authorization});
 
   final AppDatabase db;
   final MateraiStockRepository? materaiStock;
+  final LocalTransactionAuthorization? authorization;
   static const _uuid = Uuid();
+
+  Future<T> _write<T>(
+    TransactionAction action,
+    Future<T> Function(AuthSession) operation, {
+    AuthSession? expected,
+    Set<TransactionAction> additional = const {},
+    bool stockOperation = false,
+  }) async {
+    final guard = authorization;
+    if (guard == null) throw LocalTransactionDenied('missing_context');
+    try {
+      return await guard.write(
+        db,
+        action,
+        operation,
+        expected: expected,
+        additional: additional,
+      );
+    } on SqliteException catch (error) {
+      // Authorization now owns the outer transaction. Preserve the existing
+      // stock boundary's handling of BEGIN failures, including query_only/busy.
+      if (stockOperation && {5, 6, 8}.contains(error.resultCode)) {
+        throw const MateraiStockException(
+          'Profil tidak dapat menulis stok saat ini. Periksa hasil dan ulangi transaksi yang sama.',
+        );
+      }
+      rethrow;
+    }
+  }
 
   Stream<List<Transaksi>> watchAll() {
     return (db.select(db.transaksis)
@@ -673,6 +705,26 @@ class TransactionRepository {
     String? title,
     String? number,
     DateTime? date,
+  }) async => _write(
+    TransactionAction.update,
+    (_) => _savePpatJobStatusAuthorized(
+      session: session,
+      expected: expected,
+      status: status,
+      title: title,
+      number: number,
+      date: date,
+    ),
+    expected: session,
+  );
+
+  Future<void> _savePpatJobStatusAuthorized({
+    required AuthSession? session,
+    required TransaksiDetail expected,
+    required PpatJobStatus status,
+    String? title,
+    String? number,
+    DateTime? date,
   }) async {
     if (session?.hasTransactionAccess(update: true) != true) {
       throw StateError('Izin ubah Transaksi diperlukan.');
@@ -744,6 +796,63 @@ class TransactionRepository {
   /// Job prices and labels are persisted as snapshots to protect history from
   /// later edits to Master pricing.
   Future<int> save({
+    int? id,
+    required String nomorTransaksi,
+    required String jenisTransaksi,
+    required int pemohonId,
+    required String pemohonUuid,
+    required int petugasId,
+    required String petugasUuid,
+    required String status,
+    required DateTime tanggalTransaksi,
+    DateTime? tanggalJatuhTempo,
+    required List<TransactionJobInput> jobs,
+    double diskon = 0,
+    double pembayaranSekarang = 0,
+    String metodePembayaran = 'Cash',
+    int jumlahMaterai = 0,
+    String? catatan,
+    NotarisDeedInput? deed,
+    String? createUuid,
+    bool requireMateraiStockOut = false,
+    MateraiCorrectionIntent? materaiCorrection,
+    AuthSession? expectedSession,
+  }) async => _write(
+    id == null ? TransactionAction.create : TransactionAction.update,
+    (_) => _saveAuthorized(
+      id: id,
+      nomorTransaksi: nomorTransaksi,
+      jenisTransaksi: jenisTransaksi,
+      pemohonId: pemohonId,
+      pemohonUuid: pemohonUuid,
+      petugasId: petugasId,
+      petugasUuid: petugasUuid,
+      status: status,
+      tanggalTransaksi: tanggalTransaksi,
+      tanggalJatuhTempo: tanggalJatuhTempo,
+      jobs: jobs,
+      diskon: diskon,
+      pembayaranSekarang: pembayaranSekarang,
+      metodePembayaran: metodePembayaran,
+      jumlahMaterai: jumlahMaterai,
+      catatan: catatan,
+      deed: deed,
+      createUuid: createUuid,
+      requireMateraiStockOut: requireMateraiStockOut,
+      materaiCorrection: materaiCorrection,
+    ),
+    expected: expectedSession,
+    stockOperation:
+        materaiCorrection != null ||
+        (id == null && jumlahMaterai > 0 && materaiStock != null),
+    additional: {
+      if (jenisTransaksi == 'notaris' &&
+          status.trim().toLowerCase() == 'selesai')
+        TransactionAction.update,
+    },
+  );
+
+  Future<int> _saveAuthorized({
     int? id,
     required String nomorTransaksi,
     required String jenisTransaksi,
@@ -1424,6 +1533,28 @@ class TransactionRepository {
     required int amount,
     String method = 'Cash',
     String? note,
+  }) async => _write(
+    TransactionAction.update,
+    (_) => _addPaymentAuthorized(
+      session: session,
+      transactionId: transactionId,
+      paymentUuid: paymentUuid,
+      paymentDate: paymentDate,
+      amount: amount,
+      method: method,
+      note: note,
+    ),
+    expected: session,
+  );
+
+  Future<int> _addPaymentAuthorized({
+    required AuthSession? session,
+    required int transactionId,
+    required String paymentUuid,
+    required DateTime paymentDate,
+    required int amount,
+    String method = 'Cash',
+    String? note,
   }) async {
     final actor = _paymentActor(session);
     _validatePaymentInput(amount, method);
@@ -1529,6 +1660,30 @@ class TransactionRepository {
   );
 
   Future<bool> _amendPayment({
+    required AuthSession? session,
+    required int transactionId,
+    required TransaksiRiwayatPembayaran expected,
+    required String reason,
+    int? amount,
+    DateTime? paymentDate,
+    String? method,
+    String? note,
+  }) async => _write(
+    TransactionAction.update,
+    (_) => _amendPaymentAuthorized(
+      session: session,
+      transactionId: transactionId,
+      expected: expected,
+      reason: reason,
+      amount: amount,
+      paymentDate: paymentDate,
+      method: method,
+      note: note,
+    ),
+    expected: session,
+  );
+
+  Future<bool> _amendPaymentAuthorized({
     required AuthSession? session,
     required int transactionId,
     required TransaksiRiwayatPembayaran expected,
@@ -1714,9 +1869,9 @@ class TransactionRepository {
     }
   }
 
-  Future<bool> delete(int id) async {
+  Future<bool> delete(int id, {AuthSession? expectedSession}) async {
     final now = DateTime.now();
-    return db.transaction(() async {
+    return _write(TransactionAction.delete, (actor) async {
       final original = await findById(id);
       if (original == null) return false;
       if (await hasInitialMateraiUsage(db, original.uuid)) {
@@ -1727,11 +1882,12 @@ class TransactionRepository {
       )..where((t) => t.transaksiId.equals(id) & t.deletedAt.isNull())).get();
       // Only facts required to undo this exact local cascade, never payment data.
       await db.customStatement(
-        "INSERT INTO recycle_bin_events(attempt_id,module,local_uuid,action,outcome,occurred_at,before_state) VALUES(?,?,?,'delete','success',?,?)",
+        "INSERT INTO recycle_bin_events(attempt_id,module,local_uuid,action,outcome,actor_id,occurred_at,before_state) VALUES(?,?,?,'delete','success',?,?,?)",
         [
           _uuid.v4(),
           'transaksi_${original.jenisTransaksi}',
           original.uuid,
+          actor.userId,
           now.toUtc().toIso8601String(),
           jsonEncode({
             'status': original.statusTransaksi,
@@ -1765,7 +1921,7 @@ class TransactionRepository {
         ),
       );
       return true;
-    });
+    }, expected: expectedSession);
   }
 
   static String? _nullableText(String? value) {

@@ -1,3 +1,6 @@
+import 'local_master_test_authority.dart' show masterTestToken;
+import 'transaction_test_authority.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -18,12 +21,12 @@ const uiApplicant = '00000000-0000-4000-8000-000000000001',
     uiPrice = '00000000-0000-4000-8000-000000000005',
     uiCategory = '00000000-0000-4000-8000-000000000006';
 AuthSession uiSession({
-  String token = 'test-ui-token',
+  String? token,
   bool permission = true,
   String? groupType,
   int userId = 1,
 }) => AuthSession(
-  token: token,
+  token: token ?? masterTestToken(uid: userId),
   userId: userId,
   groupId: 1,
   userName: 'Fixture',
@@ -93,7 +96,7 @@ Future<void> seedTransactionUiReferences(
 }
 
 Future<int> createTransactionUiRecord(AppDatabase db, String domain) =>
-    TransactionRepository(db).save(
+    testTransactionRepository(db).save(
       nomorTransaksi: 'UI-OFFLINE-$domain',
       jenisTransaksi: domain,
       pemohonId: 10,

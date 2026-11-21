@@ -1,3 +1,7 @@
+import 'package:frontend_notaris/services/local_transaction_authorization.dart';
+
+import '../support/transaction_test_authority.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -92,7 +96,9 @@ void main() {
         ),
         () => session,
       );
-  final rejected = throwsA(isA<MateraiStockException>());
+  final rejected = throwsA(
+    anyOf(isA<MateraiStockException>(), isA<LocalTransactionDenied>()),
+  );
   Future<List<int>> counts() async => [
     for (final name in [
       'transaksis',
@@ -115,7 +121,12 @@ void main() {
     binding = await seedMateraiOpening(db, transactionUsage: true);
     session = usageActor(binding.profileId);
     inventory = stock(db);
-    repo = TransactionRepository(db, materaiStock: inventory);
+    repo = testTransactionRepository(
+      db,
+      materaiStock: inventory,
+      session: () => session,
+      profileId: binding.profileId,
+    );
   });
   tearDown(() async {
     await db.close();
@@ -176,9 +187,11 @@ void main() {
     expect(await saveUsage(repo), saved);
     final second = MateraiProfileDatabase(connect());
     try {
-      final reopened = TransactionRepository(
+      final reopened = testTransactionRepository(
         second,
         materaiStock: stock(second),
+        session: () => session,
+        profileId: binding.profileId,
       );
       expect(await saveUsage(reopened), saved);
       for (final sheets in [0, 4]) {
@@ -215,9 +228,11 @@ void main() {
   test('concurrent transaction creates cannot overspend stock', () async {
     final otherDb = MateraiProfileDatabase(connect());
     try {
-      final other = TransactionRepository(
+      final other = testTransactionRepository(
         otherDb,
         materaiStock: stock(otherDb),
+        session: () => session,
+        profileId: binding.profileId,
       );
       Future<Object> outcome(Future<int> operation) =>
           operation.then<Object>((id) => id, onError: (Object e) => e);
@@ -247,11 +262,11 @@ void main() {
 
   test('old and zero-usage transactions remain ordinary; linked edits and deletes are protected', () async {
     await expectLater(
-      saveUsage(TransactionRepository(db), requireUsage: false),
+      saveUsage(testTransactionRepository(db), requireUsage: false),
       rejected,
     );
     final legacy = await saveUsage(
-      TransactionRepository(db),
+      testTransactionRepository(db),
       sheets: 0,
       requireUsage: false,
     );
@@ -261,6 +276,9 @@ void main() {
     );
     expect(await hasInitialMateraiUsage(db, notarisUuid), isFalse);
     expect(await repo.findById(legacy), isNotNull);
+    session.sidebars.firstWhere(
+      (g) => (g['sidebar'] as Map)['sidebar_kode'] == 'transaksi',
+    )['delete'] = 1;
     expect(await repo.delete(legacy), isTrue);
     final zero = await saveUsage(repo, uuid: ppatUuid, sheets: 0);
     expect(await hasInitialMateraiUsage(db, ppatUuid), isFalse);
@@ -287,14 +305,14 @@ void main() {
       saveUsage(repo, uuid: actualUuid, editing: fresh, status: 'Dibatalkan'),
       rejected,
     );
-    await expectLater(TransactionRepository(db).delete(fresh), rejected);
+    await expectLater(testTransactionRepository(db).delete(fresh), rejected);
     expect(await counts(), committed);
     expect((await repo.findById(zero))!.jumlahMaterai, 0);
   });
 
   test('binding, reconciled baseline, writable DB and explicit transaction create required', () async {
     final before = await counts();
-    await expectLater(saveUsage(TransactionRepository(db)), rejected);
+    await expectLater(saveUsage(testTransactionRepository(db)), rejected);
     for (final invalid in [
       usageActor(binding.profileId, grant: false),
       usageActor(binding.profileId, expired: true),
@@ -307,7 +325,7 @@ void main() {
     session = usageActor(binding.profileId);
     final notBound = MateraiStockRepository(binding, () => session);
     await expectLater(
-      saveUsage(TransactionRepository(db, materaiStock: notBound)),
+      saveUsage(testTransactionRepository(db, materaiStock: notBound)),
       rejected,
     );
     await db.customStatement(

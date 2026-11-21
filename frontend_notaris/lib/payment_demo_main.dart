@@ -260,5 +260,9 @@ Future<void> main() async {
     verifier.close();
   }
   final db = await openPaymentDemo(id);
-  runCompletionDemo(db, auth: (dio) => PaymentDemoAuth(dio, id, helperSha));
+  runCompletionDemo(
+    db,
+    verifiedProfileId: id,
+    auth: (dio) => PaymentDemoAuth(dio, id, helperSha),
+  );
 }

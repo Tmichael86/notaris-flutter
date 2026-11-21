@@ -1,4 +1,5 @@
 import '../services/local_master_authorization.dart';
+import '../services/local_transaction_authorization.dart';
 
 import 'dart:convert';
 
@@ -52,13 +53,25 @@ class RecycleRecord {
 
 /// Local recovery only. No HTTP client, coordinator, or cloud mutation capability.
 class RecycleBinRepository {
-  RecycleBinRepository(this.db, this.session, {this.masterAuthorization});
+  RecycleBinRepository(
+    this.db,
+    this.session, {
+    this.masterAuthorization,
+    this.transactionAuthorization,
+  });
   final LocalMasterAuthorization? masterAuthorization;
+  final LocalTransactionAuthorization? transactionAuthorization;
   final AppDatabase db;
   final AuthSession? Function() session;
 
   bool canRead(RecycleModule module) => _allowed(module, 'read');
   bool _allowed(RecycleModule module, String action) {
+    if (module.isTransaction) {
+      return transactionAuthorization?.allows(
+            TransactionAction.values.byName(action),
+          ) ==
+          true;
+    }
     bool yes(dynamic v) => v == 1 || v == true || v == '1';
     return session()?.sidebars.any((a) {
           final sidebar = a['sidebar'];
@@ -129,8 +142,46 @@ class RecycleBinRepository {
         .toList();
   }
 
-  Future<void> restore(RecycleRecord record) async {
-    if (record.module.isTransaction) return _restore(record);
+  Future<void> restore(
+    RecycleRecord record, {
+    AuthSession? expectedSession,
+  }) async {
+    if (record.module.isTransaction) {
+      final authority = transactionAuthorization;
+      if (authority == null) throw const RestoreFailure('permission');
+      try {
+        final actor = authority.require(
+          TransactionAction.update,
+          expected: expectedSession,
+        );
+        try {
+          await authority.write(
+            db,
+            TransactionAction.update,
+            (_) => _restore(record, logFailure: false, actorId: actor.userId),
+            expected: actor,
+          );
+        } on RestoreFailure catch (e) {
+          if (e.code == 'permission') rethrow;
+          await authority.write(
+            db,
+            TransactionAction.update,
+            (_) => _log(
+              record,
+              const Uuid().v4(),
+              'failed',
+              e.code,
+              actorId: actor.userId,
+            ),
+            expected: actor,
+          );
+          rethrow;
+        }
+      } on LocalTransactionDenied {
+        throw const RestoreFailure('permission');
+      }
+      return;
+    }
     final authority = masterAuthorization;
     final module = record.module == RecycleModule.notaris
         ? MasterModule.notaris
@@ -161,7 +212,11 @@ class RecycleBinRepository {
     }
   }
 
-  Future<void> _restore(RecycleRecord record, {bool logFailure = true}) async {
+  Future<void> _restore(
+    RecycleRecord record, {
+    bool logFailure = true,
+    int? actorId,
+  }) async {
     final attempt = const Uuid().v4();
     try {
       await db.transaction(() async {
@@ -238,12 +293,14 @@ class RecycleBinRepository {
               db.pekerjaanPpatLocals,
           },
         );
-        await _log(record, attempt, 'success', null);
+        await _log(record, attempt, 'success', null, actorId: actorId);
       });
     } catch (e) {
       // Rolled-back data writes and success audit cannot survive a failure.
       final failure = e is RestoreFailure ? e : const RestoreFailure('storage');
-      if (logFailure) await _log(record, attempt, 'failed', failure.code);
+      if (logFailure) {
+        await _log(record, attempt, 'failed', failure.code, actorId: actorId);
+      }
       throw failure;
     }
   }
@@ -254,15 +311,16 @@ class RecycleBinRepository {
     RecycleRecord r,
     String attempt,
     String outcome,
-    String? code,
-  ) => db.customStatement(
+    String? code, {
+    int? actorId,
+  }) => db.customStatement(
     "INSERT INTO recycle_bin_events(attempt_id,module,local_uuid,action,outcome,actor_id,occurred_at,error_code) VALUES(?,?,?,'restore',?,?,?,?)",
     [
       attempt,
       r.module.code,
       r.uuid,
       outcome,
-      session()?.userId,
+      actorId ?? session()?.userId,
       DateTime.now().toUtc().toIso8601String(),
       code,
     ],

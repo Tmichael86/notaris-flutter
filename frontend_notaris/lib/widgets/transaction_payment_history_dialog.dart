@@ -215,6 +215,8 @@ Future<void> _edit(
   bool cancel = false,
 }) async {
   final requestId = const Uuid().v4();
+  final openingSession = ref.read(authControllerProvider).session;
+  final openingRepository = ref.read(transactionRepositoryProvider);
   final amount = TextEditingController(
     text: row == null ? '' : paymentRupiah(row).toString(),
   );
@@ -248,8 +250,8 @@ Future<void> _edit(
               error = null;
             });
             try {
-              final repository = ref.read(transactionRepositoryProvider);
-              final session = ref.read(authControllerProvider).session;
+              final repository = openingRepository;
+              final session = openingSession;
               final parsed = int.tryParse(amount.text.trim());
               if (!cancel &&
                   (parsed == null ||

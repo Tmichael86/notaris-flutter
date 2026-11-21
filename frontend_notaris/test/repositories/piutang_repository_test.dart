@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'dart:async';
 import 'dart:io';
 
@@ -7,7 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/models/auth_session.dart';
 import 'package:frontend_notaris/repositories/piutang_repository.dart';
-import 'package:frontend_notaris/repositories/transaction_repository.dart';
 import 'package:frontend_notaris/services/piutang_excel_export.dart';
 import 'package:path/path.dart' as p;
 
@@ -62,8 +63,8 @@ void main() {
     addTearDown(stream.cancel);
     expect(await stream.moveNext(), isTrue);
     expect(stream.current.total, BigInt.from(130000));
-    final transactions = TransactionRepository(db);
     final actor = uiSession(groupType: 'superadmin');
+    final transactions = testTransactionRepository(db, session: () => actor);
     final original = (await transactions.getPaymentHistory(1)).last;
     await transactions.editPayment(
       session: actor,

@@ -1,3 +1,7 @@
+import 'package:frontend_notaris/services/local_transaction_authorization.dart';
+
+import '../support/transaction_test_authority.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -95,7 +99,9 @@ void main() {
               .get())
           .map((row) => row.data)
           .toList();
-  final denied = throwsA(isA<MateraiStockException>());
+  final denied = throwsA(
+    anyOf(isA<MateraiStockException>(), isA<LocalTransactionDenied>()),
+  );
 
   setUp(() async {
     temp = await Directory.systemTemp.createTemp('materai-correction-test-');
@@ -110,7 +116,12 @@ void main() {
     actor = usageActor(opening.profileId);
     clock = DateTime.now();
     inventory = on(db);
-    repo = TransactionRepository(db, materaiStock: inventory);
+    repo = testTransactionRepository(
+      db,
+      materaiStock: inventory,
+      session: () => actor,
+      profileId: opening.profileId,
+    );
     notaris = await saveUsage(repo);
     ppat = await saveUsage(repo, uuid: ppatUuid, domain: 'ppat', sheets: 4);
   });
@@ -191,7 +202,12 @@ void main() {
     final original = await ledger();
     final reopened = MateraiProfileDatabase(connect());
     try {
-      final next = TransactionRepository(reopened, materaiStock: on(reopened));
+      final next = testTransactionRepository(
+        reopened,
+        materaiStock: on(reopened),
+        session: () => actor,
+        profileId: opening.profileId,
+      );
       expect(
         await applyCorrection(next, notaris, 1, intent: operation),
         notaris,

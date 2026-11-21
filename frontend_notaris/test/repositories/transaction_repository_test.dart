@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
@@ -14,11 +16,13 @@ void main() {
   late TransactionRepository repository;
   late TransaksiProsesRepository processRepository;
   late int pekerjaanNotarisId;
+  final actor = uiSession(groupType: 'superadmin');
+  final processActor = transactionTestSession(uid: 10);
 
   setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
-    repository = TransactionRepository(db);
-    processRepository = TransaksiProsesRepository(db);
+    repository = testTransactionRepository(db, session: () => actor);
+    processRepository = testProcessRepository(db, session: () => processActor);
 
     pekerjaanNotarisId = await db
         .into(db.pekerjaanNotarisLocals)
@@ -240,7 +244,7 @@ void main() {
       );
 
       final paymentId = await repository.addPayment(
-        session: uiSession(),
+        session: actor,
         transactionId: transactionId,
         paymentUuid: '00000000-0000-4000-8000-000000000181',
         paymentDate: DateTime(2026, 10, 14),
@@ -261,7 +265,7 @@ void main() {
           .single;
       await expectLater(
         repository.cancelPayment(
-          session: uiSession(groupType: 'superadmin'),
+          session: actor,
           transactionId: transactionId,
           expected: expected,
           reason: 'Koreksi salah transaksi',
@@ -522,7 +526,7 @@ void main() {
     await persistent.customStatement(
       "INSERT INTO pekerjaan_ppat(id,uuid,nama) VALUES(1,'j','Fixture')",
     );
-    final id = await TransactionRepository(persistent).save(
+    final id = await testTransactionRepository(persistent).save(
       nomorTransaksi: '2000311260001',
       jenisTransaksi: 'ppat',
       pemohonId: 1,
@@ -545,7 +549,7 @@ void main() {
     );
     await persistent.close();
     persistent = AppDatabase.forTesting(NativeDatabase(file));
-    final reopened = TransactionRepository(persistent);
+    final reopened = testTransactionRepository(persistent);
     expect((await reopened.findById(id))!.jenisTransaksi, 'ppat');
     expect((await reopened.watchDetailsOnce(id)).single.uuid, 'stable-detail');
     expect(

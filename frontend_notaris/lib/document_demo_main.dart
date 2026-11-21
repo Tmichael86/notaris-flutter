@@ -60,6 +60,7 @@ Future<void> main() async {
     final (db, file) = await openDocumentDemo(id, lifecycle: true);
     runCompletionDemo(
       db,
+      verifiedProfileId: id,
       auth: (dio) => PaymentDemoAuth(dio, id, helperSha),
       documents: (databasePath: file.path, appDirectory: root.path),
     );

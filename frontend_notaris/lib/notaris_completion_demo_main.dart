@@ -18,6 +18,7 @@ import 'providers/database_provider.dart';
 import 'providers/development_smoke_provider.dart';
 import 'providers/petugas_manual_sync_provider.dart';
 import 'providers/transaction_document_provider.dart';
+import 'providers/local_master_authorization_provider.dart';
 import 'services/auth_service.dart';
 
 const completionDemoSchema = 21;
@@ -185,6 +186,7 @@ void runCompletionDemo(
   AuthService Function(Dio)? auth,
   TransactionDocumentProfile? documents,
   MateraiStockBinding? materaiStock,
+  String? verifiedProfileId,
   String banner = 'PROFIL DEMONSTRASI',
 }) {
   final dio = Dio(BaseOptions(baseUrl: 'http://127.0.0.1:0'));
@@ -195,6 +197,10 @@ void runCompletionDemo(
           ref.onDispose(db.close);
           return db;
         }),
+        // Only callers that already verified the owned DB and signed Go demo
+        // profile supply this. Never derive it from the account/session itself.
+        if (verifiedProfileId != null)
+          localMasterProfileIdProvider.overrideWithValue(verifiedProfileId),
         dioProvider.overrideWith((ref) {
           ref.onDispose(dio.close);
           return dio;

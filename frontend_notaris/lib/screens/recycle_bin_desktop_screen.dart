@@ -26,6 +26,8 @@ class _RecycleBinState extends ConsumerState<RecycleBinDesktopScreen> {
   }
 
   Future<void> restore(RecycleRecord record) async {
+    final repository = ref.read(recycleBinRepositoryProvider);
+    final actor = repository.session();
     if (busy) return;
     setState(() => busy = true);
     try {
@@ -50,7 +52,7 @@ class _RecycleBinState extends ConsumerState<RecycleBinDesktopScreen> {
       );
       if (confirmed != true || !mounted) return;
       setState(() => restoring = true);
-      await ref.read(recycleBinRepositoryProvider).restore(record);
+      await repository.restore(record, expectedSession: actor);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

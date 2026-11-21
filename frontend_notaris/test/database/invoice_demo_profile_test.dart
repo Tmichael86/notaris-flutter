@@ -1,10 +1,11 @@
+import '../support/transaction_test_authority.dart';
+
 import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend_notaris/invoice_demo_main.dart';
 import 'package:frontend_notaris/notaris_completion_demo_main.dart';
-import 'package:frontend_notaris/repositories/transaction_repository.dart';
 import 'package:frontend_notaris/services/auth_service.dart';
 
 void main() {
@@ -48,7 +49,7 @@ void main() {
         password: CompletionDemoAuth.readerPassword,
         rememberMe: false,
       );
-      final repository = TransactionRepository(db);
+      final repository = testTransactionRepository(db);
       final transactions = await db.select(db.transaksis).get();
       for (final row in transactions) {
         final invoice = await repository.readInvoice(

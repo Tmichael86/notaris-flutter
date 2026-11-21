@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -40,7 +42,7 @@ void main() {
         ]) {
           await db.customStatement(sql);
         }
-        final repo = TransactionRepository(db);
+        final repo = testTransactionRepository(db);
         final masters = await db.select(db.pekerjaanPpatLocals).get();
         final processes = await db.select(db.pekerjaanPpatProsesLocals).get();
         final transaction = await repo.save(
@@ -149,7 +151,7 @@ void main() {
       await db.customStatement(
         "INSERT INTO transaksi_details(uuid,transaksi_id,jenis_pekerjaan,nama_pekerjaan_snapshot) VALUES('job',1,'ppat','Akta Jual Beli')",
       );
-      final repo = TransactionRepository(db);
+      final repo = testTransactionRepository(db);
       final detail = await repo.readPpatJob(
         session: session,
         transactionId: 1,

@@ -1,3 +1,5 @@
+import 'transaction_test_authority.dart';
+
 import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/models/auth_session.dart';
 import 'package:frontend_notaris/models/verified_demo_session.dart';
@@ -69,8 +71,8 @@ Future<void> seedPendapatan(AppDatabase db) async {
   await db.customStatement(
     "INSERT INTO pengeluaran_jenis(id,uuid,nama) VALUES(1,'pendapatan-jenis','Perlengkapan Kantor')",
   );
-  final transactions = TransactionRepository(db);
   final actor = pendapatanActor();
+  final transactions = testTransactionRepository(db, session: () => actor);
   Future<int> create(
     int index,
     DateTime date,

@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -42,7 +44,7 @@ void main() {
   setUp(() async {
     folder = await Directory.systemTemp.createTemp('monitoring-xlsx-');
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    repo = TransactionRepository(db);
+    repo = testTransactionRepository(db);
     await db.customStatement(
       "INSERT INTO pemohons(id,uuid,nama,nik) VALUES(1,'applicant','=HYPERLINK(é)','0000000000000001')",
     );

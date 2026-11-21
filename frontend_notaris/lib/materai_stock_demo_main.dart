@@ -117,6 +117,7 @@ Future<void> main() async {
       : null;
   runCompletionDemo(
     db,
+    verifiedProfileId: id,
     materaiStock: binding,
     auth: (dio) => PaymentDemoAuth(
       dio,

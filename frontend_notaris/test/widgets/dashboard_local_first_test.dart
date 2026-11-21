@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'dart:async';
 
 import 'package:drift/drift.dart' show Value;
@@ -11,7 +13,6 @@ import 'package:frontend_notaris/database/app_database.dart';
 import 'package:frontend_notaris/models/dashboard_transactions.dart';
 import 'package:frontend_notaris/providers/database_provider.dart';
 import 'package:frontend_notaris/providers/transaction_provider.dart';
-import 'package:frontend_notaris/repositories/transaction_repository.dart';
 import 'package:frontend_notaris/screens/dashboard_desktop_screen.dart';
 
 import '../support/transaction_ui_test_support.dart' show cycleUi, uiSession;
@@ -158,7 +159,7 @@ void main() {
         deadline: deadline,
         status: 'Dihapus',
       );
-      final repo = TransactionRepository(db);
+      final repo = testTransactionRepository(db);
       Future<DashboardTransactionPage> page(
         DashboardTransactionList list,
         int index,
@@ -363,7 +364,7 @@ void main() {
     await header(db, 'deleted', date: today, deleted: true);
     await header(db, 'legacy-tombstone', date: today, status: 'Dihapus');
 
-    final source = await TransactionRepository(db).watchAll().first;
+    final source = await testTransactionRepository(db).watchAll().first;
     final summary = DashboardTransactions(source, 2026, today);
     expect(summary.total, 5);
     expect(summary.running, 1);
@@ -387,7 +388,7 @@ void main() {
   test(
     'received payments use payment year and active history, not header amounts',
     () async {
-      final repository = TransactionRepository(db);
+      final repository = testTransactionRepository(db);
       expect(await repository.watchReceivedPayments(2026).first, 0);
       final old = await header(db, 'old', date: DateTime(2025, 12, 31));
       final deleted = await header(
@@ -468,9 +469,10 @@ void main() {
       await cycleUi(tester);
       expect(find.text('DASH-LOCAL'), findsOneWidget);
       expect(find.text('100%'), findsOneWidget);
+      final actor = uiSession(groupType: 'superadmin');
       await tester.runAsync(
-        () => TransactionRepository(db).addPayment(
-          session: uiSession(),
+        () => testTransactionRepository(db, session: () => actor).addPayment(
+          session: actor,
           transactionId: id,
           paymentUuid: '00000000-0000-4000-8000-000000000182',
           paymentDate: DateTime(year, 2, 1),
@@ -480,9 +482,9 @@ void main() {
       await cycleUi(tester);
       expect(find.text('Rp 100'), findsOneWidget);
       await tester.runAsync(() async {
-        final repo = TransactionRepository(db);
+        final repo = testTransactionRepository(db, session: () => actor);
         await repo.cancelPayment(
-          session: uiSession(groupType: 'superadmin'),
+          session: actor,
           transactionId: id,
           expected: (await repo.getPaymentHistory(id)).single,
           reason: 'Koreksi pembayaran',
@@ -507,7 +509,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('DASH-LOCAL'), findsOneWidget);
       expect(
-        await tester.runAsync(() => TransactionRepository(db).delete(id)),
+        await tester.runAsync(() => testTransactionRepository(db).delete(id)),
         isTrue,
       );
       await cycleUi(tester);

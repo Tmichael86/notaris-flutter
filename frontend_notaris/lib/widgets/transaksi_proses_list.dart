@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/theme/app_colors.dart';
 import '../core/widgets/transaction_review_dialog.dart';
 import '../database/app_database.dart';
+import '../models/auth_session.dart';
+import '../providers/local_transaction_authorization_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/transaksi_proses_provider.dart';
 import '../repositories/transaksi_proses_repository.dart';
@@ -300,6 +302,15 @@ class _ProcessValidationDialog extends ConsumerStatefulWidget {
 
 class _ProcessValidationDialogState
     extends ConsumerState<_ProcessValidationDialog> {
+  late final AuthSession? _openingSession;
+  late final TransaksiProsesRepository _openingRepository;
+  @override
+  void initState() {
+    super.initState();
+    _openingSession = ref.read(authControllerProvider).session;
+    _openingRepository = ref.read(transaksiProsesRepositoryProvider);
+  }
+
   late TransaksiProse _process = widget.process;
   late String? _note = _process.catatan;
   late bool _valid = _process.statusProses == ProcessValidationStatus.valid;
@@ -313,14 +324,12 @@ class _ProcessValidationDialogState
       _error = null;
     });
     try {
-      final result = await ref
-          .read(transaksiProsesRepositoryProvider)
-          .saveDirectValidation(
-            session: ref.read(authControllerProvider).session,
-            expected: _process,
-            valid: initialize ? null : _valid,
-            note: _note,
-          );
+      final result = await _openingRepository.saveDirectValidation(
+        session: _openingSession,
+        expected: _process,
+        valid: initialize ? null : _valid,
+        note: _note,
+      );
       if (!mounted) return;
       if (initialize) {
         setState(() => _process = result);
@@ -342,9 +351,10 @@ class _ProcessValidationDialogState
 
   @override
   Widget build(BuildContext context) {
-    final canValidate = TransaksiProsesRepository.canValidate(
-      ref.watch(authControllerProvider).session,
-    );
+    ref.watch(authControllerProvider);
+    final canValidate = ref
+        .watch(localTransactionAuthorizationProvider)
+        .allows(TransactionAction.update, expected: _openingSession);
     final initialized = _process.statusProses != null;
     return PopScope(
       canPop: !_saving,
