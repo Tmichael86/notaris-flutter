@@ -1,5 +1,6 @@
 """Inspect a Windows RC bundle without launching it or accessing any profile."""
 import ctypes
+import json
 from ctypes import wintypes
 import os
 from pathlib import Path
@@ -15,7 +16,7 @@ REQUIRED = {
     'notaris_document_store.dll', 'file_selector_windows_plugin.dll',
     'flutter_secure_storage_windows_plugin.dll', 'printing_plugin.dll',
     'pdfium.dll', 'sqlite3.dll', 'data/app.so', 'data/icudtl.dat',
-    'data/flutter_assets/AssetManifest.bin', 'data/flutter_assets/FontManifest.json',
+    'data/flutter_assets/AssetManifest.bin', 'data/flutter_assets/NativeAssetsManifest.json', 'data/flutter_assets/FontManifest.json',
     'data/flutter_assets/assets/images/app_logo.png',
     'data/flutter_assets/assets/fonts/NotoSans-Regular.ttf',
 }
@@ -136,6 +137,15 @@ class WindowsRCPackaging(unittest.TestCase):
             self.assertLessEqual(offset + size, len(icon))
             self.assertEqual(icon[offset:offset + 8], b'\x89PNG\r\n\x1a\n')
         self.assertTrue({(16, 16), (32, 32), (48, 48), (256, 256)} <= sizes)
+
+    def test_native_asset_manifest_has_no_build_machine_paths(self):
+        self.assertFalse((BUNDLE / 'native_assets.json').exists(), 'Debug tooling native_assets.json must be kept outside the distribution')
+        manifest = json.loads((BUNDLE / 'data/flutter_assets/NativeAssetsManifest.json').read_text(encoding='utf-8'))
+        for platform in manifest['native-assets'].values():
+            for binding in platform.values():
+                self.assertEqual(len(binding), 2)
+                self.assertEqual(binding[1], 'sqlite3.dll')
+                self.assertTrue((BUNDLE / binding[1]).is_file())
 
     def test_unconfigured_endpoint_compiled_not_live(self):
         aot = (BUNDLE / 'data/app.so').read_bytes()

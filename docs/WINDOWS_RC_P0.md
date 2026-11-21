@@ -46,7 +46,7 @@ Toolchain/source commit and actual command, hashes and validation outcomes are c
 
 ## Distribution contract
 
-Ship the **whole inspected Release directory**, with its original hierarchy, plus manifest and a prominent DO_NOT_RUN warning. Never ship only the .exe. The manifest inventories every file by relative path, size and SHA256.
+Ship the **whole inspected runtime payload**, with its original hierarchy, plus manifest and a prominent DO_NOT_RUN warning. One reviewed exception: CMake can copy a stale root `native_assets.json` from prior Flutter test/debug tooling. It embeds an absolute build-machine SQLite path and is excluded from the distribution, with its hash/reason recorded. Preserve the actual `data/flutter_assets/NativeAssetsManifest.json` and its bundled `sqlite3.dll` binding. Do not rewrite AOT/runtime metadata or silently drop unknown files. Raw compiler output remains preserved for audit. Never ship only the .exe. The manifest inventories every file by relative path, size and SHA256.
 
 Required top-level binaries:
 
@@ -82,7 +82,9 @@ Packaging tests inspect files/PE/resources/AOT without launching frontend_notari
 
 ```powershell
 # Repository root; Windows Python standard library only.
+$env:NOTARIS_RC_BUNDLE = '<absolute owned RC distribution path>'
 python .\scripts\test_windows_rc_packaging.py -v
+Remove-Item Env:NOTARIS_RC_BUNDLE
 ```
 
 An alternate owned copied bundle can be inspected with `NOTARIS_RC_BUNDLE=<absolute path>`. This is a read-only test path, not an execution/profile bypass flag. Checks cover required binaries/assets, x64/no debug CRT imports, Release version/brand, icon frame integrity, original PNG equivalence, compiled .invalid endpoint, no profile/credential/database files, and dependency files present or resolvable on the build host.
@@ -113,11 +115,11 @@ This is the first RC: if no previous approved release exists, rollback means **s
 ## Validation checkpoint — 21 November 2026
 
 - Actual release build PASS, version1.0.0+1, x64. Flutter3.47.1/Dart3.13.1; Windows Visual Studio Build Tools2019 16.11.42, MSVC14.29.30133, SDK10.0.22000.0.
-- Packaging tests: **8 PASS**, zero skipped.
+- Packaging tests: **9 PASS**, zero skipped, against the owned distribution copy. The additional portability test rejects root debug-only native_assets.json and verifies the preserved runtime native-assets binding.
 - Focused Flutter/native smoke: **140 PASS**, zero skipped. Includes actual Release document DLL/PDF worker on new temp synthetic files, H01 startup/transport/coordinator containment and H02 direct repository/UI permission/profile-switch tests. Existing Drift isolated-multiple-instance warnings do not indicate shared original-profile access.
 - Flutter analyze: **No issues found**. No full regression or live HTTP E2E.
 - Host VC++ x64 installed14.51.36247; imported MSVCP140/VCRUNTIME140/VCRUNTIME140_1/UCRT dependencies resolve on this build host. Clean-machine installation/runtime remains unverified.
-- Full output contains28 payload files, including9 native PE executables/DLLs plus x64 ELF AOT and assets/data. User PNG SHA256 unchanged.
+- Raw compiler output contains29 files after test tooling; distribution contains28 runtime payload files, including9 native PE executables/DLLs plus x64 ELF AOT and assets/data. Only the identified root debug native_assets.json is excluded, not any executable/DLL/data asset. User PNG SHA256 unchanged.
 - **Application runtime smoke BLOCKED**: frontend_notaris.exe was never launched. Owned release-compatible SQLite/auth binding is absent. Existing acceptance profiles and credentials were not reused.
 
 Exact focused command from frontend_notaris:
