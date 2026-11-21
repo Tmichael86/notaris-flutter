@@ -11,6 +11,10 @@ import unittest
 REPO = Path(__file__).resolve().parents[1]
 BUNDLE = Path(os.environ.get('NOTARIS_RC_BUNDLE', REPO / 'frontend_notaris/build/windows/x64/runner/Release')).resolve()
 ENDPOINT = b'https://qa-endpoint-unconfigured.invalid/api/v1'
+# Explicit artifact expectation; the original BUILD_ONLY bundle remains build 1.
+EXPECTED_BUILD = int(os.environ.get('NOTARIS_RC_EXPECTED_BUILD', '1'))
+if EXPECTED_BUILD not in {1, 2}:
+    raise ValueError('Only reviewed RC build numbers 1 and 2 are supported')
 REQUIRED = {
     'frontend_notaris.exe', 'flutter_windows.dll', 'notaris_document_pdf.exe',
     'notaris_document_store.dll', 'file_selector_windows_plugin.dll',
@@ -117,7 +121,7 @@ class WindowsRCPackaging(unittest.TestCase):
 
     def test_release_resource_identity(self):
         v = version_info(BUNDLE / 'frontend_notaris.exe')
-        self.assertEqual(v['version'], [1, 0, 0, 1])
+        self.assertEqual(v['version'], [1, 0, 0, EXPECTED_BUILD])
         self.assertFalse(v['debug'])
         self.assertEqual(v['ProductName'], 'MY NOTARIS - SIM Notaris & PPAT')
         self.assertEqual(v['FileDescription'], v['ProductName'])

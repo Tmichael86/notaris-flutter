@@ -5,10 +5,29 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/auth_session.dart';
 
+abstract interface class AuthSessionCache {
+  Future<String?> read({required String key});
+  Future<void> write({required String key, required String value});
+  Future<void> delete({required String key});
+}
+
+class _DefaultSessionCache implements AuthSessionCache {
+  _DefaultSessionCache(this.storage);
+  final FlutterSecureStorage storage;
+  @override
+  Future<String?> read({required String key}) => storage.read(key: key);
+  @override
+  Future<void> write({required String key, required String value}) =>
+      storage.write(key: key, value: value);
+  @override
+  Future<void> delete({required String key}) => storage.delete(key: key);
+}
+
 class AuthService {
   AuthService({
     Dio? dio,
     FlutterSecureStorage? storage,
+    AuthSessionCache? sessionCache,
     this.cacheKey = 'notaris.auth.session.v1',
   }) : _dio =
            dio ??
@@ -24,13 +43,15 @@ class AuthService {
                headers: const {'Accept': 'application/json'},
              ),
            ),
-       _storage = storage ?? const FlutterSecureStorage();
+       _storage =
+           sessionCache ??
+           _DefaultSessionCache(storage ?? const FlutterSecureStorage());
 
   final String cacheKey;
   static const offlineGracePeriod = Duration(days: 7);
 
   final Dio _dio;
-  final FlutterSecureStorage _storage;
+  final AuthSessionCache _storage;
 
   Future<AuthSession> login({
     required String username,

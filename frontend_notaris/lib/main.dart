@@ -1,14 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 
 import 'screens/auth_startup_gate.dart';
 import 'h01_acceptance_bootstrap.dart';
 import 'h02_acceptance_bootstrap.dart';
+import 'release_qa_bootstrap.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   const h01 = String.fromEnvironment('NOTARIS_H01_ID');
   const h02 = String.fromEnvironment('NOTARIS_H02_ID');
+  if (kReleaseMode) {
+    try {
+      if (h01.isNotEmpty || h02.isNotEmpty) {
+        throw StateError('qa_acceptance_configuration_rejected');
+      }
+      runApp(
+        await releaseQaApplication(
+          const ReleaseQaConfiguration(
+            environment: String.fromEnvironment('NOTARIS_RELEASE_ENV'),
+            deployment: String.fromEnvironment('NOTARIS_RELEASE_DEPLOYMENT'),
+            endpoint: String.fromEnvironment('API_BASE_URL'),
+            schema: String.fromEnvironment('NOTARIS_RELEASE_SCHEMA'),
+          ),
+          const MyApp(),
+        ),
+      );
+    } catch (_) {
+      runApp(const ReleaseQaBlocked());
+    }
+    return;
+  }
   if (h01.isNotEmpty && h02.isNotEmpty) {
     throw StateError('Ambiguous acceptance profile.');
   }

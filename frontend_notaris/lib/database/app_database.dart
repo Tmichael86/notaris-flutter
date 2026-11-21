@@ -231,6 +231,10 @@ class AppDatabase extends _$AppDatabase {
   /// Creates an isolated database for repository and migration tests.
   AppDatabase.forTesting(super.executor) : petugasBaselinePath = null;
 
+  /// Production profile runtime supplies an already verified explicit executor.
+  /// This constructor never resolves the legacy Documents database.
+  AppDatabase.forBoundProfile(super.executor) : petugasBaselinePath = null;
+
   /// Explicit target for the disabled-by-default baseline pull service. Reject
   /// the normal daily file before Drift can open or migrate it. Caller creates
   /// the isolated profile directory; no default path/fallback is used here.
