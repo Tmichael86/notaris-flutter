@@ -36,6 +36,11 @@ type usersFixture struct {
 }
 
 func usersSetup(t *testing.T) usersFixture {
+	return usersSetupBeforeP0(t, nil)
+}
+
+// Reuse the same owned cluster/schema and proposal for legacy type coverage.
+func usersSetupBeforeP0(t *testing.T, prepare func(*gorm.DB)) usersFixture {
 	t.Helper()
 	dsn := os.Getenv("NOTARIS_USERS_SECURITY_TEST_DSN")
 	if dsn == "" {
@@ -96,6 +101,9 @@ func usersSetup(t *testing.T) usersFixture {
 	}
 	if err = db.Exec("SELECT setval('users_id_seq',10)").Error; err != nil {
 		t.Fatal(err)
+	}
+	if prepare != nil {
+		prepare(db)
 	}
 	migration, err := os.ReadFile("../migration_proposals/20261119_users_security.sql")
 	if err != nil {

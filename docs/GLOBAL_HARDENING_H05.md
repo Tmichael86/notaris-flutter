@@ -72,10 +72,13 @@ P0 readiness runs in a **read-only, repeatable-read transaction**. It checks:
 
 Names alone do not pass: NOT VALID foreign keys, CHECK(true), incorrect index
 keys, disabled audit triggers and ineffective trigger functions fail closed.
-Schema comparison intentionally follows the approved proposal's PostgreSQL
-catalog representation, ignoring formatting whitespace outside quoted tokens only. An unrecognized legacy type,
-constraint variant or PostgreSQL representation requires review; it is not
-automatically normalized, repaired or declared compatible.
+Schema comparison follows the approved proposal's PostgreSQL catalog
+representation, ignoring formatting whitespace outside quoted tokens only.
+The actual-backup rehearsal subsequently verified both TEXT and built-in
+VARCHAR column variants: the checker selects their exact expected casts from
+the actual column type. It never removes arbitrary casts. An unrecognized type,
+constraint variant or PostgreSQL representation still requires review; it is
+not automatically normalized, repaired or declared compatible.
 
 Recovery presence/hash format does not prove a human possesses the password,
 successful login, network/TLS readiness, or deployment authorization. Those
@@ -121,3 +124,8 @@ H01 stays `DISABLED_BY_POLICY`; H02/H03/H04 and H07 profile binding are preserve
 No NOTARISLOKAL, original SQLite, prior acceptance profile, or existing restore
 cluster was opened. No live migration/write, sync/publication activation,
 deployment, push or merge is authorized by this checkpoint.
+
+Actual backup follow-up: see `NOTARISDEV_P0_MIGRATION_REHEARSAL_20261121.md`.
+The necessary VARCHAR compatibility correction passed 38 Go top-level tests /
+201 leaf cases and read-only H05 checks on the newly restored/migrated clone.
+The P0 proposal was unchanged; no existing database was connected to.

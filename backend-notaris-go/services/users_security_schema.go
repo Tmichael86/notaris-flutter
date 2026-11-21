@@ -22,10 +22,11 @@ func usersSecuritySchema(tx *gorm.DB) error {
 	type column struct {
 		TableName, Name, Type, DefaultValue string
 		NotNull                             bool
+		Varchar                             bool
 	}
 	var columns []column
 	if e := tx.Raw(`SELECT c.relname AS table_name,a.attname AS name,format_type(a.atttypid,a.atttypmod) AS type,
- a.attnotnull AS not_null,coalesce(pg_get_expr(d.adbin,d.adrelid),'') AS default_value
+ a.attnotnull AS not_null,coalesce(pg_get_expr(d.adbin,d.adrelid),'') AS default_value,a.atttypid='varchar'::regtype AS varchar
  FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid JOIN pg_namespace n ON n.oid=c.relnamespace
  LEFT JOIN pg_attrdef d ON d.adrelid=c.oid AND d.adnum=a.attnum
  WHERE n.nspname=current_schema() AND c.relname IN ? AND a.attnum>0 AND NOT a.attisdropped`, tables).Scan(&columns).Error; e != nil {
@@ -100,6 +101,23 @@ func usersSecuritySchema(tx *gorm.DB) error {
 		"administrative_audit.administrative_audit_result_check":  "CHECK ((result = ANY (ARRAY['success'::text, 'denied'::text])))",
 		"administrative_audit.administrative_audit_source_check":  "CHECK ((source = 'online_admin_api'::text))",
 	}
+	// The same approved proposal produces explicit text casts on legacy VARCHAR
+	// columns. Accept only the exact PostgreSQL expression for that actual base
+	// type; never strip arbitrary casts or weaken CHECK/index validation.
+	textExpr := func(table, name string, pretty bool) string {
+		if byColumn[table+"."+name].Varchar {
+			if pretty {
+				return name + "::text"
+			}
+			return "(" + name + ")::text"
+		}
+		return name
+	}
+	required["users.users_security_identity_nonempty"] = fmt.Sprintf("CHECK (((btrim(%s) <> ''::text) AND (btrim(%s) <> ''::text)))", textExpr("users", "username", false), textExpr("users", "email", false))
+	required["sidebar.sidebar_security_valid"] = fmt.Sprintf("CHECK (((btrim(%s) <> ''::text) AND (status IS NOT NULL) AND (status = ANY (ARRAY[0, 1]))))", textExpr("sidebar", "sidebar_kode", false))
+	if byColumn["groups.group_jenis"].Varchar {
+		required["groups.groups_security_valid"] = "CHECK (((status IS NOT NULL) AND (status = ANY (ARRAY[0, 1])) AND (group_jenis IS NOT NULL) AND ((group_jenis)::text = ANY ((ARRAY['user'::character varying, 'superadmin'::character varying])::text[]))))"
+	}
 	for key, expected := range required {
 		c, ok := byConstraint[key]
 		if !ok || !c.Validated || c.Deferrable || schemaSQL(c.Definition) != schemaSQL(expected) {
@@ -124,7 +142,7 @@ func usersSecuritySchema(tx *gorm.DB) error {
 		byIndex[i.TableName+"."+i.Name] = i
 	}
 	for key, keys := range map[string]string{
-		"users.users_username_normalized": "lower(btrim(username))", "users.users_email_normalized": "lower(btrim(email))",
+		"users.users_username_normalized": "lower(btrim(" + textExpr("users", "username", true) + "))", "users.users_email_normalized": "lower(btrim(" + textExpr("users", "email", true) + "))",
 		"sidebar.sidebar_code_unique": "sidebar_kode", "sidebar_akses.sidebar_group_grant_unique": "group_id,sidebar_id",
 		"administrative_audit.administrative_audit_actor_time": "actor_id,occurred_at",
 	} {
