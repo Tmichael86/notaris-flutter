@@ -5,6 +5,7 @@ import (
 	"backend-notaris-go/controllers"
 	"backend-notaris-go/middleware"
 	"backend-notaris-go/repositories"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -24,10 +25,23 @@ func SetupRouter(
 	sidebarAccessController *controllers.SidebarAccessController,
 ) *gin.Engine {
 	r := gin.Default()
+	var acceptance *middleware.AcceptanceGate
+	if path := os.Getenv("NOTARIS_UI_ACCEPTANCE_PLAN"); path != "" {
+		var err error
+		acceptance, err = middleware.ReadAcceptancePlan(path, os.Getenv("NOTARIS_UI_ACCEPTANCE_SHA256"))
+		if err != nil {
+			panic("invalid acceptance plan")
+		}
+		r.Use(acceptance.Guard(cfg))
+	}
 	sidebarAccessRepository := repositories.NewSidebarAccessRepository()
+	admin := controllers.NewAdministrationController(cfg)
 	v1 := r.Group("/api/v1")
 	{
 		v1.GET("/health", healthController.Check)
+		if acceptance != nil {
+			v1.GET("/development/transaction-acceptance", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionRead), acceptance.Attest)
+		}
 		auth := v1.Group("/auth")
 		{
 			auth.POST("/login", authController.Login)
@@ -42,7 +56,7 @@ func SetupRouter(
 				middleware.RequirePermission(
 					sidebarAccessRepository,
 					"pemohon",
-					middleware.PermissionUpdate,
+					middleware.PermissionRead,
 				),
 				pemohonController.SyncUpsert,
 			)
@@ -76,11 +90,37 @@ func SetupRouter(
 
 		petugas := v1.Group("/petugas")
 		{
+			petugas.GET("/references/users/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), controllers.PetugasUserReference)
+			petugas.GET("/references/jenis-kelamin", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), controllers.PetugasGenderCatalog)
+			petugas.PUT("/sync/:uuid", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), controllers.PetugasSyncPush)
+			petugas.GET("/sync/pull", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), controllers.PetugasSyncPull)
 			petugas.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), petugasController.GetAll)
 			petugas.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionRead), petugasController.GetByID)
 			petugas.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionCreate), petugasController.Create)
 			petugas.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionUpdate), petugasController.Update)
 			petugas.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "petugas", middleware.PermissionDelete), petugasController.Delete)
+		}
+		pekerjaanNotarisSync := v1.Group("/pekerjaan-notaris/sync")
+		for _, domain := range []string{"notaris", "ppat"} {
+			domain := domain
+			transactionSync := v1.Group("/transaksi-"+domain+"/sync", func(c *gin.Context) { c.Set("transaction_domain", domain); c.Next() })
+			transactionSync.POST("/create", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionCreate), controllers.TransactionCloudCreate)
+			transactionSync.POST("/update", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionUpdate), controllers.TransactionCloudUpdate)
+			transactionSync.POST("/delete", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionDelete), controllers.TransactionCloudDelete)
+			transactionSync.GET("/pull", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "transaksi", middleware.PermissionRead), controllers.TransactionCloudPull)
+		}
+		{
+			pekerjaanNotarisSync.POST("/create", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionCreate), controllers.PekerjaanNotarisCloudCreate)
+			pekerjaanNotarisSync.POST("/update", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionUpdate), controllers.PekerjaanNotarisCloudUpdate)
+			pekerjaanNotarisSync.POST("/delete", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionDelete), controllers.PekerjaanNotarisCloudDelete)
+			pekerjaanNotarisSync.GET("/pull", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_notaris", middleware.PermissionRead), controllers.PekerjaanNotarisCloudPull)
+		}
+		pekerjaanPpatSync := v1.Group("/pekerjaan-ppat/sync")
+		{
+			pekerjaanPpatSync.POST("/create", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionCreate), controllers.PekerjaanPpatCloudCreate)
+			pekerjaanPpatSync.POST("/update", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionUpdate), controllers.PekerjaanPpatCloudUpdate)
+			pekerjaanPpatSync.POST("/delete", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionDelete), controllers.PekerjaanPpatCloudDelete)
+			pekerjaanPpatSync.GET("/pull", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "pekerjaan_ppat", middleware.PermissionRead), controllers.PekerjaanPpatCloudPull)
 		}
 
 		masterRoutes := []struct {
@@ -94,7 +134,7 @@ func SetupRouter(
 		for _, master := range masterRoutes {
 			group := v1.Group(master.path)
 			group.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionRead), master.controller.GetAll)
-			group.PUT("/sync/:uuid", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionUpdate), master.controller.SyncUpsert)
+			group.PUT("/sync/:uuid", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionRead), master.controller.SyncUpsert)
 			group.DELETE("/sync/:uuid", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionDelete), master.controller.SyncDeactivate)
 			group.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionRead), master.controller.GetByID)
 			group.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, master.sidebarKey, middleware.PermissionCreate), master.controller.Create)
@@ -103,24 +143,34 @@ func SetupRouter(
 		}
 		users := v1.Group("/users")
 		{
-			users.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "users", middleware.PermissionRead), userController.GetAll)
-			users.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "users", middleware.PermissionCreate), userController.Create)
-			users.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "users", middleware.PermissionUpdate), userController.Update)
-			users.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "users", middleware.PermissionDelete), userController.Delete)
+			users.GET("/assignable-groups", middleware.JWTAuth(cfg), admin.Guard("users", "read"), admin.Assignable)
+			users.POST("/:id/password-reset", middleware.JWTAuth(cfg), admin.Guard("users", "update"), admin.UserSecurity)
+			users.GET("", middleware.JWTAuth(cfg), admin.Guard("users", "read"), admin.Users)
+			users.GET("/:id", middleware.JWTAuth(cfg), admin.Guard("users", "read"), admin.User)
+			users.POST("", middleware.JWTAuth(cfg), admin.Guard("users", "create"), admin.CreateUser)
+			users.PUT("/:id", middleware.JWTAuth(cfg), admin.Guard("users", "update"), admin.UpdateUser)
+			users.DELETE("/:id", middleware.JWTAuth(cfg), admin.Guard("users", "delete"), admin.UserSecurity)
 		}
 		groups := v1.Group("/groups")
 		{
-			groups.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "groups", middleware.PermissionRead), groupController.GetAll)
-			groups.POST("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "groups", middleware.PermissionCreate), groupController.Create)
-			groups.PUT("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "groups", middleware.PermissionUpdate), groupController.Update)
-			groups.DELETE("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "groups", middleware.PermissionDelete), groupController.Delete)
-			groups.GET("/:id/sidebar-access", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "groups", middleware.PermissionRead), sidebarAccessController.GetByGroup)
-			groups.PUT("/:id/sidebar-access", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "groups", middleware.PermissionUpdate), sidebarAccessController.Replace)
+			groups.GET("", middleware.JWTAuth(cfg), admin.Guard("groups", "read"), admin.Groups)
+			groups.GET("/:id", middleware.JWTAuth(cfg), admin.Guard("groups", "read"), admin.GroupDetail)
+			groups.POST("", middleware.JWTAuth(cfg), admin.Guard("groups", "create"), admin.Group)
+			groups.PUT("/:id", middleware.JWTAuth(cfg), admin.Guard("groups", "update"), admin.Group)
+			groups.DELETE("/:id", middleware.JWTAuth(cfg), admin.Guard("groups", "delete"), admin.Group)
+			groups.GET("/:id/sidebar-access", middleware.JWTAuth(cfg), admin.Guard("groups", "read"), admin.GroupAccess)
+			groups.PUT("/:id/sidebar-access", middleware.JWTAuth(cfg), admin.Guard("groups", "update"), admin.Grants)
 		}
+		v1.GET("/konfigurasi", controllers.RequireOfficeSecurity(cfg), middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "konfigurasi", middleware.PermissionRead), controllers.OfficeConfigurationRead)
+		profileController := controllers.NewProfileController(cfg)
+		profile := v1.Group("/profile", profileController.Prepare, middleware.JWTAuth(cfg))
+		profile.GET("", profileController.Get)
+		profile.PATCH("", profileController.Patch)
 		sidebars := v1.Group("/sidebars")
 		{
 			sidebars.GET("", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "sidebars", middleware.PermissionRead), sidebarController.GetAll)
 			sidebars.GET("/tree", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "sidebars", middleware.PermissionRead), sidebarController.GetTree)
+			sidebars.GET("/catalog", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "sidebars", middleware.PermissionRead), sidebarController.Catalog)
 			sidebars.GET("/:id", middleware.JWTAuth(cfg), middleware.RequirePermission(sidebarAccessRepository, "sidebars", middleware.PermissionRead), sidebarController.GetByID)
 		}
 	}

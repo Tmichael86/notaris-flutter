@@ -1,767 +1,755 @@
+import 'dart:convert';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme/app_colors.dart';
-import '../../core/widgets/loading_overlay.dart';
+import '../core/theme/app_colors.dart';
+import '../core/widgets/edit_dialog.dart';
+import '../core/widgets/master_data_viewport.dart';
+import '../core/widgets/promotional_preview.dart';
+import '../core/widgets/transaction_review_dialog.dart';
+import '../providers/auth_provider.dart';
+import '../providers/groups_provider.dart';
+import '../providers/pekerjaan_provider.dart' show groupApiServiceProvider;
+import '../services/group_api_service.dart';
+import '../widgets/group_access_dialog.dart';
 
-class GroupsDesktopScreen extends StatefulWidget {
+class GroupsDesktopScreen extends ConsumerStatefulWidget {
   const GroupsDesktopScreen({super.key});
-
   @override
-  State<GroupsDesktopScreen> createState() => _GroupsDesktopScreenState();
+  ConsumerState<GroupsDesktopScreen> createState() => _GroupsState();
 }
 
-class _GroupsDesktopScreenState extends State<GroupsDesktopScreen> {
-  bool _isLoading = false;
-  String _searchQuery = '';
+class _GroupsState extends ConsumerState<GroupsDesktopScreen> {
+  final search = TextEditingController(),
+      horizontal = ScrollController(),
+      vertical = ScrollController();
+  int page = 1;
+  int? status = 1;
+  String? kind;
+  String text = '';
+  bool dialog = false, fetching = false;
+  GroupsQuery get query =>
+      (page: page, search: text, kind: kind, status: status);
+  void refresh({bool first = false}) {
+    if (first) setState(() => page = 1);
+    ref.invalidate(groupsPageProvider(query));
+  }
 
-  final List<GroupDummy> _groups = [
-    GroupDummy(
-      id: 1,
-      nama: 'Super Admin',
-      jenis: 'superadmin',
-      permissions: {
-        1: PermissionSet.fullAccess(),
-        2: PermissionSet.fullAccess(),
-        3: PermissionSet.fullAccess(),
-        4: PermissionSet.fullAccess(),
-        5: PermissionSet.fullAccess(),
-        6: PermissionSet.fullAccess(),
-      },
-    ),
-    GroupDummy(
-      id: 2,
-      nama: 'Administrator',
-      jenis: 'user',
-      permissions: {
-        1: PermissionSet(read: true, create: true, update: true, delete: true),
-        2: PermissionSet(read: true, create: true, update: true, delete: true),
-        3: PermissionSet(read: true),
-        4: PermissionSet(read: true, create: true, update: true),
-        5: PermissionSet(read: true, create: true, update: true),
-        6: PermissionSet(read: true, create: true),
-      },
-    ),
-    GroupDummy(
-      id: 3,
-      nama: 'Staff',
-      jenis: 'user',
-      permissions: {
-        1: PermissionSet(read: true),
-        2: PermissionSet(read: true, create: true, update: true),
-        3: PermissionSet(read: true),
-        4: PermissionSet(read: true, create: true),
-        5: PermissionSet(read: true),
-        6: PermissionSet(read: true),
-      },
-    ),
-    GroupDummy(
-      id: 4,
-      nama: 'Finance',
-      jenis: 'user',
-      permissions: {
-        1: PermissionSet(read: true),
-        4: PermissionSet(read: true, create: true, update: true, delete: true),
-        5: PermissionSet(read: true),
-      },
-    ),
-  ];
+  @override
+  void dispose() {
+    search.dispose();
+    horizontal.dispose();
+    vertical.dispose();
+    super.dispose();
+  }
 
-  final List<SidebarDummy> _sidebars = const [
-    SidebarDummy(
-      id: 1,
-      nama: 'Dashboard',
-      icon: Icons.dashboard_outlined,
-      children: [],
-    ),
-    SidebarDummy(
-      id: 2,
-      nama: 'Transaksi',
-      icon: Icons.receipt_long_outlined,
-      children: [
-        SidebarChildDummy(id: 21, nama: 'Transaksi Notaris'),
-        SidebarChildDummy(id: 22, nama: 'Transaksi PPAT'),
-      ],
-    ),
-    SidebarDummy(
-      id: 3,
-      nama: 'Monitoring',
-      icon: Icons.monitor_outlined,
-      children: [],
-    ),
-    SidebarDummy(
-      id: 4,
-      nama: 'Master',
-      icon: Icons.grid_view_outlined,
-      children: [
-        SidebarChildDummy(id: 41, nama: 'Pekerjaan Notaris'),
-        SidebarChildDummy(id: 42, nama: 'Pekerjaan PPAT'),
-        SidebarChildDummy(id: 43, nama: 'Kategori Pekerjaan'),
-        SidebarChildDummy(id: 44, nama: 'Jenis Pengeluaran'),
-        SidebarChildDummy(id: 45, nama: 'Petugas'),
-        SidebarChildDummy(id: 46, nama: 'Pemohon'),
-      ],
-    ),
-    SidebarDummy(
-      id: 5,
-      nama: 'Laporan',
-      icon: Icons.assessment_outlined,
-      children: [
-        SidebarChildDummy(id: 51, nama: 'Materai'),
-        SidebarChildDummy(id: 52, nama: 'Pendapatan'),
-      ],
-    ),
-    SidebarDummy(
-      id: 6,
-      nama: 'System',
-      icon: Icons.settings_outlined,
-      children: [
-        SidebarChildDummy(id: 61, nama: 'Pengguna'),
-        SidebarChildDummy(id: 62, nama: 'Groups'),
-        SidebarChildDummy(id: 63, nama: 'Sidebar'),
-        SidebarChildDummy(id: 64, nama: 'Konfigurasi Umum'),
-      ],
-    ),
-  ];
+  Future<void> open(String mode, [GroupApiModel? record]) async {
+    final action = mode == 'create'
+        ? 'create'
+        : mode == 'deactivate'
+        ? 'delete'
+        : 'update';
+    if (dialog ||
+        !allowsGroups(ref.read(authControllerProvider).session, action) ||
+        (record != null && !record.editable)) {
+      return;
+    }
+    setState(() {
+      dialog = true;
+      fetching = true;
+    });
+    try {
+      // Always obtain the current revision/member snapshot before confirmation.
+      final current = record == null
+          ? null
+          : await ref.read(groupApiServiceProvider).get(record.id);
+      if (!mounted) return;
+      if (current != null && !current.editable) {
+        refresh();
+        return;
+      }
+      setState(() => fetching = false);
+      var dirty = false, busy = false;
+      final committed = mode == 'access'
+          ? await showGroupAccessDialog(context, current!.id)
+          : await showEditDialog<bool>(
+              context: context,
+              dirty: () => dirty,
+              saving: () => busy,
+              discardBackgroundColor: Colors.white,
+              builder: (_) => _GroupEditor(
+                mode: mode,
+                record: current,
+                activity: (d, b) {
+                  dirty = d;
+                  busy = b;
+                },
+              ),
+            );
+      if (!mounted) return;
+      refresh(first: true);
+      if (committed == true) {
+        if (mode == 'access') {
+          try {
+            await ref
+                .read(authControllerProvider.notifier)
+                .refreshCurrentPermissions();
+          } catch (_) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Akses tersimpan di server; muat ulang izin sesi belum berhasil.',
+                ),
+              ),
+            );
+            return;
+          }
+          if (!mounted) return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Perubahan Groups dikonfirmasi oleh server.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(groupsError(e))));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          dialog = false;
+          fetching = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return LoadingOverlay(
-      isLoading: _isLoading,
-      message: 'Menyimpan group...',
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final mobile = constraints.maxWidth < 700;
-
-          return Padding(
-            padding: EdgeInsets.all(mobile ? 16 : 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _header(mobile),
-                const SizedBox(height: 18),
-                _table(),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _header(bool mobile) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    if (context.dependOnInheritedWidgetOfExactType<PromotionalPreview>() !=
+        null) {
+      return const Padding(
+        padding: EdgeInsets.all(28),
+        child: Text(
+          'Groups V1 tidak diaktifkan pada profil promosi baca saja.',
+        ),
+      );
+    }
+    final session = ref.watch(authControllerProvider).session;
+    if (!allowsGroups(session, 'read')) {
+      return const Padding(
+        padding: EdgeInsets.all(28),
+        child: Text(
+          'Groups memerlukan sesi Superadmin online yang valid dan izin baca Groups. Administrasi offline tidak tersedia.',
+        ),
+      );
+    }
+    final result = ref.watch(groupsPageProvider(query));
+    return MasterDataViewport(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text(
-                'Groups',
-                style: TextStyle(
-                  fontSize: mobile ? 22 : 25,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Groups',
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    'System > Groups · Administrasi online',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ],
+              ),
+              FilledButton.icon(
+                onPressed:
+                    result is AsyncData<GroupsPage> &&
+                        allowsGroups(session, 'create') &&
+                        !dialog
+                    ? () => open('create')
+                    : null,
+                icon: const Icon(Icons.group_add_outlined),
+                label: const Text('Tambah Grup'),
+              ),
+              OutlinedButton.icon(
+                onPressed: dialog ? null : () => refresh(),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Refresh'),
+              ),
+              if (fetching)
+                const SizedBox.square(
+                  dimension: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-              ),
-              const SizedBox(height: 5),
-              const Text(
-                'System > Groups',
-                style: TextStyle(color: AppColors.textSecondary),
-              ),
             ],
           ),
-        ),
-        FilledButton.icon(
-          onPressed: () => _showForm(),
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text('Tambah'),
-          style: FilledButton.styleFrom(
-            backgroundColor: AppColors.primary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _table() {
-    final query = _searchQuery.trim().toLowerCase();
-
-    final rows = _groups.where((group) {
-      return query.isEmpty || group.nama.toLowerCase().contains(query);
-    }).toList();
-
-    return Card(
-      color: AppColors.card,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        side: const BorderSide(color: AppColors.border),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    onChanged: (value) {
-                      setState(() => _searchQuery = value);
-                    },
-                    decoration: const InputDecoration(
-                      hintText: 'Cari group...',
-                      prefixIcon: Icon(Icons.search, size: 19),
-                      border: OutlineInputBorder(),
-                      filled: true,
-                      fillColor: AppColors.card,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  '${rows.length} data',
-                  style: const TextStyle(color: AppColors.textSecondary),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Scrollbar(
-              thumbVisibility: true,
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  columnSpacing: 42,
-                  dividerThickness: 1,
-                  columns: const [
-                    DataColumn(label: Text('#')),
-                    DataColumn(label: Text('Nama')),
-                    DataColumn(label: Text('Aksi')),
-                  ],
-                  rows: List.generate(rows.length, (index) {
-                    final item = rows[index];
-
-                    return DataRow(
-                      cells: [
-                        DataCell(Text('${index + 1}')),
-                        DataCell(
-                          Text(
-                            item.nama,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                tooltip: 'Edit',
-                                onPressed: () => _showForm(group: item),
-                                icon: const Icon(Icons.edit_outlined),
-                                color: AppColors.primary,
-                              ),
-                              IconButton(
-                                tooltip: 'Hapus',
-                                onPressed: () => _delete(item),
-                                icon: const Icon(Icons.delete_outline),
-                                color: AppColors.error,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  }),
-                ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: AppColors.border),
+                borderRadius: BorderRadius.circular(12),
               ),
-            ),
-            if (rows.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('Tidak ada data group.'),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _showForm({GroupDummy? group}) async {
-    final isEdit = group != null;
-
-    final namaController = TextEditingController(
-      text: group?.nama ?? '',
-    );
-
-    String jenis = group?.jenis ?? 'user';
-
-    final permissions = <int, PermissionSet>{};
-
-    for (final sidebar in _sidebars) {
-      final existing = group?.permissions[sidebar.id];
-      permissions[sidebar.id] = existing?.copy() ?? PermissionSet();
-    }
-
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text(isEdit ? 'Edit Group' : 'Group'),
-              content: SizedBox(
-                width: 900,
-                height: MediaQuery.of(context).size.height * .78,
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: namaController,
-                            decoration: const InputDecoration(
-                              labelText: 'Nama Grup *',
-                              border: OutlineInputBorder(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 10,
+                    children: [
+                      SizedBox(
+                        width: 280,
+                        child: TextField(
+                          key: const Key('groups-search'),
+                          controller: search,
+                          onSubmitted: (s) => setState(() {
+                            text = s;
+                            page = 1;
+                          }),
+                          decoration: InputDecoration(
+                            labelText: 'Cari nama grup',
+                            suffixIcon: IconButton(
+                              tooltip: 'Cari Groups',
+                              onPressed: () => setState(() {
+                                text = search.text;
+                                page = 1;
+                              }),
+                              icon: const Icon(Icons.search),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 16),
-                        SizedBox(
-                          width: 220,
-                          child: DropdownButtonFormField<String>(
-                            initialValue: jenis,
-                            decoration: const InputDecoration(
-                              labelText: 'Jenis Grup',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'superadmin',
-                                child: Text('Super Admin'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'user',
-                                child: Text('User'),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              if (value == null) return;
-                              setDialogState(() => jenis = value);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    const Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Akses Halaman',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    Expanded(
-                      child: ListView.separated(
-                        itemCount: _sidebars.length,
-                        separatorBuilder: (_, _) =>
-                            const SizedBox(height: 10),
-                        itemBuilder: (context, index) {
-                          final sidebar = _sidebars[index];
-                          final permission = permissions[sidebar.id]!;
-
-                          return _permissionCard(
-                            sidebar,
-                            permission,
-                            permissions,
-                            setDialogState,
+                      SizedBox(
+                        width: 180,
+                        child: DropdownButtonFormField<String>(
+                          key: const Key('groups-kind'),
+                          initialValue: kind,
+                          decoration: const InputDecoration(labelText: 'Jenis'),
+                          items: const [
+                            DropdownMenuItem<String>(
+                              value: null,
+                              child: Text('Semua Jenis'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'user',
+                              child: Text('Biasa'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'superadmin',
+                              child: Text('Superadmin'),
+                            ),
+                          ],
+                          onChanged: dialog
+                              ? null
+                              : (v) => setState(() {
+                                  kind = v;
+                                  page = 1;
+                                }),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 180,
+                        child: DropdownButtonFormField<int>(
+                          key: const Key('groups-status'),
+                          initialValue: status,
+                          decoration: const InputDecoration(
+                            labelText: 'Status',
+                          ),
+                          items: const [
+                            DropdownMenuItem<int>(
+                              value: null,
+                              child: Text('Semua Status'),
+                            ),
+                            DropdownMenuItem(value: 1, child: Text('Aktif')),
+                            DropdownMenuItem(value: 0, child: Text('Nonaktif')),
+                          ],
+                          onChanged: dialog
+                              ? null
+                              : (v) => setState(() {
+                                  status = v;
+                                  page = 1;
+                                }),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Expanded(
+                    child: result.when(
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (e, _) => Center(
+                        child: Text(
+                          groupsError(e),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      data: (d) {
+                        if (d.items.isEmpty) {
+                          return Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.groups_outlined, size: 32),
+                                const Text('Tidak ada grup yang cocok.'),
+                                if (page > 1)
+                                  TextButton(
+                                    onPressed: () => setState(() => page = 1),
+                                    child: const Text('Halaman pertama'),
+                                  ),
+                              ],
+                            ),
                           );
-                        },
-                      ),
+                        }
+                        return MasterDataTableViewport(
+                          horizontalController: horizontal,
+                          verticalController: vertical,
+                          child: DataTable(
+                            headingRowColor: const WidgetStatePropertyAll(
+                              Color(0xfff2f3f5),
+                            ),
+                            columnSpacing: 24,
+                            columns: [
+                              for (final label in [
+                                'No.',
+                                'Nama Grup',
+                                'Jenis',
+                                'Jumlah Anggota Aktif',
+                                'Status',
+                                'Aksi',
+                              ])
+                                DataColumn(
+                                  label: Text(label),
+                                  numeric:
+                                      label == 'No.' ||
+                                      label == 'Jumlah Anggota Aktif',
+                                ),
+                            ],
+                            rows: [
+                              for (final (i, r) in d.items.indexed)
+                                DataRow(
+                                  key: ValueKey('group-${r.id}'),
+                                  cells: [
+                                    DataCell(
+                                      Center(
+                                        child: Text(
+                                          '${(page - 1) * 10 + i + 1}',
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      SizedBox(
+                                        width: 210,
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              r.groupNama,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            Text(
+                                              'ID ${r.id} · revisi ${r.revision}',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                color: AppColors.textSecondary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Text(
+                                        r.protected
+                                            ? 'Superadmin · Terproteksi'
+                                            : 'Biasa',
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Center(
+                                        child: Tooltip(
+                                          message:
+                                              '${r.totalMembers} anggota total',
+                                          child: Text('${r.activeMembers}'),
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      Center(
+                                        child: TransactionReviewBadge(
+                                          r.status == 1 ? 'Aktif' : 'Nonaktif',
+                                          color: r.status == 1
+                                              ? AppColors.success
+                                              : AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    ),
+                                    DataCell(
+                                      r.protected
+                                          ? const Text('Hanya baca')
+                                          : r.status == 0
+                                          ? const Text('Nonaktif')
+                                          : Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                if (allowsGroups(
+                                                  session,
+                                                  'update',
+                                                ))
+                                                  IconButton(
+                                                    tooltip:
+                                                        'Atur Akses ${r.groupNama}',
+                                                    onPressed: !dialog
+                                                        ? () =>
+                                                              open('access', r)
+                                                        : null,
+                                                    icon: const Icon(
+                                                      Icons
+                                                          .admin_panel_settings_outlined,
+                                                    ),
+                                                  ),
+                                                IconButton(
+                                                  tooltip:
+                                                      'Ubah nama ${r.groupNama}',
+                                                  onPressed:
+                                                      !dialog &&
+                                                          allowsGroups(
+                                                            session,
+                                                            'update',
+                                                          )
+                                                      ? () => open('rename', r)
+                                                      : null,
+                                                  icon: const Icon(
+                                                    Icons.edit_outlined,
+                                                  ),
+                                                ),
+                                                IconButton(
+                                                  tooltip:
+                                                      'Nonaktifkan ${r.groupNama}',
+                                                  onPressed:
+                                                      !dialog &&
+                                                          allowsGroups(
+                                                            session,
+                                                            'delete',
+                                                          )
+                                                      ? () => open(
+                                                          'deactivate',
+                                                          r,
+                                                        )
+                                                      : null,
+                                                  icon: const Icon(
+                                                    Icons.group_off_outlined,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        );
+                      },
                     ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogContext, false),
-                  child: const Text('Tutup'),
-                ),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
                   ),
-                  onPressed: () {
-                    if (namaController.text.trim().isEmpty) return;
-
-                    Navigator.pop(dialogContext, true);
-                  },
-                  child: const Text('Simpan'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+                  const SizedBox(height: 8),
+                  result.maybeWhen(
+                    data: (d) => Wrap(
+                      spacing: 12,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          '${d.total} grup · Halaman $page / ${d.total == 0 ? 1 : (d.total / 10).ceil()}',
+                        ),
+                        IconButton(
+                          tooltip: 'Halaman sebelumnya',
+                          onPressed: page > 1 && !dialog
+                              ? () => setState(() => page--)
+                              : null,
+                          icon: const Icon(Icons.chevron_left),
+                        ),
+                        IconButton(
+                          tooltip: 'Halaman berikutnya',
+                          onPressed: page * 10 < d.total && !dialog
+                              ? () => setState(() => page++)
+                              : null,
+                          icon: const Icon(Icons.chevron_right),
+                        ),
+                      ],
+                    ),
+                    orElse: () => const SizedBox.shrink(),
+                  ),
+                  const Text(
+                    'Izin Sidebar dikelola terpisah. Grup baru tidak otomatis memperoleh akses.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
+  }
+}
 
-    if (result != true || !mounted) {
-      namaController.dispose();
+class _GroupEditor extends ConsumerStatefulWidget {
+  const _GroupEditor({
+    required this.mode,
+    required this.record,
+    required this.activity,
+  });
+  final String mode;
+  final GroupApiModel? record;
+  final void Function(bool, bool) activity;
+  @override
+  ConsumerState<_GroupEditor> createState() => _GroupEditorState();
+}
+
+class _GroupEditorState extends ConsumerState<_GroupEditor> {
+  final form = GlobalKey<FormState>();
+  final name = TextEditingController();
+  GroupApiModel? current, latest;
+  bool saving = false,
+      dirty = false,
+      conflict = false,
+      uncertain = false,
+      confirmed = false;
+  String? error;
+  @override
+  void initState() {
+    super.initState();
+    current = widget.record;
+    name.text = current?.groupNama ?? '';
+  }
+
+  @override
+  void dispose() {
+    name.dispose();
+    super.dispose();
+  }
+
+  String get action => widget.mode == 'create'
+      ? 'create'
+      : widget.mode == 'deactivate'
+      ? 'delete'
+      : 'update';
+  String get title => widget.mode == 'create'
+      ? 'Tambah Grup'
+      : widget.mode == 'deactivate'
+      ? 'Nonaktifkan Grup'
+      : 'Ubah Nama Grup';
+  bool get eligible => current == null || current!.editable;
+  void changed() {
+    dirty = true;
+    widget.activity(true, saving);
+  }
+
+  Future<void> save() async {
+    if (saving ||
+        conflict ||
+        uncertain ||
+        !eligible ||
+        !allowsGroups(ref.read(authControllerProvider).session, action) ||
+        !form.currentState!.validate() ||
+        (widget.mode == 'deactivate' && !confirmed)) {
       return;
     }
-
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 700));
-
     setState(() {
-      if (isEdit) {
-        group.nama = namaController.text.trim();
-        group.jenis = jenis;
-        group.permissions
-          ..clear()
-          ..addAll(
-            permissions.map(
-              (key, value) => MapEntry(key, value.copy()),
-            ),
-          );
+      saving = true;
+      error = null;
+    });
+    widget.activity(dirty, true);
+    final api = ref.read(groupApiServiceProvider);
+    try {
+      if (widget.mode == 'create') {
+        await api.create(groupNama: name.text);
+      } else if (widget.mode == 'rename') {
+        await api.rename(current!, name: name.text);
       } else {
-        _groups.insert(
-          0,
-          GroupDummy(
-            id: DateTime.now().millisecondsSinceEpoch,
-            nama: namaController.text.trim(),
-            jenis: jenis,
-            permissions: permissions.map(
-              (key, value) => MapEntry(key, value.copy()),
-            ),
-          ),
-        );
+        await api.deactivate(current!);
       }
-
-      _isLoading = false;
-    });
-
-    namaController.dispose();
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (e) {
+      // A malformed success body is also ambiguous: never offer a blind resubmit.
+      uncertain =
+          e is! DioException ||
+          e.response == null ||
+          (e.response?.statusCode ?? 0) >= 500;
+      if (e is DioException &&
+          e.response?.statusCode == 409 &&
+          current != null) {
+        conflict = true;
+        try {
+          latest = await api.get(current!.id);
+        } catch (_) {
+          /* Remain blocked. */
+        }
+      }
+      if (mounted) setState(() => error = groupsError(e));
+    } finally {
+      saving = false;
+      widget.activity(dirty, false);
+      if (mounted) setState(() {});
+    }
   }
 
-  Widget _permissionCard(
-    SidebarDummy sidebar,
-    PermissionSet permission,
-    Map<int, PermissionSet> permissions,
-    void Function(void Function()) setDialogState,
-  ) {
-    final allChildrenEnabled = sidebar.children.isNotEmpty &&
-        sidebar.children.every((child) {
-          return _hasPermissionForChild(
-            child.id,
-            sidebar,
-            permissions,
-          );
-        });
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        border: Border.all(color: AppColors.border),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: ExpansionTile(
-        initiallyExpanded: true,
-        tilePadding: const EdgeInsets.symmetric(horizontal: 14),
-        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-        leading: Icon(
-          sidebar.icon,
-          color: AppColors.primary,
-        ),
-        title: Row(
+  @override
+  Widget build(BuildContext context) {
+    final authorized = allowsGroups(
+      ref.watch(authControllerProvider).session,
+      action,
+    );
+    return TransactionReviewDialog(
+      title: title,
+      subtitle: current == null
+          ? 'Grup biasa · PostgreSQL online'
+          : '${current!.groupNama} · ID ${current!.id} · revisi ${current!.revision}',
+      width: 560,
+      canClose: !saving,
+      onClose: () => cancelEditDialog(context),
+      body: Form(
+        key: form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: Text(
-                sidebar.nama,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-            _permissionCheckbox(
-              label: 'Semua',
-              value: sidebar.children.isEmpty
-                  ? permission.all
-                  : permission.all && allChildrenEnabled,
-              onChanged: (value) {
-                _setSidebarAll(
-                  sidebar,
-                  value,
-                  permissions,
-                  setDialogState,
-                );
-              },
-            ),
-          ],
-        ),
-        children: [
-          _permissionRow(
-            sidebar.nama,
-            permission,
-            onChanged: setDialogState,
-          ),
-          ...sidebar.children.map(
-            (child) {
-              final childPermission =
-                  permissions[child.id] ?? PermissionSet();
-
-              return Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: _permissionRow(
-                  child.nama,
-                  childPermission,
-                  child: true,
-                  onChanged: setDialogState,
+            if (widget.mode != 'deactivate')
+              TextFormField(
+                key: const Key('group-name'),
+                controller: name,
+                enabled: !saving,
+                onChanged: (_) => changed(),
+                decoration: const InputDecoration(
+                  labelText: 'Nama grup',
+                  border: OutlineInputBorder(),
                 ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  bool _hasPermissionForChild(
-    int childId,
-    SidebarDummy parent,
-    Map<int, PermissionSet> permissions,
-  ) {
-    return permissions[childId]?.all ?? false;
-  }
-
-  void _setSidebarAll(
-    SidebarDummy sidebar,
-    bool value,
-    Map<int, PermissionSet> permissions,
-    void Function(void Function()) setDialogState,
-  ) {
-    setDialogState(() {
-      final parent = permissions[sidebar.id]!;
-      parent.setAll(value);
-
-      for (final child in sidebar.children) {
-        final childPermission =
-            permissions[child.id] ?? PermissionSet();
-        childPermission.setAll(value);
-        permissions[child.id] = childPermission;
-      }
-    });
-  }
-
-  Widget _permissionRow(
-    String label,
-    PermissionSet permission, {
-    bool child = false,
-    required void Function(void Function()) onChanged,
-  }) {
-    return Container(
-      padding: EdgeInsets.only(
-        left: child ? 30 : 8,
-        top: 8,
-        bottom: 8,
-        right: 8,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontWeight: child ? FontWeight.w400 : FontWeight.w500,
+                validator: (v) =>
+                    (v?.trim().isEmpty ?? true) ||
+                        utf8.encode(v!.trim()).length > 160
+                    ? 'Wajib diisi, maksimal 160 byte.'
+                    : null,
               ),
-            ),
-          ),
-          Expanded(
-            child: _permissionCheckbox(
-              label: 'Lihat',
-              value: permission.read,
-              onChanged: (value) {
-                onChanged(() {
-                  permission.read = value;
-                });
-              },
-            ),
-          ),
-          Expanded(
-            child: _permissionCheckbox(
-              label: 'Buat',
-              value: permission.create,
-              onChanged: (value) {
-                onChanged(() {
-                  permission.create = value;
-                  if (value) permission.read = true;
-                });
-              },
-            ),
-          ),
-          Expanded(
-            child: _permissionCheckbox(
-              label: 'Perbarui',
-              value: permission.update,
-              onChanged: (value) {
-                onChanged(() {
-                  permission.update = value;
-                  if (value) permission.read = true;
-                });
-              },
-            ),
-          ),
-          Expanded(
-            child: _permissionCheckbox(
-              label: 'Hapus',
-              value: permission.delete,
-              onChanged: (value) {
-                onChanged(() {
-                  permission.delete = value;
-                  if (value) permission.read = true;
-                });
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _permissionCheckbox({
-    required String label,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Checkbox(
-          value: value,
-          activeColor: AppColors.primary,
-          onChanged: (checked) => onChanged(checked ?? false),
-        ),
-        Flexible(child: Text(label)),
-      ],
-    );
-  }
-
-  Future<void> _delete(GroupDummy group) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Hapus Group'),
-          content: Text('Hapus group "${group.nama}"?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Tidak'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.error,
+            const SizedBox(height: 12),
+            if (widget.mode == 'create')
+              const Text(
+                'Jenis: Biasa. Grup baru aktif tanpa anggota dan tanpa izin Sidebar otomatis.',
               ),
-              onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Hapus'),
-            ),
+            if (widget.mode == 'rename')
+              const Text(
+                'Hanya nama yang diubah. Keanggotaan, izin dan status tetap.',
+              ),
+            if (widget.mode == 'deactivate') ...[
+              Text(
+                'Nonaktifkan ${current!.groupNama} (ID ${current!.id})? ${current!.activeMembers} anggota aktif, ${current!.totalMembers} anggota total.',
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Menonaktifkan grup akan membuat akun yang tergabung di dalamnya kehilangan akses melalui grup ini. Akun, keanggotaan dan riwayatnya tidak dihapus.',
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Saya mengonfirmasi dampak penonaktifan grup ini.',
+                ),
+                value: confirmed,
+                onChanged: saving
+                    ? null
+                    : (v) {
+                        setState(() => confirmed = v == true);
+                        changed();
+                      },
+              ),
+            ],
+            if (!authorized || !eligible)
+              const Text('Sesi, izin atau target tidak mengizinkan perubahan.'),
+            if (error != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  error!,
+                  style: const TextStyle(color: AppColors.error),
+                ),
+              ),
+            if (uncertain)
+              const Text(
+                'Hasil operasi belum terkonfirmasi. Tutup form, Refresh dan periksa data server sebelum tindakan baru.',
+              ),
+            if (conflict) ...[
+              const Text(
+                'Input tidak dikirim ulang. Tinjau data server sebelum tindakan baru.',
+              ),
+              if (latest != null)
+                TextButton(
+                  onPressed: saving
+                      ? null
+                      : () {
+                          setState(() {
+                            current = latest;
+                            latest = null;
+                            name.text = current!.groupNama;
+                            confirmed = false;
+                            conflict = false;
+                            dirty = false;
+                            error = null;
+                          });
+                          widget.activity(false, false);
+                        },
+                  child: const Text('Gunakan data server terbaru'),
+                ),
+            ],
           ],
-        );
-      },
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 700));
-
-    setState(() {
-      _groups.remove(group);
-      _isLoading = false;
-    });
-  }
-}
-
-class PermissionSet {
-  bool read;
-  bool create;
-  bool update;
-  bool delete;
-
-  PermissionSet({
-    this.read = false,
-    this.create = false,
-    this.update = false,
-    this.delete = false,
-  });
-
-  bool get all => read && create && update && delete;
-
-  void setAll(bool value) {
-    read = value;
-    create = value;
-    update = value;
-    delete = value;
-  }
-
-  PermissionSet copy() {
-    return PermissionSet(
-      read: read,
-      create: create,
-      update: update,
-      delete: delete,
+        ),
+      ),
+      footer: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          TextButton(
+            onPressed: saving ? null : () => cancelEditDialog(context),
+            child: const Text('Batal'),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            onPressed:
+                saving ||
+                    conflict ||
+                    uncertain ||
+                    !authorized ||
+                    !eligible ||
+                    (widget.mode == 'deactivate' && !confirmed)
+                ? null
+                : save,
+            child: saving
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(
+                    widget.mode == 'deactivate' ? 'Nonaktifkan Grup' : 'Simpan',
+                  ),
+          ),
+        ],
+      ),
     );
   }
-
-  static PermissionSet fullAccess() => PermissionSet(
-        read: true,
-        create: true,
-        update: true,
-        delete: true,
-      );
-}
-
-class GroupDummy {
-  int id;
-  String nama;
-  String jenis;
-  Map<int, PermissionSet> permissions;
-
-  GroupDummy({
-    required this.id,
-    required this.nama,
-    required this.jenis,
-    required this.permissions,
-  });
-}
-
-class SidebarDummy {
-  final int id;
-  final String nama;
-  final IconData icon;
-  final List<SidebarChildDummy> children;
-
-  const SidebarDummy({
-    required this.id,
-    required this.nama,
-    required this.icon,
-    required this.children,
-  });
-}
-
-class SidebarChildDummy {
-  final int id;
-  final String nama;
-
-  const SidebarChildDummy({
-    required this.id,
-    required this.nama,
-  });
 }

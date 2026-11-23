@@ -37,7 +37,7 @@ func getAuthenticatedGroupUserID(ctx *gin.Context) (uint, bool) {
 func (c *GroupController) GetAll(ctx *gin.Context) {
 	groups, err := c.service.GetAll()
 	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "Gagal mengambil data group", err.Error())
+		response.Error(ctx, http.StatusInternalServerError, "Gagal mengambil data group", nil)
 		return
 	}
 
@@ -57,7 +57,7 @@ func (c *GroupController) GetByID(ctx *gin.Context) {
 		return
 	}
 	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "Gagal mengambil data group", err.Error())
+		response.Error(ctx, http.StatusInternalServerError, "Gagal mengambil data group", nil)
 		return
 	}
 
@@ -68,7 +68,7 @@ func (c *GroupController) Create(ctx *gin.Context) {
 	var req request.CreateGroupRequest
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		response.Error(ctx, http.StatusBadRequest, "Data group tidak valid", err.Error())
+		response.Error(ctx, http.StatusBadRequest, "Data group tidak valid", nil)
 		return
 	}
 
@@ -85,7 +85,7 @@ func (c *GroupController) Create(ctx *gin.Context) {
 	}
 
 	if err := c.service.Create(group, userID); err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "Gagal membuat group", err.Error())
+		response.Error(ctx, http.StatusInternalServerError, "Gagal membuat group", nil)
 		return
 	}
 
@@ -105,14 +105,14 @@ func (c *GroupController) Update(ctx *gin.Context) {
 		return
 	}
 	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "Gagal mengambil data group", err.Error())
+		response.Error(ctx, http.StatusInternalServerError, "Gagal mengambil data group", nil)
 		return
 	}
 
 	var req request.UpdateGroupRequest
 
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		response.Error(ctx, http.StatusBadRequest, "Data group tidak valid", err.Error())
+		response.Error(ctx, http.StatusBadRequest, "Data group tidak valid", nil)
 		return
 	}
 
@@ -126,7 +126,7 @@ func (c *GroupController) Update(ctx *gin.Context) {
 	group.GroupJenis = req.GroupJenis
 
 	if err := c.service.Update(group, userID); err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "Gagal memperbarui group", err.Error())
+		response.Error(ctx, http.StatusInternalServerError, "Gagal memperbarui group", nil)
 		return
 	}
 
@@ -146,7 +146,7 @@ func (c *GroupController) Delete(ctx *gin.Context) {
 		return
 	}
 	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "Gagal mengambil data group", err.Error())
+		response.Error(ctx, http.StatusInternalServerError, "Gagal mengambil data group", nil)
 		return
 	}
 
@@ -157,7 +157,7 @@ func (c *GroupController) Delete(ctx *gin.Context) {
 	}
 
 	if err := c.service.Deactivate(group, userID); err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "Gagal menonaktifkan group", err.Error())
+		response.Error(ctx, http.StatusInternalServerError, "Gagal menonaktifkan group", nil)
 		return
 	}
 

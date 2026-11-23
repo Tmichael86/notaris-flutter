@@ -11,6 +11,7 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var DB *gorm.DB
@@ -35,7 +36,9 @@ func ConnectDB(cfg config.Config) error {
 		RawQuery: query.Encode(),
 	}
 
-	db, err := gorm.Open(postgres.Open(dsnURL.String()), &gorm.Config{})
+	// Initialization errors can contain driver connection details. Do not let
+	// GORM print them before main returns its sanitized startup failure.
+	db, err := gorm.Open(postgres.Open(dsnURL.String()), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		return fmt.Errorf("open PostgreSQL connection: %w", err)
 	}
@@ -56,6 +59,7 @@ func ConnectDB(cfg config.Config) error {
 	}
 
 	DB = db
+	db.Logger = logger.Default // Preserve existing query logging after connection initialization.
 	return nil
 }
 

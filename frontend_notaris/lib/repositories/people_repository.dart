@@ -1,7 +1,14 @@
+import '../services/local_master_authorization.dart';
+
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../database/app_database.dart';
+import '../services/pemohon_api_service.dart';
+
+import 'package:flutter/foundation.dart';
+
+import 'pemohon_gender_references.dart';
 
 class JenisKelaminRepository {
   JenisKelaminRepository(this.db);
@@ -16,7 +23,8 @@ class JenisKelaminRepository {
 }
 
 class PetugasRepository {
-  PetugasRepository(this.db);
+  PetugasRepository(this.db, {this.authorization});
+  final LocalMasterAuthorization? authorization;
 
   final AppDatabase db;
   static const _uuid = Uuid();
@@ -39,30 +47,38 @@ class PetugasRepository {
     required String email,
     int? userId,
   }) async {
-    final normalizedNama = _requiredText(nama, 'Nama petugas');
-    final normalizedEmail = _requiredText(email, 'Email');
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    return authority.write(db, MasterModule.officer, MasterAction.create, (
+      actor,
+    ) async {
+      final normalizedNama = _requiredText(nama, 'Nama petugas');
+      final normalizedEmail = _requiredText(email, 'Email');
 
-    final now = DateTime.now();
+      final now = DateTime.now();
 
-    return db
-        .into(db.petugasLocals)
-        .insert(
-          PetugasLocalsCompanion.insert(
-            uuid: _uuid.v4(),
-            nama: normalizedNama,
-            nik: Value(_text(nik)),
-            alamat: Value(_text(alamat)),
-            tempatLahir: Value(_text(tempatLahir)),
-            tanggalLahir: Value(tanggalLahir),
-            jenisKelamin: Value(jenisKelamin),
-            noTelp: Value(_text(noTelp)),
-            email: normalizedEmail,
-            userId: Value(userId),
-            createdAt: Value(now),
-            updatedAt: Value(now),
-            isSyncDirty: const Value(true),
-          ),
-        );
+      return db
+          .into(db.petugasLocals)
+          .insert(
+            PetugasLocalsCompanion.insert(
+              uuid: _uuid.v4(),
+              nama: normalizedNama,
+              nik: Value(_text(nik)),
+              alamat: Value(_text(alamat)),
+              tempatLahir: Value(_text(tempatLahir)),
+              tanggalLahir: Value(tanggalLahir),
+              jenisKelamin: Value(jenisKelamin),
+              noTelp: Value(_text(noTelp)),
+              email: normalizedEmail,
+              userId: Value(userId),
+              createdBy: Value(actor.userId),
+              createdAt: Value(now),
+              updatedBy: Value(actor.userId),
+              updatedAt: Value(now),
+              isSyncDirty: const Value(true),
+            ),
+          );
+    });
   }
 
   Future<bool> update({
@@ -77,52 +93,66 @@ class PetugasRepository {
     required String email,
     int? userId,
   }) async {
-    final normalizedNama = _requiredText(nama, 'Nama petugas');
-    final normalizedEmail = _requiredText(email, 'Email');
-    final now = DateTime.now();
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    return authority.write(db, MasterModule.officer, MasterAction.update, (
+      actor,
+    ) async {
+      final normalizedNama = _requiredText(nama, 'Nama petugas');
+      final normalizedEmail = _requiredText(email, 'Email');
+      final now = DateTime.now();
 
-    final affected =
-        await (db.update(db.petugasLocals)..where(
-              (t) =>
-                  t.id.equals(id) & t.status.equals(1) & t.deletedAt.isNull(),
-            ))
-            .write(
-              PetugasLocalsCompanion(
-                nama: Value(normalizedNama),
-                nik: Value(_text(nik)),
-                alamat: Value(_text(alamat)),
-                tempatLahir: Value(_text(tempatLahir)),
-                tanggalLahir: Value(tanggalLahir),
-                jenisKelamin: Value(jenisKelamin),
-                noTelp: Value(_text(noTelp)),
-                email: Value(normalizedEmail),
-                userId: Value(userId),
-                updatedAt: Value(now),
-                isSyncDirty: const Value(true),
-              ),
-            );
+      final affected =
+          await (db.update(db.petugasLocals)..where(
+                (t) =>
+                    t.id.equals(id) & t.status.equals(1) & t.deletedAt.isNull(),
+              ))
+              .write(
+                PetugasLocalsCompanion(
+                  nama: Value(normalizedNama),
+                  nik: Value(_text(nik)),
+                  alamat: Value(_text(alamat)),
+                  tempatLahir: Value(_text(tempatLahir)),
+                  tanggalLahir: Value(tanggalLahir),
+                  jenisKelamin: Value(jenisKelamin),
+                  noTelp: Value(_text(noTelp)),
+                  email: Value(normalizedEmail),
+                  userId: Value(userId),
+                  updatedBy: Value(actor.userId),
+                  updatedAt: Value(now),
+                  isSyncDirty: const Value(true),
+                ),
+              );
 
-    return affected > 0;
+      return affected > 0;
+    });
   }
 
   Future<bool> delete(int id) async {
-    final now = DateTime.now();
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    return authority.write(db, MasterModule.officer, MasterAction.delete, (
+      actor,
+    ) async {
+      final now = DateTime.now();
 
-    final affected =
-        await (db.update(db.petugasLocals)..where(
-              (t) =>
-                  t.id.equals(id) & t.status.equals(1) & t.deletedAt.isNull(),
-            ))
-            .write(
-              PetugasLocalsCompanion(
-                status: const Value(0),
-                deletedAt: Value(now),
-                updatedAt: Value(now),
-                isSyncDirty: const Value(true),
-              ),
-            );
+      final affected =
+          await (db.update(db.petugasLocals)..where(
+                (t) =>
+                    t.id.equals(id) & t.status.equals(1) & t.deletedAt.isNull(),
+              ))
+              .write(
+                PetugasLocalsCompanion(
+                  status: const Value(0),
+                  deletedAt: Value(now),
+                  updatedBy: Value(actor.userId),
+                  updatedAt: Value(now),
+                  isSyncDirty: const Value(true),
+                ),
+              );
 
-    return affected > 0;
+      return affected > 0;
+    });
   }
 
   static String _requiredText(String value, String label) {
@@ -141,9 +171,10 @@ class PetugasRepository {
   }
 }
 
-
 class PemohonRepository {
-  PemohonRepository(this.db);
+  PemohonRepository(this.db, {this.genderReferences, this.authorization});
+  final LocalMasterAuthorization? authorization;
+  final PemohonGenderReferences? genderReferences;
 
   final AppDatabase db;
   static const _uuid = Uuid();
@@ -161,23 +192,33 @@ class PemohonRepository {
     int? jenisKelamin,
     String? noTelp,
     String? nik,
-  }) {
-    final normalizedNama = _requiredText(nama);
-    final now = DateTime.now();
+  }) async {
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    return authority.write(db, MasterModule.applicant, MasterAction.create, (
+      actor,
+    ) async {
+      final normalizedNama = _requiredText(nama);
+      final now = DateTime.now();
 
-    return db.into(db.pemohons).insert(
-          PemohonsCompanion.insert(
-            uuid: _uuid.v4(),
-            nama: normalizedNama,
-            alamat: Value(_text(alamat)),
-            jenisKelamin: Value(jenisKelamin),
-            noTelp: Value(_text(noTelp)),
-            nik: Value(_text(nik)),
-            createdAt: Value(now),
-            updatedAt: Value(now),
-            isSyncDirty: const Value(true),
-          ),
-        );
+      return db
+          .into(db.pemohons)
+          .insert(
+            PemohonsCompanion.insert(
+              uuid: _uuid.v4(),
+              nama: normalizedNama,
+              alamat: Value(_text(alamat)),
+              jenisKelamin: Value(jenisKelamin),
+              noTelp: Value(_text(noTelp)),
+              nik: Value(_text(nik)),
+              createdBy: Value(actor.userId),
+              createdAt: Value(now),
+              updatedBy: Value(actor.userId),
+              updatedAt: Value(now),
+              isSyncDirty: const Value(true),
+            ),
+          );
+    });
   }
 
   Future<bool> update({
@@ -188,51 +229,401 @@ class PemohonRepository {
     String? noTelp,
     String? nik,
   }) async {
-    final normalizedNama = _requiredText(nama);
-    final now = DateTime.now();
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    return authority.write(db, MasterModule.applicant, MasterAction.update, (
+      actor,
+    ) async {
+      final normalizedNama = _requiredText(nama);
+      final now = DateTime.now();
 
-    final affected = await (db.update(db.pemohons)
-          ..where(
-            (t) =>
-                t.id.equals(id) &
-                t.status.equals(1) &
-                t.deletedAt.isNull(),
-          ))
-        .write(
-      PemohonsCompanion(
-        nama: Value(normalizedNama),
-        alamat: Value(_text(alamat)),
-        jenisKelamin: Value(jenisKelamin),
-        noTelp: Value(_text(noTelp)),
-        nik: Value(_text(nik)),
-        updatedAt: Value(now),
-        isSyncDirty: const Value(true),
-      ),
-    );
+      final affected =
+          await (db.update(db.pemohons)..where(
+                (t) =>
+                    t.id.equals(id) & t.status.equals(1) & t.deletedAt.isNull(),
+              ))
+              .write(
+                PemohonsCompanion(
+                  nama: Value(normalizedNama),
+                  alamat: Value(_text(alamat)),
+                  jenisKelamin: Value(jenisKelamin),
+                  noTelp: Value(_text(noTelp)),
+                  nik: Value(_text(nik)),
+                  updatedBy: Value(actor.userId),
+                  updatedAt: Value(now),
+                  isSyncDirty: const Value(true),
+                ),
+              );
 
-    return affected > 0;
+      return affected > 0;
+    });
   }
 
   Future<bool> delete(int id) async {
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    return authority.write(db, MasterModule.applicant, MasterAction.delete, (
+      actor,
+    ) async {
+      final now = DateTime.now();
+
+      final affected =
+          await (db.update(db.pemohons)..where(
+                (t) =>
+                    t.id.equals(id) & t.status.equals(1) & t.deletedAt.isNull(),
+              ))
+              .write(
+                PemohonsCompanion(
+                  status: const Value(0),
+                  deletedAt: Value(now),
+                  updatedBy: Value(actor.userId),
+                  updatedAt: Value(now),
+                  isSyncDirty: const Value(true),
+                ),
+              );
+
+      return affected > 0;
+    });
+  }
+
+  Future<void> syncToCloud(PemohonApiService api) async {
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    final actor = authority.require(MasterModule.applicant, MasterAction.read);
+
+    final pending = await (db.select(
+      db.pemohons,
+    )..where((t) => t.isSyncDirty.equals(true))).get();
+
+    // Check all local authority before reference-cache preparation can mutate.
+    for (final snapshot in pending) {
+      authority.require(
+        MasterModule.applicant,
+        snapshot.status != 1 || snapshot.deletedAt != null
+            ? MasterAction.delete
+            : (snapshot.lastSyncedAt == null
+                  ? MasterAction.create
+                  : MasterAction.update),
+        expected: actor,
+      );
+    }
+    if (pending.isEmpty) return;
+    await authority.write(db, MasterModule.applicant, MasterAction.read, (
+      _,
+    ) async {
+      authority.require(
+        MasterModule.applicant,
+        MasterAction.read,
+        expected: actor,
+      );
+      await genderReferences?.prepare();
+      for (final snapshot in pending) {
+        authority.require(
+          MasterModule.applicant,
+          snapshot.status != 1 || snapshot.deletedAt != null
+              ? MasterAction.delete
+              : (snapshot.lastSyncedAt == null
+                    ? MasterAction.create
+                    : MasterAction.update),
+          expected: actor,
+        );
+      }
+    });
+    for (final snapshot in pending) {
+      final action = snapshot.status != 1 || snapshot.deletedAt != null
+          ? MasterAction.delete
+          : (snapshot.lastSyncedAt == null
+                ? MasterAction.create
+                : MasterAction.update);
+      authority.require(MasterModule.applicant, action, expected: actor);
+
+      if (snapshot.uuid.trim().isEmpty) {
+        throw StateError(
+          'Pemohon lokal ID ${snapshot.id} tidak memiliki UUID.',
+        );
+      }
+
+      if (snapshot.status != 1 || snapshot.deletedAt != null) {
+        // A row created and deleted entirely offline never existed in cloud.
+        // Do not send a deactivate request for an unknown UUID.
+        if (snapshot.lastSyncedAt == null) {
+          await authority.write(db, MasterModule.applicant, action, (_) async {
+            authority.require(MasterModule.applicant, action, expected: actor);
+            await (db.update(db.pemohons)
+                  ..where((t) => t.id.equals(snapshot.id)))
+                .write(PemohonsCompanion(isSyncDirty: const Value(false)));
+          });
+          continue;
+        }
+
+        await api.syncDeactivate(uuid: snapshot.uuid);
+        authority.require(MasterModule.applicant, action, expected: actor);
+        await authority.write(db, MasterModule.applicant, action, (_) async {
+          authority.require(MasterModule.applicant, action, expected: actor);
+          final current = await (db.select(
+            db.pemohons,
+          )..where((t) => t.id.equals(snapshot.id))).getSingleOrNull();
+
+          if (current != null &&
+              current.isSyncDirty &&
+              current.updatedAt == snapshot.updatedAt &&
+              current.status == snapshot.status &&
+              current.deletedAt == snapshot.deletedAt) {
+            await (db.update(
+              db.pemohons,
+            )..where((t) => t.id.equals(snapshot.id))).write(
+              PemohonsCompanion(
+                isSyncDirty: const Value(false),
+                lastSyncedAt: Value(DateTime.now()),
+              ),
+            );
+          }
+        });
+        continue;
+      }
+
+      String? genderName;
+      int? serverGenderId;
+      if (snapshot.jenisKelamin != null && genderReferences != null) {
+        serverGenderId = await genderReferences!.toServer(
+          snapshot.jenisKelamin!,
+        );
+      } else if (snapshot.jenisKelamin != null) {
+        final gender = await (db.select(
+          db.jenisKelamins,
+        )..where((t) => t.id.equals(snapshot.jenisKelamin!))).getSingleOrNull();
+
+        if (gender == null) {
+          throw StateError(
+            'Referensi jenis kelamin Pemohon ID ${snapshot.id} tidak ditemukan.',
+          );
+        }
+        genderName = gender.nama;
+      }
+
+      authority.require(MasterModule.applicant, action, expected: actor);
+      await api.syncUpsert(
+        uuid: snapshot.uuid,
+        nama: snapshot.nama,
+        alamat: snapshot.alamat,
+        jenisKelaminNama: genderName,
+        jenisKelamin: serverGenderId,
+        noTelp: snapshot.noTelp,
+        nik: snapshot.nik,
+      );
+      authority.require(MasterModule.applicant, action, expected: actor);
+
+      await authority.write(db, MasterModule.applicant, action, (_) async {
+        authority.require(MasterModule.applicant, action, expected: actor);
+        final current = await (db.select(
+          db.pemohons,
+        )..where((t) => t.id.equals(snapshot.id))).getSingleOrNull();
+
+        if (current != null &&
+            current.isSyncDirty &&
+            current.updatedAt == snapshot.updatedAt &&
+            current.nama == snapshot.nama &&
+            current.alamat == snapshot.alamat &&
+            current.jenisKelamin == snapshot.jenisKelamin &&
+            current.noTelp == snapshot.noTelp &&
+            current.nik == snapshot.nik &&
+            current.status == snapshot.status) {
+          await (db.update(
+            db.pemohons,
+          )..where((t) => t.id.equals(snapshot.id))).write(
+            PemohonsCompanion(
+              isSyncDirty: const Value(false),
+              lastSyncedAt: Value(DateTime.now()),
+            ),
+          );
+        }
+      });
+    }
+  }
+
+  Future<void> syncFromCloud(List<PemohonApiModel> remoteItems) async {
+    final authority = authorization;
+    if (authority == null) throw const LocalMasterDenied();
+    return authority.write(db, MasterModule.applicant, MasterAction.read, (
+      actor,
+    ) async {
+      var changes = false;
+      final actions = <MasterAction>{};
+      for (final item in remoteItems) {
+        if (item.uuid == null || item.uuid!.trim().isEmpty) {
+          throw const FormatException('UUID Pemohon cloud wajib.');
+        }
+        final existing = await (db.select(
+          db.pemohons,
+        )..where((t) => t.uuid.equals(item.uuid!))).getSingleOrNull();
+        if (existing?.isSyncDirty == true) continue;
+        final action = existing == null
+            ? MasterAction.create
+            : (item.status == 1 ? MasterAction.update : MasterAction.delete);
+        if (item.status != 1) {
+          actions.add(MasterAction.delete);
+          authority.require(
+            MasterModule.applicant,
+            MasterAction.delete,
+            expected: actor,
+          );
+        }
+        actions.add(action);
+        authority.require(MasterModule.applicant, action, expected: actor);
+        changes = true;
+      }
+      if (!changes) return;
+      await genderReferences?.prepare();
+      await db.transaction(() async {
+        if (genderReferences == null) {
+          // Jenis kelamin is local reference data today. Ensure the baseline rows
+          // exist before resolving cloud labels to device-local auto-increment IDs.
+          await _ensureGenderReference(
+            uuid: 'dev-jenis-kelamin-laki-laki',
+            nama: 'Laki-laki',
+          );
+          await _ensureGenderReference(
+            uuid: 'dev-jenis-kelamin-perempuan',
+            nama: 'Perempuan',
+          );
+        }
+
+        final genders = await db.select(db.jenisKelamins).get();
+        final localByGenderName = <String, int>{
+          for (final gender in genders)
+            gender.nama.trim().toLowerCase(): gender.id,
+        };
+
+        for (var i = 0; i < remoteItems.length; i++) {
+          final item = remoteItems[i];
+
+          try {
+            final uuid = item.uuid;
+            if (uuid == null || uuid.trim().isEmpty) {
+              throw const FormatException(
+                'Data Pemohon cloud tidak memiliki UUID valid.',
+              );
+            }
+
+            final existing = await (db.select(
+              db.pemohons,
+            )..where((t) => t.uuid.equals(uuid))).getSingleOrNull();
+
+            // Never overwrite a local edit that has not reached the server.
+            if (existing?.isSyncDirty == true) continue;
+
+            int? localGenderId;
+            final genderName = item.jenisKelaminNama?.trim();
+            if (genderReferences != null) {
+              if (item.jenisKelamin != null) {
+                localGenderId = await genderReferences!.toLocal(
+                  item.jenisKelamin!,
+                );
+              } else if (genderName != null && genderName.isNotEmpty) {
+                throw PemohonReferenceBlocked(
+                  'blocked_reference: server gender ID required',
+                );
+              }
+            } else if (genderName != null && genderName.isNotEmpty) {
+              localGenderId = localByGenderName[genderName.toLowerCase()];
+              if (localGenderId == null) {
+                throw StateError(
+                  'Jenis kelamin "$genderName" belum tersedia di cache lokal.',
+                );
+              }
+            }
+
+            final action = existing == null
+                ? MasterAction.create
+                : (item.status == 1
+                      ? MasterAction.update
+                      : MasterAction.delete);
+            if (item.status != 1) {
+              actions.add(MasterAction.delete);
+              authority.require(
+                MasterModule.applicant,
+                MasterAction.delete,
+                expected: actor,
+              );
+            }
+            actions.add(action);
+            authority.require(MasterModule.applicant, action, expected: actor);
+            final values = PemohonsCompanion(
+              uuid: Value(uuid),
+              nama: Value(item.nama),
+              alamat: Value(item.alamat),
+              jenisKelamin: Value(localGenderId),
+              noTelp: Value(item.noTelp),
+              nik: Value(item.nik),
+              createdBy: Value(item.createdBy),
+              updatedBy: Value(item.updatedBy),
+              createdAt: Value(item.createdAt),
+              updatedAt: Value(item.updatedAt),
+              status: Value(item.status),
+              isSyncDirty: const Value(false),
+              lastSyncedAt: Value(DateTime.now()),
+              deletedAt: const Value(null),
+            );
+
+            if (existing == null) {
+              await db.into(db.pemohons).insert(values);
+            } else {
+              await (db.update(db.pemohons)
+                    ..where((t) => t.id.equals(existing.id)))
+                  .write(values.copyWith(id: Value(existing.id)));
+            }
+          } on LocalMasterDenied {
+            rethrow;
+          } catch (error, stackTrace) {
+            debugPrint(
+              '[SYNC][PEMOHON] Gagal pada indeks $i '
+              '(cloud ID: ${item.id}, UUID: ${item.uuid}): $error',
+            );
+            debugPrintStack(stackTrace: stackTrace);
+            rethrow;
+          }
+        }
+      });
+      for (final action in actions) {
+        authority.require(MasterModule.applicant, action, expected: actor);
+      }
+    });
+  }
+
+  Future<void> _ensureGenderReference({
+    required String uuid,
+    required String nama,
+  }) async {
+    final normalizedName = nama.trim().toLowerCase();
+    final genders = await db.select(db.jenisKelamins).get();
+
+    // Reuse the local ID by label; IDs are device-local and must not be copied
+    // from the cloud database.
+    if (genders.any(
+      (gender) => gender.nama.trim().toLowerCase() == normalizedName,
+    )) {
+      return;
+    }
+
+    final uuidConflict = genders.where((gender) => gender.uuid == uuid);
+    if (uuidConflict.isNotEmpty) {
+      throw StateError(
+        'UUID referensi jenis kelamin "$uuid" sudah digunakan oleh label lain.',
+      );
+    }
+
     final now = DateTime.now();
-
-    final affected = await (db.update(db.pemohons)
-          ..where(
-            (t) =>
-                t.id.equals(id) &
-                t.status.equals(1) &
-                t.deletedAt.isNull(),
-          ))
-        .write(
-      PemohonsCompanion(
-        status: const Value(0),
-        deletedAt: Value(now),
-        updatedAt: Value(now),
-        isSyncDirty: const Value(true),
-      ),
-    );
-
-    return affected > 0;
+    await db
+        .into(db.jenisKelamins)
+        .insert(
+          JenisKelaminsCompanion.insert(
+            uuid: uuid,
+            nama: nama,
+            createdAt: Value(now),
+            updatedAt: Value(now),
+            isSyncDirty: const Value(false),
+          ),
+        );
   }
 
   static String _requiredText(String value) {
@@ -250,4 +641,3 @@ class PemohonRepository {
     return normalized.isEmpty ? null : normalized;
   }
 }
-

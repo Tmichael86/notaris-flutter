@@ -24,11 +24,12 @@ func NewPemohonController() *PemohonController {
 }
 
 type pemohonRequest struct {
-	Nama         string  `json:"nama"`
-	Alamat       *string `json:"alamat"`
-	JenisKelamin *int    `json:"jenis_kelamin"`
-	NoTelp       *string `json:"no_telp"`
-	NIK          *string `json:"nik"`
+	Nama             string  `json:"nama"`
+	Alamat           *string `json:"alamat"`
+	JenisKelamin     *int    `json:"jenis_kelamin"`
+	JenisKelaminNama *string `json:"jenis_kelamin_nama"`
+	NoTelp           *string `json:"no_telp"`
+	NIK              *string `json:"nik"`
 }
 
 var (
@@ -114,6 +115,9 @@ func (c *PemohonController) Create(ctx *gin.Context) {
 
 	item := toPemohonModel(input)
 	created, err := c.repository.Create(ctx.Request.Context(), item, userID)
+	if masterMutationError(ctx, err) {
+		return
+	}
 	if errors.Is(err, repositories.ErrDuplicatePemohonNIK) {
 		response.Error(ctx, http.StatusConflict, "NIK pemohon sudah digunakan", gin.H{"nik": "NIK harus unik di antara data aktif"})
 		return
@@ -156,6 +160,9 @@ func (c *PemohonController) Update(ctx *gin.Context) {
 	updated, err := c.repository.Update(ctx.Request.Context(), id, toPemohonModel(input), userID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		response.Error(ctx, http.StatusNotFound, "Pemohon tidak ditemukan", nil)
+		return
+	}
+	if masterMutationError(ctx, err) {
 		return
 	}
 	if errors.Is(err, repositories.ErrDuplicatePemohonNIK) {
@@ -203,6 +210,18 @@ func (c *PemohonController) SyncUpsert(ctx *gin.Context) {
 		return
 	}
 
+	if input.JenisKelaminNama != nil && strings.TrimSpace(*input.JenisKelaminNama) != "" {
+		genderID, err := c.repository.FindJenisKelaminIDByName(ctx.Request.Context(), *input.JenisKelaminNama)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Error(ctx, http.StatusUnprocessableEntity, "Validasi data gagal", gin.H{"jenis_kelamin_nama": "Jenis kelamin tidak ditemukan"})
+			return
+		}
+		if err != nil {
+			response.Error(ctx, http.StatusInternalServerError, "Gagal memvalidasi jenis kelamin", nil)
+			return
+		}
+		input.JenisKelamin = &genderID
+	}
 	if input.JenisKelamin != nil {
 		exists, err := c.repository.JenisKelaminExists(
 			ctx.Request.Context(),
@@ -240,6 +259,9 @@ func (c *PemohonController) SyncUpsert(ctx *gin.Context) {
 		toPemohonModel(input),
 		userID,
 	)
+	if masterMutationError(ctx, err) {
+		return
+	}
 	if errors.Is(err, repositories.ErrDuplicatePemohonNIK) {
 		response.Error(
 			ctx,

@@ -88,9 +88,12 @@ func (c *SimpleMasterController) Create(ctx *gin.Context) {
 	var item *repositories.SimpleMasterRecord
 	var err error
 	if strings.TrimSpace(req.UUID) != "" {
-		item, err = c.repository.UpsertByUUID(ctx.Request.Context(), strings.TrimSpace(req.UUID), req.Nama, userID)
+		item, err = c.repository.CreateByUUID(ctx.Request.Context(), strings.TrimSpace(req.UUID), req.Nama, userID)
 	} else {
 		item, err = c.repository.Create(ctx.Request.Context(), req.Nama, userID)
+	}
+	if masterMutationError(ctx, err) {
+		return
 	}
 	if errors.Is(err, repositories.ErrDuplicateMasterName) {
 		response.Error(ctx, http.StatusConflict, "Nama "+c.resource+" sudah digunakan", gin.H{"nama": "Nama harus unik di antara data aktif"})
@@ -127,6 +130,9 @@ func (c *SimpleMasterController) Update(ctx *gin.Context) {
 	item, err := c.repository.Update(ctx.Request.Context(), id, req.Nama, userID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		response.Error(ctx, http.StatusNotFound, "Data "+c.resource+" tidak ditemukan", nil)
+		return
+	}
+	if masterMutationError(ctx, err) {
 		return
 	}
 	if errors.Is(err, repositories.ErrDuplicateMasterName) {
@@ -171,7 +177,7 @@ func parsePositiveID(ctx *gin.Context) (uint64, bool) {
 // SyncUpsert creates or updates a record using the stable client UUID.
 func (c *SimpleMasterController) SyncUpsert(ctx *gin.Context) {
 	uuid := strings.TrimSpace(ctx.Param("uuid"))
-	if uuid == "" {
+	if !pemohonUUIDPattern.MatchString(uuid) {
 		response.Error(ctx, http.StatusBadRequest, "UUID tidak valid", nil)
 		return
 	}
@@ -191,6 +197,9 @@ func (c *SimpleMasterController) SyncUpsert(ctx *gin.Context) {
 		return
 	}
 	item, err := c.repository.UpsertByUUID(ctx.Request.Context(), uuid, req.Nama, userID)
+	if masterMutationError(ctx, err) {
+		return
+	}
 	if errors.Is(err, repositories.ErrDuplicateMasterName) {
 		response.Error(ctx, http.StatusConflict, "Nama "+c.resource+" sudah digunakan", gin.H{"nama": "Nama harus unik di antara data aktif"})
 		return
@@ -208,7 +217,7 @@ func (c *SimpleMasterController) SyncUpsert(ctx *gin.Context) {
 
 func (c *SimpleMasterController) SyncDeactivate(ctx *gin.Context) {
 	uuid := strings.TrimSpace(ctx.Param("uuid"))
-	if uuid == "" {
+	if !pemohonUUIDPattern.MatchString(uuid) {
 		response.Error(ctx, http.StatusBadRequest, "UUID tidak valid", nil)
 		return
 	}

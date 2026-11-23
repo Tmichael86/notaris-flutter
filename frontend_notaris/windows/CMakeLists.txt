@@ -52,6 +52,13 @@ add_subdirectory(${FLUTTER_MANAGED_DIR})
 # Application build; see runner/CMakeLists.txt.
 add_subdirectory("runner")
 
+add_library(notaris_document_store SHARED "runner/document_store.cpp")
+apply_standard_settings(notaris_document_store)
+target_link_libraries(notaris_document_store PRIVATE advapi32 comdlg32 ntdll)
+
+add_executable(notaris_document_pdf "runner/document_pdf_preview.cpp")
+apply_standard_settings(notaris_document_pdf)
+
 
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
@@ -73,6 +80,8 @@ set(INSTALL_BUNDLE_DATA_DIR "${CMAKE_INSTALL_PREFIX}/data")
 set(INSTALL_BUNDLE_LIB_DIR "${CMAKE_INSTALL_PREFIX}")
 
 install(TARGETS ${BINARY_NAME} RUNTIME DESTINATION "${CMAKE_INSTALL_PREFIX}"
+  COMPONENT Runtime)
+install(TARGETS notaris_document_store notaris_document_pdf RUNTIME DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
 
 install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"

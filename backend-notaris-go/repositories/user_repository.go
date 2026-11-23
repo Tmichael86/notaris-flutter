@@ -38,18 +38,21 @@ func (r *UserRepository) FindByID(id uint) (*models.User, error) {
 }
 
 func (r *UserRepository) FindActiveByLogin(login string) (*models.User, error) {
-	var user models.User
+	var users []models.User
 	err := r.db.Table("users").
 		Select("users.*, groups.group_nama AS group_nama").
 		Joins("JOIN groups ON groups.id = users.group_id").
 		Where("users.status = ?", 1).
 		Where("groups.status = ?", 1).
-		Where("users.username = ? OR users.email = ?", login, login).
-		First(&user).Error
+		Where("lower(btrim(users.username)) = lower(btrim(?)) OR lower(btrim(users.email)) = lower(btrim(?))", login, login).
+		Limit(2).Find(&users).Error
 	if err != nil {
 		return nil, err
 	}
-	return &user, nil
+	if len(users) != 1 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &users[0], nil
 }
 
 func (r *UserRepository) Create(user *models.User) error { return r.db.Create(user).Error }

@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,7 +14,10 @@ void main() {
 
   setUp(() {
     database = AppDatabase.forTesting(NativeDatabase.memory());
-    repository = PekerjaanKategoriRepository(database);
+    repository = PekerjaanKategoriRepository(
+      database,
+      authorization: masterTestAuthority(database),
+    );
   });
 
   tearDown(() async {
@@ -38,13 +43,15 @@ void main() {
 
   test('cloud refresh does not overwrite a locally dirty category', () async {
     const sharedUuid = '11111111-1111-4111-8111-111111111111';
-    final id = await database.into(database.pekerjaanKategoris).insert(
-      PekerjaanKategorisCompanion.insert(
-        uuid: sharedUuid,
-        nama: 'Nama Lokal',
-        isSyncDirty: Value(true),
-      ),
-    );
+    final id = await database
+        .into(database.pekerjaanKategoris)
+        .insert(
+          PekerjaanKategorisCompanion.insert(
+            uuid: sharedUuid,
+            nama: 'Nama Lokal',
+            isSyncDirty: Value(true),
+          ),
+        );
 
     await repository.syncFromCloud([
       const KategoriPekerjaanApiModel(
@@ -59,8 +66,9 @@ void main() {
       ),
     ]);
 
-    final local = await (database.select(database.pekerjaanKategoris)
-      ..where((t) => t.id.equals(id))).getSingle();
+    final local = await (database.select(
+      database.pekerjaanKategoris,
+    )..where((t) => t.id.equals(id))).getSingle();
     final categories = await repository.watchAll().first;
 
     expect(local.nama, 'Nama Lokal');

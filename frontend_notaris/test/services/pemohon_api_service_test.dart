@@ -57,6 +57,43 @@ void main() {
       await expectLater(service.getAll(), throwsA(isA<FormatException>()));
     });
 
+    test('getAllPages fetches all pages and stops at has_more false', () async {
+      var calls = 0;
+      final service = _service(_FakeAdapter((request) {
+        calls++;
+        final page = request.queryParameters['page'];
+        return _jsonResponse({'success': true, 'data': {
+          'items': page == 1
+            ? [{'id': 1, 'uuid': '00000000-0000-4000-8000-000000000001', 'nama': 'Satu'}]
+            : [{'id': 2, 'uuid': '00000000-0000-4000-8000-000000000002', 'nama': 'Dua'}],
+          'pagination': {'has_more': page == 1},
+        }});
+      }));
+      final result = await service.getAllPages(pageSize: 1);
+      expect(calls, 2);
+      expect(result.map((item) => item.nama), ['Satu', 'Dua']);
+    });
+
+    test('syncUpsert sends UUID endpoint and stable gender label', () async {
+      final service = _service(_FakeAdapter((request) {
+        expect(request.method, 'PUT');
+        expect(request.path, '/pemohon/sync/00000000-0000-4000-8000-000000000001');
+        expect(_requestJson(request), {'nama': 'Pemohon Sync', 'alamat': null, 'jenis_kelamin_nama': 'Laki-laki', 'no_telp': null, 'nik': null});
+        return _jsonResponse({'success': true, 'data': {'id': 1, 'uuid': '00000000-0000-4000-8000-000000000001', 'nama': 'Pemohon Sync'}});
+      }));
+      final result = await service.syncUpsert(uuid: '00000000-0000-4000-8000-000000000001', nama: ' Pemohon Sync ', jenisKelaminNama: 'Laki-laki');
+      expect(result.nama, 'Pemohon Sync');
+    });
+
+    test('syncDeactivate targets UUID endpoint', () async {
+      final service = _service(_FakeAdapter((request) {
+        expect(request.method, 'DELETE');
+        expect(request.path, '/pemohon/sync/00000000-0000-4000-8000-000000000001');
+        return _jsonResponse({'success': true});
+      }));
+      await expectLater(service.syncDeactivate(uuid: '00000000-0000-4000-8000-000000000001'), completes);
+    });
+
     test('getById requests a record and parses it', () async {
       final service = _service(
         _FakeAdapter((request) {

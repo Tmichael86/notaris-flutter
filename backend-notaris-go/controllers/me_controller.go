@@ -40,23 +40,23 @@ func (c *MeController) authenticatedUser(ctx *gin.Context) (uint, bool) {
 	return userID, true
 }
 
-func (c *MeController) loadActiveUser(userID uint) (interface{}, uint, error) {
+func (c *MeController) loadActiveUser(userID uint) (interface{}, uint, string, error) {
 	user, err := c.repository.FindByID(userID)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, "", err
 	}
 	if user.Status != 1 {
-		return nil, 0, services.ErrInvalidCredentials
+		return nil, 0, "", services.ErrInvalidCredentials
 	}
 
 	group, err := c.groupRepository.FindByID(user.GroupID)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, "", err
 	}
 	if group.Status != 1 {
-		return nil, 0, services.ErrInvalidCredentials
+		return nil, 0, "", services.ErrInvalidCredentials
 	}
-	return user, user.GroupID, nil
+	return user, user.GroupID, group.GroupJenis, nil
 }
 
 func (c *MeController) Me(ctx *gin.Context) {
@@ -65,7 +65,7 @@ func (c *MeController) Me(ctx *gin.Context) {
 		return
 	}
 
-	user, _, err := c.loadActiveUser(userID)
+	user, _, _, err := c.loadActiveUser(userID)
 	if err != nil {
 		response.Error(ctx, http.StatusUnauthorized, "User atau grup tidak ditemukan atau tidak aktif", nil)
 		return
@@ -83,7 +83,7 @@ func (c *MeController) SidebarAccess(ctx *gin.Context) {
 		return
 	}
 
-	user, groupID, err := c.loadActiveUser(userID)
+	user, groupID, groupJenis, err := c.loadActiveUser(userID)
 	if err != nil {
 		response.Error(ctx, http.StatusUnauthorized, "User atau grup tidak ditemukan atau tidak aktif", nil)
 		return
@@ -96,8 +96,9 @@ func (c *MeController) SidebarAccess(ctx *gin.Context) {
 	}
 
 	response.Success(ctx, "Identitas dan hak akses berhasil diperbarui", gin.H{
-		"user":                 user,
-		"sidebars":             sidebars,
+		"user":                   user,
+		"group_jenis":            groupJenis,
+		"sidebars":               sidebars,
 		"permissions_checked_at": time.Now().UTC(),
 	})
 }

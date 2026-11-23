@@ -5,30 +5,53 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/auth_session.dart';
 
+abstract interface class AuthSessionCache {
+  Future<String?> read({required String key});
+  Future<void> write({required String key, required String value});
+  Future<void> delete({required String key});
+}
+
+class _DefaultSessionCache implements AuthSessionCache {
+  _DefaultSessionCache(this.storage);
+  final FlutterSecureStorage storage;
+  @override
+  Future<String?> read({required String key}) => storage.read(key: key);
+  @override
+  Future<void> write({required String key, required String value}) =>
+      storage.write(key: key, value: value);
+  @override
+  Future<void> delete({required String key}) => storage.delete(key: key);
+}
+
 class AuthService {
   AuthService({
     Dio? dio,
     FlutterSecureStorage? storage,
-  })  : _dio = dio ??
-            Dio(
-              BaseOptions(
-                baseUrl: const String.fromEnvironment(
-                  'API_BASE_URL',
-                  defaultValue: 'http://127.0.0.1:8080/api/v1',
-                ),
-                connectTimeout: const Duration(seconds: 5),
-                receiveTimeout: const Duration(seconds: 8),
-                sendTimeout: const Duration(seconds: 8),
-                headers: const {'Accept': 'application/json'},
-              ),
-            ),
-        _storage = storage ?? const FlutterSecureStorage();
+    AuthSessionCache? sessionCache,
+    this.cacheKey = 'notaris.auth.session.v1',
+  }) : _dio =
+           dio ??
+           Dio(
+             BaseOptions(
+               baseUrl: const String.fromEnvironment(
+                 'API_BASE_URL',
+                 defaultValue: 'http://127.0.0.1:8080/api/v1',
+               ),
+               connectTimeout: const Duration(seconds: 5),
+               receiveTimeout: const Duration(seconds: 8),
+               sendTimeout: const Duration(seconds: 8),
+               headers: const {'Accept': 'application/json'},
+             ),
+           ),
+       _storage =
+           sessionCache ??
+           _DefaultSessionCache(storage ?? const FlutterSecureStorage());
 
-  static const _cacheKey = 'notaris.auth.session.v1';
+  final String cacheKey;
   static const offlineGracePeriod = Duration(days: 7);
 
   final Dio _dio;
-  final FlutterSecureStorage _storage;
+  final AuthSessionCache _storage;
 
   Future<AuthSession> login({
     required String username,
@@ -43,7 +66,9 @@ class AuthService {
     final data = _asMap(envelope['data']);
     final token = data['token']?.toString() ?? '';
     if (token.isEmpty) {
-      throw const AuthException('Server tidak mengembalikan token autentikasi.');
+      throw const AuthException(
+        'Server tidak mengembalikan token autentikasi.',
+      );
     }
 
     final session = await _fetchSession(token);
@@ -56,7 +81,7 @@ class AuthService {
   }
 
   Future<AuthSession?> restoreSession() async {
-    final raw = await _storage.read(key: _cacheKey);
+    final raw = await _storage.read(key: cacheKey);
     if (raw == null || raw.isEmpty) return null;
 
     AuthSession cached;
@@ -82,8 +107,10 @@ class AuthService {
         return null;
       }
 
-      if (_isConnectivityFailure(error) || (statusCode != null && statusCode >= 500)) {
-        if (DateTime.now().difference(cached.verifiedAt) <= offlineGracePeriod) {
+      if (_isConnectivityFailure(error) ||
+          (statusCode != null && statusCode >= 500)) {
+        if (DateTime.now().difference(cached.verifiedAt) <=
+            offlineGracePeriod) {
           return cached.asOffline();
         }
       }
@@ -106,9 +133,9 @@ class AuthService {
     final sidebarsRaw = data['sidebars'];
     final sidebars = sidebarsRaw is List
         ? sidebarsRaw
-            .whereType<Map>()
-            .map((item) => Map<String, dynamic>.from(item))
-            .toList()
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList()
         : <Map<String, dynamic>>[];
 
     final userId = _asInt(user['id']);
@@ -129,14 +156,23 @@ class AuthService {
       user: user,
       sidebars: sidebars,
       verifiedAt: DateTime.now(),
+      groupType: data['group_jenis'] is String
+          ? data['group_jenis'] as String
+          : null,
     );
   }
 
   Future<void> _writeCache(AuthSession session) async {
-    await _storage.write(key: _cacheKey, value: session.encode());
+    await _storage.write(key: cacheKey, value: session.encode());
   }
 
-  Future<void> clearPersistedSession() => _storage.delete(key: _cacheKey);
+  Future<void> clearPersistedSession() => _storage.delete(key: cacheKey);
+
+  Future<AuthSession> refreshPermissions(String token) => _fetchSession(token);
+
+  bool isUnauthorized(Object error) =>
+      error is DioException &&
+      (error.response?.statusCode == 401 || error.response?.statusCode == 403);
 
   bool _isConnectivityFailure(DioException error) {
     return error.response == null &&

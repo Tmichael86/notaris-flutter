@@ -1,3 +1,5 @@
+import 'local_master_authorization_provider.dart';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,16 +12,22 @@ import '../services/group_api_service.dart';
 import '../services/group_sidebar_access_api_service.dart';
 import '../services/sidebar_api_service.dart';
 import 'authenticated_api_provider.dart';
+
 import '../database/app_database.dart';
 import '../repositories/pekerjaan_repository.dart';
 import '../repositories/pekerjaan_kategori_repository.dart';
 import '../repositories/pengeluaran_jenis_repository.dart';
+
 import 'database_provider.dart';
+import '../repositories/pemohon_gender_references.dart';
 
 final pekerjaanNotarisRepositoryProvider = Provider<PekerjaanNotarisRepository>(
   (ref) {
     final database = ref.watch(appDatabaseProvider);
-    return PekerjaanNotarisRepository(database.pekerjaanDao);
+    return PekerjaanNotarisRepository(
+      database.pekerjaanDao,
+      authorization: ref.watch(localMasterAuthorizationProvider),
+    );
   },
 );
 
@@ -27,7 +35,10 @@ final pekerjaanPpatRepositoryProvider = Provider<PekerjaanPpatRepository>((
   ref,
 ) {
   final database = ref.watch(appDatabaseProvider);
-  return PekerjaanPpatRepository(database.pekerjaanDao);
+  return PekerjaanPpatRepository(
+    database.pekerjaanDao,
+    authorization: ref.watch(localMasterAuthorizationProvider),
+  );
 });
 
 final pekerjaanNotarisProvider =
@@ -45,7 +56,10 @@ final pekerjaanPpatProvider =
 final pekerjaanKategoriRepositoryProvider =
     Provider<PekerjaanKategoriRepository>((ref) {
       final database = ref.watch(appDatabaseProvider);
-      return PekerjaanKategoriRepository(database);
+      return PekerjaanKategoriRepository(
+        database,
+        authorization: ref.watch(localMasterAuthorizationProvider),
+      );
     });
 
 final pekerjaanKategoriProvider =
@@ -54,9 +68,18 @@ final pekerjaanKategoriProvider =
       return repository.watchAll();
     });
 
-enum SyncStatus { idle, syncing, pending, success, failed }
+enum SyncStatus {
+  idle,
+  syncing,
+  pending,
+  success,
+  failed,
+  disabledByPolicy,
+  skipped,
+}
 
 enum SyncFailureKind {
+  disabledByPolicy,
   offline,
   timeout,
   unauthorized,
@@ -78,43 +101,33 @@ class SyncFailure implements Exception {
   String toString() => userMessage;
 }
 
-/// Single-flight coordinator for category push/pull. Future sync triggers should
-/// call this provider instead of invoking repository sync methods directly.
+/// Global batch synchronization has no approved activation contract.
+/// No transport/database callback is accepted: callers cannot enable it with
+/// a flag or accidentally reuse a selective manual operation as a batch runner.
 class SyncCoordinator {
-  SyncCoordinator({required this._runSync, required this._onStatusChanged});
+  SyncCoordinator({required this._onStatusChanged});
 
-  final Future<void> Function() _runSync;
   final void Function(SyncStatus) _onStatusChanged;
-  Future<void>? _inFlight;
 
-  Future<void> synchronizeNow() {
-    final current = _inFlight;
-    if (current != null) return current;
-    final operation = _run();
-    _inFlight = operation;
-    return operation;
-  }
-
-  Future<void> _run() async {
-    try {
-      _onStatusChanged(SyncStatus.syncing);
-      await _runSync();
-      _onStatusChanged(SyncStatus.success);
-    } catch (error) {
-      final failure = mapSyncFailure(error);
-      final canRetry =
-          failure.kind == SyncFailureKind.offline ||
-          failure.kind == SyncFailureKind.timeout ||
-          failure.kind == SyncFailureKind.server;
-      _onStatusChanged(canRetry ? SyncStatus.pending : SyncStatus.failed);
-      throw failure;
-    } finally {
-      _inFlight = null;
-    }
+  Future<void> synchronizeNow() async {
+    _onStatusChanged(SyncStatus.disabledByPolicy);
+    throw const SyncFailure(
+      SyncFailureKind.disabledByPolicy,
+      'DISABLED_BY_POLICY: Sinkronisasi otomatis/global dinonaktifkan. '
+      'Data lokal dan antrean tetap tersimpan. Operasi manual selektif '
+      'memerlukan profil dan persetujuan yang sah.',
+    );
   }
 
   static SyncFailure mapSyncFailure(Object error) {
     if (error is SyncFailure) return error;
+    if (error is PemohonReferenceBlocked) {
+      return SyncFailure(
+        SyncFailureKind.validation,
+        'blocked_reference: referensi jenis kelamin Pemohon belum tervalidasi. Periksa manifest development dan akses katalog; data lokal tetap tersimpan.',
+        cause: error,
+      );
+    }
 
     if (error is DioException) {
       if (error.type == DioExceptionType.connectionError) {
@@ -183,26 +196,9 @@ class SyncCoordinator {
 
 final syncStatusProvider = StateProvider<SyncStatus>((ref) => SyncStatus.idle);
 
+// Deliberately resolves neither SQLite, HTTP, auth nor sync-log repositories.
 final syncCoordinatorProvider = Provider<SyncCoordinator>((ref) {
   return SyncCoordinator(
-    runSync: () async {
-      final kategoriRepository = ref.read(pekerjaanKategoriRepositoryProvider);
-      final kategoriApi = ref.read(kategoriPekerjaanApiServiceProvider);
-      final pengeluaranRepository = ref.read(
-        pengeluaranJenisRepositoryProvider,
-      );
-      final pengeluaranApi = ref.read(jenisPengeluaranApiServiceProvider);
-
-      // Push local changes first, then pull the authoritative cloud snapshot.
-      await kategoriRepository.syncToCloud(kategoriApi);
-      await pengeluaranRepository.syncToCloud(pengeluaranApi);
-
-      final remoteKategori = await kategoriApi.getAllPages();
-      await kategoriRepository.syncFromCloud(remoteKategori);
-
-      final remotePengeluaran = await pengeluaranApi.getAllPages();
-      await pengeluaranRepository.syncFromCloud(remotePengeluaran);
-    },
     onStatusChanged: (status) {
       ref.read(syncStatusProvider.notifier).state = status;
     },
@@ -328,7 +324,10 @@ class PekerjaanKategoriController extends AsyncNotifier<void> {
 final pengeluaranJenisRepositoryProvider = Provider<PengeluaranJenisRepository>(
   (ref) {
     final database = ref.watch(appDatabaseProvider);
-    return PengeluaranJenisRepository(database);
+    return PengeluaranJenisRepository(
+      database,
+      authorization: ref.watch(localMasterAuthorizationProvider),
+    );
   },
 );
 

@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -40,8 +42,14 @@ void main() {
 
   setUp(() async {
     database = AppDatabase.forTesting(NativeDatabase.memory());
-    repository = PekerjaanPpatRepository(database.pekerjaanDao);
-    kategoriRepository = PekerjaanKategoriRepository(database);
+    repository = PekerjaanPpatRepository(
+      database.pekerjaanDao,
+      authorization: masterTestAuthority(database),
+    );
+    kategoriRepository = PekerjaanKategoriRepository(
+      database,
+      authorization: masterTestAuthority(database),
+    );
     kategoriId = await kategoriRepository.create(nama: 'Jual Beli');
   });
 
@@ -49,6 +57,20 @@ void main() {
     await database.close();
   });
 
+  test(
+    'rejects missing or inactive category without partial aggregate',
+    () async {
+      await expectLater(
+        repository.createAggregate(input: validInput(categoryId: 999999)),
+        throwsArgumentError,
+      );
+      await database.customStatement('UPDATE pekerjaan_kategori SET status=0');
+      await expectLater(
+        repository.createAggregate(input: validInput()),
+        throwsArgumentError,
+      );
+    },
+  );
   test('creates aggregate with price, process, and attributes', () async {
     final id = await repository.createAggregate(input: validInput());
     final aggregate = await repository.getAggregate(id);
@@ -59,6 +81,43 @@ void main() {
     expect(aggregate.harga.single.harga, '1500000');
     expect(aggregate.proses, hasLength(1));
     expect(aggregate.proses.single.atribut, hasLength(2));
+  });
+
+  test('same name in Notaris and PPAT keeps separate aggregates', () async {
+    final notaris = PekerjaanNotarisRepository(
+      database.pekerjaanDao,
+      authorization: masterTestAuthority(database),
+    );
+    final notarisId = await notaris.createAggregate(
+      input: validInput(nama: 'Synthetic Pekerjaan Notaris 1'),
+    );
+    final ppatId = await repository.createAggregate(
+      input: validInput(nama: 'Synthetic Pekerjaan Notaris 1'),
+    );
+    expect((await notaris.getAll()).single.id, notarisId);
+    expect((await repository.getAll()).single.id, ppatId);
+    expect(
+      (await notaris.getAggregate(notarisId))!.harga.single.harga,
+      '1500000',
+    );
+    await repository.updateAggregate(
+      id: ppatId,
+      input: validInput(
+        nama: 'Synthetic Pekerjaan Notaris 1',
+        harga: '2000000',
+      ),
+    );
+    expect(
+      (await repository.getAggregate(ppatId))!.harga.single.harga,
+      '2000000',
+    );
+    expect(
+      (await notaris.getAggregate(notarisId))!.harga.single.harga,
+      '1500000',
+    );
+    await repository.deleteAggregate(ppatId);
+    expect(await repository.getAll(), isEmpty);
+    expect((await notaris.getAll()).single.id, notarisId);
   });
 
   test('trims the work name when creating', () async {

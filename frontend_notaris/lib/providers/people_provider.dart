@@ -1,3 +1,4 @@
+import 'local_master_authorization_provider.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,13 +10,17 @@ final jenisKelaminRepositoryProvider = Provider<JenisKelaminRepository>((ref) {
   return JenisKelaminRepository(ref.watch(appDatabaseProvider));
 });
 
-final jenisKelaminProvider =
-    StreamProvider.autoDispose<List<JenisKelamin>>((ref) {
+final jenisKelaminProvider = StreamProvider.autoDispose<List<JenisKelamin>>((
+  ref,
+) {
   return ref.watch(jenisKelaminRepositoryProvider).watchAll();
 });
 
 final petugasRepositoryProvider = Provider<PetugasRepository>((ref) {
-  return PetugasRepository(ref.watch(appDatabaseProvider));
+  return PetugasRepository(
+    ref.watch(appDatabaseProvider),
+    authorization: ref.watch(localMasterAuthorizationProvider),
+  );
 });
 
 final petugasProvider = StreamProvider.autoDispose<List<PetugasLocal>>((ref) {
@@ -45,9 +50,15 @@ class PetugasController extends AsyncNotifier<void> {
     state = const AsyncLoading();
     try {
       final id = await _repository.create(
-        nama: nama, nik: nik, alamat: alamat, tempatLahir: tempatLahir,
-        tanggalLahir: tanggalLahir, jenisKelamin: jenisKelamin,
-        noTelp: noTelp, email: email, userId: userId,
+        nama: nama,
+        nik: nik,
+        alamat: alamat,
+        tempatLahir: tempatLahir,
+        tanggalLahir: tanggalLahir,
+        jenisKelamin: jenisKelamin,
+        noTelp: noTelp,
+        email: email,
+        userId: userId,
       );
       state = const AsyncData(null);
       return id;
@@ -72,10 +83,16 @@ class PetugasController extends AsyncNotifier<void> {
     state = const AsyncLoading();
     try {
       final result = await _repository.update(
-        id: id, nama: nama, nik: nik, alamat: alamat,
-        tempatLahir: tempatLahir, tanggalLahir: tanggalLahir,
-        jenisKelamin: jenisKelamin, noTelp: noTelp,
-        email: email, userId: userId,
+        id: id,
+        nama: nama,
+        nik: nik,
+        alamat: alamat,
+        tempatLahir: tempatLahir,
+        tanggalLahir: tanggalLahir,
+        jenisKelamin: jenisKelamin,
+        noTelp: noTelp,
+        email: email,
+        userId: userId,
       );
       state = const AsyncData(null);
       return result;
@@ -99,7 +116,10 @@ class PetugasController extends AsyncNotifier<void> {
 }
 
 final pemohonRepositoryProvider = Provider<PemohonRepository>((ref) {
-  return PemohonRepository(ref.watch(appDatabaseProvider));
+  return PemohonRepository(
+    ref.watch(appDatabaseProvider),
+    authorization: ref.watch(localMasterAuthorizationProvider),
+  );
 });
 
 final pemohonProvider = StreamProvider.autoDispose<List<Pemohon>>((ref) {
@@ -125,8 +145,11 @@ class PemohonController extends AsyncNotifier<void> {
     state = const AsyncLoading();
     try {
       final id = await _repository.create(
-        nama: nama, alamat: alamat, jenisKelamin: jenisKelamin,
-        noTelp: noTelp, nik: nik,
+        nama: nama,
+        alamat: alamat,
+        jenisKelamin: jenisKelamin,
+        noTelp: noTelp,
+        nik: nik,
       );
       state = const AsyncData(null);
       return id;
@@ -147,8 +170,12 @@ class PemohonController extends AsyncNotifier<void> {
     state = const AsyncLoading();
     try {
       final result = await _repository.update(
-        id: id, nama: nama, alamat: alamat,
-        jenisKelamin: jenisKelamin, noTelp: noTelp, nik: nik,
+        id: id,
+        nama: nama,
+        alamat: alamat,
+        jenisKelamin: jenisKelamin,
+        noTelp: noTelp,
+        nik: nik,
       );
       state = const AsyncData(null);
       return result;

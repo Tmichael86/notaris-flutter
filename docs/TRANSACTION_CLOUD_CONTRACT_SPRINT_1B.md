@@ -1,0 +1,469 @@
+# Sprint 1B: transaction cloud boundary (2026-11-03)
+
+This is an implementation gate, not a live sync activation.
+
+| Module | UUID cloud/local | Push | Pull | Dependency | Main gap |
+| --- | --- | --- | --- | --- | --- |
+| Pemohon | Local UUID in API; no transaction reference proof | Existing global flow | Existing global flow | Auth | No transaction-scoped reference receipt |
+| Petugas | Separate cloud/local UUID, verified map | Mutation contract exists; normal activation OFF | Baseline pull accepted | Gender/user provenance | Normal push/recovery OFF |
+| Kategori Pekerjaan | Same UUID in local/API | Existing global flow | Existing full-list flow | Auth | No versioned publication/cursor |
+| Jenis Pengeluaran | Same UUID in local/API | Existing global flow | Existing full-list flow | Auth | No versioned publication/cursor |
+| Pekerjaan Notaris/PPAT | Local UUID per parent/child | None | None | Kategori cloud UUID | No cloud aggregate, identity map, receipt or feed |
+| Transaksi | Local UUID per parent/detail/process/payment | None | None | Pemohon, Petugas, both job Masters | Go model is header-only; no aggregate API/storage/feed |
+
+First safe dependency is verified cloud identity for Pekerjaan Notaris/PPAT
+and their category references. A name or local integer PK is never an identity
+claim. Existing Petugas reconciliation and publication pattern can inform the
+implementation; it must not be applied to unrelated tables without a scoped
+schema, permission and recovery contract. Dirty local records are retained.
+
+## Aggregate contract to implement after the Master dependency
+
+- One immutable mutation ID with actor/scope and expected aggregate revision;
+  retry of identical intent returns the durable receipt. A changed payload with
+  the same mutation ID is rejected. UUIDs identify transaction and each child;
+  integer IDs remain database-local.
+- Resolve each Pemohon/Petugas/Pekerjaan/Kategori cloud UUID from a verified
+  mapping or same-UUID contract. Reject absent, ambiguous, deleted or dirty
+  unresolved dependencies before an aggregate write.
+- One PostgreSQL transaction validates permission and revision, locks aggregate,
+  writes header, details, process snapshots and payment history, then receipt and
+  outbox. A failed child rolls back all writes. Snapshots retain historical
+  price/category/process/attribute values independent of later Master edits.
+- One publication event contains the complete committed aggregate. Publisher
+  assigns commit-safe sequence; pull pagination never splits an aggregate.
+  SQLite applies entity/mappings/journal/cursor in one transaction. Replay is
+  idempotent, and pending dirty edits are never overwritten silently.
+- Soft delete uses explicit tombstones and version checks. 409 retains local
+  mutation for conflict review; 410 blocks feed and preserves local state until
+  a defined recovery path exists. Cursor and journal are scoped to profile,
+  account, device, deployment and generation.
+- Server allocates final business number on accepted create; offline number is
+  a temporary display value, never the cloud identity or idempotency key.
+  Final CREATE numbering follows the approved 2026-11-05 contract below.
+
+No transaction aggregate endpoint, PostgreSQL child schema or Master identity
+feed exists yet. A disposable end-to-end transaction write would have to invent
+those contracts and cannot be described as a tested slice today. Do not enable
+normal/global sync or publisher on the basis of this document.
+
+## 2026-11-05: approved numbering and implemented reference foundation
+
+Business decision FINAL: administrative transaction number (not official deed
+number) is `{jenis}00{ddMMyy}{urutan4}`, type 1 Notaris / 2 PPAT. Code 00 means
+single-office deployment. Each domain has its own daily sequence 0001–9999,
+reset by Asia/Jakarta calendar date at server CREATE issuance, independent of
+the user-entered transaction date. Reject exhaustion without wrap. PostgreSQL
+must allocate in the same transaction as aggregate, mutation receipt and outbox;
+identical mutation retry returns its saved number before allocating. Final number
+needs a unique constraint; UPDATE/delete never recycle it. Ack stores the final
+number locally without replacing UUID or local PK.
+
+Implemented independently, not yet wired to an accepted CREATE:
+
+- Go `ResolveTransactionCloudReferences`: active exact UUID resolution and SHARE
+  locks in an explicit transaction, separate domain tables, selected price UUID
+  must belong to the selected job and category. Reject unresolved/ambiguous refs.
+- Flutter `TransactionCloudReferences.prepare`: read-only scoped Master/Petugas
+  mapping checks, clean/acknowledged dependency checks and explicit selected price
+  provenance. Returns candidate cloud references; server must revalidate them.
+  Petugas local/cloud UUIDs remain distinct. Normal synchronization stays OFF.
+- Private server number allocator plus counter migration proposal, tested only on
+  disposable PostgreSQL for concurrent allocation, WIB reset, exhaustion and
+  rollback. This is not a migrated/operational aggregate table or CREATE API.
+
+Existing transaction details preserve category labels but not selected price UUID.
+They MUST NOT be mapped using label, current price, name or integer-ID guessing.
+The new resolver requires explicit reviewed price selection per detail. A future
+CREATE journal must persist that provenance with the immutable aggregate snapshot.
+Those helper tests alone do not establish Device A→B aggregate acceptance.
+
+## CREATE Notaris slice implementation (2026-11-05)
+
+- Drift v17 adds nullable `harga_uuid` / `kategori_uuid` to transaction details
+  plus private transaction identity, immutable pending request and cursor tables.
+  Legacy rows stay NULL; there is no provenance backfill. Form selection captures
+  actual UUIDs, edit/reopen retains them and historical snapshots.
+- `POST /api/v1/transaksi-notaris/sync/create` and authenticated incremental
+  `GET /api/v1/transaksi-notaris/sync/pull` require the existing `transaksi` menu
+  create/read permissions respectively, in the single-office authorized catalog.
+- The two 20261105 PostgreSQL proposals are applied only to disposable schemas.
+  New `transaction_cloud*` tables store complete header/detail/process/payment
+  snapshots; they do not alias or rewrite the incomplete legacy Go header model.
+  Accepted CREATE commits numbering, children/FKs, fingerprint receipt and whole
+  aggregate outbox together. Publication is a bounded explicit repository call;
+  its HTTP test hook exists only in disposable Go tests.
+- Explicit Flutter `TransactionCloudRepository` persists immutable intent before
+  HTTP, applies final number without replacing UUID/local PK, protects later edits,
+  and applies dependencies/mapping/children/cursor in one Drift transaction.
+  It is not registered with global or normal SyncCoordinator.
+- Process transition audits with unresolved user identities are explicitly blocked
+  before push; this slice covers initial process snapshots and payment history,
+  not a new process validation/actor contract. UPDATE/DELETE/PPAT not implemented.
+
+Validation commands (owned disposable PostgreSQL DSN only):
+
+```powershell
+# backend-notaris-go; never point this at port 5432
+$env:NOTARIS_SYNC_TEST_DSN='host=127.0.0.1 port=55451 user=notaris_test dbname=postgres sslmode=disable'
+go test ./routes -run '^TestTransactionCloudHTTPPostgres$' -count=1
+$env:NOTARIS_TRANSACTION_E2E='1'
+go test ./routes -run '^TestTransactionCloudHTTPPostgres$' -count=1 -v
+```
+
+The HTTP E2E creates two NEW temporary SQLite files; it never opens development
+or daily profiles. Permanent PostgreSQL rollout and existing SQLite profile
+upgrade remain separate approval checkpoints. No normal sync activation follows
+from this test.
+
+Checkpoint validation: 388 Flutter tests passed / 6 opt-in skipped, analyzer
+clean. The opt-in transaction HTTP E2E separately passed against disposable
+PostgreSQL and two fresh SQLite files, including replay/restart, local page
+rollback and dirty protection. Go HTTP tests passed idempotent receipt/number,
+changed-payload rejection, failed child rollback after allocation, concurrent
+CREATE, bounded publication and permission rejection; existing Master route
+tests also passed. Logs remain in `.local/transaction-cloud-*.log`.
+
+## UPDATE / soft DELETE Notaris checkpoint (2026-11-05)
+
+Implemented using the CREATE adapter and authenticated `transaksi` update/delete
+permissions: `/transaksi-notaris/sync/update` and `/transaksi-notaris/sync/delete`.
+The additive `20261105_transaction_notaris_mutations.sql` proposal raises the
+revision constraint, retains removed children with tombstones and permits one
+complete outbox event per aggregate revision. All testing uses disposable schemas.
+
+- Parent row lock + expected revision; mutation fingerprint includes operation,
+  and durable actor-bound receipt is checked before the revision. Identical retry
+  returns the same receipt. Conflict 409 keeps the immutable local pending request.
+- Final number is never reassigned. Committed payment rows must match exactly;
+  UPDATE never replaces, deletes, corrects or adds payments. Payment operations
+  need a separate contract. Removed details/processes are retained, never reparented.
+- Process transitions without cloud actor provenance are blocked before push;
+  the server also rejects changes to process validation status without a contract.
+  Existing local audit rows remain untouched. Non-transition snapshot edits work.
+- DELETE follows existing unconditional local soft deletion, retains historical
+  payment/process snapshots and mutation actors, and publishes a full tombstone.
+- Drift v18 preserves existing mapping, cursor, pending payload and final number,
+  enables revisions >1 and records pending operation. Pull updates existing local
+  PKs atomically with children/journal/cursor, checks dependencies and payments,
+  and refuses dirty/pending local rows. Unsent local child tombstones are retained
+  conservatively rather than implicitly clearing their dirty flags.
+
+Validation: 389 Flutter tests passed / 6 opt-in skipped, analyzer clean, focused
+Go PostgreSQL/HTTP tests plus Master route regression passed. Separate real HTTP
+Device A/B E2E passed CREATE→UPDATE→DELETE, receipt replay, local conflict retention,
+atomic rollback, payment/actor guards, pagination/replay/restart and SQLite FK /
+integrity. In the A/B slice there are three receipts/events, cursor 3 on both
+devices and only one number allocation. Logs: `.local/transaction-mutations-*.log`.
+
+```powershell
+# Same owned disposable DSN and Go test as CREATE, with these opt-in flags:
+$env:NOTARIS_TRANSACTION_E2E='1'
+$env:NOTARIS_TRANSACTION_MUTATIONS_E2E='1'
+go test ./routes -run '^TestTransactionCloudHTTPPostgres$' -count=1 -v
+```
+
+No permanent PostgreSQL migration, existing SQLite profile upgrade, operational
+sync activation or publisher activation follows from this checkpoint. PPAT
+transaction cloud, explicit conflict resolution and payment/process actor
+contracts remain separate work.
+
+## PPAT transaction CRUD checkpoint (2026-11-05)
+
+The existing transaction repository, receipt/outbox, publisher and Drift apply
+now support both domains. PPAT uses `/transaksi-ppat/sync/{create,update,delete,pull}`
+with the same authenticated `transaksi` operation permissions. Mutation domain
+must match the endpoint; omitted domain remains supported for legacy Notaris
+requests without changing their receipt fingerprint. New events carry domain.
+
+`20261105_transaction_ppat_domain.sql` follows the three transaction proposals
+(numbering, CREATE, mutations) and both Master schema proposals. It adds parent
+domain and PPAT-specific detail/price FKs, plus a composite parent/domain FK and
+checks forbidding mixed-domain references. All applications so far were to
+disposable schemas only. Drift remains v18; local tables already store domain.
+
+Transaction UUID remains deployment-global: same UUID submitted in the other
+domain is rejected (409), never relinked or reconciled. Master job/price UUIDs may
+be identical across their separate domains; resolution uses the correct domain
+tables. Domain cannot change on UPDATE. PPAT numbers use `200{ddMMyy}{seq4}` with
+the existing independent daily WIB counter. Receipt, revision, payment, actor
+audit and dirty/tombstone protections are shared with Notaris.
+
+There is ONE authorized transaction feed/cursor for both domains, not a filtered
+feed with hidden sequence gaps. Either pull route returns complete domain-tagged
+events; the common Drift adapter applies each to its proper local references.
+`otherMasterScope` can provide a distinct reference scope for the other domain.
+
+Validation: 389 Flutter tests passed / 6 opt-in skipped; analyzer clean. Focused
+Go reference/numbering, both transaction HTTP CRUD and both Master HTTP regressions
+passed. Real HTTP A/B E2E passed separately for Notaris and PPAT. The PPAT case
+also imports a new Notaris CREATE through the same SQLite/feed: PPAT lifecycle
+is seq 1–3 and Notaris CREATE seq 4; each domain allocates only number 0001.
+Tests cover same aggregate UUID rejection, Notaris-only reference rejection on
+PPAT, cross-domain update/delete rejection, correct server/local job FKs despite
+identical Master UUIDs, conflict retention, replay/restart and FK/integrity.
+Logs: `.local/transaction-ppat-{go,e2e,flutter-full}.log`.
+
+```powershell
+# backend-notaris-go; same owned disposable DSN as above
+$env:NOTARIS_TRANSACTION_E2E='1'
+$env:NOTARIS_TRANSACTION_MUTATIONS_E2E='1'
+go test ./routes -run '^TestTransaction(Ppat)?CloudHTTPPostgres$' -count=1 -v
+```
+
+Next checkpoint is combined Transaction rollout preflight, backup/restore
+simulation, legacy preservation and least-privilege grant review. Existing
+PostgreSQL/SQLite profiles have NOT been upgraded, and this is not permission
+to apply or activate synchronization. Payment corrections/additions, process
+actor provenance and conflict resolution UI remain separate contracts.
+
+## Combined Transaction preflight (2026-11-05)
+
+Read-only audit of notarisdev found four legacy transactions, four process details
+and four payment records. Actual Master category/price schemas use status without
+`deleted_at`; the resolver now accepts that legacy shape while still rejecting
+optional tombstones when present. Focused tests cover both domains; the restricted
+app role also resolved the active legacy Notaris UUID on the restored clone and
+rejected the deleted PPAT UUID. No identity matching by name/PK was introduced.
+
+The PostgreSQL backup restored successfully on isolated port 55452. Combined
+schema/grants simulation passed final-stage failure rollback, successful COMMIT
+and second-apply rejection. All 49 original table fingerprints and 38 old sequence
+states were preserved; eight new tables, two unused sequences, 13 validated FKs,
+least-privilege grants and empty cloud/counter/feed state were verified.
+
+Existing development SQLite remains v16 with two dirty transactions/details and
+no price provenance. A backup-API disposable copy upgraded to v18 with all 31
+original table fingerprints preserved; original file hash remained unchanged.
+Petugas cloud/local UUID proof matched all four server identities; all 20 clean
+Pemohon UUIDs matched active server rows. No source profile migration occurred.
+
+Migration-only readiness does not imply live reference readiness: the active
+legacy Notaris is unpublished, and no active PPAT exists. Later live E2E needs
+separately approved fresh synthetic Master references/publication. Existing local
+dirty data must remain excluded. Backup, combined guarded SQL, hashes, simulation
+receipts and the live plan are under `.local/transaction-rollout-preflight-20261105-071615`.
+No permanent Transaction migration/CRUD/publication has been performed.
+
+## Controlled live Transaction readiness (2026-11-06)
+
+The combined migration is now independently confirmed committed on notarisdev:
+`COMBINED_TRANSACTIONS_VERIFIED`, eight tables, two sequences and thirteen FKs;
+49 legacy fingerprints and 38 prior sequence states preserved. Evidence:
+`.local/transaction-rollout-preflight-20261105-071615/execution-20261106-025302-50be6028`.
+Retain the migration attempt lock. Never invoke the migration runner again.
+
+`masterpublish --transaction` reuses the Transaction publication implementation
+and shared publication counter lock. Apply requires a SHA-256-pinned allowlist,
+one exact domain/UUID/operation/revision, one event/batch and expected prior cursor.
+Any other pending Transaction event prevents publication. An already published
+approved event returns its original sequence with `published=0,replay=true`.
+Counter/outbox assignment commits atomically; no publisher worker is installed.
+Default execution is read-only. Notaris/PPAT Master feeds remain separate.
+
+The preparation entry uses existing aggregate repositories on two NEW SQLite
+files under `.local`, with reviewed active Pemohon, Petugas mapping/version and
+category UUIDs from read-only PostgreSQL queries. It does not open a normal
+profile or make HTTP calls. Each device has its own scope and local Petugas UUID;
+cloud references are explicit, never inferred from names or integer IDs.
+
+Prepared receipt: `.local/transaction-live-readiness-20261106-032109`.
+`fixture-plan.json` records every parent/price/process/attribute/detail/payment
+UUID. Label: `E2E-TX-21aa6a5c`. Its `publication-allowlist.json` pins ten events.
+These fixtures do NOT yet exist on notarisdev. Only source read-only checks and
+offline preparation have occurred at this checkpoint.
+
+After SEPARATE write approval, the existing HTTP repositories create/publish one
+new active Master per domain, then run Notaris before PPAT Transaction CRUD:
+revision 1→2→3, one server number and one initial payment per transaction. Both
+devices pull complete aggregates; Device B dirty protection, replay/pagination,
+restart and integrity/FK checks run on disposable files. Finally the two approved
+Master fixtures are soft-deleted/published, preserving historical snapshots.
+
+Write budget: four Master mutations/receipts/events (CREATE+DELETE per domain),
+six Transaction mutations/receipts/events (CREATE+UPDATE+DELETE per domain), two
+payments and two number allocations. Ten first-publication calls, batch size one,
+one batch and 60-second deadline each. Identical HTTP retries reuse the receipt.
+Expected Master cursors 3→5 each; shared Transaction cursor 0→6, min_cursor 0,
+pending zero. No changes to schema, grants, old identities or dirty profiles.
+
+The controlled runner defaults to dry-run. Apply pins source HEAD, clean working
+tree, target and plan hash, rechecks maintenance/permissions/references/baseline,
+verifies a new consistent pg_dump archive and its SHA-256/TOC, authenticates the
+reviewed fixture account, and creates a one-attempt lock before first HTTP write.
+All public-table fingerprints exclude only explicitly approved fixture identities
+and specified counters; any other change stops verification. It never retries a
+failed/ambiguous write or automatically restores. Keep all logs, dumps and locks;
+inspect read-only if any phase fails. Separate operations are separate commits:
+earlier acknowledged phases may remain committed when a later phase fails.
+
+```powershell
+# Repository root; read-only readiness, safe BEFORE separate approval:
+& .\scripts\invoke-notarisdev-transaction-live.ps1 `
+  -PreparedReceipt '.local\transaction-live-readiness-20261106-032109'
+
+# ONLY AFTER approval of fixture creation, Transaction CRUD and bounded publication:
+& .\scripts\invoke-notarisdev-transaction-live.ps1 `
+  -PreparedReceipt '.local\transaction-live-readiness-20261106-032109' `
+  -Apply -ConfirmTarget '127.0.0.1:5432/notarisdev' `
+  -ConfirmPlanSha256 '69B75347E2F776EE64DEC47FCFE55D4BEBE61251FFF71813C43CFA90B9B66C9C'
+```
+
+Validation: ten focused Go tests and 32 Flutter tests passed, analyzer clean;
+both existing HTTP A/B CRUD E2Es passed with the guarded publisher. The actual
+prepared-plan executor passed on a restored disposable PostgreSQL clone and two
+copied disposable SQLite files: six Transaction events, four Master events,
+two unchanged payments, replay/restart/dirty protection, FK/integrity and all
+57 filtered table fingerprints preserved. CLI publication retry returned
+`published=0,replay=true,sequence=1,last_seq=6`. Evidence:
+`.local/transaction-live-disposable-rehearsal-20261106` and the prepared receipt.
+Permanent Transaction CRUD/publication remains unexecuted pending approval.
+
+## Selective manual application bridge (2026-11-06)
+
+The preceding permanent live E2E subsequently passed once on source `e282cdb`;
+its receipt is `.local/transaction-live-readiness-20261106-032109/LIVE_REPORT.md`.
+That approval is consumed. This bridge checkpoint performs **disposable writes only**.
+
+`TransactionManualSyncService.run` is the application entry point. Callers select
+`transaksi_notaris`, `ManualSyncDirection.upload` with exactly one local transaction
+ID, or `download` with pageSize 1–100 and maxPages 1–10 (defaults 20/1).
+It reuses TransactionCloudRepository and TransactionCloudReferences; there is no
+dependency push, global scan, publisher, timer or new synchronization engine.
+Upload chooses the existing immutable pending operation or the aggregate's
+CREATE/UPDATE/DELETE state. Clean acknowledged retries are no-ops. Results count
+durable upload acknowledgements or committed pull events, never merely sent HTTP.
+
+The first profile guard accepts only newly prepared file-backed SQLite devices
+`a.sqlite`/`b.sqlite` under a system-temp `transaction_manual_*` directory, an
+explicit owned disposable PostgreSQL target on ports 55400–55999, and a separate
+loopback HTTP endpoint (normal ports 8080/8081 excluded). It verifies actual SQLite
+filename, account/group, device, generation, deployment and persisted feed scopes.
+Online AuthSession permissions use code `transaksi`; server auth/references are
+revalidated by existing endpoints. Requests remain confined to selected Notaris
+routes, with redirects disabled and bounded network timeouts. Single-flight is
+shared per canonical SQLite file. UI Smoke rejects both directions before HTTP.
+
+The shared Transaction feed is not server-filtered. A page containing PPAT is
+rejected before any aggregate apply/cursor advancement; selected Notaris never
+silently consumes PPAT. A bounded partial pull records `pending`, its actual
+committed count/cursor and `more=true`. The next page requires another manual call.
+409 retains dirty state and immutable pending payload. 410 records `feed_expired`
+and blocks further operations for that profile: no cursor reset, rebase, restore
+or history deletion. A reviewed full-recovery/new-generation procedure is still
+required before normal activation.
+
+Attempts/outcomes use existing SyncLogRepository with sanitized fixed messages,
+count and retry correlation; old failures survive success and restart. Monitoring
+adds a separate Transaksi Notaris row, counting parent/child dirty records and
+pending journal state. Upload ACK or empty download alone cannot turn it green:
+an ACKED request remains evidence of unobserved publication. Only a pull observing
+the exact mutation ID/revision retires that ACKED request, atomically with aggregate
+apply/cursor. Pending requests are never retired. The default repository pull path
+retains previous journal behavior; confirmation is opt-in for this bridge.
+
+Monitoring's execute button remains disabled in normal and UI Smoke modes. No
+provider connects the bridge to a normal profile; existing shell/layout is intact.
+Log UI can filter `transaksi_notaris`. PPAT selective orchestration, a shared-feed
+selection policy, approved normal profile wiring and explicit 410/conflict recovery
+are subsequent milestones; PPAT repository cloud CRUD remains available/tested.
+
+Validation: 57 focused Flutter tests (including 15 service tests), analyzer clean,
+ten focused Go tests passed. Existing HTTP E2E was reused with a manual-service
+opt-in: real authenticated session/permissions, Notaris upload/publication/download,
+UPDATE/conflict, DELETE, replay/restart, snapshots/payment/UUID and FK/integrity
+passed through two new SQLite profiles and disposable PostgreSQL. Existing PPAT
+CRUD HTTP A/B E2E regression also passed. Evidence:
+`.local/transaction-manual-bridge-20261106/{flutter-focused-final,go-focused,e2e-bridge-final,e2e-ppat-final}.log`.
+No permanent PostgreSQL/SQLite profile was opened or migrated for this checkpoint.
+
+```powershell
+# backend-notaris-go; ONLY an already owned disposable PostgreSQL instance:
+$env:NOTARIS_SYNC_TEST_DSN='host=127.0.0.1 port=55452 dbname=notaris_transaction_sim user=postgres sslmode=disable'
+$env:NOTARIS_TRANSACTION_E2E='1'
+$env:NOTARIS_TRANSACTION_MUTATIONS_E2E='1'
+$env:NOTARIS_TRANSACTION_MANUAL_BRIDGE='1'
+go test ./routes -run '^TestTransactionCloudHTTPPostgres$' -count=1 -v
+```
+
+## Shared-feed manual service (2026-11-06)
+
+The shared feed decision is final: upload selects one local aggregate/domain;
+download consumes **both** domains in publication order with one shared cursor.
+The same TransactionManualSyncService now accepts these explicit UI contracts:
+
+| selectedModule | direction | transactionId | Behavior |
+|---|---|---|---|
+| `transaksi_notaris` | upload | required | One selected Notaris aggregate |
+| `transaksi_ppat` | upload | required | One selected PPAT aggregate |
+| `transaksi` | download | forbidden | Shared Notaris + PPAT feed |
+
+Download with either domain-specific module and combined upload are rejected,
+never silently reinterpreted. Monitoring labels `Transaksi (feed gabungan)` and
+explains this boundary; execute buttons remain disabled in every mode. The guard
+remains disposable-only; existing development/daily profiles are not opened.
+
+Profile checks now cover both Master feed scopes. Both upload adapters reuse the
+same service/repository, `transaksi` permissions and UUID reference resolver.
+Each incoming aggregate validates explicit domain, parent/reference/mutation/child
+UUIDs, revision, number prefix and tombstone; historical tombstone references and
+snapshots cannot change. Missing verified applicant/officer provenance blocks
+import. Existing domain-aware Master/price/category mappings are reused.
+
+All page events, identity changes, exact-mutation ACK retirement and cursor commit
+share one Drift transaction. An invalid/unknown event, unresolved reference or
+dirty conflict rolls back the **whole page**. Earlier committed pages remain at
+their last safe cursor; no event is skipped. Download never uploads dirty data.
+409 retains pending/dirty state. A 410 on the shared feed blocks operations across
+both upload domains until explicit recovery; no automatic reset or overwrite.
+
+Upload logs remain separate (`transaksi_notaris`, `transaksi_ppat`), while download
+logs use `transaksi`. Monitoring combines shared pull evidence with each domain's
+latest upload result, pending/dirty children and unobserved ACKs. Empty pulls and
+ACKs alone still cannot establish successful publication. Failure history is
+persistent and no unsupported operation is reported as successful.
+
+Disposable validation: 62 focused Flutter tests and analyzer clean; ten focused
+Go tests passed (mixed opt-in skipped there, then explicitly executed). Three real
+HTTP A/B E2Es passed: Notaris lifecycle, PPAT lifecycle and mixed-feed service.
+The mixed test uploads/publishes PPAT CREATE → Notaris CREATE → PPAT UPDATE →
+Notaris UPDATE (seq 1–4), verifies second-event dependency failure rolls back the
+page, then imports four events together. Two tombstones follow (seq 5–6); a dirty
+second record again rolls back both events at cursor 4. Explicit fixture-only
+conflict resolution, replay/restart, two stable numbers/payments, snapshots,
+process UUIDs and integrity/FKs pass. No permanent live E2E is repeated.
+Evidence: `.local/transaction-shared-service-20261106/`.
+
+```powershell
+# Same already-owned disposable DSN and E2E flags as above; no permanent target.
+go test ./routes -run '^TestTransactionMixedManualHTTPPostgres$' -count=1 -v
+```
+
+Service/contract is ready for isolated UI wiring. Enabling UI execution still
+requires a reviewed selected-record binding and profile provisioning, plus the
+separate normal-profile rollout/recovery approval; no global coordinator or
+background publisher is activated by this checkpoint.
+
+
+## Isolated Monitoring UI wiring (2026-11-06)
+
+The existing Monitoring card now uses guarded Transaction controls with local
+record selection (number/domain/UUID/dirty and pending state), confirmation,
+loading/single-flight and sanitized outcome feedback. Upload rechecks the selected
+ID/domain/UUID after confirmation; download explicitly uses the shared feed.
+
+Default configuration is null, so normal/UiSmoke execution stays disabled.
+The isolated configuration factory validates the disposable location before
+constructing a file-backed database and binds database, HTTP and private auth
+cache scope. Startup/resume/global sync are suppressed in that context; its
+ordinary HTTP client allows only reads/login, while the existing manual service
+retains its own URI/permission/profile/Smoke guards. Shared shell/layout unchanged.
+
+Validation: 82 focused tests passed; full Flutter suite 422 passed / 7 opt-in
+skipped; analyzer clean; real Monitoring UI/service/HTTP/PostgreSQL/second UI
+profile E2E explicitly passed, including both selective uploads, shared cursor,
+publication, replay, restart, Log, payment/snapshot identity and FK/integrity.
+Evidence: `.local/transaction-ui-wiring-20261106/`.
+Windows debug entry/manifest prerequisites and manual steps are documented in
+[TRANSACTION_MONITOR_ISOLATED_UI.md](TRANSACTION_MONITOR_ISOLATED_UI.md).
+No permanent profile/server writes or operational sync activation were performed.

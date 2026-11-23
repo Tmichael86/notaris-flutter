@@ -1,3 +1,5 @@
+import '../support/transaction_test_authority.dart';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -8,9 +10,18 @@ void main() {
   late AppDatabase database;
   late TransactionRepository repository;
 
-  setUp(() {
+  setUp(() async {
     database = AppDatabase.forTesting(NativeDatabase.memory());
-    repository = TransactionRepository(database);
+    repository = testTransactionRepository(database);
+    await database.customStatement(
+      "INSERT INTO pemohons(id,uuid,nama) VALUES(1,'pemohon-test','Fixture')",
+    );
+    await database.customStatement(
+      "INSERT INTO petugas(id,uuid,nama,email) VALUES(1,'petugas-test','Fixture','fixture@example.invalid')",
+    );
+    await database.customStatement(
+      "INSERT INTO pekerjaan_notaris(id,uuid,nama) VALUES(1,'job-test','Fixture')",
+    );
   });
 
   tearDown(() async {

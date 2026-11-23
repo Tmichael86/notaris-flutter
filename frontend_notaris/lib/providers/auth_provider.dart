@@ -1,3 +1,7 @@
+import 'dart:convert';
+
+import 'isolated_transaction_profile_provider.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app_providers.dart';
@@ -7,44 +11,100 @@ import '../services/auth_service.dart';
 enum AuthStatus { loading, unauthenticated, authenticating, authenticated }
 
 class AuthState {
-  const AuthState({
-    required this.status,
-    this.session,
-    this.errorMessage,
-  });
+  const AuthState({required this.status, this.session, this.errorMessage});
 
   final AuthStatus status;
   final AuthSession? session;
   final String? errorMessage;
 
   factory AuthState.loading() => const AuthState(status: AuthStatus.loading);
-  factory AuthState.unauthenticated([String? error]) => AuthState(
-        status: AuthStatus.unauthenticated,
-        errorMessage: error,
-      );
+  factory AuthState.unauthenticated([String? error]) =>
+      AuthState(status: AuthStatus.unauthenticated, errorMessage: error);
   factory AuthState.authenticating() =>
       const AuthState(status: AuthStatus.authenticating);
-  factory AuthState.authenticated(AuthSession session) => AuthState(
-        status: AuthStatus.authenticated,
-        session: session,
-      );
+  factory AuthState.authenticated(AuthSession session) =>
+      AuthState(status: AuthStatus.authenticated, session: session);
 }
 
 final authServiceProvider = Provider<AuthService>((ref) {
-  return AuthService(dio: ref.watch(dioProvider));
+  final isolated = ref.watch(isolatedTransactionSyncConfigurationProvider);
+  return AuthService(
+    dio: ref.watch(dioProvider),
+    cacheKey: isolated == null
+        ? 'notaris.auth.session.v1'
+        : 'notaris.isolated.${base64Url.encode(utf8.encode(isolated.profile.scope))}.auth',
+  );
 });
 
-final authControllerProvider =
-    StateNotifierProvider<AuthController, AuthState>((ref) {
-  final controller = AuthController(ref.read(authServiceProvider));
-  controller.initialize();
-  return controller;
-});
+final authControllerProvider = StateNotifierProvider<AuthController, AuthState>(
+  (ref) {
+    final controller = AuthController(ref.read(authServiceProvider));
+    controller.initialize();
+    return controller;
+  },
+);
 
 class AuthController extends StateNotifier<AuthState> {
   AuthController(this._service) : super(AuthState.loading());
 
   final AuthService _service;
+
+  bool _refreshingPermissions = false;
+  Future<void> refreshCurrentPermissions() async {
+    if (_refreshingPermissions) return;
+    final before = state.session;
+    if (before == null) {
+      throw const AuthException(
+        'Sesi online diperlukan untuk memuat ulang izin.',
+      );
+    }
+    _refreshingPermissions = true;
+    try {
+      final next = await _service.refreshPermissions(before.token);
+      if (mounted && state.session?.token == before.token) {
+        state = AuthState.authenticated(next);
+      }
+    } catch (e) {
+      if (mounted && state.session?.token == before.token) {
+        if (_service.isUnauthorized(e)) {
+          await logout();
+        } else {
+          state = AuthState.authenticated(before.asOffline());
+        }
+      }
+      rethrow;
+    } finally {
+      _refreshingPermissions = false;
+    }
+  }
+
+  Future<void> handleApiRejection(int status, String requestToken) async {
+    if (state.session?.token != requestToken) return;
+    if (status == 401) {
+      try {
+        await _service.clearPersistedSession();
+      } finally {
+        if (mounted && state.session?.token == requestToken) {
+          state = AuthState.unauthenticated();
+        }
+      }
+    } else if (status == 403) {
+      try {
+        final session = await _service.refreshPermissions(requestToken);
+        if (mounted && state.session?.token == requestToken) {
+          state = AuthState.authenticated(session);
+        }
+      } on Object catch (error) {
+        if (_service.isUnauthorized(error) &&
+            mounted &&
+            state.session?.token == requestToken) {
+          await logout();
+        } else if (mounted && state.session?.token == requestToken) {
+          state = AuthState.authenticated(state.session!.asOffline());
+        }
+      }
+    }
+  }
 
   Future<void> initialize() async {
     try {

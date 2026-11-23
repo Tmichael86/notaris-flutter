@@ -10,6 +10,7 @@ class AuthSession {
     required this.user,
     required this.sidebars,
     required this.verifiedAt,
+    this.groupType,
     this.isOffline = false,
   });
 
@@ -21,30 +22,88 @@ class AuthSession {
   final Map<String, dynamic> user;
   final List<Map<String, dynamic>> sidebars;
   final DateTime verifiedAt;
+  final String? groupType;
   final bool isOffline;
 
-  AuthSession asOffline() => AuthSession(
-        token: token,
-        userId: userId,
-        groupId: groupId,
-        userName: userName,
-        groupName: groupName,
-        user: user,
-        sidebars: sidebars,
-        verifiedAt: verifiedAt,
-        isOffline: true,
+  /// Client gate only. Backend remains authoritative; offline operational
+  /// access cannot authorize administration.
+  bool get canUseOnlineAdministration {
+    if (isOffline || groupType != 'superadmin') return false;
+    try {
+      final segments = token.split('.');
+      if (segments.length != 3) return false;
+      final payload = jsonDecode(
+        utf8.decode(base64Url.decode(base64Url.normalize(segments[1]))),
       );
+      if (payload is! Map) return false;
+      final version = payload['sv'];
+      final expiry = payload['exp'];
+      return version is int &&
+          version > 0 &&
+          expiry is int &&
+          expiry > DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000 &&
+          payload['uid'] == userId &&
+          payload['gid'] == groupId &&
+          payload['iss'] == 'backend-notaris-go';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  bool get canCorrectTransactionPayment =>
+      groupType == 'superadmin' && hasTransactionAccess(update: true);
+
+  bool get canExportMonitoring =>
+      hasTransactionAccess() &&
+      sidebars.any((access) {
+        final sidebar = access['sidebar'];
+        return sidebar is Map &&
+            sidebar['sidebar_nama']?.toString().trim().toLowerCase() ==
+                'monitoring' &&
+            (sidebar['status'] == null || _enabled(sidebar['status'])) &&
+            _enabled(access['read']);
+      });
+
+  static bool _enabled(Object? value) =>
+      value == true || value == 1 || value == '1';
+
+  bool hasTransactionAccess({bool create = false, bool update = false}) {
+    if (userId <= 0) return false;
+    return sidebars.any((access) {
+      final sidebar = access['sidebar'];
+      return sidebar is Map &&
+          sidebar['sidebar_kode'] == 'transaksi' &&
+          (sidebar['status'] == null || _enabled(sidebar['status'])) &&
+          _enabled(access['read']) &&
+          (!create || _enabled(access['create'])) &&
+          (!update || _enabled(access['update']));
+    });
+  }
+
+  AuthSession asOffline() => AuthSession(
+    token: token,
+    userId: userId,
+    groupId: groupId,
+    userName: userName,
+    groupName: groupName,
+    user: user,
+    sidebars: sidebars,
+    verifiedAt: verifiedAt,
+    groupType: groupType,
+    isOffline: true,
+  );
 
   Map<String, dynamic> toJson() => {
-        'token': token,
-        'userId': userId,
-        'groupId': groupId,
-        'userName': userName,
-        'groupName': groupName,
-        'user': user,
-        'sidebars': sidebars,
-        'verifiedAt': verifiedAt.toUtc().toIso8601String(),
-      };
+    'token': token,
+    'userId': userId,
+    'groupId': groupId,
+    'userName': userName,
+    'groupName': groupName,
+    'user': user,
+    'sidebars': sidebars,
+    'verifiedAt': verifiedAt.toUtc().toIso8601String(),
+    'groupType': groupType,
+  };
 
   factory AuthSession.fromJson(Map<String, dynamic> json) {
     final user = Map<String, dynamic>.from(
@@ -53,9 +112,9 @@ class AuthSession {
     final rawSidebars = json['sidebars'];
     final sidebars = rawSidebars is List
         ? rawSidebars
-            .whereType<Map>()
-            .map((item) => Map<String, dynamic>.from(item))
-            .toList()
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList()
         : <Map<String, dynamic>>[];
 
     final userId = _asInt(json['userId'] ?? user['id']);
@@ -63,8 +122,9 @@ class AuthSession {
     final userName = (json['userName'] ?? user['nama'] ?? user['username'])
         ?.toString()
         .trim();
-    final groupName =
-        (json['groupName'] ?? user['group_nama'])?.toString().trim();
+    final groupName = (json['groupName'] ?? user['group_nama'])
+        ?.toString()
+        .trim();
     final token = json['token']?.toString() ?? '';
     final verifiedAt = DateTime.tryParse(json['verifiedAt']?.toString() ?? '');
 
@@ -86,6 +146,9 @@ class AuthSession {
       user: user,
       sidebars: sidebars,
       verifiedAt: verifiedAt.toLocal(),
+      groupType: json['groupType'] is String
+          ? json['groupType'] as String
+          : null,
     );
   }
 

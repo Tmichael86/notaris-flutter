@@ -1,8 +1,13 @@
+import '../providers/database_provider.dart';
+import '../providers/local_master_authorization_provider.dart';
+import '../providers/auth_provider.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/widgets/loading_overlay.dart';
+import '../core/widgets/master_data_viewport.dart';
 import '../database/app_database.dart';
 import '../providers/pekerjaan_provider.dart';
 
@@ -24,22 +29,29 @@ class _JenisPengeluaranDesktopScreenState
   int _page = 1;
   static const _limit = 10;
 
+  bool _can(MasterAction action) => ref
+      .read(localMasterAuthorizationProvider)
+      .allows(MasterModule.expenseType, action);
+  void _sameActor((Object?, AppDatabase) opening, MasterAction action) {
+    final authority = ref.read(localMasterAuthorizationProvider);
+    if (!identical(opening.$1, authority.session()) ||
+        !identical(opening.$2, authority.database)) {
+      throw const LocalMasterDenied('session_or_profile_changed');
+    }
+    authority.require(MasterModule.expenseType, action);
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.watch(authControllerProvider);
     final data = ref.watch(pengeluaranJenisProvider);
     return LoadingOverlay(
       isLoading: _busy,
       message: 'Memproses data...',
       child: LayoutBuilder(
         builder: (context, c) {
-          final mobile = c.maxWidth < 700;
-          return Padding(
-            padding: EdgeInsets.fromLTRB(
-              mobile ? 16 : 28,
-              20,
-              mobile ? 16 : 28,
-              30,
-            ),
+          final mobile = c.maxWidth < 900;
+          return MasterDataViewport(
             child: data.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Gagal memuat data: $e')),
@@ -61,7 +73,9 @@ class _JenisPengeluaranDesktopScreenState
     return Row(
       children: [
         Expanded(
-          child: Row(
+          child: Wrap(
+            spacing: 14,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Text(
                 'Jenis Pengeluaran',
@@ -71,7 +85,6 @@ class _JenisPengeluaranDesktopScreenState
                 ),
               ),
               if (!mobile) ...[
-                const SizedBox(width: 14),
                 Text(
                   'Master  |  Jenis Pengeluaran',
                   style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
@@ -98,7 +111,7 @@ class _JenisPengeluaranDesktopScreenState
         const SizedBox(width: 8),
 
         ElevatedButton.icon(
-          onPressed: _busy ? null : () => _form(),
+          onPressed: _busy || !_can(MasterAction.create) ? null : () => _form(),
           icon: const Icon(Icons.add, size: 18),
           label: Text(mobile ? 'Tambah' : 'Tambah Jenis'),
           style: ElevatedButton.styleFrom(
@@ -143,8 +156,7 @@ class _JenisPengeluaranDesktopScreenState
         children: [
           Row(
             children: [
-              SizedBox(
-                width: mobile ? double.infinity : 280,
+              Expanded(
                 child: TextField(
                   controller: _search,
                   onChanged: (v) => setState(() {
@@ -160,7 +172,7 @@ class _JenisPengeluaranDesktopScreenState
                   ),
                 ),
               ),
-              if (!mobile) const Spacer(),
+              if (!mobile) const SizedBox(width: 14),
               if (!mobile) Text('${filtered.length} data'),
             ],
           ),
@@ -186,71 +198,59 @@ class _JenisPengeluaranDesktopScreenState
   }
 
   Widget _table(List<PengeluaranJenisData> rows) {
-    return Scrollbar(
-      controller: _verticalScroll,
-      thumbVisibility: true,
-      notificationPredicate: (n) => n.metrics.axis == Axis.vertical,
-      child: SingleChildScrollView(
-        controller: _verticalScroll,
-        child: Scrollbar(
-          controller: _horizontalScroll,
-          thumbVisibility: true,
-          notificationPredicate: (n) => n.metrics.axis == Axis.horizontal,
-          child: SingleChildScrollView(
-            controller: _horizontalScroll,
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: 28,
-              columns: const [
-                DataColumn(label: Text('No')),
-                DataColumn(label: Text('Nama')),
-                DataColumn(label: Text('Created At')),
-                DataColumn(label: Text('Aksi')),
-              ],
-              rows: List.generate(rows.length, (i) {
-                final item = rows[i];
-                return DataRow(
-                  cells: [
-                    DataCell(Text('${(_page - 1) * _limit + i + 1}')),
-                    DataCell(
-                      SizedBox(
-                        width: 300,
-                        child: Text(
-                          item.nama,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
+    return MasterDataTableViewport(
+      horizontalController: _horizontalScroll,
+      verticalController: _verticalScroll,
+      child: DataTable(
+        columnSpacing: 28,
+        columns: const [
+          DataColumn(label: Text('No')),
+          DataColumn(label: Text('Nama')),
+          DataColumn(label: Text('Created At')),
+          DataColumn(label: Text('Aksi')),
+        ],
+        rows: List.generate(rows.length, (i) {
+          final item = rows[i];
+          return DataRow(
+            cells: [
+              DataCell(Text('${(_page - 1) * _limit + i + 1}')),
+              DataCell(
+                SizedBox(
+                  width: 300,
+                  child: Text(
+                    item.nama,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              DataCell(
+                SizedBox(width: 220, child: Text(_formatDate(item.createdAt))),
+              ),
+              DataCell(
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Edit',
+                      onPressed: _busy || !_can(MasterAction.update)
+                          ? null
+                          : () => _form(item: item),
+                      icon: const Icon(Icons.edit_outlined),
                     ),
-                    DataCell(
-                      SizedBox(
-                        width: 220,
-                        child: Text(_formatDate(item.createdAt)),
-                      ),
-                    ),
-                    DataCell(
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            tooltip: 'Edit',
-                            onPressed: _busy ? null : () => _form(item: item),
-                            icon: const Icon(Icons.edit_outlined),
-                          ),
-                          IconButton(
-                            tooltip: 'Hapus',
-                            onPressed: _busy ? null : () => _delete(item),
-                            icon: const Icon(Icons.delete_outline),
-                          ),
-                        ],
-                      ),
+                    IconButton(
+                      tooltip: 'Hapus',
+                      onPressed: _busy || !_can(MasterAction.delete)
+                          ? null
+                          : () => _delete(item),
+                      icon: const Icon(Icons.delete_outline),
                     ),
                   ],
-                );
-              }),
-            ),
-          ),
-        ),
+                ),
+              ),
+            ],
+          );
+        }),
       ),
     );
   }
@@ -295,6 +295,10 @@ class _JenisPengeluaranDesktopScreenState
   }
 
   Future<void> _form({PengeluaranJenisData? item}) async {
+    final openingActor = (
+      ref.read(authControllerProvider).session,
+      ref.read(appDatabaseProvider),
+    );
     String namaInput = item?.nama ?? '';
     String? validationError;
     bool saving = false;
@@ -318,6 +322,10 @@ class _JenisPengeluaranDesktopScreenState
       });
 
       try {
+        _sameActor(
+          openingActor,
+          item == null ? MasterAction.create : MasterAction.update,
+        );
         final c = ref.read(pengeluaranJenisControllerProvider.notifier);
 
         if (item == null) {
@@ -340,10 +348,12 @@ class _JenisPengeluaranDesktopScreenState
             saving = false;
           });
         }
-      } catch (_) {
+      } catch (error) {
         if (dialogContext.mounted) {
           setDialogState(() {
-            validationError = 'Gagal menyimpan data. Silakan coba lagi.';
+            validationError = error is LocalMasterDenied
+                ? error.toString()
+                : 'Gagal menyimpan data. Silakan coba lagi.';
             saving = false;
           });
         }
@@ -421,6 +431,10 @@ class _JenisPengeluaranDesktopScreenState
   }
 
   Future<void> _delete(PengeluaranJenisData item) async {
+    final openingActor = (
+      ref.read(authControllerProvider).session,
+      ref.read(appDatabaseProvider),
+    );
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -444,6 +458,7 @@ class _JenisPengeluaranDesktopScreenState
     if (ok != true || !mounted) return;
 
     await _process('Menghapus data...', () async {
+      _sameActor(openingActor, MasterAction.delete);
       final deleted = await ref
           .read(pengeluaranJenisControllerProvider.notifier)
           .delete(item.id);

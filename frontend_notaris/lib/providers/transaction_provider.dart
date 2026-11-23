@@ -1,21 +1,97 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../database/app_database.dart';
+import '../models/dashboard_transactions.dart';
+import '../models/transaction_monitoring.dart';
+import '../models/transaction_payments.dart';
 import '../repositories/transaction_repository.dart';
+import '../repositories/materai_stock_repository.dart';
 import 'database_provider.dart';
+import 'auth_provider.dart';
+import 'materai_provider.dart';
+import 'local_transaction_authorization_provider.dart';
+import '../models/auth_session.dart';
+
+bool canSaveNotarisTransaction(
+  AuthSession? session, {
+  required bool editing,
+  required bool completing,
+}) {
+  return session?.hasTransactionAccess(
+        create: !editing,
+        update: editing || completing,
+      ) ??
+      false;
+}
 
 final transactionRepositoryProvider = Provider<TransactionRepository>((ref) {
-  return TransactionRepository(ref.watch(appDatabaseProvider));
+  return TransactionRepository(
+    ref.watch(appDatabaseProvider),
+    authorization: ref.watch(localTransactionAuthorizationProvider),
+    materaiStock:
+        ref.watch(materaiStockBindingProvider)?.transactionUsageEnabled == true
+        ? ref.watch(materaiStockRepositoryProvider)
+        : null,
+  );
 });
 
 final transactionsProvider = StreamProvider.autoDispose<List<Transaksi>>((ref) {
   return ref.watch(transactionRepositoryProvider).watchAll();
 });
 
+final transactionPaymentStatementProvider = StreamProvider.autoDispose
+    .family<TransactionPaymentStatement, int>(
+      (ref, id) => ref
+          .watch(transactionRepositoryProvider)
+          .watchPaymentStatement(id, ref.watch(authControllerProvider).session),
+    );
+
+final monitoringPageProvider = StreamProvider.autoDispose
+    .family<MonitoringPage, MonitoringFilter>(
+      (ref, filter) =>
+          ref.watch(transactionRepositoryProvider).watchMonitoringPage(filter),
+    );
+final monitoringOptionsProvider = StreamProvider.autoDispose
+    .family<MonitoringOptions, String>(
+      (ref, domain) => ref
+          .watch(transactionRepositoryProvider)
+          .watchMonitoringOptions(domain),
+    );
+final monitoringTransactionProvider = StreamProvider.autoDispose
+    .family<MonitoringRow?, int>(
+      (ref, id) => ref
+          .watch(transactionRepositoryProvider)
+          .watchMonitoringTransaction(id),
+    );
+final monitoringDetailsProvider = StreamProvider.autoDispose
+    .family<List<TransaksiDetail>, int>(
+      (ref, id) =>
+          ref.watch(transactionRepositoryProvider).watchMonitoringDetails(id),
+    );
+
+final dashboardTransactionPageProvider = StreamProvider.autoDispose
+    .family<
+      DashboardTransactionPage,
+      ({DashboardTransactionList list, int year, int index})
+    >(
+      (ref, request) => ref
+          .watch(transactionRepositoryProvider)
+          .watchDashboardPage(
+            list: request.list,
+            year: request.year,
+            pageIndex: request.index,
+          ),
+    );
+
+final receivedPaymentsProvider = StreamProvider.autoDispose.family<double, int>(
+  (ref, year) =>
+      ref.watch(transactionRepositoryProvider).watchReceivedPayments(year),
+);
+
 final transactionControllerProvider =
     AsyncNotifierProvider<TransactionController, void>(
-  TransactionController.new,
-);
+      TransactionController.new,
+    );
 
 class TransactionController extends AsyncNotifier<void> {
   @override
@@ -41,10 +117,41 @@ class TransactionController extends AsyncNotifier<void> {
     String metodePembayaran = 'Cash',
     int jumlahMaterai = 0,
     String? catatan,
+    NotarisDeedInput? deed,
+    String? createUuid,
+    MateraiCorrectionIntent? materaiCorrection,
+    AuthSession? expectedSession,
+    AppDatabase? expectedDatabase,
   }) async {
+    final repository = _repository;
+    if (expectedDatabase != null &&
+        !identical(expectedDatabase, repository.db)) {
+      throw LocalTransactionDenied('profile');
+    }
+    final stockEnabled =
+        ref.read(materaiStockBindingProvider)?.transactionUsageEnabled == true;
+    if (jenisTransaksi == 'notaris' &&
+        !canSaveNotarisTransaction(
+          ref.read(authControllerProvider).session,
+          editing: id != null,
+          completing: status.trim().toLowerCase() == 'selesai',
+        )) {
+      throw StateError('Izin simpan Transaksi Notaris tidak tersedia.');
+    }
+    if (jenisTransaksi == 'ppat' &&
+        ref
+                .read(authControllerProvider)
+                .session
+                ?.hasTransactionAccess(
+                  create: id == null,
+                  update: id != null,
+                ) !=
+            true) {
+      throw StateError('Izin simpan Transaksi PPAT tidak tersedia.');
+    }
     state = const AsyncLoading();
     try {
-      final result = await _repository.save(
+      final result = await repository.save(
         id: id,
         nomorTransaksi: nomorTransaksi,
         jenisTransaksi: jenisTransaksi,
@@ -61,6 +168,11 @@ class TransactionController extends AsyncNotifier<void> {
         metodePembayaran: metodePembayaran,
         jumlahMaterai: jumlahMaterai,
         catatan: catatan,
+        deed: deed,
+        createUuid: createUuid,
+        materaiCorrection: materaiCorrection,
+        requireMateraiStockOut: stockEnabled,
+        expectedSession: expectedSession,
       );
       state = const AsyncData(null);
       return result;
@@ -70,10 +182,22 @@ class TransactionController extends AsyncNotifier<void> {
     }
   }
 
-  Future<bool> delete(int id) async {
+  Future<bool> delete(
+    int id, {
+    AuthSession? expectedSession,
+    AppDatabase? expectedDatabase,
+  }) async {
+    final repository = _repository;
+    if (expectedDatabase != null &&
+        !identical(expectedDatabase, repository.db)) {
+      throw LocalTransactionDenied('profile');
+    }
     state = const AsyncLoading();
     try {
-      final result = await _repository.delete(id);
+      final result = await repository.delete(
+        id,
+        expectedSession: expectedSession,
+      );
       state = const AsyncData(null);
       return result;
     } catch (error, stackTrace) {

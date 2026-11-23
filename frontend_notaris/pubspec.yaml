@@ -28,6 +28,8 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  crypto: ^3.0.7
+  ffi: ^2.2.0
   flutter:
     sdk: flutter
 
@@ -36,6 +38,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   drift: ^2.34.4
+  sqlite3: ^3.5.2
   sqlite3_flutter_libs: ^0.6.0+eol
   path_provider: ^2.1.6
   path: ^1.9.1
@@ -43,6 +46,10 @@ dependencies:
   flutter_riverpod: ^2.6.1
   uuid: ^4.6.0
   flutter_secure_storage: ^9.2.4
+  pdf: ^3.13.1
+  printing: ^5.15.1
+  excel_plus: ^2.29.2
+  file_selector: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -65,7 +72,11 @@ flutter:
   assets:
     - assets/images/login_background.jpg
     - assets/images/logo_notaris_ppat.png
+    - assets/images/app_logo.png
     - assets/images/logoblitaris.png
+    - assets/fonts/NotoSans-Regular.ttf
+    - assets/fonts/NotoSans-Bold.ttf
+    - assets/fonts/NotoSans-OFL.txt
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

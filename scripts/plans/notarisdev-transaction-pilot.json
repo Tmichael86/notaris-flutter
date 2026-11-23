@@ -1,0 +1,33 @@
+{
+  "target": "127.0.0.1:5432/notarisdev",
+  "base_url": "http://127.0.0.1:8081/api/v1",
+  "deployment": "NOTARISDEV SYNTHETIC v1",
+  "account_id": 2001,
+  "group_id": 11,
+  "generation": "14af5452144b42d0be2ad88bac41b656",
+  "device": "ndpetugas-b49369a4fdaf38d731905f080cddc68c",
+  "master": {
+    "uuid": "19566301-0540-4e1a-8b17-948bc3dec96e",
+    "revision": 1,
+    "sequence": 6,
+    "price_uuid": "ef324a08-d51f-49ea-b4f9-08a0c8305d96",
+    "category_uuid": "fa000002-0000-4000-8000-000000000001",
+    "price": "100000",
+    "estimate": "2 hari"
+  },
+  "pemohon_uuid": "fa000001-0000-4000-8000-000000000001",
+  "petugas_uuid": "e85be759-1e15-4b2f-8243-120131475207",
+  "master_last_seq": 6,
+  "transaction_last_seq": 8,
+  "draft": {
+    "label": "PILOT-DEV-NOTARIS-01",
+    "uuid": null,
+    "domain": "notaris",
+    "operation": "create",
+    "expected_revision": 0,
+    "status": "Baru",
+    "service_cost": 100000,
+    "initial_payment": 0,
+    "max_creates": 1
+  }
+}

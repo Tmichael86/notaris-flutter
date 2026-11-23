@@ -1,3 +1,5 @@
+import '../support/local_master_test_authority.dart';
+
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,7 +13,10 @@ void main() {
 
   setUp(() {
     database = AppDatabase.forTesting(NativeDatabase.memory());
-    repository = PemohonRepository(database);
+    repository = PemohonRepository(
+      database,
+      authorization: masterTestAuthority(database),
+    );
   });
 
   tearDown(() async {
